@@ -6,79 +6,102 @@ const {
   expectEvent,
   expectRevert,
 } = require("@openzeppelin/test-helpers");
+const { getDefaultArgs } = require("./utils.js");
 
 const Factory = contract.fromArtifact("Factory");
 const Instrument = contract.fromArtifact("Instrument");
 const DToken = contract.fromArtifact("DToken");
 
 describe("Factory", function () {
-  const [owner] = accounts;
-  const name = "ETH Future Expiry 12/25/20";
-  const symbol = "dETH-1225";
-  const expiry = "1608883200";
-  const colRatio = ether("1.5");
-  const collateralAsset = "0x0000000000000000000000000000000000000000";
-  const targetAsset = "0x0000000000000000000000000000000000000001";
+  const [owner, user] = accounts;
+  // const name = "ETH Future Expiry 12/25/20";
+  // const symbol = "dETH-1225";
+  // const expiry = "1608883200";
+  // const colRatio = ether("1.5");
+  // const collateralAsset = "0x0000000000000000000000000000000000000000";
+  // const targetAsset = "0x0000000000000000000000000000000000000001";
 
   before(async function () {
-    this.factory = await Factory.new();
-    this.result = await this.factory.newInstrument(
-      name,
-      symbol,
-      expiry,
-      colRatio,
-      collateralAsset,
+    const {
+      factory,
+      colAsset,
       targetAsset,
-      { from: owner }
-    );
+      instrument,
+      dToken,
+      args,
+    } = await getDefaultArgs(owner, user);
 
-    this.contractAddress = this.result.logs[0].args.instrumentAddress;
-    this.dTokenAddress = this.result.logs[0].args.dTokenAddress;
+    this.factory = factory;
+    this.collateralAsset = colAsset;
+    this.targetAsset = targetAsset;
+    this.contract = instrument;
+    this.dToken = dToken;
+    this.args = args;
+
+    this.contractAddress = instrument.address;
+    this.dTokenAddress = dToken.address;
   });
 
   it("initializes contract correctly", async function () {
-    const contract = await Instrument.at(this.contractAddress);
-
-    assert.equal(await contract.name(), name);
-    assert.equal(await contract.symbol(), symbol);
-    assert.equal((await contract.expiry()).toString(), expiry);
+    assert.equal(await this.contract.name(), this.args.name);
+    assert.equal(await this.contract.symbol(), this.args.symbol);
+    assert.equal((await this.contract.expiry()).toString(), this.args.expiry);
     assert.equal(
-      (await contract.collateralizationRatio()).toString(),
-      colRatio
+      (await this.contract.collateralizationRatio()).toString(),
+      this.args.colRatio
     );
-    assert.equal(await contract.collateralAsset(), collateralAsset);
-    assert.equal(await contract.targetAsset(), targetAsset);
-  });
-
-  it("emits event correctly", async function () {
-    expectEvent(this.result, "InstrumentCreated", {
-      name: name,
-      instrumentAddress: this.contractAddress,
-      dTokenAddress: this.dTokenAddress,
-    });
+    assert.equal(
+      await this.contract.collateralAsset(),
+      this.collateralAsset.address
+    );
+    assert.equal(await this.contract.targetAsset(), this.targetAsset.address);
   });
 
   it("adds instrument to mapping", async function () {
-    assert.equal(await this.factory.getInstrument(name), this.contractAddress);
+    assert.equal(
+      await this.factory.getInstrument(this.args.name),
+      this.contract.address
+    );
+  });
+
+  it("creates dToken correctly", async function () {
+    assert.equal(await this.dToken.name(), this.args.name);
+    assert.equal(await this.dToken.symbol(), this.args.symbol);
   });
 
   it("reverts if instrument already exists", async function () {
     const newContract = this.factory.newInstrument(
-      name,
-      symbol,
-      expiry,
-      colRatio,
-      collateralAsset,
-      targetAsset,
+      this.args.name,
+      this.args.symbol,
+      this.args.expiry,
+      this.args.colRatio,
+      this.collateralAsset.address,
+      this.targetAsset.address,
       { from: owner }
     );
 
     expectRevert(newContract, "Instrument already exists");
   });
 
-  it("creates dToken correctly", async function () {
-    const contract = await DToken.at(this.dTokenAddress);
-    assert.equal(await contract.name(), name);
-    assert.equal(await contract.symbol(), symbol);
+  it("emits event correctly", async function () {
+    const name = "test";
+    const res = await this.factory.newInstrument(
+      name,
+      "test",
+      12345,
+      1,
+      "0x0000000000000000000000000000000000000000",
+      "0x0000000000000000000000000000000000000001",
+      { from: owner }
+    );
+
+    const instrument = await Instrument.at(res.logs[0].args.instrumentAddress);
+    const dToken = await instrument.dToken();
+
+    expectEvent(res, "InstrumentCreated", {
+      name: name,
+      instrumentAddress: instrument.address,
+      dTokenAddress: dToken,
+    });
   });
 });

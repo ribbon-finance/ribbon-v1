@@ -19,6 +19,7 @@ describe("Instrument", function () {
       targetAsset,
       instrument,
       dToken,
+      args,
     } = await getDefaultArgs(owner, user);
 
     this.factory = factory;
@@ -26,6 +27,7 @@ describe("Instrument", function () {
     this.targetAsset = targetAsset;
     this.contract = instrument;
     this.dToken = dToken;
+    this.args = args;
 
     await this.collateralAsset.approve(this.contract.address, supply, {
       from: user,

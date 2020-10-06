@@ -5,47 +5,27 @@ const {
   expectEvent, // Assertions for emitted events
   expectRevert, // Assertions for transactions that should fail
 } = require("@openzeppelin/test-helpers");
-const helper = require("./utils.js");
-
-const Factory = contract.fromArtifact("Factory");
-const Instrument = contract.fromArtifact("Instrument");
-const MockERC20 = contract.fromArtifact("MockERC20");
-const DToken = contract.fromArtifact("DToken");
+const helper = require("./helper.js");
+const { getDefaultArgs } = require("./utils.js");
 
 describe("Instrument", function () {
   const [owner, user, user2] = accounts;
   const supply = ether("1000000000000");
-  const name = "ETH Future Expiry 12/25/20";
-  const symbol = "dETH-1225";
-  const expiry = "1608883200";
-  const colRatio = ether("1.5");
 
   before(async function () {
-    this.factory = await Factory.new();
-    this.collateralAsset = await MockERC20.new(
-      "Dai Stablecoin",
-      "Dai",
-      supply,
-      {
-        from: user,
-      }
-    );
-    this.targetAsset = await MockERC20.new("Wrapped Bitcoin", "WBTC", supply, {
-      from: user,
-    });
+    const {
+      factory,
+      colAsset,
+      targetAsset,
+      instrument,
+      dToken,
+    } = await getDefaultArgs(owner, user);
 
-    const result = await this.factory.newInstrument(
-      name,
-      symbol,
-      expiry,
-      colRatio,
-      this.collateralAsset.address,
-      this.targetAsset.address,
-      { from: owner }
-    );
-
-    this.contract = await Instrument.at(result.logs[0].args.instrumentAddress);
-    this.dToken = await DToken.at(await this.contract.dToken());
+    this.factory = factory;
+    this.collateralAsset = colAsset;
+    this.targetAsset = targetAsset;
+    this.contract = instrument;
+    this.dToken = dToken;
 
     await this.collateralAsset.approve(this.contract.address, supply, {
       from: user,

@@ -90,7 +90,11 @@ contract Instrument is ReentrancyGuard {
      */
     function mintInternal(uint _amount) internal {
         DToken dTokenContract = DToken(dToken);
-      
+
+        // Check collat ratio
+
+        
+
         dTokenContract.mint(msg.sender, _amount);
     }
 }

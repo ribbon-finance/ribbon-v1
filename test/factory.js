@@ -1,25 +1,13 @@
-const { accounts, contract, web3 } = require("@openzeppelin/test-environment");
+const { accounts, contract } = require("@openzeppelin/test-environment");
 const { assert } = require("chai");
 
-const {
-  ether,
-  expectEvent,
-  expectRevert,
-} = require("@openzeppelin/test-helpers");
+const { expectEvent, expectRevert } = require("@openzeppelin/test-helpers");
 const { getDefaultArgs } = require("./utils.js");
 
-const Factory = contract.fromArtifact("Factory");
 const Instrument = contract.fromArtifact("Instrument");
-const DToken = contract.fromArtifact("DToken");
 
 describe("Factory", function () {
   const [owner, user] = accounts;
-  // const name = "ETH Future Expiry 12/25/20";
-  // const symbol = "dETH-1225";
-  // const expiry = "1608883200";
-  // const colRatio = ether("1.5");
-  // const collateralAsset = "0x0000000000000000000000000000000000000000";
-  // const targetAsset = "0x0000000000000000000000000000000000000001";
 
   before(async function () {
     const {

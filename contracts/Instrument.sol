@@ -60,6 +60,21 @@ contract Instrument is ReentrancyGuard, DSMath {
     event Deposited(address account, uint amount);
 
     /**
+     * @notice Emitted when an account deposits collateral
+     */
+    event Minted(address account, uint amount);
+
+    /**
+     * @notice Gets the collateral and debt of a vault
+     * @param _user user's address
+     */
+    function getVault(address _user) public view 
+    returns(uint _collateral, uint _dTokenDebt) {
+        Vault storage vault = vaults[_user];
+        return (vault.collateral, vault.dTokenDebt);
+    }
+
+    /**
      * @notice Deposits collateral into the system. Calls the `depositInteral` function
      * @param _amount is amount of collateral to deposit
      */
@@ -112,6 +127,17 @@ contract Instrument is ReentrancyGuard, DSMath {
 
         DToken dTokenContract = DToken(dToken);
         dTokenContract.mint(msg.sender, _amount);
+        emit Minted(msg.sender, _amount);
+    }
+
+    /**
+     * @notice Deposits collateral and mints dToken atomically
+     * @param _collateral is amount of collateral to deposit
+     * @param _dToken is amount of dTokens to mint
+     */
+    function depositAndMint(uint256 _collateral, uint256 _dToken) external nonReentrant {
+        depositInternal(_collateral);
+        mintInternal(_dToken);
     }
 
     /**

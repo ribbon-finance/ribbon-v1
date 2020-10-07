@@ -36,14 +36,10 @@ describe("Instrument", function () {
     });
 
     snapShotFresh = await helper.takeSnapshot();
-    this.snapshotFresh = snapShotFresh["result"];
+    snapshotFreshId = snapShotFresh["result"];
   });
 
   describe("#deposit", () => {
-    before(async function () {
-      await helper.revertToSnapShot(this.snapshotFresh);
-    });
-
     it("emits event correctly", async function () {
       const amount = ether("1");
       const deposited = await this.contract.deposit(amount, {
@@ -72,7 +68,7 @@ describe("Instrument", function () {
 
   describe("#mint", () => {
     before(async function () {
-      await helper.revertToSnapShot(this.snapshotFresh);
+      await helper.revertToSnapShot(snapshotFreshId);
 
       const dataProvider = await MockDataProvider.at(
         await this.contract.dataProvider()
@@ -89,14 +85,58 @@ describe("Instrument", function () {
       );
     });
 
-    it("mints correctly", async function () {
+    it("mints correctly and emits event", async function () {
       // Deposit 500 Dai
       const amount = ether("500");
       await this.contract.deposit(amount, { from: user });
 
       // Mint 1 dETH
       const mintAmount = ether("1");
-      await this.contract.mint(mintAmount, { from: user });
+      const minted = await this.contract.mint(mintAmount, { from: user });
+
+      expectEvent(minted, "Minted", {
+        account: user,
+        amount: mintAmount,
+      });
+
+      res = await this.contract.getVault(user);
+      assert.equal(res._collateral.toString(), amount);
+      assert.equal(res._dTokenDebt.toString(), mintAmount);
+    });
+
+    it("reverts if mint value too high", async function () {
+      const mintAmount = ether("100");
+      const minted = this.contract.mint(mintAmount, { from: user });
+      expectRevert(minted, "Collateralization ratio too low to mint");
+    });
+  });
+
+  describe("#depositAndMint", () => {
+    it("deposits and mints correctly", async function () {
+      vault = await this.contract.getVault(user);
+      const startCol = vault._collateral;
+      const startDebt = vault._dTokenDebt;
+      // Deposit 500 Dai
+      const amount = ether("500");
+      // Mint 1 dETH
+      const mintAmount = ether("1");
+      const res = await this.contract.depositAndMint(amount, mintAmount, {
+        from: user,
+      });
+
+      expectEvent(res, "Deposited", {
+        account: user,
+        amount: amount,
+      });
+
+      expectEvent(res, "Minted", {
+        account: user,
+        amount: mintAmount,
+      });
+
+      vault = await this.contract.getVault(user);
+      assert.equal(vault._collateral.toString(), startCol.add(amount));
+      assert.equal(vault._dTokenDebt.toString(), startDebt.add(mintAmount));
     });
   });
 });

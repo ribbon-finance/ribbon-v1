@@ -68,8 +68,9 @@ async function getDefaultArgs(admin, owner, user) {
     { from: owner }
   );
 
-  const instrument = await Instrument.at(res.logs[0].args.instrumentAddress);
-  const dToken = await DToken.at(await instrument.dToken());
+  const instrument = await Instrument.at(res.logs[1].args.instrumentAddress);
+  const dTokenAddress = await instrument.dToken();
+  const dToken = await DToken.at(dTokenAddress);
 
   const args = {
     supply: supply,

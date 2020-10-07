@@ -83,7 +83,7 @@ describe("Factory", function () {
       { from: owner }
     );
 
-    const instrument = await Instrument.at(res.logs[0].args.instrumentAddress);
+    const instrument = await Instrument.at(res.logs[1].args.instrumentAddress);
     const dToken = await instrument.dToken();
 
     expectEvent(res, "InstrumentCreated", {

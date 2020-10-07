@@ -28,8 +28,7 @@ contract Instrument is ReentrancyGuard, DSMath {
         uint _expiry,
         uint _collateralizationRatio,
         address _collateralAsset,
-        address _targetAsset,
-        address _dToken
+        address _targetAsset
     ) public {
         name = _name;
         symbol = _symbol;
@@ -37,8 +36,10 @@ contract Instrument is ReentrancyGuard, DSMath {
         collateralizationRatio = _collateralizationRatio;
         collateralAsset = _collateralAsset;
         targetAsset = _targetAsset;
-        dToken = _dToken;
         dataProvider = _dataProvider;
+
+        DToken newDToken = new DToken(_name, _symbol);
+        dToken = address(newDToken);
     }
    
     /**

@@ -4,7 +4,6 @@ pragma solidity ^0.6.2;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./lib/upgrades/Initializable.sol";
 import "./Instrument.sol";
-import "./DToken.sol";
 
 contract Factory is Initializable, Ownable {
     /**
@@ -57,8 +56,6 @@ contract Factory is Initializable, Ownable {
     ) public returns (address instrumentAddress) {
         require(instruments[_name] == address(0), "Instrument already exists");
 
-        DToken dToken = new DToken(_name, _symbol);
-
         Instrument instrument = new Instrument(
             dataProvider,
             _name,
@@ -66,13 +63,10 @@ contract Factory is Initializable, Ownable {
             _expiry,
             _collateralizationRatio,
             _collateralAsset,
-            _targetAsset,
-            address(dToken)
+            _targetAsset
         );
-
-        dToken.setInstrumentAsOwner(address(instrument));
         instruments[_name] = address(instrument);
-        emit InstrumentCreated(_name, address(instrument), address(dToken));
+        emit InstrumentCreated(_name, address(instrument), instrument.dToken());
 
         instrumentAddress = address(instrument);
     }

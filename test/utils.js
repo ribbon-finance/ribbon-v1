@@ -5,6 +5,7 @@ const Factory = contract.fromArtifact("Factory");
 const Instrument = contract.fromArtifact("Instrument");
 const MockERC20 = contract.fromArtifact("MockERC20");
 const DToken = contract.fromArtifact("DToken");
+const MockDataProvider = contract.fromArtifact("MockDataProvider");
 
 module.exports = {
   getDefaultArgs,
@@ -15,13 +16,14 @@ async function getDefaultArgs(owner, user) {
   const name = "ETH Future Expiry 12/25/20";
   const symbol = "dETH-1225";
   const expiry = "1608883200";
-  const colRatio = ether("1.5");
+  const colRatio = ether("1.15");
 
-  const factory = await Factory.new({ from: owner });
+  const dataProvider = await MockDataProvider.new({ from: owner });
+  const factory = await Factory.new(dataProvider.address, { from: owner });
   const colAsset = await MockERC20.new("Dai Stablecoin", "Dai", supply, {
     from: user,
   });
-  const targetAsset = await MockERC20.new("Wrapped Bitcoin", "WBTC", supply, {
+  const targetAsset = await MockERC20.new("Ether", "ETH", supply, {
     from: user,
   });
   const res = await factory.newInstrument(

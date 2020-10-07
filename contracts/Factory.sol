@@ -6,6 +6,18 @@ import "./DToken.sol";
 
 contract Factory {
     /**
+     * @notice Address of dataProvider contract
+     */
+    address public dataProvider;
+
+    /**
+     * @notice Constructor takes a DataProvider contract address
+     */
+    constructor(address _dataProvider) public {
+        dataProvider = _dataProvider;
+    }
+
+    /**
      * @notice Mapping of created instruments
      */
     mapping(string => address) public instruments;
@@ -46,6 +58,7 @@ contract Factory {
         );
 
         Instrument instrument = new Instrument(
+            dataProvider,
             _name,
             _symbol,
             _expiry,

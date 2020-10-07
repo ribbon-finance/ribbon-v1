@@ -8,6 +8,8 @@ const {
 const helper = require("./helper.js");
 const { getDefaultArgs } = require("./utils.js");
 
+const MockDataProvider = contract.fromArtifact("MockDataProvider");
+
 describe("Instrument", function () {
   const [owner, user, user2] = accounts;
   const supply = ether("1000000000000");
@@ -71,14 +73,30 @@ describe("Instrument", function () {
   describe("#mint", () => {
     before(async function () {
       await helper.revertToSnapShot(this.snapshotFresh);
+
+      const dataProvider = await MockDataProvider.at(
+        await this.contract.dataProvider()
+      );
+      // Set Price of ETH/ETH to 1
+      await dataProvider.setPrice(this.targetAsset.address, ether("1"), {
+        from: owner,
+      });
+      // Set Price of DAI/ETH to 0.002983
+      await dataProvider.setPrice(
+        this.collateralAsset.address,
+        ether("0.002983"),
+        { from: owner }
+      );
     });
 
     it("mints correctly", async function () {
-      const mintAmount = "1";
-      await this.contract.mint(mintAmount, {
-        from: user2,
-      });
-      assert.equal(await this.dToken.balanceOf(user2), mintAmount);
+      // Deposit 500 Dai
+      const amount = ether("500");
+      await this.contract.deposit(amount, { from: user });
+
+      // Mint 1 dETH
+      const mintAmount = ether("1");
+      await this.contract.mint(mintAmount, { from: user });
     });
   });
 });

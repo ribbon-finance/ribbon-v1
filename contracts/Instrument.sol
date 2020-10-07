@@ -6,8 +6,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import "./DToken.sol";
+import "./DataProviderInterface.sol";
+import "./lib/DSMath.sol";
 
-contract Instrument is ReentrancyGuard {
+contract Instrument is ReentrancyGuard, DSMath {
     using SafeERC20 for IERC20;
 
     string public name;
@@ -17,8 +19,10 @@ contract Instrument is ReentrancyGuard {
     address public collateralAsset;
     address public targetAsset;
     address public dToken;
+    address public dataProvider;
 
     constructor(
+        address _dataProvider,
         string memory _name,
         string memory _symbol,
         uint _expiry,
@@ -34,6 +38,7 @@ contract Instrument is ReentrancyGuard {
         collateralAsset = _collateralAsset;
         targetAsset = _targetAsset;
         dToken = _dToken;
+        dataProvider = _dataProvider;
     }
    
     /**
@@ -89,13 +94,43 @@ contract Instrument is ReentrancyGuard {
      * @param _amount is amount of dToken to mint
      */
     function mintInternal(uint _amount) internal {
+        DataProviderInterface data = DataProviderInterface(dataProvider);
+        Vault storage vault = vaults[msg.sender];
+
+        uint newDebt = add(vault.dTokenDebt, _amount);
+        uint newColRatio = computeColRatio(
+            data.getPrice(collateralAsset),
+            data.getPrice(targetAsset),
+            vault.collateral,
+            newDebt);
+
+        require(
+            newColRatio >= collateralizationRatio,
+            "Collateralization ratio too low to mint"
+        );
+        vault.dTokenDebt = newDebt;
+
         DToken dTokenContract = DToken(dToken);
-
-        // Check collat ratio
-
-        
-
         dTokenContract.mint(msg.sender, _amount);
+    }
+
+    /**
+     * @notice Computes col ratio
+     * @dev 150% CR will be represented as 1.5 * WAD
+     * @param _colPrice is the spot price of collateral asset in WAD
+     * @param _targetPrice is the spot price of the target asset in WAD
+     * @param _colAmount is the amount of collateral in WAD
+     * @param _targetAmount is the amount of dTokens in WAD
+     */
+    function computeColRatio(
+        uint _colPrice,
+        uint _targetPrice,
+        uint _colAmount,
+        uint _targetAmount
+    ) internal pure returns (uint) {
+        uint col = wmul(_colPrice, _colAmount);
+        uint debt = wmul(_targetAmount, _targetPrice);
+        return wdiv(col, debt);
     }
 }
 

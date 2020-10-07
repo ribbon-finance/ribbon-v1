@@ -1,21 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.6.2;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "./lib/upgrades/Initializable.sol";
 import "./Instrument.sol";
 import "./DToken.sol";
 
-contract Factory {
+contract Factory is Initializable, Ownable {
     /**
      * @notice Address of dataProvider contract
      */
     address public dataProvider;
-
-    /**
-     * @notice Constructor takes a DataProvider contract address
-     */
-    constructor(address _dataProvider) public {
-        dataProvider = _dataProvider;
-    }
 
     /**
      * @notice Mapping of created instruments
@@ -32,10 +27,20 @@ contract Factory {
     );
 
     /**
+     * @notice Constructor takes a DataProvider contract address
+     */
+    function initialize(address _dataProvider) public initializer {
+        dataProvider = _dataProvider;
+    }
+
+    /**
      * @notice Getter for getting contract address by instrument name
      */
-    function getInstrument(string memory _name) 
-    public view returns(address instrumentAddress) {
+    function getInstrument(string memory _name)
+        public
+        view
+        returns (address instrumentAddress)
+    {
         instrumentAddress = instruments[_name];
     }
 
@@ -45,17 +50,14 @@ contract Factory {
     function newInstrument(
         string memory _name,
         string memory _symbol,
-        uint _expiry,
-        uint _collateralizationRatio,
+        uint256 _expiry,
+        uint256 _collateralizationRatio,
         address _collateralAsset,
         address _targetAsset
-    ) public returns(address instrumentAddress) {
+    ) public returns (address instrumentAddress) {
         require(instruments[_name] == address(0), "Instrument already exists");
 
-        DToken dToken = new DToken(
-            _name,
-            _symbol
-        );
+        DToken dToken = new DToken(_name, _symbol);
 
         Instrument instrument = new Instrument(
             dataProvider,
@@ -69,13 +71,9 @@ contract Factory {
         );
 
         dToken.setInstrumentAsOwner(address(instrument));
-        instruments[_name] = address(instrument);   
-        emit InstrumentCreated(
-            _name,
-            address(instrument),
-            address(dToken)
-        );
-        
+        instruments[_name] = address(instrument);
+        emit InstrumentCreated(_name, address(instrument), address(dToken));
+
         instrumentAddress = address(instrument);
     }
 }

@@ -1,6 +1,10 @@
 const { contract } = require("@openzeppelin/test-environment");
 const { ether } = require("@openzeppelin/test-helpers");
+const { encodeCall } = require("@openzeppelin/upgrades");
 
+const AdminUpgradeabilityProxy = contract.fromArtifact(
+  "AdminUpgradeabilityProxy"
+);
 const Factory = contract.fromArtifact("Factory");
 const Instrument = contract.fromArtifact("Instrument");
 const MockERC20 = contract.fromArtifact("MockERC20");
@@ -9,9 +13,30 @@ const MockDataProvider = contract.fromArtifact("MockDataProvider");
 
 module.exports = {
   getDefaultArgs,
+  deployProxy,
 };
 
-async function getDefaultArgs(owner, user) {
+async function deployProxy(
+  LogicContract,
+  admin,
+  initializeTypes,
+  initializeArgs
+) {
+  const logic = await LogicContract.new();
+
+  const initBytes = encodeCall("initialize", initializeTypes, initializeArgs);
+  const proxy = await AdminUpgradeabilityProxy.new(
+    logic.address,
+    admin,
+    initBytes,
+    {
+      from: admin,
+    }
+  );
+  return await LogicContract.at(proxy.address);
+}
+
+async function getDefaultArgs(admin, owner, user) {
   const supply = ether("1000000000000");
   const name = "ETH Future Expiry 12/25/20";
   const symbol = "dETH-1225";
@@ -19,7 +44,14 @@ async function getDefaultArgs(owner, user) {
   const colRatio = ether("1.15");
 
   const dataProvider = await MockDataProvider.new({ from: owner });
-  const factory = await Factory.new(dataProvider.address, { from: owner });
+
+  const factory = await deployProxy(
+    Factory,
+    admin,
+    ["address"],
+    [dataProvider.address]
+  );
+
   const colAsset = await MockERC20.new("Dai Stablecoin", "Dai", supply, {
     from: user,
   });

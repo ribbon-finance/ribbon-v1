@@ -7,7 +7,7 @@ const { getDefaultArgs } = require("./utils.js");
 const Instrument = contract.fromArtifact("Instrument");
 
 describe("Factory", function () {
-  const [owner, user] = accounts;
+  const [admin, owner, user] = accounts;
 
   before(async function () {
     const {
@@ -17,7 +17,7 @@ describe("Factory", function () {
       instrument,
       dToken,
       args,
-    } = await getDefaultArgs(owner, user);
+    } = await getDefaultArgs(admin, owner, user);
 
     this.factory = factory;
     this.collateralAsset = colAsset;

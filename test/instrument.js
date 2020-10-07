@@ -11,7 +11,7 @@ const { getDefaultArgs } = require("./utils.js");
 const MockDataProvider = contract.fromArtifact("MockDataProvider");
 
 describe("Instrument", function () {
-  const [owner, user, user2] = accounts;
+  const [admin, owner, user, user2] = accounts;
   const supply = ether("1000000000000");
 
   before(async function () {
@@ -22,7 +22,7 @@ describe("Instrument", function () {
       instrument,
       dToken,
       args,
-    } = await getDefaultArgs(owner, user);
+    } = await getDefaultArgs(admin, owner, user);
 
     this.factory = factory;
     this.collateralAsset = colAsset;

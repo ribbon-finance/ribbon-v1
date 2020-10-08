@@ -20,6 +20,8 @@ contract Instrument is ReentrancyGuard, DSMath {
     address public targetAsset;
     address public dToken;
     address public dataProvider;
+    bool public expired;
+    uint public settlePrice;
 
     constructor(
         address _dataProvider,
@@ -30,6 +32,8 @@ contract Instrument is ReentrancyGuard, DSMath {
         address _collateralAsset,
         address _targetAsset
     ) public {
+        require(block.timestamp < _expiry, "Cannot initialize instrument with expiry that has already passed");
+
         name = _name;
         symbol = _symbol;
         expiry = _expiry;
@@ -38,8 +42,11 @@ contract Instrument is ReentrancyGuard, DSMath {
         targetAsset = _targetAsset;
         dataProvider = _dataProvider;
 
+        // Init new DToken
         DToken newDToken = new DToken(_name, _symbol);
         dToken = address(newDToken);
+
+        expired = false;
     }
    
     /**
@@ -66,6 +73,35 @@ contract Instrument is ReentrancyGuard, DSMath {
     event Minted(address account, uint amount);
 
     /**
+     * @notice Emitted when the instrument is settled
+     */
+    event Settled(
+        uint timestamp,
+        uint settlePrice,
+        uint targetAssetPrice,
+        uint collateralAssetPrice
+    );
+
+    /**
+     * @notice Changes `expired` to True if timestamp is greater than expiry
+     * It calculates the `settlePrice` with the current prices of target and
+     * collateral assets, then sets them in stone.
+     */
+    function settle() public {
+        require(block.timestamp > expiry, "Instrument has not expired");
+        expired = true;
+
+        // Set settlePrice to the current price of target and collat assets
+        DataProviderInterface data = DataProviderInterface(dataProvider);
+        uint targetAssetPrice = data.getPrice(targetAsset);
+        uint collateralAssetPrice = data.getPrice(collateralAsset);
+        
+        settlePrice = computeSettlePrice(targetAssetPrice, collateralAssetPrice);
+
+        emit Settled(block.timestamp, settlePrice, targetAssetPrice, collateralAssetPrice);
+    }
+
+    /**
      * @notice Gets the collateral and debt of a vault
      * @param _user user's address
      */
@@ -88,6 +124,8 @@ contract Instrument is ReentrancyGuard, DSMath {
      * @param _amount is amount of collateral to deposit
      */
     function depositInternal(uint _amount) internal {
+        require(!expired, "Instrument must not be expired");
+
         IERC20 colToken = IERC20(collateralAsset);
       
         Vault storage vault = vaults[msg.sender];
@@ -110,6 +148,7 @@ contract Instrument is ReentrancyGuard, DSMath {
      * @param _amount is amount of dToken to mint
      */
     function mintInternal(uint _amount) internal {
+        require(!expired, "Instrument must not be expired");
         DataProviderInterface data = DataProviderInterface(dataProvider);
         Vault storage vault = vaults[msg.sender];
 
@@ -158,6 +197,19 @@ contract Instrument is ReentrancyGuard, DSMath {
         uint col = wmul(_colPrice, _colAmount);
         uint debt = wmul(_targetAmount, _targetPrice);
         return wdiv(col, debt);
+    }
+
+    /**
+     * @notice Returns the number of collateralAsset that can be exchanged for 1 dToken.
+     * @dev 1:1 is denominated as 1*WAD
+     * @param _targetPrice is the spot price of the target asset in WAD
+     * @param _colPrice is the spot price of collateral asset in WAD
+     */
+    function computeSettlePrice(
+        uint _targetPrice,
+        uint _colPrice
+    ) internal pure returns (uint) {
+        return wdiv(_targetPrice, _colPrice);
     }
 }
 

@@ -2,6 +2,7 @@ const { accounts, contract, web3 } = require("@openzeppelin/test-environment");
 const { assert } = require("chai");
 const {
   ether,
+  time,
   expectEvent, // Assertions for emitted events
   expectRevert, // Assertions for transactions that should fail
 } = require("@openzeppelin/test-helpers");
@@ -137,6 +138,105 @@ describe("Instrument", function () {
       vault = await this.contract.getVault(user);
       assert.equal(vault._collateral.toString(), startCol.add(amount));
       assert.equal(vault._dTokenDebt.toString(), startDebt.add(mintAmount));
+    });
+  });
+
+  describe("#settle", () => {
+    before(async function () {
+      const dataProvider = await MockDataProvider.at(
+        await this.contract.dataProvider()
+      );
+      // Set Price of ETH/ETH to 1
+      await dataProvider.setPrice(this.targetAsset.address, ether("1"), {
+        from: owner,
+      });
+      // Set Price of DAI/ETH to 0.01
+      await dataProvider.setPrice(this.collateralAsset.address, ether("0.01"), {
+        from: owner,
+      });
+    });
+
+    beforeEach(async () => {
+      snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
+    it("fails if not expired", async function () {
+      const res = this.contract.settle({ from: user });
+      expectRevert(res, "Instrument has not expired");
+    });
+
+    it("works if instrument is expired, and emits correct events", async function () {
+      const newTimestamp = 1 + parseInt(this.args.expiry);
+      time.increaseTo(newTimestamp);
+
+      const settled = await this.contract.settle({ from: user });
+      assert.equal(await this.contract.expired(), true);
+
+      expectEvent(settled, "Settled", {
+        timestamp: newTimestamp.toString(),
+        settlePrice: ether("100"),
+        targetAssetPrice: ether("1"),
+        collateralAssetPrice: ether("0.01"),
+      });
+
+      assert.equal(
+        (await this.contract.settlePrice()).toString(),
+        ether("100")
+      );
+    });
+
+    it("works with different prices", async function () {
+      const dataProvider = await MockDataProvider.at(
+        await this.contract.dataProvider()
+      );
+
+      await dataProvider.setPrice(this.targetAsset.address, ether("0.01"), {
+        from: owner,
+      });
+      await dataProvider.setPrice(this.collateralAsset.address, ether("1"), {
+        from: owner,
+      });
+
+      const newTimestamp = 1 + parseInt(this.args.expiry);
+      time.increaseTo(newTimestamp);
+
+      const settled = await this.contract.settle({ from: user });
+      assert.equal(await this.contract.expired(), true);
+
+      expectEvent(settled, "Settled", {
+        timestamp: newTimestamp.toString(),
+        settlePrice: ether("0.01"),
+        targetAssetPrice: ether("0.01"),
+        collateralAssetPrice: ether("1"),
+      });
+    });
+
+    it("cannot mint and deposit after settled", async function () {
+      const newTimestamp = 1 + parseInt(this.args.expiry);
+      time.increaseTo(newTimestamp);
+
+      const settled = await this.contract.settle({ from: user });
+      assert.equal(await this.contract.expired(), true);
+
+      const deposited = this.contract.deposit("1", {
+        from: user,
+      });
+      expectRevert(deposited, "Instrument must not be expired");
+
+      const mint = this.contract.mint("1", {
+        from: user,
+      });
+      expectRevert(mint, "Instrument must not be expired");
+
+      const depositAndMint = this.contract.depositAndMint("1", "1", {
+        from: user,
+      });
+      expectRevert(depositAndMint, "Instrument must not be expired");
     });
   });
 });

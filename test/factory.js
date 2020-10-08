@@ -43,6 +43,7 @@ describe("Factory", function () {
       this.collateralAsset.address
     );
     assert.equal(await this.contract.targetAsset(), this.targetAsset.address);
+    assert.equal(await this.contract.expired(), false);
   });
 
   it("adds instrument to mapping", async function () {
@@ -76,7 +77,7 @@ describe("Factory", function () {
     const res = await this.factory.newInstrument(
       name,
       "test",
-      12345,
+      32503680000,
       1,
       "0x0000000000000000000000000000000000000000",
       "0x0000000000000000000000000000000000000001",

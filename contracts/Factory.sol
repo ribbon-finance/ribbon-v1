@@ -4,18 +4,9 @@ pragma solidity ^0.6.2;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./lib/upgrades/Initializable.sol";
 import "./Instrument.sol";
+import "./FactoryStorage.sol";
 
-contract Factory is Initializable, Ownable {
-    /**
-     * @notice Address of dataProvider contract
-     */
-    address public dataProvider;
-
-    /**
-     * @notice Mapping of created instruments
-     */
-    mapping(string => address) public instruments;
-
+contract Factory is Initializable, Ownable, FactoryStorage {
     /**
      * @notice Emitted when a new instrument is created
      */

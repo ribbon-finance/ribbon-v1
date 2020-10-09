@@ -12,8 +12,9 @@ const { getDefaultArgs } = require("./utils.js");
 const MockDataProvider = contract.fromArtifact("MockDataProvider");
 
 describe("Instrument", function () {
-  const [admin, owner, user, user2] = accounts;
+  const [admin, owner, user, user2, user3] = accounts;
   const supply = ether("1000000000000");
+  const transferAmount = ether("100000000");
 
   before(async function () {
     const {
@@ -36,6 +37,11 @@ describe("Instrument", function () {
       from: user,
     });
 
+    await this.collateralAsset.transfer(user2, transferAmount, { from: user });
+    await this.collateralAsset.approve(this.contract.address, supply, {
+      from: user2,
+    });
+
     snapShotFresh = await helper.takeSnapshot();
     snapshotFreshId = snapShotFresh["result"];
   });
@@ -55,12 +61,12 @@ describe("Instrument", function () {
 
     it("cannot deposit more than balance", async function () {
       await this.collateralAsset.approve(this.contract.address, supply, {
-        from: user2,
+        from: user3,
       });
       await this.collateralAsset.transfer(user2, "1", { from: user });
 
       const deposited = this.contract.deposit("2", {
-        from: user2,
+        from: user3,
       });
 
       expectRevert(deposited, "ERC20: transfer amount exceeds balance");
@@ -106,8 +112,7 @@ describe("Instrument", function () {
     });
 
     it("reverts if mint value too high", async function () {
-      const mintAmount = ether("100");
-      const minted = this.contract.mint(mintAmount, { from: user });
+      const minted = this.contract.mint(ether("100"), { from: user });
       expectRevert(minted, "Collateralization ratio too low to mint");
     });
   });
@@ -138,6 +143,83 @@ describe("Instrument", function () {
       vault = await this.contract.getVault(user);
       assert.equal(vault._collateral.toString(), startCol.add(amount));
       assert.equal(vault._dTokenDebt.toString(), startDebt.add(mintAmount));
+    });
+  });
+
+  describe("#repayDebt", () => {
+    it("repays debt correctly for own vault", async function () {
+      const amount = ether("1");
+      const mintAmount = "1";
+      await this.contract.depositAndMint(amount, mintAmount, {
+        from: user2,
+      });
+
+      const startBalance = await this.dToken.balanceOf(user2);
+      vault = await this.contract.getVault(user2);
+      const startDebt = vault._dTokenDebt;
+
+      const repay = await this.contract.repayDebt(user2, mintAmount, {
+        from: user2,
+      });
+      const endBalance = await this.dToken.balanceOf(user2);
+
+      vault = await this.contract.getVault(user2);
+      // Correct debt in vault
+      assert.equal(
+        vault._dTokenDebt.toString(),
+        startDebt - parseInt(mintAmount)
+      );
+
+      // DToken balance reduces
+      assert.equal((startBalance - endBalance).toString(), mintAmount);
+
+      expectEvent(repay, "Repaid", {
+        account: user2,
+        vault: user2,
+        amount: mintAmount,
+      });
+    });
+
+    it("revert if trying to repay more debt than exists", async function () {
+      vault = await this.contract.getVault(user2);
+      const startDebt = vault._dTokenDebt;
+
+      const repay = this.contract.repayDebt(user2, startDebt + 1, {
+        from: user2,
+      });
+
+      expectRevert(repay, "Cannot repay more debt than exists in the vault");
+    });
+
+    it("can repay debt for other vaults", async function () {
+      const amount = ether("1");
+      const mintAmount = "1";
+      await this.contract.depositAndMint(amount, mintAmount, {
+        from: user2,
+      });
+
+      const repay = await this.contract.repayDebt(user2, mintAmount, {
+        from: user,
+      });
+
+      expectEvent(repay, "Repaid", {
+        account: user,
+        vault: user2,
+        amount: mintAmount,
+      });
+    });
+
+    it("cannot repay debt if account has insufficient dtokens", async function () {
+      const amount = ether("1");
+      const mintAmount = "1";
+      await this.contract.depositAndMint(amount, mintAmount, {
+        from: user2,
+      });
+      const repay = this.contract.repayDebt(user2, "1", {
+        from: owner,
+      });
+
+      expectRevert(repay, "Cannot burn more than account balance");
     });
   });
 

@@ -73,6 +73,11 @@ contract Instrument is ReentrancyGuard, DSMath {
     event Minted(address account, uint amount);
 
     /**
+     * @notice Emitted when an account repays collateral in a vault
+     */
+    event Repaid(address account, address vault, uint amount);
+
+    /**
      * @notice Emitted when the instrument is settled
      */
     event Settled(
@@ -178,6 +183,21 @@ contract Instrument is ReentrancyGuard, DSMath {
     function depositAndMint(uint256 _collateral, uint256 _dToken) external nonReentrant {
         depositInternal(_collateral);
         mintInternal(_dToken);
+    }
+
+    /**
+     * @notice Repays dToken debt in a vault
+     * @param _amount is amount of dToken to repay
+     */
+    function repayDebt(address _account, uint _amount) external nonReentrant {
+        Vault storage vault = vaults[_account];
+        require(vault.dTokenDebt >= _amount, "Cannot repay more debt than exists in the vault");
+        
+        vault.dTokenDebt = sub(vault.dTokenDebt, _amount);
+
+        DToken dTokenContract = DToken(dToken);
+        dTokenContract.burn(msg.sender, _amount);
+        emit Repaid(msg.sender, _account, _amount);
     }
 
     /**

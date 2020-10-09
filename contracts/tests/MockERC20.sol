@@ -12,6 +12,10 @@ contract MockERC20 is ERC20 {
         _mint(msg.sender, supply);
     }
 
+    function mintTo(address _account, uint _amount) public {
+        _mint(_account, _amount);
+    }
+
     function setDecimals(uint8 _decimals) public {
         _setupDecimals(_decimals);
     }

@@ -55,7 +55,7 @@ describe("Instrument", function () {
         from: user,
       });
 
-      expectEvent(deposited, "Deposited", {
+      await expectEvent(deposited, "Deposited", {
         account: user,
         amount: amount,
       });
@@ -71,7 +71,7 @@ describe("Instrument", function () {
         from: user3,
       });
 
-      expectRevert(deposited, "ERC20: transfer amount exceeds balance");
+      await expectRevert(deposited, "ERC20: transfer amount exceeds balance");
     });
   });
 
@@ -115,7 +115,7 @@ describe("Instrument", function () {
 
     it("reverts if mint value too high", async function () {
       const minted = this.contract.mint(ether("100"), { from: user });
-      expectRevert(minted, "Collateralization ratio too low");
+      await expectRevert(minted, "Collateralization ratio too low");
     });
   });
 
@@ -190,7 +190,7 @@ describe("Instrument", function () {
         from: user2,
       });
 
-      expectRevert(repay, "Cannot repay more debt than exists");
+      await expectRevert(repay, "Cannot repay more debt than exists");
     });
 
     it("cannot repay debt for other vaults if not liquidator proxy", async function () {
@@ -204,7 +204,7 @@ describe("Instrument", function () {
         from: user,
       });
 
-      expectRevert(repay, "Only liquidatorProxy");
+      await expectRevert(repay, "Only liquidatorProxy");
     });
 
     it("cannot repay debt if account has insufficient dtokens", async function () {
@@ -223,7 +223,7 @@ describe("Instrument", function () {
         from: user2,
       });
 
-      expectRevert(repay, "Cannot burn more than account balance");
+      await expectRevert(repay, "Cannot burn more than account balance");
     });
   });
 
@@ -253,7 +253,7 @@ describe("Instrument", function () {
 
     it("fails if not expired", async function () {
       const res = this.contract.settle({ from: user });
-      expectRevert(res, "Instrument has not expired");
+      await expectRevert(res, "Instrument has not expired");
     });
 
     it("works if instrument is expired, and emits correct events", async function () {
@@ -312,17 +312,17 @@ describe("Instrument", function () {
       const deposited = this.contract.deposit("1", {
         from: user,
       });
-      expectRevert(deposited, "Instrument must not be expired");
+      await expectRevert(deposited, "Instrument must not be expired");
 
       const mint = this.contract.mint("1", {
         from: user,
       });
-      expectRevert(mint, "Instrument must not be expired");
+      await expectRevert(mint, "Instrument must not be expired");
 
       const depositAndMint = this.contract.depositAndMint("1", "1", {
         from: user,
       });
-      expectRevert(depositAndMint, "Instrument must not be expired");
+      await expectRevert(depositAndMint, "Instrument must not be expired");
     });
   });
 

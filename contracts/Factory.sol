@@ -43,7 +43,8 @@ contract Factory is Initializable, Ownable, FactoryStorage {
         uint256 _expiry,
         uint256 _collateralizationRatio,
         address _collateralAsset,
-        address _targetAsset
+        address _targetAsset,
+        address _liquidatorProxy
     ) public returns (address instrumentAddress) {
         require(instruments[_name] == address(0), "Instrument already exists");
 
@@ -54,7 +55,8 @@ contract Factory is Initializable, Ownable, FactoryStorage {
             _expiry,
             _collateralizationRatio,
             _collateralAsset,
-            _targetAsset
+            _targetAsset,
+            _liquidatorProxy
         );
         instruments[_name] = address(instrument);
         emit InstrumentCreated(_name, address(instrument), instrument.dToken());

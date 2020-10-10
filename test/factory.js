@@ -17,6 +17,7 @@ describe("Factory", function () {
       instrument,
       dToken,
       args,
+      liquidatorProxy,
     } = await getDefaultArgs(admin, owner, user);
 
     this.factory = factory;
@@ -24,6 +25,7 @@ describe("Factory", function () {
     this.targetAsset = targetAsset;
     this.contract = instrument;
     this.dToken = dToken;
+    this.liquidatorProxy = liquidatorProxy;
     this.args = args;
 
     this.contractAddress = instrument.address;
@@ -66,6 +68,7 @@ describe("Factory", function () {
       this.args.colRatio,
       this.collateralAsset.address,
       this.targetAsset.address,
+      this.liquidatorProxy.address,
       { from: owner }
     );
 
@@ -81,6 +84,7 @@ describe("Factory", function () {
       1,
       "0x0000000000000000000000000000000000000000",
       "0x0000000000000000000000000000000000000001",
+      "0x0000000000000000000000000000000000000002",
       { from: owner }
     );
 

@@ -5,6 +5,8 @@ const {
   time,
   expectEvent, // Assertions for emitted events
   expectRevert, // Assertions for transactions that should fail
+  constants,
+  BN,
 } = require("@openzeppelin/test-helpers");
 const helper = require("./helper.js");
 const { getDefaultArgs } = require("./utils.js");
@@ -113,7 +115,7 @@ describe("Instrument", function () {
 
     it("reverts if mint value too high", async function () {
       const minted = this.contract.mint(ether("100"), { from: user });
-      expectRevert(minted, "Collateralization ratio too low to mint");
+      expectRevert(minted, "Collateralization ratio too low");
     });
   });
 
@@ -174,7 +176,7 @@ describe("Instrument", function () {
       assert.equal((startBalance - endBalance).toString(), mintAmount);
 
       expectEvent(repay, "Repaid", {
-        account: user2,
+        repayer: user2,
         vault: user2,
         amount: mintAmount,
       });
@@ -188,35 +190,37 @@ describe("Instrument", function () {
         from: user2,
       });
 
-      expectRevert(repay, "Cannot repay more debt than exists in the vault");
+      expectRevert(repay, "Cannot repay more debt than exists");
     });
 
-    it("can repay debt for other vaults", async function () {
+    it("cannot repay debt for other vaults if not liquidator proxy", async function () {
       const amount = ether("1");
       const mintAmount = "1";
       await this.contract.depositAndMint(amount, mintAmount, {
         from: user2,
       });
 
-      const repay = await this.contract.repayDebt(user2, mintAmount, {
+      const repay = this.contract.repayDebt(user2, mintAmount, {
         from: user,
       });
 
-      expectEvent(repay, "Repaid", {
-        account: user,
-        vault: user2,
-        amount: mintAmount,
-      });
+      expectRevert(repay, "Only liquidatorProxy");
     });
 
     it("cannot repay debt if account has insufficient dtokens", async function () {
       const amount = ether("1");
       const mintAmount = "1";
+
       await this.contract.depositAndMint(amount, mintAmount, {
         from: user2,
       });
+
+      // transfer whole balance away
+      const bal = await this.dToken.balanceOf(user2);
+      await this.dToken.transfer(owner, bal, { from: user2 });
+
       const repay = this.contract.repayDebt(user2, "1", {
-        from: owner,
+        from: user2,
       });
 
       expectRevert(repay, "Cannot burn more than account balance");
@@ -319,6 +323,34 @@ describe("Instrument", function () {
         from: user,
       });
       expectRevert(depositAndMint, "Instrument must not be expired");
+    });
+  });
+
+  describe("#liquidateFromVault", () => {
+    it("will revert if caller is not liquidator proxy", async function () {
+      const tx = this.contract.liquidateFromVault(
+        "0x0000000000000000000000000000000000000000",
+        "0x0000000000000000000000000000000000000001",
+        ether("100"),
+        ether("1.05")
+      );
+      await expectRevert(tx, "Only liquidatorProxy");
+    });
+  });
+
+  describe("#vaultCollateralizationRatio", () => {
+    it("will return max(uint256) when there is no debt", async function () {
+      assert.equal(
+        (
+          await this.contract.vaultCollateralizationRatio(
+            constants.ZERO_ADDRESS
+          )
+        ).toString(),
+        new BN(
+          "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          16
+        )
+      );
     });
   });
 });

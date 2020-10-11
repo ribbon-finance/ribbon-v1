@@ -216,60 +216,60 @@ contract Instrument is ReentrancyGuard, DSMath {
     //  * @param _dTokenAmount is the dToken debt amount to be repaid for the liquidation
     //  * @param _liquidationIncentive the % amount of collateral the liquidators can take as a reward
     //  */
-    // function liquidateFromVault(
-    //     address _liquidator,
-    //     address _liquidatee,
-    //     uint256 _dTokenAmount,
-    //     uint256 _liquidationIncentive
-    // ) external nonReentrant {
-    //     // No other caller except the assigned proxy can liquidate
-    //     require(msg.sender == liquidatorProxy, "Only liquidatorProxy");
-    //     require(!expired, "Instrument must not be expired");
+    function liquidateFromVault(
+        address _liquidator,
+        address _liquidatee,
+        uint256 _dTokenAmount,
+        uint256 _liquidationIncentive
+    ) external nonReentrant {
+        // No other caller except the assigned proxy can liquidate
+        require(msg.sender == liquidatorProxy, "Only liquidatorProxy");
+        require(!expired, "Instrument must not be expired");
         
-    //     Vault storage liquidatorVault = vaults[_liquidator];
-    //     Vault storage liquidatedVault = vaults[_liquidatee];
-    //     uint256 liquidateeDTokenDebt = liquidatedVault.dTokenDebt;
-    //     uint256 liquidateeCollateral = liquidatedVault.collateral;
+        Vault storage liquidatorVault = vaults[_liquidator];
+        Vault storage liquidatedVault = vaults[_liquidatee];
+        uint256 liquidateeDTokenDebt = liquidatedVault.dTokenDebt;
+        uint256 liquidateeCollateral = liquidatedVault.collateral;
 
-    //     require(_dTokenAmount <= liquidateeDTokenDebt, "Cannot liquidate more than debt");
+        require(_dTokenAmount <= liquidateeDTokenDebt, "Cannot liquidate more than debt");
 
-    //     DataProviderInterface data = DataProviderInterface(dataProvider);
-    //     uint256 collateralPrice = data.getPrice(collateralAsset);
-    //     uint256 targetPrice = data.getPrice(targetAsset);
+        DataProviderInterface data = DataProviderInterface(dataProvider);
+        uint256 collateralPrice = data.getPrice(collateralAsset);
+        uint256 targetPrice = data.getPrice(targetAsset);
 
-    //     // Check if the vault is under the Instrument's collateralizationRatio
-    //     uint256 minColRatio = collateralizationRatio;
-    //     require(
-    //         computeColRatio(collateralPrice, targetPrice, liquidateeCollateral, liquidateeDTokenDebt) < minColRatio,
-    //         "Vault not liquidatable"
-    //     );
+        // Check if the vault is under the Instrument's collateralizationRatio
+        uint256 minColRatio = collateralizationRatio;
+        require(
+            computeColRatio(collateralPrice, targetPrice, liquidateeCollateral, liquidateeDTokenDebt) < minColRatio,
+            "Vault not liquidatable"
+        );
 
-    //     // Calculates the outcome for the liquidator's vault
-    //     (uint256 collateralLiquidated, uint256 newLiquidatorCollateral, uint256 newLiquidatorDebt) = calculateLiquidationVaultOutcome(
-    //         liquidatorVault.collateral, liquidatorVault.dTokenDebt, _dTokenAmount, _liquidationIncentive, targetPrice, collateralPrice);
+        // Calculates the outcome for the liquidator's vault
+        (uint256 collateralLiquidated, uint256 newLiquidatorCollateral, uint256 newLiquidatorDebt) = calculateLiquidationVaultOutcome(
+            liquidatorVault.collateral, liquidatorVault.dTokenDebt, _dTokenAmount, _liquidationIncentive, targetPrice, collateralPrice);
 
-    //     // After the liquidator accepts the new debt and collateral * 1.05,
-    //     // We need to check that the liquidator is still overcollateralized
-    //     require(
-    //         computeColRatio(collateralPrice, targetPrice, newLiquidatorCollateral, newLiquidatorDebt) >= minColRatio,
-    //         "Liquidator is undercollateralized"
-    //     );
+        // After the liquidator accepts the new debt and collateral * 1.05,
+        // We need to check that the liquidator is still overcollateralized
+        require(
+            computeColRatio(collateralPrice, targetPrice, newLiquidatorCollateral, newLiquidatorDebt) >= minColRatio,
+            "Liquidator is undercollateralized"
+        );
 
-    //     // This covers the cases where the vault is underwater
-    //     // Just liquidate the entire vault's collateral if the calculated collateralLiquidated is more than vault's collateral
-    //     if (collateralLiquidated > liquidateeCollateral) {
-    //         collateralLiquidated = liquidateeCollateral;
-    //     }
+        // This covers the cases where the vault is underwater
+        // Just liquidate the entire vault's collateral if the calculated collateralLiquidated is more than vault's collateral
+        if (collateralLiquidated > liquidateeCollateral) {
+            collateralLiquidated = liquidateeCollateral;
+        }
 
-    //     // Finally we have to assign the new values to the liquidator and liquidated vault
-    //     liquidatorVault.collateral = newLiquidatorCollateral;
-    //     liquidatorVault.dTokenDebt = newLiquidatorDebt;
-    //     liquidatedVault.collateral = sub(liquidateeCollateral, collateralLiquidated);
+        // Finally we have to assign the new values to the liquidator and liquidated vault
+        liquidatorVault.collateral = newLiquidatorCollateral;
+        liquidatorVault.dTokenDebt = newLiquidatorDebt;
+        liquidatedVault.collateral = sub(liquidateeCollateral, collateralLiquidated);
 
-    //     // The repayDebtInternal subtracts the debt amount
-    //     repayDebtInternal(_liquidator, _liquidatee, _dTokenAmount);
-    //     emit Liquidated(_liquidator, _liquidatee, _dTokenAmount, collateralLiquidated, newLiquidatorCollateral, newLiquidatorDebt);
-    // }
+        // The repayDebtInternal subtracts the debt amount
+        repayDebtInternal(_liquidator, _liquidatee, _dTokenAmount);
+        emit Liquidated(_liquidator, _liquidatee, _dTokenAmount, collateralLiquidated, newLiquidatorCollateral, newLiquidatorDebt);
+    }
 
     /**
      * @notice Calculates the liquidator vault's collateral and debt after a liquidation

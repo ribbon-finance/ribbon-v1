@@ -290,18 +290,22 @@ describe("Instrument", function () {
     });
 
     it("works if instrument is expired, and emits correct events", async function () {
-      const newTimestamp = 1 + parseInt(this.args.expiry);
+      const expiryTimestamp = parseInt(this.args.expiry);
+      const newTimestamp = 1 + expiryTimestamp;
       time.increaseTo(newTimestamp);
 
       const settled = await this.contract.settle({ from: user });
       assert.equal(await this.contract.expired(), true);
 
       expectEvent(settled, "Settled", {
-        timestamp: newTimestamp.toString(),
         settlePrice: ether("100"),
         targetAssetPrice: ether("1"),
         collateralAssetPrice: ether("0.01"),
       });
+
+      // As long as the block.timestamp is after the defined expiry, it is valid
+      const blockTimestamp = settled.logs[0].args.timestamp.toNumber();
+      assert.isAtLeast(blockTimestamp, expiryTimestamp);
 
       assert.equal(
         (await this.contract.settlePrice()).toString(),

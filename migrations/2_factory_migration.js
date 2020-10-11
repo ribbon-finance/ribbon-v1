@@ -1,5 +1,5 @@
 const DataProvider = artifacts.require("DataProvider");
-const Factory = artifacts.require("Factory");
+const Factory = artifacts.require("DojimaFactory");
 const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const { encodeCall } = require("@openzeppelin/upgrades");
 

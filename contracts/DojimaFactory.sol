@@ -3,10 +3,10 @@ pragma solidity ^0.6.2;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./lib/upgrades/Initializable.sol";
-import "./Instrument.sol";
-import "./FactoryStorage.sol";
+import "./DojimaInstrument.sol";
+import "./DojimaFactoryStorage.sol";
 
-contract Factory is Initializable, Ownable, FactoryStorage {
+contract DojimaFactory is Initializable, Ownable, DojimaFactoryStorageV1 {
     /**
      * @notice Emitted when a new instrument is created
      */
@@ -48,7 +48,7 @@ contract Factory is Initializable, Ownable, FactoryStorage {
     ) public returns (address instrumentAddress) {
         require(instruments[_name] == address(0), "Instrument already exists");
 
-        Instrument instrument = new Instrument(
+        DojimaInstrument instrument = new DojimaInstrument(
             dataProvider,
             _name,
             _symbol,

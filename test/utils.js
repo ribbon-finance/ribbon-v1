@@ -5,8 +5,8 @@ const { encodeCall } = require("@openzeppelin/upgrades");
 const AdminUpgradeabilityProxy = contract.fromArtifact(
   "AdminUpgradeabilityProxy"
 );
-const Factory = contract.fromArtifact("Factory");
-const Instrument = contract.fromArtifact("Instrument");
+const Factory = contract.fromArtifact("DojimaFactory");
+const Instrument = contract.fromArtifact("DojimaInstrument");
 const MockERC20 = contract.fromArtifact("MockERC20");
 const DToken = contract.fromArtifact("DToken");
 const MockDataProvider = contract.fromArtifact("MockDataProvider");

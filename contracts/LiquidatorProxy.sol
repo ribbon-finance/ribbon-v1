@@ -2,7 +2,7 @@
 pragma solidity >=0.6.0;
 
 import "./lib/upgrades/Initializable.sol";
-import "./Instrument.sol";
+import "./DojimaInstrument.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract LiquidatorProxyStorageV1 {
@@ -28,7 +28,7 @@ contract LiquidatorProxy is ReentrancyGuard, Initializable, LiquidatorProxyStora
      * @param _dTokenAmount is the dToken debt amount to be repaid for the liquidation
      */
     function liquidate(address _instrument, address _vaultOwner, uint256 _dTokenAmount) external {
-        Instrument instrumentContract = Instrument(_instrument);
+        DojimaInstrument instrumentContract = DojimaInstrument(_instrument);
         instrumentContract.liquidateFromVault(msg.sender, _vaultOwner, _dTokenAmount, liquidationIncentive);
     }
 }

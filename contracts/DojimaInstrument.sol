@@ -9,7 +9,7 @@ import "./DToken.sol";
 import "./DataProviderInterface.sol";
 import "./lib/DSMath.sol";
 
-contract Instrument is ReentrancyGuard, DSMath {
+contract DojimaInstrument is ReentrancyGuard, DSMath {
     using SafeERC20 for IERC20;
 
     string public name;

@@ -13,7 +13,7 @@ const { getDefaultArgs } = require("./utils.js");
 
 const MockDataProvider = contract.fromArtifact("MockDataProvider");
 
-describe("Instrument", function () {
+describe("DojimaInstrument", function () {
   const [admin, owner, user, user2, user3] = accounts;
   const supply = ether("1000000000000");
   const transferAmount = ether("100000000");

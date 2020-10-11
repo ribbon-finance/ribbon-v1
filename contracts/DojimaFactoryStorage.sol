@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.6.2;
 
-contract FactoryStorage {
+contract DojimaFactoryStorageV1 {
     /**
      * @notice Address of dataProvider contract
      */

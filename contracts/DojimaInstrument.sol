@@ -139,12 +139,61 @@ contract DojimaInstrument is ReentrancyGuard, DSMath {
     }
 
     /**
+     * @notice Gets the price of collateral asset
+     */
+    function getColPrice() public view returns(uint) {
+        DataProviderInterface data = DataProviderInterface(dataProvider);
+        return data.getPrice(collateralAsset);
+    }
+
+    /**
+     * @notice Gets the price of target asset
+     */
+    function getTargetPrice() public view returns(uint) {
+        DataProviderInterface data = DataProviderInterface(dataProvider);
+        return data.getPrice(targetAsset);
+    }
+
+    /**
      * @notice Gets the collateral and debt of a vault
      * @param _user user's address
      */
     function getVault(address _user) public view returns(uint _collateral, uint _dTokenDebt) {
         Vault memory vault = vaults[_user];
         return (vault.collateral, vault.dTokenDebt);
+    }
+
+    /**
+     * @notice Gets col ratio of a vault given new colAmount and dTokenAmount
+     * @param _user address of vault
+     * @param _colAmount amount of collateral to change
+     * @param _colSign true if adding, false if removing
+     * @param _dTokenAmount amount of dTokenAmount to change
+     * @param _dTokenSign true if adding, false if removing
+     */
+    function getNewColRatio(address _user, uint _colAmount, bool _colSign, uint _dTokenAmount, bool _dTokenSign) public view returns(uint) {
+        uint newCol;
+        uint newDebt;
+        Vault memory vault = vaults[_user];
+        if (_colSign) {
+            newCol = add(vault.collateral, _colAmount);
+        } else {
+            newCol = sub(vault.collateral, _colAmount);
+        }
+
+        if (_dTokenSign) {
+            newDebt = add(vault.dTokenDebt, _dTokenAmount);
+        } else {
+            newDebt = sub(vault.dTokenDebt, _dTokenAmount);
+        }
+
+        DataProviderInterface data = DataProviderInterface(dataProvider);
+        return computeColRatio(
+            data.getPrice(collateralAsset),
+            data.getPrice(targetAsset),
+            newCol,
+            newDebt
+        );
     }
 
     /**

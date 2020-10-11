@@ -692,6 +692,97 @@ describe("DojimaInstrument", function () {
     });
   });
 
+  describe("#getNewColRatio", () => {
+    before(async function () {
+      const dataProvider = await MockDataProvider.at(
+        await this.contract.dataProvider()
+      );
+      await dataProvider.setPrice(this.targetAsset.address, ether("1"), {
+        from: owner,
+      });
+      await dataProvider.setPrice(this.collateralAsset.address, ether("1"), {
+        from: owner,
+      });
+    });
+
+    beforeEach(async () => {
+      snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
+    it("returns correct col ratio", async function () {
+      const amount = ether("2");
+      const mintAmount = ether("1");
+      await this.contract.depositAndMint(amount, mintAmount, {
+        from: user,
+      });
+      var res = await this.contract.getNewColRatio(
+        user,
+        ether("1"),
+        true,
+        "0",
+        false
+      );
+      assert.equal(res.toString(), ether("3"));
+
+      res = await this.contract.getNewColRatio(
+        user,
+        ether("1"),
+        false,
+        "0",
+        false
+      );
+      assert.equal(res.toString(), ether("1"));
+
+      res = await this.contract.getNewColRatio(
+        user,
+        "0",
+        false,
+        ether("1"),
+        true
+      );
+      assert.equal(res.toString(), ether("1"));
+
+      res = await this.contract.getNewColRatio(
+        user,
+        "0",
+        false,
+        ether("0.5"),
+        false
+      );
+      assert.equal(res.toString(), ether("4"));
+    });
+  });
+
+  describe("#getColPrice and #getTargetPrice", () => {
+    const targetPrice = ether("123");
+    const colPrice = ether("234");
+
+    before(async function () {
+      const dataProvider = await MockDataProvider.at(
+        await this.contract.dataProvider()
+      );
+      await dataProvider.setPrice(this.targetAsset.address, targetPrice, {
+        from: owner,
+      });
+      await dataProvider.setPrice(this.collateralAsset.address, colPrice, {
+        from: owner,
+      });
+    });
+
+    it("returns correct price", async function () {
+      res = await this.contract.getColPrice();
+      assert.equal(res.toString(), colPrice);
+
+      res = await this.contract.getTargetPrice();
+      assert.equal(res.toString(), targetPrice);
+    });
+  });
+
   describe("#liquidateFromVault", () => {
     it("will revert if caller is not liquidator proxy", async function () {
       const tx = this.contract.liquidateFromVault(

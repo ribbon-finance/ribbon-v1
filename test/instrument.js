@@ -128,6 +128,20 @@ describe("Instrument", function () {
       assert.equal(res._dTokenDebt.toString(), mintAmount);
     });
 
+    it("increments totalDebt", async function () {
+      const startTotalDebt = await this.contract.totalDebt();
+      // Deposit 500 Dai
+      const amount = ether("500");
+      await this.contract.deposit(amount, { from: user });
+
+      // Mint 1 dETH
+      const mintAmount = ether("1");
+      await this.contract.mint(mintAmount, { from: user });
+
+      const endTotalDebt = await this.contract.totalDebt();
+      assert.equal(endTotalDebt.sub(startTotalDebt).toString(), mintAmount);
+    });
+
     it("reverts if mint value too high", async function () {
       const minted = this.contract.mint(ether("100"), { from: user });
       await expectRevert(minted, "Collateralization ratio too low");
@@ -213,6 +227,22 @@ describe("Instrument", function () {
         vault: user2,
         amount: mintAmount,
       });
+    });
+
+    it("decrements totalDebt", async function () {
+      const amount = ether("1");
+      const mintAmount = "1";
+      await this.contract.depositAndMint(amount, mintAmount, {
+        from: user2,
+      });
+      const startTotalDebt = await this.contract.totalDebt();
+
+      await this.contract.repayDebt(user2, mintAmount, {
+        from: user2,
+      });
+
+      const endTotalDebt = await this.contract.totalDebt();
+      assert.equal(startTotalDebt.sub(endTotalDebt).toString(), mintAmount);
     });
 
     it("revert if trying to repay more debt than exists", async function () {
@@ -501,17 +531,178 @@ describe("Instrument", function () {
     });
   });
 
-  // describe("#liquidateFromVault", () => {
-  //   it("will revert if caller is not liquidator proxy", async function () {
-  //     const tx = this.contract.liquidateFromVault(
-  //       "0x0000000000000000000000000000000000000000",
-  //       "0x0000000000000000000000000000000000000001",
-  //       ether("100"),
-  //       ether("1.05")
-  //     );
-  //     await expectRevert(tx, "Only liquidatorProxy");
-  //   });
-  // });
+  describe("#redeem", () => {
+    before(async function () {
+      const dataProvider = await MockDataProvider.at(
+        await this.contract.dataProvider()
+      );
+      await dataProvider.setPrice(this.targetAsset.address, ether("1"), {
+        from: owner,
+      });
+      await dataProvider.setPrice(this.collateralAsset.address, ether("1"), {
+        from: owner,
+      });
+    });
+
+    beforeEach(async () => {
+      snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
+    it("redeems correct amount", async function () {
+      const amount = ether("2");
+      const mintAmount = ether("1");
+      await this.contract.depositAndMint(amount, mintAmount, {
+        from: user,
+      });
+      const startTotalDebt = await this.contract.totalDebt();
+      const startCol = await this.collateralAsset.balanceOf(user);
+      const startD = await this.dToken.balanceOf(user);
+      const startColContract = await this.collateralAsset.balanceOf(
+        this.contract.address
+      );
+
+      const newTimestamp = 1 + parseInt(this.args.expiry);
+      time.increaseTo(newTimestamp);
+
+      await this.contract.settle({ from: user });
+
+      const redeem = await this.contract.redeem(mintAmount, { from: user });
+
+      const endCol = await this.collateralAsset.balanceOf(user);
+      const endD = await this.dToken.balanceOf(user);
+      const endColContract = await this.collateralAsset.balanceOf(
+        this.contract.address
+      );
+
+      // Account ends with more collateral
+      assert.equal(endCol.sub(startCol).toString(), mintAmount);
+      // Account ends with less dTokens
+      assert.equal(startD.sub(endD).toString(), mintAmount);
+      // Contract ends with less collateral
+      assert.equal(startColContract.sub(endColContract).toString(), mintAmount);
+
+      expectEvent(redeem, "Redeemed", {
+        account: user,
+        dTokenAmount: mintAmount,
+        collateralAmount: mintAmount,
+      });
+
+      const endTotalDebt = await this.contract.totalDebt();
+      assert.equal(startTotalDebt.sub(endTotalDebt).toString(), mintAmount);
+    });
+
+    it("redeems correct amounts for different prices", async function () {
+      const dataProvider = await MockDataProvider.at(
+        await this.contract.dataProvider()
+      );
+      await dataProvider.setPrice(
+        this.collateralAsset.address,
+        ether("0.002"),
+        {
+          from: owner,
+        }
+      );
+      await dataProvider.setPrice(this.targetAsset.address, ether("1"), {
+        from: owner,
+      });
+
+      const amount = ether("1000");
+      const mintAmount = ether("1");
+      await this.contract.depositAndMint(amount, mintAmount, {
+        from: user,
+      });
+
+      const newTimestamp = 1 + parseInt(this.args.expiry);
+      time.increaseTo(newTimestamp);
+      await this.contract.settle({ from: user });
+
+      const redeem = await this.contract.redeem(mintAmount, { from: user });
+
+      expectEvent(redeem, "Redeemed", {
+        account: user,
+        dTokenAmount: mintAmount,
+        collateralAmount: ether("500"),
+      });
+    });
+
+    it("other accounts can redeem", async function () {
+      const amount = ether("2");
+      const mintAmount = ether("1");
+      await this.contract.depositAndMint(amount, mintAmount, {
+        from: user,
+      });
+      await this.dToken.transfer(user2, mintAmount, { from: user });
+
+      const startCol = await this.collateralAsset.balanceOf(user2);
+      const startD = await this.dToken.balanceOf(user2);
+
+      const newTimestamp = 1 + parseInt(this.args.expiry);
+      time.increaseTo(newTimestamp);
+
+      await this.contract.settle({ from: user });
+
+      const redeem = await this.contract.redeem(mintAmount, { from: user2 });
+
+      const endCol = await this.collateralAsset.balanceOf(user2);
+      const endD = await this.dToken.balanceOf(user2);
+
+      assert.equal(endCol.sub(startCol).toString(), mintAmount);
+      assert.equal(startD.sub(endD).toString(), mintAmount);
+
+      expectEvent(redeem, "Redeemed", {
+        account: user2,
+        dTokenAmount: mintAmount,
+        collateralAmount: mintAmount,
+      });
+    });
+
+    it("cannot redeem if not expired", async function () {
+      const amount = ether("2");
+      const mintAmount = ether("1");
+      await this.contract.depositAndMint(amount, mintAmount, {
+        from: user,
+      });
+      const redeem = this.contract.redeem(mintAmount, { from: user2 });
+      await expectRevert(redeem, "Instrument must be expired");
+    });
+
+    it("cannot redeem more than account owns", async function () {
+      const amount = ether("2");
+      const mintAmount = ether("1");
+      const redeemAmount = ether("1.5");
+      await this.contract.depositAndMint(amount, mintAmount, {
+        from: user,
+      });
+      await this.contract.depositAndMint(amount, mintAmount, {
+        from: user2,
+      });
+
+      const newTimestamp = 1 + parseInt(this.args.expiry);
+      time.increaseTo(newTimestamp);
+
+      await this.contract.settle({ from: user });
+
+      const redeem = this.contract.redeem(redeemAmount, { from: user });
+      await expectRevert(redeem, "Cannot burn more than account balance.");
+    });
+  });
+
+  describe("#liquidateFromVault", () => {
+    it("will revert if caller is not liquidator proxy", async function () {
+      const tx = this.contract.liquidateFromVault(
+        "0x0000000000000000000000000000000000000000",
+        "0x0000000000000000000000000000000000000001",
+        ether("100"),
+        ether("1.05")
+      );
+      await expectRevert(tx, "Only liquidatorProxy");
+    });
+  });
 
   describe("#vaultCollateralizationRatio", () => {
     it("will return max(uint256) when there is no debt", async function () {

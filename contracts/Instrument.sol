@@ -23,6 +23,7 @@ contract Instrument is ReentrancyGuard, DSMath {
     bool public expired;
     uint public settlePrice;
     address public liquidatorProxy;
+    uint public totalDebt;
 
     constructor(
         address _dataProvider,
@@ -89,6 +90,12 @@ contract Instrument is ReentrancyGuard, DSMath {
      * @notice Emitted when an account withdraws all collateral from an expired instrument
      */
     event WithdrewExpired(address account, uint amount);
+
+    /**
+     * @notice Emitted when dTokens are redeemed
+     */
+    event Redeemed(address account, uint dTokenAmount, uint collateralAmount);
+
 
     /**
      * @notice Emitted when the instrument is settled
@@ -193,6 +200,7 @@ contract Instrument is ReentrancyGuard, DSMath {
             "Collateralization ratio too low"
         );
         vault.dTokenDebt = newDebt;
+        totalDebt = add(totalDebt, _amount);
 
         DToken dTokenContract = DToken(dToken);
         dTokenContract.mint(msg.sender, _amount);
@@ -337,6 +345,7 @@ contract Instrument is ReentrancyGuard, DSMath {
         require(vault.dTokenDebt >= _amount, "Cannot repay more debt than exists");
         
         vault.dTokenDebt = sub(vault.dTokenDebt, _amount);
+        totalDebt = sub(totalDebt, _amount);
 
         DToken dTokenContract = DToken(dToken);
         dTokenContract.burn(_repayer, _amount);
@@ -400,6 +409,26 @@ contract Instrument is ReentrancyGuard, DSMath {
         IERC20 colToken = IERC20(collateralAsset);
         colToken.safeTransfer(_account, _amount);
         emit Withdrew(msg.sender, _amount);
+    }
+
+    /**
+     * @notice Redeems dToken for collateral after expiry
+     * @param _dTokenAmount is amount of dTokens to redeem
+     */
+    function redeem(uint _dTokenAmount) external nonReentrant {
+        require(expired, "Instrument must be expired");
+
+        uint withdrawableColAmount = wmul(settlePrice, _dTokenAmount);
+
+        totalDebt = sub(totalDebt, _dTokenAmount);
+
+        DToken dTokenContract = DToken(dToken);
+        dTokenContract.burn(msg.sender, _dTokenAmount);
+        
+        IERC20 colTokenContract = IERC20(collateralAsset);
+        colTokenContract.safeTransfer(msg.sender, withdrawableColAmount);
+
+        emit Redeemed(msg.sender, _dTokenAmount, withdrawableColAmount);
     }
 
     /**

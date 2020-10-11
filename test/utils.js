@@ -48,17 +48,17 @@ async function getDefaultArgs(admin, owner, user) {
 
   const dataProvider = await MockDataProvider.new({ from: owner });
 
-  const factory = await deployProxy(
-    Factory,
-    admin,
-    ["address"],
-    [dataProvider.address]
-  );
   const liquidatorProxy = await deployProxy(
     LiquidatorProxy,
     admin,
     ["address", "uint256"],
     [owner, ether("1.05").toString()]
+  );
+  const factory = await deployProxy(
+    Factory,
+    admin,
+    ["address", "address"],
+    [dataProvider.address, liquidatorProxy.address]
   );
 
   const colAsset = await MockERC20.new("Dai Stablecoin", "Dai", supply, {
@@ -74,7 +74,6 @@ async function getDefaultArgs(admin, owner, user) {
     colRatio,
     colAsset.address,
     targetAsset.address,
-    liquidatorProxy.address,
     { from: owner }
   );
 
@@ -98,6 +97,7 @@ async function getDefaultArgs(admin, owner, user) {
     dToken,
     liquidatorProxy,
     args,
+    dataProvider,
   };
 }
 

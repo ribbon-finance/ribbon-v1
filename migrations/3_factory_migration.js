@@ -1,15 +1,18 @@
 const DataProvider = artifacts.require("DataProvider");
+const LiquidatorProxy = artifacts.require("LiquidatorProxy");
 const Factory = artifacts.require("DojimaFactory");
 const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const { encodeCall } = require("@openzeppelin/upgrades");
 
-async function deployFactory(deployer, admin, dataProviderAddress) {
+module.exports = async function (deployer, _, accounts) {
+  const [admin] = accounts;
+
   await deployer.deploy(Factory);
 
   const initBytes = encodeCall(
     "initialize",
-    ["address"],
-    [dataProviderAddress]
+    ["address", "address"],
+    [DataProvider.address, LiquidatorProxy.address]
   );
   await deployer.deploy(
     AdminUpgradeabilityProxy,
@@ -20,12 +23,4 @@ async function deployFactory(deployer, admin, dataProviderAddress) {
       from: admin,
     }
   );
-}
-
-module.exports = async function (deployer, _, accounts) {
-  const [admin] = accounts;
-
-  // deployment steps
-  await deployer.deploy(DataProvider);
-  await deployFactory(deployer, admin, DataProvider.address);
 };

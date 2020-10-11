@@ -18,6 +18,7 @@ describe("DojimaFactory", function () {
       dToken,
       args,
       liquidatorProxy,
+      dataProvider,
     } = await getDefaultArgs(admin, owner, user);
 
     this.factory = factory;
@@ -26,10 +27,19 @@ describe("DojimaFactory", function () {
     this.contract = instrument;
     this.dToken = dToken;
     this.liquidatorProxy = liquidatorProxy;
+    this.dataProvider = dataProvider;
     this.args = args;
 
     this.contractAddress = instrument.address;
     this.dTokenAddress = dToken.address;
+  });
+
+  it("initializes factory correctly", async function () {
+    assert.equal(
+      await this.factory.liquidatorProxy(),
+      this.liquidatorProxy.address
+    );
+    assert.equal(await this.factory.dataProvider(), this.dataProvider.address);
   });
 
   it("initializes contract correctly", async function () {
@@ -68,7 +78,6 @@ describe("DojimaFactory", function () {
       this.args.colRatio,
       this.collateralAsset.address,
       this.targetAsset.address,
-      this.liquidatorProxy.address,
       { from: owner }
     );
 
@@ -84,7 +93,6 @@ describe("DojimaFactory", function () {
       1,
       "0x0000000000000000000000000000000000000000",
       "0x0000000000000000000000000000000000000001",
-      "0x0000000000000000000000000000000000000002",
       { from: owner }
     );
 

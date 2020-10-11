@@ -8,9 +8,9 @@ contract DojimaFactoryStorageV1 {
     address public dataProvider;
 
     /**
-     * @notice Storage gap to enable adding new variables
+     * @notice Address of the liquidator proxy contract
      */
-    uint256[50] private __gap;
+    address public liquidatorProxy;
 
     /**
      * @notice Mapping of created instruments

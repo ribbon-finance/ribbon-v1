@@ -19,8 +19,9 @@ contract DojimaFactory is Initializable, Ownable, DojimaFactoryStorageV1 {
     /**
      * @notice Constructor takes a DataProvider contract address
      */
-    function initialize(address _dataProvider) public initializer {
+    function initialize(address _dataProvider, address _liquidatorProxy) public initializer {
         dataProvider = _dataProvider;
+        liquidatorProxy = _liquidatorProxy;
     }
 
     /**
@@ -43,8 +44,7 @@ contract DojimaFactory is Initializable, Ownable, DojimaFactoryStorageV1 {
         uint256 _expiry,
         uint256 _collateralizationRatio,
         address _collateralAsset,
-        address _targetAsset,
-        address _liquidatorProxy
+        address _targetAsset
     ) public returns (address instrumentAddress) {
         require(instruments[_name] == address(0), "Instrument already exists");
 
@@ -56,7 +56,7 @@ contract DojimaFactory is Initializable, Ownable, DojimaFactoryStorageV1 {
             _collateralizationRatio,
             _collateralAsset,
             _targetAsset,
-            _liquidatorProxy
+            liquidatorProxy
         );
         instruments[_name] = address(instrument);
         emit InstrumentCreated(_name, address(instrument), instrument.dToken());

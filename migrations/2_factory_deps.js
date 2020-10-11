@@ -8,7 +8,7 @@ const { ether } = require("@openzeppelin/test-helpers");
  * Deploys the dependency needed for Factory
  */
 module.exports = async function (deployer, _, accounts) {
-  const [admin, owner] = accounts;
+  const [admin] = accounts;
 
   // deployment steps
   await deployer.deploy(DataProvider);
@@ -18,7 +18,7 @@ module.exports = async function (deployer, _, accounts) {
   const initBytes = encodeCall(
     "initialize",
     ["address", "uint256"],
-    [owner, ether("1.05").toString()]
+    [admin, ether("1.05").toString()]
   );
   await deployer.deploy(
     AdminUpgradeabilityProxy,

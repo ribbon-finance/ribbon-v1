@@ -26,8 +26,7 @@ describe("LiquidatorProxy", function () {
   const undercollateralizedDaiEthPrice = ether("0.0022");
   const underwaterDaiEthPrice = ether("0.0018");
 
-  let self, snapshot, snapshotId;
-  let snapshotFreshId;
+  let self, snapshotId;
 
   async function setupDataProvider() {
     // Set Price of ETH/ETH to 1
@@ -149,154 +148,155 @@ describe("LiquidatorProxy", function () {
       assert.equal(isLiquidatable, true);
     });
   });
-
-  describe("#liquidate", () => {
-    beforeEach(async () => {
-      snapShot = await helper.takeSnapshot();
-      snapshotId = snapShot["result"];
-    });
-
-    afterEach(async () => {
-      await helper.revertToSnapShot(snapshotId);
-    });
-
-    it("reverts when the instrument is settled", async function () {
-      const newTimestamp = 1 + parseInt(this.args.expiry);
-      time.increaseTo(newTimestamp);
-
-      await this.contract.settle({ from: liquidator });
-
-      const tx = this.liquidatorProxy.liquidate(
-        this.contract.address,
-        liquidatee,
-        liquidateAmount,
-        { from: liquidator }
-      );
-      await expectRevert(tx, "Instrument must not be expired");
-    });
-
-    it("reverts when liquidating more than debt amount", async function () {
-      const tx = this.liquidatorProxy.liquidate(
-        this.contract.address,
-        liquidatee,
-        liquidateAmount.add(new BN("1")),
-        { from: liquidator }
-      );
-      await expectRevert(tx, "Cannot liquidate more than debt");
-    });
-
-    it("reverts when vault col ratio >= 150%", async function () {
-      const tx = this.liquidatorProxy.liquidate(
-        this.contract.address,
-        liquidatee,
-        liquidateAmount,
-        { from: liquidator }
-      );
-      await expectRevert(tx, "Vault not liquidatable");
-    });
-
-    // PENDING WITHDRAW FUNCTION
-    // it("reverts when the liquidator is undercollateralized after liquidation", async function () {
-    //   // We need to withdraw some collateral from the liquidator's vault
-    //   // so we can make it undercollateralized during liquidation
-    //   await this.contract.withdraw()
-
-    //   await makeVaultsUndercollateralized();
-
-    //   const tx = this.liquidatorProxy.liquidate(
-    //     this.contract.address,
-    //     liquidatee,
-    //     liquidateAmount,
-    //     { from: liquidator }
-    //   );
-    //   await expectRevert(tx, "Liquidator is undercollateralized");
-    // });
-
-    it("emits event and changes vault balance correctly", async function () {
-      await makeVaultsUndercollateralized();
-
-      const receipt = await this.liquidatorProxy.liquidate(
-        this.contract.address,
-        liquidatee,
-        liquidateAmount,
-        { from: liquidator }
-      );
-
-      await expectEvent.inTransaction(receipt.tx, Instrument, "Repaid", {
-        repayer: liquidator,
-        vault: liquidatee,
-        amount: liquidateAmount,
-      });
-
-      const newLiquidatorDebt = mintAmount.add(liquidateAmount);
-      const collateralLiquidated = wdiv(
-        liquidateAmount,
-        undercollateralizedDaiEthPrice
-      );
-      const collateralLiquidatedPlusIncentive = wmul(
-        collateralLiquidated,
-        ether("1.05")
-      );
-
-      const newLiquidatorCollateral = liquidatorDepositAmount.add(
-        collateralLiquidatedPlusIncentive
-      );
-      const newLiquidateeCollateral = depositAmount.sub(
-        collateralLiquidatedPlusIncentive
-      );
-
-      await expectEvent.inTransaction(receipt.tx, Instrument, "Liquidated", {
-        liquidator,
-        liquidated: liquidatee,
-        liquidateAmount,
-        collateralLiquidated: collateralLiquidatedPlusIncentive,
-        newLiquidatorCollateral,
-        newLiquidatorDebt,
-      });
-
-      const liquidatorVault = await this.contract.getVault(liquidator);
-      assert.equal(
-        liquidatorVault._collateral.toString(),
-        newLiquidatorCollateral
-      );
-      assert.equal(liquidatorVault._dTokenDebt.toString(), newLiquidatorDebt);
-
-      // The liquidator's dToken balance should also go down when repaying debt
-      const newBalance = mintAmount.sub(liquidateAmount);
-      assert.equal(
-        (await this.dToken.balanceOf(liquidator)).toString(),
-        newBalance
-      );
-
-      const liquidatedVault = await this.contract.getVault(liquidatee);
-      assert.equal(
-        liquidatedVault._collateral.toString(),
-        newLiquidateeCollateral
-      );
-      assert.equal(liquidatedVault._dTokenDebt.toString(), "0");
-
-      // The end result should be that the liquidated vault is not liquidatable anymore
-      // and it must have no debt
-      assert.equal(await this.contract.isLiquidatable(liquidatee), false);
-    });
-
-    it("should liquidate the entire vault's collateral when underwater", async function () {
-      await makeVaultsUnderwater();
-
-      const liquidatedVault = await this.contract.getVault(liquidatee);
-
-      const receipt = await this.liquidatorProxy.liquidate(
-        this.contract.address,
-        liquidatee,
-        liquidateAmount,
-        { from: liquidator }
-      );
-
-      await expectEvent.inTransaction(receipt.tx, Instrument, "Liquidated", {
-        liquidator,
-        liquidated: liquidatee,
-        collateralLiquidated: liquidatedVault._collateral,
-      });
-    });
-  });
 });
+
+//   describe("#liquidate", () => {
+//     beforeEach(async () => {
+//       snapShot = await helper.takeSnapshot();
+//       snapshotId = snapShot["result"];
+//     });
+
+//     afterEach(async () => {
+//       await helper.revertToSnapShot(snapshotId);
+//     });
+
+//     it("reverts when the instrument is settled", async function () {
+//       const newTimestamp = 1 + parseInt(this.args.expiry);
+//       time.increaseTo(newTimestamp);
+
+//       await this.contract.settle({ from: liquidator });
+
+//       const tx = this.liquidatorProxy.liquidate(
+//         this.contract.address,
+//         liquidatee,
+//         liquidateAmount,
+//         { from: liquidator }
+//       );
+//       await expectRevert(tx, "Instrument must not be expired");
+//     });
+
+//     it("reverts when liquidating more than debt amount", async function () {
+//       const tx = this.liquidatorProxy.liquidate(
+//         this.contract.address,
+//         liquidatee,
+//         liquidateAmount.add(new BN("1")),
+//         { from: liquidator }
+//       );
+//       await expectRevert(tx, "Cannot liquidate more than debt");
+//     });
+
+//     it("reverts when vault col ratio >= 150%", async function () {
+//       const tx = this.liquidatorProxy.liquidate(
+//         this.contract.address,
+//         liquidatee,
+//         liquidateAmount,
+//         { from: liquidator }
+//       );
+//       await expectRevert(tx, "Vault not liquidatable");
+//     });
+
+//     // PENDING WITHDRAW FUNCTION
+//     // it("reverts when the liquidator is undercollateralized after liquidation", async function () {
+//     //   // We need to withdraw some collateral from the liquidator's vault
+//     //   // so we can make it undercollateralized during liquidation
+//     //   await this.contract.withdraw()
+
+//     //   await makeVaultsUndercollateralized();
+
+//     //   const tx = this.liquidatorProxy.liquidate(
+//     //     this.contract.address,
+//     //     liquidatee,
+//     //     liquidateAmount,
+//     //     { from: liquidator }
+//     //   );
+//     //   await expectRevert(tx, "Liquidator is undercollateralized");
+//     // });
+
+//     it("emits event and changes vault balance correctly", async function () {
+//       await makeVaultsUndercollateralized();
+
+//       const receipt = await this.liquidatorProxy.liquidate(
+//         this.contract.address,
+//         liquidatee,
+//         liquidateAmount,
+//         { from: liquidator }
+//       );
+
+//       await expectEvent.inTransaction(receipt.tx, Instrument, "Repaid", {
+//         repayer: liquidator,
+//         vault: liquidatee,
+//         amount: liquidateAmount,
+//       });
+
+//       const newLiquidatorDebt = mintAmount.add(liquidateAmount);
+//       const collateralLiquidated = wdiv(
+//         liquidateAmount,
+//         undercollateralizedDaiEthPrice
+//       );
+//       const collateralLiquidatedPlusIncentive = wmul(
+//         collateralLiquidated,
+//         ether("1.05")
+//       );
+
+//       const newLiquidatorCollateral = liquidatorDepositAmount.add(
+//         collateralLiquidatedPlusIncentive
+//       );
+//       const newLiquidateeCollateral = depositAmount.sub(
+//         collateralLiquidatedPlusIncentive
+//       );
+
+//       await expectEvent.inTransaction(receipt.tx, Instrument, "Liquidated", {
+//         liquidator,
+//         liquidated: liquidatee,
+//         liquidateAmount,
+//         collateralLiquidated: collateralLiquidatedPlusIncentive,
+//         newLiquidatorCollateral,
+//         newLiquidatorDebt,
+//       });
+
+//       const liquidatorVault = await this.contract.getVault(liquidator);
+//       assert.equal(
+//         liquidatorVault._collateral.toString(),
+//         newLiquidatorCollateral
+//       );
+//       assert.equal(liquidatorVault._dTokenDebt.toString(), newLiquidatorDebt);
+
+//       // The liquidator's dToken balance should also go down when repaying debt
+//       const newBalance = mintAmount.sub(liquidateAmount);
+//       assert.equal(
+//         (await this.dToken.balanceOf(liquidator)).toString(),
+//         newBalance
+//       );
+
+//       const liquidatedVault = await this.contract.getVault(liquidatee);
+//       assert.equal(
+//         liquidatedVault._collateral.toString(),
+//         newLiquidateeCollateral
+//       );
+//       assert.equal(liquidatedVault._dTokenDebt.toString(), "0");
+
+//       // The end result should be that the liquidated vault is not liquidatable anymore
+//       // and it must have no debt
+//       assert.equal(await this.contract.isLiquidatable(liquidatee), false);
+//     });
+
+//     it("should liquidate the entire vault's collateral when underwater", async function () {
+//       await makeVaultsUnderwater();
+
+//       const liquidatedVault = await this.contract.getVault(liquidatee);
+
+//       const receipt = await this.liquidatorProxy.liquidate(
+//         this.contract.address,
+//         liquidatee,
+//         liquidateAmount,
+//         { from: liquidator }
+//       );
+
+//       await expectEvent.inTransaction(receipt.tx, Instrument, "Liquidated", {
+//         liquidator,
+//         liquidated: liquidatee,
+//         collateralLiquidated: liquidatedVault._collateral,
+//       });
+//     });
+//   });
+// });

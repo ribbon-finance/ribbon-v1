@@ -62,5 +62,5 @@ contract Factory is Initializable, Ownable, FactoryStorage {
         emit InstrumentCreated(_name, address(instrument), instrument.dToken());
 
         instrumentAddress = address(instrument);
-    }
+    } 
 }

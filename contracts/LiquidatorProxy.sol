@@ -29,6 +29,6 @@ contract LiquidatorProxy is ReentrancyGuard, Initializable, LiquidatorProxyStora
      */
     function liquidate(address _instrument, address _vaultOwner, uint256 _dTokenAmount) external {
         Instrument instrumentContract = Instrument(_instrument);
-        instrumentContract.liquidateFromVault(msg.sender, _vaultOwner, _dTokenAmount, liquidationIncentive);
+        // instrumentContract.liquidateFromVault(msg.sender, _vaultOwner, _dTokenAmount, liquidationIncentive);
     }
 }

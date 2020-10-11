@@ -2,11 +2,11 @@ const { accounts, contract, web3 } = require("@openzeppelin/test-environment");
 const { assert } = require("chai");
 const {
   ether,
+  BN,
   time,
   expectEvent, // Assertions for emitted events
   expectRevert, // Assertions for transactions that should fail
   constants,
-  BN,
 } = require("@openzeppelin/test-helpers");
 const helper = require("./helper.js");
 const { getDefaultArgs } = require("./utils.js");
@@ -17,6 +17,7 @@ describe("Instrument", function () {
   const [admin, owner, user, user2, user3] = accounts;
   const supply = ether("1000000000000");
   const transferAmount = ether("100000000");
+  let self, snapshotId;
 
   before(async function () {
     const {
@@ -28,6 +29,7 @@ describe("Instrument", function () {
       args,
     } = await getDefaultArgs(admin, owner, user);
 
+    self = this;
     this.factory = factory;
     this.collateralAsset = colAsset;
     this.targetAsset = targetAsset;
@@ -43,12 +45,18 @@ describe("Instrument", function () {
     await this.collateralAsset.approve(this.contract.address, supply, {
       from: user2,
     });
-
-    snapShotFresh = await helper.takeSnapshot();
-    snapshotFreshId = snapShotFresh["result"];
   });
 
   describe("#deposit", () => {
+    beforeEach(async () => {
+      snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
     it("emits event correctly", async function () {
       const amount = ether("1");
       const deposited = await this.contract.deposit(amount, {
@@ -77,8 +85,6 @@ describe("Instrument", function () {
 
   describe("#mint", () => {
     before(async function () {
-      await helper.revertToSnapShot(snapshotFreshId);
-
       const dataProvider = await MockDataProvider.at(
         await this.contract.dataProvider()
       );
@@ -92,6 +98,15 @@ describe("Instrument", function () {
         ether("0.002983"),
         { from: owner }
       );
+    });
+
+    beforeEach(async () => {
+      snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
     });
 
     it("mints correctly and emits event", async function () {
@@ -120,6 +135,15 @@ describe("Instrument", function () {
   });
 
   describe("#depositAndMint", () => {
+    beforeEach(async () => {
+      snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
     it("deposits and mints correctly", async function () {
       vault = await this.contract.getVault(user);
       const startCol = vault._collateral;
@@ -149,6 +173,15 @@ describe("Instrument", function () {
   });
 
   describe("#repayDebt", () => {
+    beforeEach(async () => {
+      snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
     it("repays debt correctly for own vault", async function () {
       const amount = ether("1");
       const mintAmount = "1";
@@ -302,7 +335,7 @@ describe("Instrument", function () {
       });
     });
 
-    it("cannot mint and deposit after settled", async function () {
+    it("cannot mint, deposit, or withdrawCol after settled", async function () {
       const newTimestamp = 1 + parseInt(this.args.expiry);
       time.increaseTo(newTimestamp);
 
@@ -323,20 +356,158 @@ describe("Instrument", function () {
         from: user,
       });
       await expectRevert(depositAndMint, "Instrument must not be expired");
+
+      const withdrawCol = this.contract.withdrawCollateral("1", {
+        from: user,
+      });
+      await expectRevert(withdrawCol, "Instrument must not be expired");
     });
   });
 
-  describe("#liquidateFromVault", () => {
-    it("will revert if caller is not liquidator proxy", async function () {
-      const tx = this.contract.liquidateFromVault(
-        "0x0000000000000000000000000000000000000000",
-        "0x0000000000000000000000000000000000000001",
-        ether("100"),
-        ether("1.05")
+  describe("#withdrawCollateralExpired", () => {
+    before(async function () {
+      const dataProvider = await MockDataProvider.at(
+        await this.contract.dataProvider()
       );
-      await expectRevert(tx, "Only liquidatorProxy");
+      await dataProvider.setPrice(this.targetAsset.address, ether("1"), {
+        from: owner,
+      });
+      await dataProvider.setPrice(this.collateralAsset.address, ether("1"), {
+        from: owner,
+      });
+    });
+
+    beforeEach(async () => {
+      snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
+    it("withdraws correctly after expiry", async function () {
+      const amount = ether("2");
+      const mintAmount = ether("1");
+
+      await this.contract.depositAndMint(amount, mintAmount, {
+        from: user,
+      });
+      res = await this.contract.getVault(user);
+      const startBalance = await this.collateralAsset.balanceOf(user);
+      const newTimestamp = 1 + parseInt(this.args.expiry);
+      time.increaseTo(newTimestamp);
+
+      await this.contract.settle({ from: user });
+      assert.equal(await this.contract.expired(), true);
+
+      const withdrawCol = await this.contract.withdrawCollateralExpired({
+        from: user,
+      });
+      const endBalance = await this.collateralAsset.balanceOf(user);
+      assert.equal(endBalance.sub(startBalance).toString(), mintAmount);
+
+      expectEvent(withdrawCol, "WithdrewExpired", {
+        account: user,
+        amount: mintAmount,
+      });
+    });
+
+    it("withdraws correctly different prices", async function () {
+      const dataProvider = await MockDataProvider.at(
+        await this.contract.dataProvider()
+      );
+      await dataProvider.setPrice(this.targetAsset.address, ether("1"), {
+        from: owner,
+      });
+      await dataProvider.setPrice(this.collateralAsset.address, ether("400"), {
+        from: owner,
+      });
+
+      const amount = ether("1");
+      const mintAmount = ether("200");
+      await this.contract.depositAndMint(amount, mintAmount, {
+        from: user,
+      });
+
+      const newTimestamp = 1 + parseInt(this.args.expiry);
+      time.increaseTo(newTimestamp);
+
+      await this.contract.settle({ from: user });
+      assert.equal(await this.contract.expired(), true);
+
+      const withdrawCol = await this.contract.withdrawCollateralExpired({
+        from: user,
+      });
+
+      expectEvent(withdrawCol, "WithdrewExpired", {
+        account: user,
+        amount: ether("0.5"),
+      });
+    });
+
+    it("withdraw at settleprice even if oracle changes", async function () {
+      const amount = ether("2");
+      const mintAmount = ether("1");
+      await this.contract.depositAndMint(amount, mintAmount, {
+        from: user,
+      });
+      const startBalance = await this.collateralAsset.balanceOf(user);
+
+      const newTimestamp = 1 + parseInt(this.args.expiry);
+      time.increaseTo(newTimestamp);
+
+      await this.contract.settle({ from: user });
+      assert.equal(await this.contract.expired(), true);
+
+      // Change prices after expiry
+      const dataProvider = await MockDataProvider.at(
+        await this.contract.dataProvider()
+      );
+      await dataProvider.setPrice(this.targetAsset.address, ether("100"), {
+        from: owner,
+      });
+      await dataProvider.setPrice(this.collateralAsset.address, ether("50"), {
+        from: owner,
+      });
+
+      await this.contract.withdrawCollateralExpired({
+        from: user,
+      });
+      const endBalance = await this.collateralAsset.balanceOf(user);
+
+      assert.equal(endBalance.sub(startBalance).toString(), mintAmount);
+      res = await this.contract.getVault(user);
+      assert.equal(res._collateral.toString(), mintAmount);
+      assert.equal(res._dTokenDebt.toString(), mintAmount);
+    });
+
+    it("reverts if not expired", async function () {
+      const amount = ether("2");
+      const mintAmount = ether("1");
+      await this.contract.depositAndMint(amount, mintAmount, {
+        from: user,
+      });
+
+      const withdrawCol = this.contract.withdrawCollateralExpired({
+        from: user,
+      });
+
+      await expectRevert(withdrawCol, "Instrument must be expired");
     });
   });
+
+  // describe("#liquidateFromVault", () => {
+  //   it("will revert if caller is not liquidator proxy", async function () {
+  //     const tx = this.contract.liquidateFromVault(
+  //       "0x0000000000000000000000000000000000000000",
+  //       "0x0000000000000000000000000000000000000001",
+  //       ether("100"),
+  //       ether("1.05")
+  //     );
+  //     await expectRevert(tx, "Only liquidatorProxy");
+  //   });
+  // });
 
   describe("#vaultCollateralizationRatio", () => {
     it("will return max(uint256) when there is no debt", async function () {

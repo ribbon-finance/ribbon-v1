@@ -34,7 +34,7 @@ contract Instrument is ReentrancyGuard, DSMath {
         address _targetAsset,
         address _liquidatorProxy
     ) public {
-        require(block.timestamp < _expiry, "Cannot initialize instrument with expiry that has already passed");
+        require(block.timestamp < _expiry, "Expiry has already passed");
 
         name = _name;
         symbol = _symbol;
@@ -79,6 +79,16 @@ contract Instrument is ReentrancyGuard, DSMath {
      * @notice Emitted when an account repays collateral in a vault
      */
     event Repaid(address repayer, address vault, uint amount);
+
+    /**
+     * @notice Emitted when an account withdraws collateral in a vault
+     */
+    event Withdrew(address account, uint amount);
+
+    /**
+     * @notice Emitted when an account withdraws all collateral from an expired instrument
+     */
+    event WithdrewExpired(address account, uint amount);
 
     /**
      * @notice Emitted when the instrument is settled
@@ -148,7 +158,7 @@ contract Instrument is ReentrancyGuard, DSMath {
         IERC20 colToken = IERC20(collateralAsset);
       
         Vault storage vault = vaults[msg.sender];
-        vault.collateral += _amount;
+        vault.collateral = add(vault.collateral, _amount);
       
         colToken.safeTransferFrom(msg.sender, address(this), _amount);
         emit Deposited(msg.sender, _amount);
@@ -199,67 +209,67 @@ contract Instrument is ReentrancyGuard, DSMath {
         mintInternal(_dToken);
     }
 
-    /**
-     * @notice Liquidates a vault using collateral and debt from another vault
-     * @param _liquidator is the address of the liquidator
-     * @param _liquidatee is the address of the vault being liquidated
-     * @param _dTokenAmount is the dToken debt amount to be repaid for the liquidation
-     * @param _liquidationIncentive the % amount of collateral the liquidators can take as a reward
-     */
-    function liquidateFromVault(
-        address _liquidator,
-        address _liquidatee,
-        uint256 _dTokenAmount,
-        uint256 _liquidationIncentive
-    ) external nonReentrant {
-        // No other caller except the assigned proxy can liquidate
-        require(msg.sender == liquidatorProxy, "Only liquidatorProxy");
-        require(!expired, "Instrument must not be expired");
+    // /**
+    //  * @notice Liquidates a vault using collateral and debt from another vault
+    //  * @param _liquidator is the address of the liquidator
+    //  * @param _liquidatee is the address of the vault being liquidated
+    //  * @param _dTokenAmount is the dToken debt amount to be repaid for the liquidation
+    //  * @param _liquidationIncentive the % amount of collateral the liquidators can take as a reward
+    //  */
+    // function liquidateFromVault(
+    //     address _liquidator,
+    //     address _liquidatee,
+    //     uint256 _dTokenAmount,
+    //     uint256 _liquidationIncentive
+    // ) external nonReentrant {
+    //     // No other caller except the assigned proxy can liquidate
+    //     require(msg.sender == liquidatorProxy, "Only liquidatorProxy");
+    //     require(!expired, "Instrument must not be expired");
         
-        Vault storage liquidatorVault = vaults[_liquidator];
-        Vault storage liquidatedVault = vaults[_liquidatee];
-        uint256 liquidateeDTokenDebt = liquidatedVault.dTokenDebt;
-        uint256 liquidateeCollateral = liquidatedVault.collateral;
+    //     Vault storage liquidatorVault = vaults[_liquidator];
+    //     Vault storage liquidatedVault = vaults[_liquidatee];
+    //     uint256 liquidateeDTokenDebt = liquidatedVault.dTokenDebt;
+    //     uint256 liquidateeCollateral = liquidatedVault.collateral;
 
-        require(_dTokenAmount <= liquidateeDTokenDebt, "Cannot liquidate more than debt");
+    //     require(_dTokenAmount <= liquidateeDTokenDebt, "Cannot liquidate more than debt");
 
-        DataProviderInterface data = DataProviderInterface(dataProvider);
-        uint256 collateralPrice = data.getPrice(collateralAsset);
-        uint256 targetPrice = data.getPrice(targetAsset);
+    //     DataProviderInterface data = DataProviderInterface(dataProvider);
+    //     uint256 collateralPrice = data.getPrice(collateralAsset);
+    //     uint256 targetPrice = data.getPrice(targetAsset);
 
-        // Check if the vault is under the Instrument's collateralizationRatio
-        uint256 minColRatio = collateralizationRatio;
-        require(
-            computeColRatio(collateralPrice, targetPrice, liquidateeCollateral, liquidateeDTokenDebt) < minColRatio,
-            "Vault not liquidatable"
-        );
+    //     // Check if the vault is under the Instrument's collateralizationRatio
+    //     uint256 minColRatio = collateralizationRatio;
+    //     require(
+    //         computeColRatio(collateralPrice, targetPrice, liquidateeCollateral, liquidateeDTokenDebt) < minColRatio,
+    //         "Vault not liquidatable"
+    //     );
 
-        // Calculates the outcome for the liquidator's vault
-        (uint256 collateralLiquidated, uint256 newLiquidatorCollateral, uint256 newLiquidatorDebt) = calculateLiquidationVaultOutcome(
-            liquidatorVault.collateral, liquidatorVault.dTokenDebt, _dTokenAmount, _liquidationIncentive, targetPrice, collateralPrice);
+    //     // Calculates the outcome for the liquidator's vault
+    //     (uint256 collateralLiquidated, uint256 newLiquidatorCollateral, uint256 newLiquidatorDebt) = calculateLiquidationVaultOutcome(
+    //         liquidatorVault.collateral, liquidatorVault.dTokenDebt, _dTokenAmount, _liquidationIncentive, targetPrice, collateralPrice);
 
-        // After the liquidator accepts the new debt and collateral * 1.05,
-        // We need to check that the liquidator is still overcollateralized
-        require(
-            computeColRatio(collateralPrice, targetPrice, newLiquidatorCollateral, newLiquidatorDebt) >= minColRatio,
-            "Liquidator is undercollateralized"
-        );
+    //     // After the liquidator accepts the new debt and collateral * 1.05,
+    //     // We need to check that the liquidator is still overcollateralized
+    //     require(
+    //         computeColRatio(collateralPrice, targetPrice, newLiquidatorCollateral, newLiquidatorDebt) >= minColRatio,
+    //         "Liquidator is undercollateralized"
+    //     );
 
-        // This covers the cases where the vault is underwater
-        // Just liquidate the entire vault's collateral if the calculated collateralLiquidated is more than vault's collateral
-        if (collateralLiquidated > liquidateeCollateral) {
-            collateralLiquidated = liquidateeCollateral;
-        }
+    //     // This covers the cases where the vault is underwater
+    //     // Just liquidate the entire vault's collateral if the calculated collateralLiquidated is more than vault's collateral
+    //     if (collateralLiquidated > liquidateeCollateral) {
+    //         collateralLiquidated = liquidateeCollateral;
+    //     }
 
-        // Finally we have to assign the new values to the liquidator and liquidated vault
-        liquidatorVault.collateral = newLiquidatorCollateral;
-        liquidatorVault.dTokenDebt = newLiquidatorDebt;
-        liquidatedVault.collateral = sub(liquidateeCollateral, collateralLiquidated);
+    //     // Finally we have to assign the new values to the liquidator and liquidated vault
+    //     liquidatorVault.collateral = newLiquidatorCollateral;
+    //     liquidatorVault.dTokenDebt = newLiquidatorDebt;
+    //     liquidatedVault.collateral = sub(liquidateeCollateral, collateralLiquidated);
 
-        // The repayDebtInternal subtracts the debt amount
-        repayDebtInternal(_liquidator, _liquidatee, _dTokenAmount);
-        emit Liquidated(_liquidator, _liquidatee, _dTokenAmount, collateralLiquidated, newLiquidatorCollateral, newLiquidatorDebt);
-    }
+    //     // The repayDebtInternal subtracts the debt amount
+    //     repayDebtInternal(_liquidator, _liquidatee, _dTokenAmount);
+    //     emit Liquidated(_liquidator, _liquidatee, _dTokenAmount, collateralLiquidated, newLiquidatorCollateral, newLiquidatorDebt);
+    // }
 
     /**
      * @notice Calculates the liquidator vault's collateral and debt after a liquidation
@@ -340,6 +350,56 @@ contract Instrument is ReentrancyGuard, DSMath {
      */
     function repayDebt(address _account, uint _amount) public nonReentrant {
         repayDebtInternal(msg.sender, _account, _amount);
+    }
+
+    /**
+     * @notice Withdraws collateral after instrument is expired
+     */
+    function withdrawCollateralExpired() external nonReentrant {
+        require(expired, "Instrument must be expired");
+        Vault storage vault = vaults[msg.sender];
+
+        uint withdrawableColAmount = wmul(settlePrice, vault.dTokenDebt);
+        vault.collateral = sub(vault.collateral, withdrawableColAmount);
+        IERC20 colToken = IERC20(collateralAsset);
+        colToken.safeTransfer(msg.sender, withdrawableColAmount);
+        emit WithdrewExpired(msg.sender, withdrawableColAmount);
+    }
+
+    /**
+     * @notice Withdraws collateral while the instrument is active
+     * @param _amount is amount of collateral to withdraw
+     */
+    function withdrawCollateral(uint _amount) external nonReentrant {
+        withdrawCollateralInternal(msg.sender, _amount);
+    }
+
+    /**
+     * @notice Withdraws collateral from a vault
+     * @param _account is account that is withdrawing
+     * @param _amount is amount of collateral to withdraw
+     */
+    function withdrawCollateralInternal(address _account, uint _amount) internal {
+        require(!expired, "Instrument must not be expired");
+        DataProviderInterface data = DataProviderInterface(dataProvider);
+        Vault storage vault = vaults[_account];
+
+        uint newCol = sub(vault.collateral, _amount);
+        uint newColRatio = computeColRatio(
+            data.getPrice(collateralAsset),
+            data.getPrice(targetAsset),
+            newCol,
+            vault.dTokenDebt);
+        
+        require(
+            newColRatio >= collateralizationRatio,
+            "Collateralization ratio too low to withdraw"
+        );
+        vault.collateral = newCol;
+
+        IERC20 colToken = IERC20(collateralAsset);
+        colToken.safeTransfer(_account, _amount);
+        emit Withdrew(msg.sender, _amount);
     }
 
     /**

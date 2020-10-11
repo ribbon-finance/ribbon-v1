@@ -21,6 +21,8 @@ module.exports = {
     },
   },
 
+  plugins: ["truffle-contract-size"],
+
   mocha: {
     timeout: 100000,
   },

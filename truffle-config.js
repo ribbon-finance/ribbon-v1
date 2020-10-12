@@ -11,7 +11,7 @@ module.exports = {
     },
     ropsten: {
       provider: () =>
-        new HDWalletProvider(process.env.PRIV_KEY, process.env.INFURA_URI),
+        new HDWalletProvider(process.env.MNEMONIC, process.env.INFURA_URI),
       network_id: 3,
       gas: 5500000,
       networkCheckTimeout: 1000,

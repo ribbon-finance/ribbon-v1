@@ -40,6 +40,7 @@ describe("DojimaFactory", function () {
       this.liquidatorProxy.address
     );
     assert.equal(await this.factory.dataProvider(), this.dataProvider.address);
+    assert.equal(await this.factory.owner(), owner);
   });
 
   it("initializes contract correctly", async function () {
@@ -84,6 +85,19 @@ describe("DojimaFactory", function () {
     expectRevert(newContract, "Instrument already exists");
   });
 
+  it("reverts if any account other than owner calls", async function () {
+    const tx = this.factory.newInstrument(
+      "test",
+      "test",
+      32503680000,
+      1,
+      "0x0000000000000000000000000000000000000000",
+      "0x0000000000000000000000000000000000000001",
+      { from: user }
+    );
+    await expectRevert(tx, "Only owner");
+  });
+
   it("emits event correctly", async function () {
     const name = "test";
     const res = await this.factory.newInstrument(
@@ -96,7 +110,7 @@ describe("DojimaFactory", function () {
       { from: owner }
     );
 
-    const instrument = await Instrument.at(res.logs[1].args.instrumentAddress);
+    const instrument = await Instrument.at(res.logs[0].args.instrumentAddress);
     const dToken = await instrument.dToken();
 
     expectEvent(res, "InstrumentCreated", {

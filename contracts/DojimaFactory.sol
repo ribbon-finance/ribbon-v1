@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.6.2;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "./lib/upgrades/Initializable.sol";
 import "./DojimaInstrument.sol";
 import "./DojimaFactoryStorage.sol";
 
-contract DojimaFactory is Initializable, Ownable, DojimaFactoryStorageV1 {
+contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
     /**
      * @notice Emitted when a new instrument is created
      */
@@ -19,7 +18,8 @@ contract DojimaFactory is Initializable, Ownable, DojimaFactoryStorageV1 {
     /**
      * @notice Constructor takes a DataProvider contract address
      */
-    function initialize(address _dataProvider, address _liquidatorProxy) public initializer {
+    function initialize(address _owner, address _dataProvider, address _liquidatorProxy) public initializer {
+        owner = _owner;
         dataProvider = _dataProvider;
         liquidatorProxy = _liquidatorProxy;
     }
@@ -46,6 +46,7 @@ contract DojimaFactory is Initializable, Ownable, DojimaFactoryStorageV1 {
         address _collateralAsset,
         address _targetAsset
     ) public returns (address instrumentAddress) {
+        require(msg.sender == owner, "Only owner");
         require(instruments[_name] == address(0), "Instrument already exists");
 
         DojimaInstrument instrument = new DojimaInstrument(

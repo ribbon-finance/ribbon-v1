@@ -355,18 +355,21 @@ describe("DojimaInstrument", function () {
         from: owner,
       });
 
-      const newTimestamp = 1 + parseInt(this.args.expiry);
+      const expiryTimestamp = parseInt(this.args.expiry);
+      const newTimestamp = 1 + expiryTimestamp;
       time.increaseTo(newTimestamp);
 
       const settled = await this.contract.settle({ from: user });
       assert.equal(await this.contract.expired(), true);
 
       expectEvent(settled, "Settled", {
-        timestamp: newTimestamp.toString(),
         settlePrice: ether("0.01"),
         targetAssetPrice: ether("0.01"),
         collateralAssetPrice: ether("1"),
       });
+
+      const blockTimestamp = settled.logs[0].args.timestamp.toNumber();
+      assert.isAtLeast(blockTimestamp, expiryTimestamp);
     });
 
     it("cannot mint, deposit, or withdrawCol after settled", async function () {

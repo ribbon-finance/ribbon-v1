@@ -3,6 +3,11 @@ pragma solidity ^0.6.2;
 
 contract DojimaFactoryStorageV1 {
     /**
+     * @notice Address of contract owner
+     */
+    address public owner;
+
+    /**
      * @notice Address of dataProvider contract
      */
     address public dataProvider;

@@ -13,4 +13,4 @@ test:
 	npm test
 
 verify:
-	API_KEY=$$ETHERSCAN_API_KEY npx verify-on-etherscan --network ropsten ./build/contracts/*
+	API_KEY=$$ETHERSCAN_API_KEY npx verify-on-etherscan --network kovan ./build/contracts/*

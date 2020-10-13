@@ -19,9 +19,39 @@ module.exports = {
       timeoutBlocks: 200,
       skipDryRun: true,
     },
+    rinkeby: {
+      provider: () =>
+        new HDWalletProvider(
+          process.env.PRIV_KEY,
+          process.env.INFURA_RINKEBY_URI
+        ),
+      network_id: 4,
+      gas: 5500000,
+      networkCheckTimeout: 1000,
+      confirmations: 1,
+      timeoutBlocks: 200,
+      skipDryRun: true,
+    },
+    kovan: {
+      provider: () =>
+        new HDWalletProvider(
+          process.env.PRIV_KEY,
+          process.env.INFURA_KOVAN_URI
+        ),
+      network_id: 42,
+      gas: 5500000,
+      networkCheckTimeout: 1000,
+      confirmations: 1,
+      timeoutBlocks: 200,
+      skipDryRun: true,
+    },
   },
 
-  plugins: ["truffle-contract-size"],
+  api_keys: {
+    etherscan: "ENT2EY4U26UMK69U4IQ27IY6CKNY5WUETZ",
+  },
+
+  plugins: ["truffle-contract-size", "truffle-plugin-verify"],
 
   mocha: {
     timeout: 100000,

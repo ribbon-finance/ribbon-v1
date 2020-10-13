@@ -21,7 +21,13 @@ describe("DToken", function () {
 
   describe("#owner", () => {
     it("returns the instrument as the owner", async function () {
-      assert.equal(await this.dToken.owner(), await this.contract.address);
+      assert.equal(await this.dToken.owner(), this.contract.address);
+    });
+  });
+
+  describe("#dojimaInstrument", () => {
+    it("returns the instrument", async function () {
+      assert.equal(await this.dToken.dojimaInstrument(), this.contract.address);
     });
   });
 });

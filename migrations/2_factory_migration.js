@@ -5,7 +5,7 @@ const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const { ether } = require("@openzeppelin/test-helpers");
 
-async function deployLiquidatorProxy(deployer, admin) {
+async function deployLiquidatorProxy(deployer, admin, owner) {
   await deployer.deploy(LiquidatorProxy);
 
   const liquidatorProxy = LiquidatorProxy.address;
@@ -13,7 +13,7 @@ async function deployLiquidatorProxy(deployer, admin) {
   const initBytes = encodeCall(
     "initialize",
     ["address", "uint256"],
-    [admin, ether("1.05").toString()]
+    [owner, ether("1.05").toString()]
   );
   await deployer.deploy(
     AdminUpgradeabilityProxy,
@@ -26,7 +26,7 @@ async function deployLiquidatorProxy(deployer, admin) {
   );
 }
 
-async function deployFactory(deployer, admin) {
+async function deployFactory(deployer, admin, owner) {
   await deployer.deploy(Factory);
 
   const dataProvider = DataProvider.address;
@@ -34,8 +34,8 @@ async function deployFactory(deployer, admin) {
 
   const initBytes = encodeCall(
     "initialize",
-    ["address", "address"],
-    [dataProvider, liquidatorProxy]
+    ["address", "address", "address"],
+    [owner, dataProvider, liquidatorProxy]
   );
   await deployer.deploy(
     AdminUpgradeabilityProxy,
@@ -49,11 +49,11 @@ async function deployFactory(deployer, admin) {
 }
 
 module.exports = async function (deployer, _, accounts) {
-  const [admin] = accounts;
+  const [admin, owner] = accounts;
 
   await deployer.deploy(DataProvider);
 
-  await deployLiquidatorProxy(deployer, admin);
+  await deployLiquidatorProxy(deployer, admin, owner);
 
-  await deployFactory(deployer, admin);
+  await deployFactory(deployer, admin, owner);
 };

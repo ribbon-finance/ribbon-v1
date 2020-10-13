@@ -57,8 +57,8 @@ async function getDefaultArgs(admin, owner, user) {
   const factory = await deployProxy(
     Factory,
     admin,
-    ["address", "address"],
-    [dataProvider.address, liquidatorProxy.address]
+    ["address", "address", "address"],
+    [owner, dataProvider.address, liquidatorProxy.address]
   );
 
   const colAsset = await MockERC20.new("Dai Stablecoin", "Dai", supply, {
@@ -77,7 +77,7 @@ async function getDefaultArgs(admin, owner, user) {
     { from: owner }
   );
 
-  const instrument = await Instrument.at(res.logs[1].args.instrumentAddress);
+  const instrument = await Instrument.at(res.logs[0].args.instrumentAddress);
   const dTokenAddress = await instrument.dToken();
   const dToken = await DToken.at(dTokenAddress);
 

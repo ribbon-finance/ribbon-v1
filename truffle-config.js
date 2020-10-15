@@ -9,20 +9,10 @@ module.exports = {
       port: 8545,
       network_id: "*",
     },
-    ropsten: {
-      provider: () =>
-        new HDWalletProvider(process.env.MNEMONIC, process.env.INFURA_URI),
-      network_id: 3,
-      gas: 5500000,
-      networkCheckTimeout: 1000,
-      confirmations: 1,
-      timeoutBlocks: 200,
-      skipDryRun: true,
-    },
     rinkeby: {
       provider: () =>
         new HDWalletProvider(
-          process.env.PRIV_KEY,
+          process.env.MNEMONIC,
           process.env.INFURA_RINKEBY_URI
         ),
       network_id: 4,
@@ -35,7 +25,7 @@ module.exports = {
     kovan: {
       provider: () =>
         new HDWalletProvider(
-          process.env.PRIV_KEY,
+          process.env.MNEMONIC,
           process.env.INFURA_KOVAN_URI
         ),
       network_id: 42,

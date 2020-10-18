@@ -73,14 +73,15 @@ module.exports = async function (done) {
     );
     web3.setProvider(provider);
 
-    const name = "ETH-backed Dai 10/19/20";
-    const symbol = "ETHdDai-1017";
-    const expiry = "1602806401";
+    const name = "ETH-backed Dai 17/11/20";
+    const symbol = "ETHdDai-1117";
+    const expiry = "1605571200";
     const CR = "1500000000000000000";
     const colAsset = json["assets"]["eth"];
     const targetAsset = json["assets"]["dai"];
-    // const dataProvider = "0x238076db122f5a26B34CF3bD0Bb48d8612c1e2dd";
-    // const liquidatorProxy = "0x2b7000A5D9fce241Aca195B6f83c7A3087BF3eD7";
+    // const dataProvider = "0x3e85c772cdcd3861Acdd7cd1e66B92502126Efc4";
+    // const liquidatorProxy = "0x5c12B718f26e59d01197349170c51f33e73FD9bb";
+    // const instrumentAddress = "0x1fee9141Df621aE25b74Bc824571b1F54E8E3147";
 
     const [
       instrumentAddress,

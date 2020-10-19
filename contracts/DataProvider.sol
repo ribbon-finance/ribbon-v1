@@ -9,13 +9,18 @@ import "./lib/DSMath.sol";
 
 contract DataProvider is Ownable, DataProviderInterface, DSMath {
     uint constant ETHPrice = 1 * WAD;
-    address constant ETHAddress = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     /**
      * @notice Mapping of token address to address of its' Chainlink feed.
      * These Chainlink feeds are Token/ETH feeds.
      */
     mapping(address => address) public chainlinkRegistry;
+
+    address public weth;
+
+    constructor(address _weth) public {
+      weth = _weth;
+    }
 
     /**
      * @notice Adds Chainlink feed to chainlinkRegistry
@@ -39,7 +44,7 @@ contract DataProvider is Ownable, DataProviderInterface, DSMath {
      */
     function getPrice(address _asset) external view override returns(uint){
         // If the asset is ETH, return the ETHPrice constant
-        if (_asset == ETHAddress) {
+        if (_asset == weth) {
             return ETHPrice;
         }
         // Get price from Chainlink

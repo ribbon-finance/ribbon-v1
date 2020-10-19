@@ -4,6 +4,8 @@ const Factory = artifacts.require("DojimaFactory");
 const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const { ether } = require("@openzeppelin/test-helpers");
+const ADDRESSES = require("../addresses.json");
+const WETH_ADDRESS = ADDRESSES.assets.weth;
 
 async function deployLiquidatorProxy(deployer, admin, owner) {
   await deployer.deploy(LiquidatorProxy);
@@ -51,7 +53,7 @@ async function deployFactory(deployer, admin, owner) {
 module.exports = async function (deployer, _, accounts) {
   const [admin, owner] = accounts;
 
-  await deployer.deploy(DataProvider);
+  await deployer.deploy(DataProvider, WETH_ADDRESS);
 
   await deployLiquidatorProxy(deployer, admin, owner);
 

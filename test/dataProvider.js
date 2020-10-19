@@ -10,10 +10,17 @@ const DataProvider = contract.fromArtifact("DataProvider");
 
 describe("DataProvider", function () {
   const [owner] = accounts;
+  const mockWETH = "0x0000000000000000000000000000000000000069";
   const asset = "0x0000000000000000000000000000000000000000";
   const feed = "0x0000000000000000000000000000000000000001";
+
   before(async function () {
-    this.contract = await DataProvider.new({ from: owner });
+    this.contract = await DataProvider.new(mockWETH, { from: owner });
+  });
+
+  it("initializes correctly", async function () {
+    assert.equal(await this.contract.weth(), mockWETH);
+    assert.equal(await this.contract.owner(), owner);
   });
 
   describe("#addChainlinkFeed", () => {
@@ -32,6 +39,15 @@ describe("DataProvider", function () {
       const badAsset = "0x1000000000000000000000000000000000000000";
       const res = this.contract.getChainlinkFeed(badAsset);
       expectRevert(res, "Feed does not exist in chainlinkRegistry");
+    });
+  });
+
+  describe("#getPrice", () => {
+    it("returns 1 ether when checking WETH price", async function () {
+      assert.equal(
+        (await this.contract.getPrice(mockWETH)).toString(),
+        ether("1")
+      );
     });
   });
 });

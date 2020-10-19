@@ -90,8 +90,8 @@ module.exports = async function (done) {
       liquidatorProxy,
     ] = await addInstrument(name, symbol, expiry, CR, colAsset, targetAsset);
 
-    console.log("Waiting to complete deploy");
-    await timeout(10000);
+    console.log("Waiting 1 minute to complete deploy");
+    await timeout(60000);
 
     const constructorArgs = web3.eth.abi
       .encodeParameters(

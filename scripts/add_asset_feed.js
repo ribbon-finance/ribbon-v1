@@ -48,6 +48,7 @@ module.exports = async function (done) {
   const linkFeed = "0x3Af8C569ab77af5230596Acf0E8c2F9351d24C38";
 
   await addAssetFeed(link, linkFeed);
+  await addAssetFeed(dai, daiFeed);
   // await getFeed(dai);
   // await getFeed(link);
 

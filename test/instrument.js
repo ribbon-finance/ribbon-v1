@@ -401,7 +401,7 @@ describe("DojimaInstrument", function () {
     });
   });
 
-  describe("#withdrawCollateralExpired", () => {
+  describe("#withdrawAfterExpiry", () => {
     before(async function () {
       const dataProvider = await MockDataProvider.at(
         await this.contract.dataProvider()
@@ -438,7 +438,7 @@ describe("DojimaInstrument", function () {
       await this.contract.settle({ from: user });
       assert.equal(await this.contract.expired(), true);
 
-      const withdrawCol = await this.contract.withdrawCollateralExpired({
+      const withdrawCol = await this.contract.withdrawAfterExpiry({
         from: user,
       });
       const endBalance = await this.collateralAsset.balanceOf(user);
@@ -473,7 +473,7 @@ describe("DojimaInstrument", function () {
       await this.contract.settle({ from: user });
       assert.equal(await this.contract.expired(), true);
 
-      const withdrawCol = await this.contract.withdrawCollateralExpired({
+      const withdrawCol = await this.contract.withdrawAfterExpiry({
         from: user,
       });
 
@@ -508,7 +508,7 @@ describe("DojimaInstrument", function () {
         from: owner,
       });
 
-      await this.contract.withdrawCollateralExpired({
+      await this.contract.withdrawAfterExpiry({
         from: user,
       });
       const endBalance = await this.collateralAsset.balanceOf(user);
@@ -526,7 +526,7 @@ describe("DojimaInstrument", function () {
         from: user,
       });
 
-      const withdrawCol = this.contract.withdrawCollateralExpired({
+      const withdrawCol = this.contract.withdrawAfterExpiry({
         from: user,
       });
 

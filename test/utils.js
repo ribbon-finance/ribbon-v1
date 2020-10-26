@@ -6,7 +6,7 @@ const AdminUpgradeabilityProxy = contract.fromArtifact(
   "AdminUpgradeabilityProxy"
 );
 const Factory = contract.fromArtifact("DojimaFactory");
-const Instrument = contract.fromArtifact("DojimaInstrument");
+const Instrument = contract.fromArtifact("DualCurrency");
 const MockERC20 = contract.fromArtifact("MockERC20");
 const DToken = contract.fromArtifact("DToken");
 const MockDataProvider = contract.fromArtifact("MockDataProvider");

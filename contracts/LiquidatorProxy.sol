@@ -2,7 +2,7 @@
 pragma solidity >=0.6.0;
 
 import "./lib/upgrades/Initializable.sol";
-import "./instruments/DojimaInstrument.sol";
+import "./interfaces/InstrumentInterface.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract LiquidatorProxyStorageV1 {
@@ -39,7 +39,9 @@ contract LiquidatorProxy is
         address _vaultOwner,
         uint256 _dTokenAmount
     ) external {
-        DojimaInstrument instrumentContract = DojimaInstrument(_instrument);
+        InstrumentInterface instrumentContract = InstrumentInterface(
+            _instrument
+        );
         instrumentContract.liquidateFromVault(
             msg.sender,
             _vaultOwner,

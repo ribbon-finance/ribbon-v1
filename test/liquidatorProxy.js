@@ -12,7 +12,7 @@ const helper = require("./helper.js");
 const { wdiv, wmul, getDefaultArgs } = require("./utils.js");
 
 const MockDataProvider = contract.fromArtifact("MockDataProvider");
-const Instrument = contract.fromArtifact("DojimaInstrument");
+const Instrument = contract.fromArtifact("DualCurrency");
 
 describe("LiquidatorProxy", function () {
   const [admin, owner, liquidator, liquidatee] = accounts;

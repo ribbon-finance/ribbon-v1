@@ -5,107 +5,57 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import "./interfaces/InstrumentInterface.sol";
-import "./DToken.sol";
-import "./DataProviderInterface.sol";
-import "./lib/DSMath.sol";
+import "../interfaces/InstrumentInterface.sol";
+import "./BaseInstrumentStorage.sol";
+import "../DToken.sol";
+import "../DataProviderInterface.sol";
+import "../lib/DSMath.sol";
 
-contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
+contract BaseInstrument is ReentrancyGuard, DSMath, InstrumentInterface, BaseInstrumentStorageV1 {
     using SafeERC20 for IERC20;
 
-    string public name;
-    string public symbol;
-    uint public expiry;
-    uint public collateralizationRatio;
-    address public collateralAsset;
-    address public targetAsset;
-    address public dToken;
-    address public dataProvider;
-    bool public expired;
-    uint public settlePrice;
-    address public liquidatorProxy;
-    uint public totalDebt;
-
-    constructor(
-        address _dataProvider,
-        string memory _name,
-        string memory _symbol,
-        uint _expiry,
-        uint _collateralizationRatio,
-        address _collateralAsset,
-        address _targetAsset,
-        address _liquidatorProxy
-    ) public {
-        require(block.timestamp < _expiry, "Expiry has already passed");
-
-        name = _name;
-        symbol = _symbol;
-        expiry = _expiry;
-        collateralizationRatio = _collateralizationRatio;
-        collateralAsset = _collateralAsset;
-        targetAsset = _targetAsset;
-        dataProvider = _dataProvider;
-        liquidatorProxy = _liquidatorProxy;
-
-        // Init new DToken
-        DToken newDToken = new DToken(_name, _symbol);
-        dToken = address(newDToken);
-
-        expired = false;
-    }
-   
     /**
-     * @notice Vault struct contains collateral and dToken debt
+     * @notice Emitted when an account deposits collateral
      */
-    struct Vault {
-        uint collateral;
-        uint dTokenDebt;
-    }
-
-    /**
-     * @notice Mapping between an address and a vault
-     */
-    mapping(address => Vault) public vaults;
+    event Deposited(address account, uint256 amount);
 
     /**
      * @notice Emitted when an account deposits collateral
      */
-    event Deposited(address account, uint amount);
-
-    /**
-     * @notice Emitted when an account deposits collateral
-     */
-    event Minted(address account, uint amount);
+    event Minted(address account, uint256 amount);
 
     /**
      * @notice Emitted when an account repays collateral in a vault
      */
-    event Repaid(address repayer, address vault, uint amount);
+    event Repaid(address repayer, address vault, uint256 amount);
 
     /**
      * @notice Emitted when an account withdraws collateral in a vault
      */
-    event Withdrew(address account, uint amount);
+    event Withdrew(address account, uint256 amount);
 
     /**
      * @notice Emitted when an account withdraws all collateral from an expired instrument
      */
-    event WithdrewExpired(address account, uint amount);
+    event WithdrewExpired(address account, uint256 amount);
 
     /**
      * @notice Emitted when dTokens are redeemed
      */
-    event Redeemed(address account, uint dTokenAmount, uint collateralAmount);
-
+    event Redeemed(
+        address account,
+        uint256 dTokenAmount,
+        uint256 collateralAmount
+    );
 
     /**
      * @notice Emitted when the instrument is settled
      */
     event Settled(
-        uint timestamp,
-        uint settlePrice,
-        uint targetAssetPrice,
-        uint collateralAssetPrice
+        uint256 timestamp,
+        uint256 settlePrice,
+        uint256 targetAssetPrice,
+        uint256 collateralAssetPrice
     );
 
     /**
@@ -114,10 +64,10 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
     event Liquidated(
         address liquidator,
         address liquidated,
-        uint liquidateAmount,
-        uint collateralLiquidated,
-        uint newLiquidatorCollateral,
-        uint newLiquidatorDebt
+        uint256 liquidateAmount,
+        uint256 collateralLiquidated,
+        uint256 newLiquidatorCollateral,
+        uint256 newLiquidatorDebt
     );
 
     /**
@@ -125,24 +75,32 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
      * It calculates the `settlePrice` with the current prices of target and
      * collateral assets, then sets them in stone.
      */
-    function settle() public override {
+    function settle() public virtual override {
         require(block.timestamp > expiry, "Instrument has not expired");
         expired = true;
 
         // Set settlePrice to the current price of target and collat assets
         DataProviderInterface data = DataProviderInterface(dataProvider);
-        uint targetAssetPrice = data.getPrice(targetAsset);
-        uint collateralAssetPrice = data.getPrice(collateralAsset);
-        
-        settlePrice = computeSettlePrice(targetAssetPrice, collateralAssetPrice);
+        uint256 targetAssetPrice = data.getPrice(targetAsset);
+        uint256 collateralAssetPrice = data.getPrice(collateralAsset);
 
-        emit Settled(block.timestamp, settlePrice, targetAssetPrice, collateralAssetPrice);
+        settlePrice = computeSettlePrice(
+            targetAssetPrice,
+            collateralAssetPrice
+        );
+
+        emit Settled(
+            block.timestamp,
+            settlePrice,
+            targetAssetPrice,
+            collateralAssetPrice
+        );
     }
 
     /**
      * @notice Gets the price of collateral asset
      */
-    function getColPrice() public view returns(uint) {
+    function getColPrice() public view returns (uint256) {
         DataProviderInterface data = DataProviderInterface(dataProvider);
         return data.getPrice(collateralAsset);
     }
@@ -150,7 +108,7 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
     /**
      * @notice Gets the price of target asset
      */
-    function getTargetPrice() public view returns(uint) {
+    function getTargetPrice() public view returns (uint256) {
         DataProviderInterface data = DataProviderInterface(dataProvider);
         return data.getPrice(targetAsset);
     }
@@ -159,7 +117,11 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
      * @notice Gets the collateral and debt of a vault
      * @param _user user's address
      */
-    function getVault(address _user) public view returns(uint _collateral, uint _dTokenDebt) {
+    function getVault(address _user)
+        public
+        view
+        returns (uint256 _collateral, uint256 _dTokenDebt)
+    {
         Vault memory vault = vaults[_user];
         return (vault.collateral, vault.dTokenDebt);
     }
@@ -172,9 +134,15 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
      * @param _dTokenAmount amount of dTokenAmount to change
      * @param _dTokenSign true if adding, false if removing
      */
-    function getNewColRatio(address _user, uint _colAmount, bool _colSign, uint _dTokenAmount, bool _dTokenSign) public view returns(uint) {
-        uint newCol;
-        uint newDebt;
+    function getNewColRatio(
+        address _user,
+        uint256 _colAmount,
+        bool _colSign,
+        uint256 _dTokenAmount,
+        bool _dTokenSign
+    ) public view returns (uint256) {
+        uint256 newCol;
+        uint256 newDebt;
         Vault memory vault = vaults[_user];
         if (_colSign) {
             newCol = add(vault.collateral, _colAmount);
@@ -189,19 +157,20 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
         }
 
         DataProviderInterface data = DataProviderInterface(dataProvider);
-        return computeColRatio(
-            data.getPrice(collateralAsset),
-            data.getPrice(targetAsset),
-            newCol,
-            newDebt
-        );
+        return
+            computeColRatio(
+                data.getPrice(collateralAsset),
+                data.getPrice(targetAsset),
+                newCol,
+                newDebt
+            );
     }
 
     /**
      * @notice Deposits collateral into the system. Calls the `depositInteral` function
      * @param _amount is amount of collateral to deposit
      */
-    function deposit(uint _amount) public override nonReentrant {
+    function deposit(uint256 _amount) public virtual override nonReentrant {
         depositInternal(_amount);
     }
 
@@ -209,14 +178,14 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
      * @notice Deposits collateral into the Instrument contract and credits the caller's vault
      * @param _amount is amount of collateral to deposit
      */
-    function depositInternal(uint _amount) internal {
+    function depositInternal(uint256 _amount) internal {
         require(!expired, "Instrument must not be expired");
 
         IERC20 colToken = IERC20(collateralAsset);
-      
+
         Vault storage vault = vaults[msg.sender];
         vault.collateral = add(vault.collateral, _amount);
-      
+
         colToken.safeTransferFrom(msg.sender, address(this), _amount);
         emit Deposited(msg.sender, _amount);
     }
@@ -225,7 +194,7 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
      * @notice Mints dTokens. Calls the `mintInternal` function
      * @param _amount is amount of dToken to mint
      */
-    function mint(uint _amount) public override nonReentrant {
+    function mint(uint256 _amount) public virtual override nonReentrant {
         mintInternal(_amount);
     }
 
@@ -233,17 +202,18 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
      * @notice Mints dTokens and debits the debt in the caller's vault
      * @param _amount is amount of dToken to mint
      */
-    function mintInternal(uint _amount) internal {
+    function mintInternal(uint256 _amount) internal {
         require(!expired, "Instrument must not be expired");
         DataProviderInterface data = DataProviderInterface(dataProvider);
         Vault storage vault = vaults[msg.sender];
 
-        uint newDebt = add(vault.dTokenDebt, _amount);
-        uint newColRatio = computeColRatio(
+        uint256 newDebt = add(vault.dTokenDebt, _amount);
+        uint256 newColRatio = computeColRatio(
             data.getPrice(collateralAsset),
             data.getPrice(targetAsset),
             vault.collateral,
-            newDebt);
+            newDebt
+        );
 
         require(
             newColRatio >= collateralizationRatio,
@@ -262,7 +232,12 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
      * @param _collateral is amount of collateral to deposit
      * @param _dToken is amount of dTokens to mint
      */
-    function depositAndMint(uint256 _collateral, uint256 _dToken) external override nonReentrant {
+    function depositAndMint(uint256 _collateral, uint256 _dToken)
+        external
+        virtual
+        override
+        nonReentrant
+    {
         depositInternal(_collateral);
         mintInternal(_dToken);
     }
@@ -279,17 +254,20 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
         address _liquidatee,
         uint256 _dTokenAmount,
         uint256 _liquidationIncentive
-    ) external override nonReentrant {
+    ) external virtual override nonReentrant {
         // No other caller except the assigned proxy can liquidate
         require(msg.sender == liquidatorProxy, "Only liquidatorProxy");
         require(!expired, "Instrument must not be expired");
-        
+
         Vault storage liquidatorVault = vaults[_liquidator];
         Vault storage liquidatedVault = vaults[_liquidatee];
         uint256 liquidateeDTokenDebt = liquidatedVault.dTokenDebt;
         uint256 liquidateeCollateral = liquidatedVault.collateral;
 
-        require(_dTokenAmount <= liquidateeDTokenDebt, "Cannot liquidate more than debt");
+        require(
+            _dTokenAmount <= liquidateeDTokenDebt,
+            "Cannot liquidate more than debt"
+        );
 
         DataProviderInterface data = DataProviderInterface(dataProvider);
         uint256 collateralPrice = data.getPrice(collateralAsset);
@@ -298,18 +276,38 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
         // Check if the vault is under the Instrument's collateralizationRatio
         uint256 minColRatio = collateralizationRatio;
         require(
-            computeColRatio(collateralPrice, targetPrice, liquidateeCollateral, liquidateeDTokenDebt) < minColRatio,
+            computeColRatio(
+                collateralPrice,
+                targetPrice,
+                liquidateeCollateral,
+                liquidateeDTokenDebt
+            ) < minColRatio,
             "Vault not liquidatable"
         );
 
         // Calculates the outcome for the liquidator's vault
-        (uint256 collateralLiquidated, uint256 newLiquidatorCollateral, uint256 newLiquidatorDebt) = calculateLiquidationVaultOutcome(
-            liquidatorVault.collateral, liquidatorVault.dTokenDebt, _dTokenAmount, _liquidationIncentive, targetPrice, collateralPrice);
+        (
+            uint256 collateralLiquidated,
+            uint256 newLiquidatorCollateral,
+            uint256 newLiquidatorDebt
+        ) = calculateLiquidationVaultOutcome(
+            liquidatorVault.collateral,
+            liquidatorVault.dTokenDebt,
+            _dTokenAmount,
+            _liquidationIncentive,
+            targetPrice,
+            collateralPrice
+        );
 
         // After the liquidator accepts the new debt and collateral * 1.05,
         // We need to check that the liquidator is still overcollateralized
         require(
-            computeColRatio(collateralPrice, targetPrice, newLiquidatorCollateral, newLiquidatorDebt) >= minColRatio,
+            computeColRatio(
+                collateralPrice,
+                targetPrice,
+                newLiquidatorCollateral,
+                newLiquidatorDebt
+            ) >= minColRatio,
             "Liquidator is undercollateralized"
         );
 
@@ -322,11 +320,21 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
         // Finally we have to assign the new values to the liquidator and liquidated vault
         liquidatorVault.collateral = newLiquidatorCollateral;
         liquidatorVault.dTokenDebt = newLiquidatorDebt;
-        liquidatedVault.collateral = sub(liquidateeCollateral, collateralLiquidated);
+        liquidatedVault.collateral = sub(
+            liquidateeCollateral,
+            collateralLiquidated
+        );
 
         // The repayDebtInternal subtracts the debt amount
         repayDebtInternal(_liquidator, _liquidatee, _dTokenAmount);
-        emit Liquidated(_liquidator, _liquidatee, _dTokenAmount, collateralLiquidated, newLiquidatorCollateral, newLiquidatorDebt);
+        emit Liquidated(
+            _liquidator,
+            _liquidatee,
+            _dTokenAmount,
+            collateralLiquidated,
+            newLiquidatorCollateral,
+            newLiquidatorDebt
+        );
     }
 
     /**
@@ -345,14 +353,32 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
         uint256 _liquidationIncentive,
         uint256 _targetPrice,
         uint256 _collateralPrice
-    ) internal pure returns(uint256, uint256, uint256) {
+    )
+        internal
+        pure
+        returns (
+            uint256,
+            uint256,
+            uint256
+        )
+    {
         uint256 debtValue = wmul(_dTokenAmount, _targetPrice); // in ETH
         uint256 collateralValue = wdiv(debtValue, _collateralPrice); // in collateral tokens
-        uint256 collateralLiquidated = wmul(collateralValue, _liquidationIncentive);
+        uint256 collateralLiquidated = wmul(
+            collateralValue,
+            _liquidationIncentive
+        );
 
-        uint256 newLiquidatorCollateral = add(_originalLiquidatorCollateral, collateralLiquidated);
+        uint256 newLiquidatorCollateral = add(
+            _originalLiquidatorCollateral,
+            collateralLiquidated
+        );
         uint256 newLiquidatorDebt = add(_originalLiquidatorDebt, _dTokenAmount);
-        return (collateralLiquidated, newLiquidatorCollateral, newLiquidatorDebt);
+        return (
+            collateralLiquidated,
+            newLiquidatorCollateral,
+            newLiquidatorDebt
+        );
     }
 
     /**
@@ -368,15 +394,22 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
      * @notice Helper function to get the collateralization ratio of a vault
      * @param _vaultOwner is the address used to lookup the vault
      */
-    function vaultCollateralizationRatio(address _vaultOwner) public override view returns(uint256) {
+    function vaultCollateralizationRatio(address _vaultOwner)
+        public
+        virtual
+        override
+        view
+        returns (uint256)
+    {
         (uint256 collateral, uint256 debt) = getVault(_vaultOwner);
         DataProviderInterface data = DataProviderInterface(dataProvider);
-        return computeColRatio(
-            data.getPrice(collateralAsset),
-            data.getPrice(targetAsset),
-            collateral,
-            debt
-        );
+        return
+            computeColRatio(
+                data.getPrice(collateralAsset),
+                data.getPrice(targetAsset),
+                collateral,
+                debt
+            );
     }
 
     /**
@@ -385,15 +418,22 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
      * @param _account is the address which debt is being repaid
      * @param _amount is amount of dToken to repay
      */
-    function repayDebtInternal(address _repayer, address _account, uint _amount) internal {
+    function repayDebtInternal(
+        address _repayer,
+        address _account,
+        uint256 _amount
+    ) internal {
         // Only the liquidator proxy can repay debt on behalf of liquidators
         if (msg.sender != _account) {
             require(msg.sender == liquidatorProxy, "Only liquidatorProxy");
         }
 
         Vault storage vault = vaults[_account];
-        require(vault.dTokenDebt >= _amount, "Cannot repay more debt than exists");
-        
+        require(
+            vault.dTokenDebt >= _amount,
+            "Cannot repay more debt than exists"
+        );
+
         vault.dTokenDebt = sub(vault.dTokenDebt, _amount);
         totalDebt = sub(totalDebt, _amount);
 
@@ -407,18 +447,23 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
      * @param _account is the address which debt is being repaid
      * @param _amount is amount of dToken to repay
      */
-    function repayDebt(address _account, uint _amount) public override nonReentrant {
+    function repayDebt(address _account, uint256 _amount)
+        public
+        virtual
+        override
+        nonReentrant
+    {
         repayDebtInternal(msg.sender, _account, _amount);
     }
 
     /**
      * @notice Withdraws collateral after instrument is expired
      */
-    function withdrawAfterExpiry() external override nonReentrant {
+    function withdrawAfterExpiry() external virtual override nonReentrant {
         require(expired, "Instrument must be expired");
         Vault storage vault = vaults[msg.sender];
 
-        uint withdrawableColAmount = wmul(settlePrice, vault.dTokenDebt);
+        uint256 withdrawableColAmount = wmul(settlePrice, vault.dTokenDebt);
         vault.collateral = sub(vault.collateral, withdrawableColAmount);
         IERC20 colToken = IERC20(collateralAsset);
         colToken.safeTransfer(msg.sender, withdrawableColAmount);
@@ -429,7 +474,12 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
      * @notice Withdraws collateral while the instrument is active
      * @param _amount is amount of collateral to withdraw
      */
-    function withdrawCollateral(uint _amount) external override nonReentrant {
+    function withdrawCollateral(uint256 _amount)
+        external
+        virtual
+        override
+        nonReentrant
+    {
         withdrawCollateralInternal(msg.sender, _amount);
     }
 
@@ -438,18 +488,21 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
      * @param _account is account that is withdrawing
      * @param _amount is amount of collateral to withdraw
      */
-    function withdrawCollateralInternal(address _account, uint _amount) internal {
+    function withdrawCollateralInternal(address _account, uint256 _amount)
+        internal
+    {
         require(!expired, "Instrument must not be expired");
         DataProviderInterface data = DataProviderInterface(dataProvider);
         Vault storage vault = vaults[_account];
 
-        uint newCol = sub(vault.collateral, _amount);
-        uint newColRatio = computeColRatio(
+        uint256 newCol = sub(vault.collateral, _amount);
+        uint256 newColRatio = computeColRatio(
             data.getPrice(collateralAsset),
             data.getPrice(targetAsset),
             newCol,
-            vault.dTokenDebt);
-        
+            vault.dTokenDebt
+        );
+
         require(
             newColRatio >= collateralizationRatio,
             "Collateralization ratio too low to withdraw"
@@ -465,16 +518,21 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
      * @notice Redeems dToken for collateral after expiry
      * @param _dTokenAmount is amount of dTokens to redeem
      */
-    function redeem(uint _dTokenAmount) external override nonReentrant {
+    function redeem(uint256 _dTokenAmount)
+        external
+        virtual
+        override
+        nonReentrant
+    {
         require(expired, "Instrument must be expired");
 
-        uint withdrawableColAmount = wmul(settlePrice, _dTokenAmount);
+        uint256 withdrawableColAmount = wmul(settlePrice, _dTokenAmount);
 
         totalDebt = sub(totalDebt, _dTokenAmount);
 
         DToken dTokenContract = DToken(dToken);
         dTokenContract.burn(msg.sender, _dTokenAmount);
-        
+
         IERC20 colTokenContract = IERC20(collateralAsset);
         colTokenContract.safeTransfer(msg.sender, withdrawableColAmount);
 
@@ -490,13 +548,13 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
      * @param _targetAmount is the amount of dTokens in WAD
      */
     function computeColRatio(
-        uint _colPrice,
-        uint _targetPrice,
-        uint _colAmount,
-        uint _targetAmount
-    ) internal pure returns (uint) {
-        uint col = wmul(_colPrice, _colAmount);
-        uint debt = wmul(_targetAmount, _targetPrice);
+        uint256 _colPrice,
+        uint256 _targetPrice,
+        uint256 _colAmount,
+        uint256 _targetAmount
+    ) internal pure returns (uint256) {
+        uint256 col = wmul(_colPrice, _colAmount);
+        uint256 debt = wmul(_targetAmount, _targetPrice);
         if (debt == 0) {
             return type(uint256).max;
         }
@@ -509,11 +567,11 @@ contract DojimaInstrument is ReentrancyGuard, DSMath, InstrumentInterface {
      * @param _targetPrice is the spot price of the target asset in WAD
      * @param _colPrice is the spot price of collateral asset in WAD
      */
-    function computeSettlePrice(
-        uint _targetPrice,
-        uint _colPrice
-    ) internal pure returns (uint) {
+    function computeSettlePrice(uint256 _targetPrice, uint256 _colPrice)
+        internal
+        pure
+        returns (uint256)
+    {
         return wdiv(_targetPrice, _colPrice);
     }
 }
-

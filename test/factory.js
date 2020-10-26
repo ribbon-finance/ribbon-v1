@@ -4,7 +4,7 @@ const { assert } = require("chai");
 const { expectEvent, expectRevert } = require("@openzeppelin/test-helpers");
 const { getDefaultArgs } = require("./utils.js");
 
-const Instrument = contract.fromArtifact("DojimaInstrument");
+const Instrument = contract.fromArtifact("DualCurrency");
 
 describe("DojimaFactory", function () {
   const [admin, owner, user] = accounts;

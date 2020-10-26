@@ -2,7 +2,7 @@
 pragma solidity ^0.6.2;
 
 import "./lib/upgrades/Initializable.sol";
-import "./DojimaInstrument.sol";
+import "./instruments/DualCurrency.sol";
 import "./DojimaFactoryStorage.sol";
 
 contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
@@ -18,7 +18,11 @@ contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
     /**
      * @notice Constructor takes a DataProvider contract address
      */
-    function initialize(address _owner, address _dataProvider, address _liquidatorProxy) public initializer {
+    function initialize(
+        address _owner,
+        address _dataProvider,
+        address _liquidatorProxy
+    ) public initializer {
         owner = _owner;
         dataProvider = _dataProvider;
         liquidatorProxy = _liquidatorProxy;
@@ -49,7 +53,7 @@ contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
         require(msg.sender == owner, "Only owner");
         require(instruments[_name] == address(0), "Instrument already exists");
 
-        DojimaInstrument instrument = new DojimaInstrument(
+        DualCurrency instrument = new DualCurrency(
             dataProvider,
             _name,
             _symbol,
@@ -63,5 +67,5 @@ contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
         emit InstrumentCreated(_name, address(instrument), instrument.dToken());
 
         instrumentAddress = address(instrument);
-    } 
+    }
 }

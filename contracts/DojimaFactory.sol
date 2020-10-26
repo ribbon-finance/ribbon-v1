@@ -2,10 +2,11 @@
 pragma solidity ^0.6.2;
 
 import "./lib/upgrades/Initializable.sol";
-import "./instruments/DualCurrency.sol";
+import "./lib/upgrades/CloneFactory.sol";
+import "./interfaces/InstrumentInterface.sol";
 import "./DojimaFactoryStorage.sol";
 
-contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
+contract DojimaFactory is Initializable, CloneFactory, DojimaFactoryStorageV1 {
     /**
      * @notice Emitted when a new instrument is created
      */
@@ -14,6 +15,11 @@ contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
         address instrumentAddress,
         address dTokenAddress
     );
+
+    /**
+     * @notice Emitted when a new instrument is created
+     */
+    event ProxyCreated(address logic, address proxyAddress);
 
     /**
      * @notice Constructor takes a DataProvider contract address
@@ -39,33 +45,30 @@ contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
         instrumentAddress = instruments[_name];
     }
 
-    /**
-     * @notice Creates a new instrument from the factory
-     */
-    function newInstrument(
-        string memory _name,
-        string memory _symbol,
-        uint256 _expiry,
-        uint256 _collateralizationRatio,
-        address _collateralAsset,
-        address _targetAsset
-    ) public returns (address instrumentAddress) {
+    function newInstrument(address _logic, bytes memory _initData)
+        public
+        returns (address instrumentAddress)
+    {
         require(msg.sender == owner, "Only owner");
-        require(instruments[_name] == address(0), "Instrument already exists");
-
-        DualCurrency instrument = new DualCurrency(
-            dataProvider,
-            _name,
-            _symbol,
-            _expiry,
-            _collateralizationRatio,
-            _collateralAsset,
-            _targetAsset,
-            liquidatorProxy
+        instrumentAddress = createProxyInternal(_logic, _initData);
+        InstrumentStorageInterface instrument = InstrumentStorageInterface(
+            instrumentAddress
         );
-        instruments[_name] = address(instrument);
-        emit InstrumentCreated(_name, address(instrument), instrument.dToken());
+        emit InstrumentCreated(
+            instrument.name(),
+            instrumentAddress,
+            instrument.dToken()
+        );
+    }
 
-        instrumentAddress = address(instrument);
+    function createProxyInternal(address _logic, bytes memory _initData)
+        private
+        returns (address)
+    {
+        address clone = createClone(_logic);
+        (bool success, ) = clone.call(_initData);
+        require(success);
+        emit ProxyCreated(_logic, clone);
+        return clone;
     }
 }

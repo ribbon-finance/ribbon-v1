@@ -54,11 +54,11 @@ contract DojimaFactory is Initializable, CloneFactory, DojimaFactoryStorageV1 {
         InstrumentStorageInterface instrument = InstrumentStorageInterface(
             instrumentAddress
         );
-        emit InstrumentCreated(
-            instrument.name(),
-            instrumentAddress,
-            instrument.dToken()
-        );
+        string memory name = instrument.name();
+        require(instruments[name] == address(0), "Instrument already exists");
+
+        instruments[name] = instrumentAddress;
+        emit InstrumentCreated(name, instrumentAddress, instrument.dToken());
     }
 
     function createProxyInternal(address _logic, bytes memory _initData)

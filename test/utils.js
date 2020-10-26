@@ -60,6 +60,7 @@ async function getDefaultArgs(admin, owner, user) {
     ["address", "address", "address"],
     [owner, dataProvider.address, liquidatorProxy.address]
   );
+  const instrumentLogic = await Instrument.new({ from: owner });
 
   const colAsset = await MockERC20.new("Dai Stablecoin", "Dai", supply, {
     from: user,
@@ -67,17 +68,34 @@ async function getDefaultArgs(admin, owner, user) {
   const targetAsset = await MockERC20.new("Ether", "ETH", supply, {
     from: user,
   });
-  const res = await factory.newInstrument(
+
+  const initTypes = [
+    "address",
+    "string",
+    "string",
+    "uint256",
+    "uint256",
+    "address",
+    "address",
+    "address",
+  ];
+  const initArgs = [
+    await factory.dataProvider(),
     name,
     symbol,
-    expiry,
-    colRatio,
+    expiry.toString(),
+    colRatio.toString(),
     colAsset.address,
     targetAsset.address,
-    { from: owner }
-  );
+    await factory.liquidatorProxy(),
+  ];
+  const initBytes = encodeCall("initialize", initTypes, initArgs);
 
-  const instrument = await Instrument.at(res.logs[0].args.instrumentAddress);
+  const res = await factory.newInstrument(instrumentLogic.address, initBytes, {
+    from: owner,
+  });
+
+  const instrument = await Instrument.at(res.logs[1].args.instrumentAddress);
   const dTokenAddress = await instrument.dToken();
   const dToken = await DToken.at(dTokenAddress);
 
@@ -98,6 +116,7 @@ async function getDefaultArgs(admin, owner, user) {
     liquidatorProxy,
     args,
     dataProvider,
+    instrumentLogic,
   };
 }
 

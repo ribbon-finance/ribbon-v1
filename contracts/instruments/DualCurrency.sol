@@ -1,24 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
 
+import "../lib/upgrades/Initializable.sol";
 import "./BaseInstrument.sol";
 
-contract DualCurrency is BaseInstrument {
+contract DualCurrency is Initializable, BaseInstrument {
     using SafeERC20 for IERC20;
 
-    constructor(
+    function initialize(
         address _dataProvider,
-        string memory _name,
+        string memory name,
         string memory _symbol,
         uint256 _expiry,
         uint256 _collateralizationRatio,
         address _collateralAsset,
         address _targetAsset,
         address _liquidatorProxy
-    ) public {
+    ) public initializer {
         require(block.timestamp < _expiry, "Expiry has already passed");
 
-        name = _name;
+        _name = name;
         symbol = _symbol;
         expiry = _expiry;
         collateralizationRatio = _collateralizationRatio;
@@ -28,8 +29,8 @@ contract DualCurrency is BaseInstrument {
         liquidatorProxy = _liquidatorProxy;
 
         // Init new DToken
-        DToken newDToken = new DToken(_name, _symbol);
-        dToken = address(newDToken);
+        DToken newDToken = new DToken(_name, symbol);
+        _dToken = address(newDToken);
 
         expired = false;
     }
@@ -86,7 +87,7 @@ contract DualCurrency is BaseInstrument {
 
         totalDebt = sub(totalDebt, _dTokenAmount);
 
-        DToken dTokenContract = DToken(dToken);
+        DToken dTokenContract = DToken(dToken());
         dTokenContract.burn(msg.sender, _dTokenAmount);
 
         IERC20 colTokenContract = IERC20(collateralAsset);

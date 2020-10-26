@@ -11,7 +11,12 @@ import "../DToken.sol";
 import "../DataProviderInterface.sol";
 import "../lib/DSMath.sol";
 
-contract BaseInstrument is ReentrancyGuard, DSMath, InstrumentInterface, BaseInstrumentStorageV1 {
+contract BaseInstrument is
+    ReentrancyGuard,
+    DSMath,
+    InstrumentInterface,
+    BaseInstrumentStorageV1
+{
     using SafeERC20 for IERC20;
 
     /**
@@ -222,7 +227,7 @@ contract BaseInstrument is ReentrancyGuard, DSMath, InstrumentInterface, BaseIns
         vault.dTokenDebt = newDebt;
         totalDebt = add(totalDebt, _amount);
 
-        DToken dTokenContract = DToken(dToken);
+        DToken dTokenContract = DToken(dToken());
         dTokenContract.mint(msg.sender, _amount);
         emit Minted(msg.sender, _amount);
     }
@@ -437,7 +442,7 @@ contract BaseInstrument is ReentrancyGuard, DSMath, InstrumentInterface, BaseIns
         vault.dTokenDebt = sub(vault.dTokenDebt, _amount);
         totalDebt = sub(totalDebt, _amount);
 
-        DToken dTokenContract = DToken(dToken);
+        DToken dTokenContract = DToken(dToken());
         dTokenContract.burn(_repayer, _amount);
         emit Repaid(_repayer, _account, _amount);
     }
@@ -530,7 +535,7 @@ contract BaseInstrument is ReentrancyGuard, DSMath, InstrumentInterface, BaseIns
 
         totalDebt = sub(totalDebt, _dTokenAmount);
 
-        DToken dTokenContract = DToken(dToken);
+        DToken dTokenContract = DToken(dToken());
         dTokenContract.burn(msg.sender, _dTokenAmount);
 
         IERC20 colTokenContract = IERC20(collateralAsset);

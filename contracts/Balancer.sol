@@ -67,4 +67,8 @@ contract Balancer is DSMath {
     function balancerPool() public view returns (address) {
         return address(_balancerPool);
     }
+
+    function balancerMaxSlippage() public view returns (uint256) {
+        return _maxSlippage;
+    }
 }

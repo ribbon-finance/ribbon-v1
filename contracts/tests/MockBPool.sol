@@ -7,10 +7,19 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract MockBPool is DSMath {
     bool private _isFinalized;
     uint256 private _spotPrice;
+    address[] public tokens;
 
     function finalize() public {
         require(!_isFinalized, "Already finalized");
         _isFinalized = true;
+    }
+
+    function bind(
+        address token,
+        uint256 balance,
+        uint256 denorm
+    ) external {
+        tokens.push(token);
     }
 
     function swapExactAmountIn(
@@ -50,5 +59,9 @@ contract MockBPool is DSMath {
 
     function setSpotPrice(uint256 spotPrice) external {
         _spotPrice = spotPrice;
+    }
+
+    function isFinalized() public returns (bool) {
+        return _isFinalized;
     }
 }

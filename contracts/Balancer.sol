@@ -3,6 +3,7 @@ pragma solidity >=0.6.0;
 
 import "./lib/DSMath.sol";
 import "./interfaces/BalancerInterface.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Balancer is DSMath {
     address private _dToken;
@@ -43,15 +44,29 @@ contract Balancer is DSMath {
         public
         returns (uint256 tokenAmountOut, uint256 spotPriceAfter)
     {
-        uint256 spot = _balancerPool.getSpotPrice(_dToken, _paymentToken);
+        address dToken = _dToken;
+        address paymentToken = _paymentToken;
+        uint256 spot = _balancerPool.getSpotPrice(dToken, _paymentToken);
         uint256 maxPrice = wmul(spot, add(1 ether, _maxSlippage));
-        uint256 minAmountOut = wdiv(spot, maxPrice);
+        uint256 minAmountOut = wdiv(_sellAmount, maxPrice);
+
+        // we need to approve the transfer beforehand
+        IERC20 tokenIn = IERC20(dToken);
+        IERC20 tokenOut = IERC20(paymentToken);
+        tokenIn.approve(address(_balancerPool), _sellAmount);
+
         (tokenAmountOut, spotPriceAfter) = _balancerPool.swapExactAmountIn(
             _dToken,
             _sellAmount,
-            _paymentToken,
+            paymentToken,
             minAmountOut,
             maxPrice
+        );
+
+        // After the swap is complete, we need to transfer the swapped tokens back to the msg.sender
+        require(
+            tokenOut.transfer(msg.sender, tokenAmountOut),
+            "Token out transfer fail"
         );
     }
 

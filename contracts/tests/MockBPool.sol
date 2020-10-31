@@ -61,7 +61,7 @@ contract MockBPool is DSMath {
         _spotPrice = spotPrice;
     }
 
-    function isFinalized() public returns (bool) {
+    function isFinalized() public view returns (bool) {
         return _isFinalized;
     }
 }

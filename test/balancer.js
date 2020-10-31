@@ -8,7 +8,7 @@ const MockBPool = contract.fromArtifact("MockBPool");
 const MockERC20 = contract.fromArtifact("MockERC20");
 
 describe("Balancer", function () {
-  const [owner] = accounts;
+  const [owner, user] = accounts;
 
   before(async function () {
     const mintAmount = ether("1000");
@@ -42,6 +42,34 @@ describe("Balancer", function () {
         this.dai.address
       );
       assert.notEqual(await this.balancer.balancerPool(), ZERO_ADDRESS);
+    });
+  });
+
+  describe("#sellToPool", () => {
+    before(async function () {
+      this.pool = await MockBPool.at(await this.balancer.balancerPool());
+      await this.pool.setSpotPrice(ether("400")); // 400 DAI per DToken
+      assert.equal(
+        (
+          await this.pool.getSpotPrice(this.dToken.address, this.dai.address)
+        ).toString(),
+        ether("400")
+      );
+
+      // just transfer some tokens to the pool
+      await this.dai.transfer(this.pool.address, ether("500"), { from: owner });
+      await this.dToken.transfer(this.balancer.address, ether("1"), {
+        from: owner,
+      });
+    });
+
+    it("sells to pool", async function () {
+      await this.balancer.sellToPool(ether("1"), { from: user });
+      assert.equal((await this.dai.balanceOf(user)).toString(), ether("400"));
+      assert.equal(
+        (await this.dToken.balanceOf(this.pool.address)).toString(),
+        ether("1")
+      );
     });
   });
 });

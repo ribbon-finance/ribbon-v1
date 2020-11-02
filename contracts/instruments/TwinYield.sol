@@ -202,14 +202,14 @@ contract TwinYield is Initializable, BaseInstrument, InstrumentInterface {
         require(expired, "Instrument must be expired");
         Vault storage vault = vaults[msg.sender];
 
+        require(vault.collateral > 0, "Vault must have collateral");
         // Padding to convert prices (10^7) to 10^18
         uint256 settlePriceWAD = mul(settlePrice, 10**11);
         uint256 strikePriceWAD = mul(strikePrice, 10**11);
 
         uint256 withdrawAmount;
         if (settlePrice < strikePrice) {
-            // TODO: require here, so this function will only work if there is
-            // extra col to withdraw.
+            // Vault owner cannot withdraw excess collateral if settle < strike
             withdrawAmount = 0;
         } else {
             uint256 price = wdiv(strikePriceWAD, settlePriceWAD);
@@ -219,7 +219,10 @@ contract TwinYield is Initializable, BaseInstrument, InstrumentInterface {
             withdrawAmount = sub(vault.collateral, maxRedeem);
         }
 
-        vault.collateral = sub(vault.collateral, withdrawAmount);
+        // Reset vaults to 0 so subsequent withdraws will fail
+        vault.collateral = 0;
+        vault.dTokenDebt = 0;
+
         IERC20 colToken = IERC20(collateralAsset);
         colToken.safeTransfer(msg.sender, withdrawAmount);
         emit WithdrewExpired(msg.sender, withdrawAmount);

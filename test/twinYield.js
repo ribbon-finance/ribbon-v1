@@ -565,6 +565,47 @@ describe("TwinYield", function () {
       });
     });
 
+    it("cannot withdraw twice", async function () {
+      const dataProvider = await MockDataProvider.at(
+        await this.contract.dataProvider()
+      );
+      await dataProvider.setPrice(this.collateralAsset.address, "50000000000", {
+        from: owner,
+      });
+
+      const amount = ether("1");
+      const mintAmount = ether("1");
+      const expectedWithdrawAmount = ether("0.2");
+
+      await this.contract.depositAndMint(amount, mintAmount, {
+        from: user,
+      });
+      res = await this.contract.getVault(user);
+      const startBalance = await this.collateralAsset.balanceOf(user);
+      const newTimestamp = 1 + parseInt(this.args.expiry);
+      time.increaseTo(newTimestamp);
+
+      await this.contract.settle({ from: user });
+      assert.equal(await this.contract.expired(), true);
+
+      const withdrawCol = await this.contract.withdrawAfterExpiry({
+        from: user,
+      });
+      const endBalance = await this.collateralAsset.balanceOf(user);
+      assert.equal(endBalance.sub(startBalance).toString(), expectedWithdrawAmount);
+
+      expectEvent(withdrawCol, "WithdrewExpired", {
+        account: user,
+        amount: expectedWithdrawAmount,
+      });
+
+      const withdrawCol2 = this.contract.withdrawAfterExpiry({
+        from: user,
+      });
+
+      await expectRevert(withdrawCol2, "Vault must have collateral");
+    });
+
     it("withdraw at settleprice even if oracle changes", async function () {
       const dataProvider = await MockDataProvider.at(
         await this.contract.dataProvider()

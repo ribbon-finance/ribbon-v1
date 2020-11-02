@@ -11,17 +11,7 @@ interface InstrumentInterface {
         external;
 
     // Withdrawals
-    function withdrawCollateral(uint256 collateralAmount) external;
-
     function withdrawAfterExpiry() external;
-
-    // Liquidation
-    function liquidateFromVault(
-        address liquidator,
-        address liquidatee,
-        uint256 tokenAmount,
-        uint256 liquidationIncentive
-    ) external;
 
     // Debt repayment
     function repayDebt(address vault, uint256 debtAmount) external;
@@ -30,12 +20,6 @@ interface InstrumentInterface {
     function settle() external;
 
     function redeem(uint256 tokenAmount) external;
-
-    // Getters
-    function vaultCollateralizationRatio(address vault)
-        external
-        view
-        returns (uint256);
 }
 
 interface InstrumentStorageInterface {

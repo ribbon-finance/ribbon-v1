@@ -6,7 +6,7 @@ const AdminUpgradeabilityProxy = contract.fromArtifact(
   "AdminUpgradeabilityProxy"
 );
 const Factory = contract.fromArtifact("DojimaFactory");
-const Instrument = contract.fromArtifact("DualCurrency");
+const Instrument = contract.fromArtifact("TwinYield");
 const MockERC20 = contract.fromArtifact("MockERC20");
 const DToken = contract.fromArtifact("DToken");
 const MockDataProvider = contract.fromArtifact("MockDataProvider");
@@ -44,6 +44,7 @@ async function getDefaultArgs(admin, owner, user) {
   const name = "ETH Future Expiry 12/25/20";
   const symbol = "dETH-1225";
   const expiry = "32503680000";
+  const strikePrice = "40000000000";
   const colRatio = ether("1.15");
 
   const dataProvider = await MockDataProvider.new({ from: owner });
@@ -62,10 +63,10 @@ async function getDefaultArgs(admin, owner, user) {
   );
   const instrumentLogic = await Instrument.new({ from: owner });
 
-  const colAsset = await MockERC20.new("Dai Stablecoin", "Dai", supply, {
+  const colAsset = await MockERC20.new("Ether", "ETH", supply, {
     from: user,
   });
-  const targetAsset = await MockERC20.new("Ether", "ETH", supply, {
+  const targetAsset = await MockERC20.new("USD", "USDC", supply, {
     from: user,
   });
 
@@ -73,6 +74,7 @@ async function getDefaultArgs(admin, owner, user) {
     "address",
     "string",
     "string",
+    "uint256",
     "uint256",
     "uint256",
     "address",
@@ -84,6 +86,7 @@ async function getDefaultArgs(admin, owner, user) {
     name,
     symbol,
     expiry.toString(),
+    strikePrice.toString(),
     colRatio.toString(),
     colAsset.address,
     targetAsset.address,
@@ -104,6 +107,7 @@ async function getDefaultArgs(admin, owner, user) {
     name: name,
     symbol: symbol,
     expiry: expiry,
+    strikePrice: strikePrice,
     colRatio: colRatio,
   };
 

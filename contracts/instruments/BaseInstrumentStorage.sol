@@ -7,6 +7,7 @@ contract BaseInstrumentStorageV1 is InstrumentStorageInterface {
     string internal _name;
     string public symbol;
     uint256 public expiry;
+    uint256 public strikePrice;
     uint256 public collateralizationRatio;
     address public collateralAsset;
     address public targetAsset;
@@ -15,7 +16,6 @@ contract BaseInstrumentStorageV1 is InstrumentStorageInterface {
     bool public expired;
     uint256 public settlePrice;
     address public liquidatorProxy;
-    uint256 public totalDebt;
 
     /**
      * @notice Vault struct contains collateral and dToken debt

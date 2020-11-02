@@ -5,12 +5,13 @@ const { expectEvent, expectRevert } = require("@openzeppelin/test-helpers");
 const { getDefaultArgs } = require("./utils.js");
 const { encodeCall } = require("@openzeppelin/upgrades");
 
-const Instrument = contract.fromArtifact("DualCurrency");
+const Instrument = contract.fromArtifact("TwinYield");
 
 const newInstrumentTypes = [
   "address",
   "string",
   "string",
+  "uint256",
   "uint256",
   "uint256",
   "address",
@@ -91,6 +92,7 @@ describe("DojimaFactory", function () {
       this.args.name,
       this.args.symbol,
       this.args.expiry.toString(),
+      this.args.strikePrice.toString(),
       this.args.colRatio.toString(),
       this.collateralAsset.address,
       this.targetAsset.address,
@@ -112,6 +114,7 @@ describe("DojimaFactory", function () {
       "test",
       "test",
       "32503680000",
+      "42000000000",
       "1",
       "0x0000000000000000000000000000000000000000",
       "0x0000000000000000000000000000000000000001",
@@ -134,6 +137,7 @@ describe("DojimaFactory", function () {
       name,
       "test",
       "32503680000",
+      "42000000000",
       "1",
       "0x0000000000000000000000000000000000000000",
       "0x0000000000000000000000000000000000000001",

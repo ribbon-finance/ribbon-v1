@@ -2,7 +2,7 @@
 pragma solidity >=0.6.0;
 
 import "./lib/upgrades/Initializable.sol";
-import "./interfaces/InstrumentInterface.sol";
+import "./interfaces/LiquidatableInstrumentInterface.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract LiquidatorProxyStorageV1 {
@@ -39,7 +39,7 @@ contract LiquidatorProxy is
         address _vaultOwner,
         uint256 _dTokenAmount
     ) external {
-        InstrumentInterface instrumentContract = InstrumentInterface(
+        LiquidatableInstrumentInterface instrumentContract = LiquidatableInstrumentInterface(
             _instrument
         );
         instrumentContract.liquidateFromVault(

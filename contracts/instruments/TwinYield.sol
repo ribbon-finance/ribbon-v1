@@ -5,8 +5,14 @@ import "../lib/upgrades/Initializable.sol";
 import "../interfaces/InstrumentInterface.sol";
 
 import "./BaseInstrument.sol";
+import "../Balancer.sol";
 
-contract TwinYield is Initializable, BaseInstrument, InstrumentInterface {
+contract TwinYield is
+    Initializable,
+    Balancer,
+    InstrumentInterface,
+    BaseInstrument
+{
     using SafeERC20 for IERC20;
 
     function initialize(
@@ -63,7 +69,7 @@ contract TwinYield is Initializable, BaseInstrument, InstrumentInterface {
         emit Deposited(msg.sender, _amount);
     }
 
-   /**
+    /**
      * @notice Mints dTokens. Calls the `mintInternal` function
      * @param _amount is amount of dToken to mint
      */
@@ -161,10 +167,7 @@ contract TwinYield is Initializable, BaseInstrument, InstrumentInterface {
         DataProviderInterface data = DataProviderInterface(dataProvider);
         settlePrice = data.getPrice(collateralAsset);
 
-        emit Settled(
-            block.timestamp,
-            settlePrice
-        );
+        emit Settled(block.timestamp, settlePrice);
     }
 
     /**
@@ -227,5 +230,4 @@ contract TwinYield is Initializable, BaseInstrument, InstrumentInterface {
         colToken.safeTransfer(msg.sender, withdrawAmount);
         emit WithdrewExpired(msg.sender, withdrawAmount);
     }
-
 }

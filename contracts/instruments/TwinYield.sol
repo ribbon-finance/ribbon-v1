@@ -41,12 +41,20 @@ contract TwinYield is
         strikePrice = _strikePrice;
         paymentToken = _paymentToken;
         balancerFactory = _balancerFactory;
+        expired = false;
 
         // Init new DToken
         DToken newDToken = new DToken(_name, symbol);
-        _dToken = address(newDToken);
+        address dToken = address(newDToken);
+        _dToken = dToken;
 
-        expired = false;
+        // max slippage is 5 basis points
+        Balancer.initialize(
+            _balancerFactory,
+            dToken,
+            _paymentToken,
+            0.0005 ether
+        );
     }
 
     /**

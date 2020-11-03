@@ -153,7 +153,7 @@ describe("DojimaFactory", function () {
       "0x0000000000000000000000000000000000000000",
       "0x0000000000000000000000000000000000000001",
       this.liquidatorProxy.address,
-      "0x0000000000000000000000000000000000000002",
+      this.bFactory.address,
     ]);
 
     const res = await this.factory.newInstrument(

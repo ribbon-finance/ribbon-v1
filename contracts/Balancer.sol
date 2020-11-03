@@ -6,7 +6,7 @@ import "./lib/upgrades/Initializable.sol";
 import "./interfaces/BalancerInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract Balancer is DSMath {
+contract Balancer is DSMath, Initializable {
     address private _dToken;
     address private _paymentToken;
     BalancerPool private _balancerPool;

@@ -1,6 +1,10 @@
 const { accounts, contract } = require("@openzeppelin/test-environment");
 const { assert } = require("chai");
-const { ether, ZERO_ADDRESS } = require("@openzeppelin/test-helpers");
+const {
+  ether,
+  ZERO_ADDRESS,
+  expectRevert,
+} = require("@openzeppelin/test-helpers");
 
 const Balancer = contract.fromArtifact("Balancer");
 const MockBFactory = contract.fromArtifact("MockBFactory");
@@ -37,6 +41,15 @@ describe("Balancer", function () {
         this.dai.address
       );
       assert.notEqual(await this.balancer.balancerPool(), ZERO_ADDRESS);
+    });
+
+    it("reverts when initialize is called again", async function () {
+      const res = await this.balancer.initialize(
+        this.bFactory.address,
+        this.dToken.address,
+        this.dai.address
+      );
+      expectRevert(res, "Contract instance has already been initialized");
     });
   });
 

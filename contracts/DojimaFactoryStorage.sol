@@ -18,6 +18,11 @@ contract DojimaFactoryStorageV1 {
     address public liquidatorProxy;
 
     /**
+     * @notice Address of the admin of all instruments
+     */
+    address public instrumentAdmin;
+
+    /**
      * @notice Mapping of created instruments
      */
     mapping(string => address) public instruments;

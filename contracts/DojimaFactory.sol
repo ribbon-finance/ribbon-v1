@@ -2,11 +2,11 @@
 pragma solidity ^0.6.2;
 
 import "./lib/upgrades/Initializable.sol";
-import "./lib/upgrades/CloneFactory.sol";
+import "./lib/upgrades/AdminUpgradeabilityProxy.sol";
 import "./interfaces/InstrumentInterface.sol";
 import "./DojimaFactoryStorage.sol";
 
-contract DojimaFactory is Initializable, CloneFactory, DojimaFactoryStorageV1 {
+contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
     /**
      * @notice Emitted when a new instrument is created
      */
@@ -27,11 +27,13 @@ contract DojimaFactory is Initializable, CloneFactory, DojimaFactoryStorageV1 {
     function initialize(
         address _owner,
         address _dataProvider,
+        address _instrumentAdmin,
         address _liquidatorProxy
     ) public initializer {
         owner = _owner;
         dataProvider = _dataProvider;
         liquidatorProxy = _liquidatorProxy;
+        instrumentAdmin = _instrumentAdmin;
     }
 
     /**
@@ -50,7 +52,7 @@ contract DojimaFactory is Initializable, CloneFactory, DojimaFactoryStorageV1 {
         returns (address instrumentAddress)
     {
         require(msg.sender == owner, "Only owner");
-        instrumentAddress = createProxyInternal(_logic, _initData);
+        instrumentAddress = createProxy(_logic, _initData);
         InstrumentStorageInterface instrument = InstrumentStorageInterface(
             instrumentAddress
         );
@@ -61,14 +63,16 @@ contract DojimaFactory is Initializable, CloneFactory, DojimaFactoryStorageV1 {
         emit InstrumentCreated(name, instrumentAddress, instrument.dToken());
     }
 
-    function createProxyInternal(address _logic, bytes memory _initData)
+    function createProxy(address _logic, bytes memory _initData)
         private
         returns (address)
     {
-        address clone = createClone(_logic);
-        (bool success, bytes memory reason) = clone.call(_initData);
-        require(success, string(reason));
-        emit ProxyCreated(_logic, clone);
-        return clone;
+        AdminUpgradeabilityProxy proxy = new AdminUpgradeabilityProxy(
+            _logic,
+            instrumentAdmin,
+            _initData
+        );
+        emit ProxyCreated(_logic, address(proxy));
+        return address(proxy);
     }
 }

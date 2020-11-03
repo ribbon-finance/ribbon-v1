@@ -59,8 +59,8 @@ async function getDefaultArgs(admin, owner, user) {
   const factory = await deployProxy(
     Factory,
     admin,
-    ["address", "address", "address"],
-    [owner, dataProvider.address, liquidatorProxy.address]
+    ["address", "address", "address", "address"],
+    [owner, dataProvider.address, admin, liquidatorProxy.address]
   );
   const instrumentLogic = await Instrument.new({ from: owner });
 

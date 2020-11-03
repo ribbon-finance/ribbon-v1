@@ -12,6 +12,7 @@ const helper = require("./helper.js");
 const { getDefaultArgs } = require("./utils.js");
 
 const MockDataProvider = contract.fromArtifact("MockDataProvider");
+const MockBPool = contract.fromArtifact("MockBPool");
 
 describe("TwinYield", function () {
   const [admin, owner, user, user2, user3] = accounts;
@@ -38,7 +39,7 @@ describe("TwinYield", function () {
     this.dToken = dToken;
     this.args = args;
     this.paymentToken = paymentToken;
-    this.balancerPool = await this.contract.balancerPool();
+    this.balancerPool = await MockBPool.at(await this.contract.balancerPool());
 
     await this.collateralAsset.approve(this.contract.address, supply, {
       from: user,
@@ -672,9 +673,15 @@ describe("TwinYield", function () {
   describe("#depositMintAndSell", () => {
     beforeEach(async function () {
       // We have to first seed the deployed Balancer pool with USDC (the payment token)
-      await this.paymentToken.transfer(this.balancerPool, ether("1000"), {
-        from: user,
-      });
+      await this.paymentToken.transfer(
+        this.balancerPool.address,
+        ether("1000"),
+        {
+          from: user,
+        }
+      );
+      await this.balancerPool.setSpotPrice(ether("400")); // 400 DAI per DToken
+
       snapShot = await helper.takeSnapshot();
       snapshotId = snapShot["result"];
     });
@@ -687,12 +694,19 @@ describe("TwinYield", function () {
       vault = await this.contract.getVault(user);
       const startCol = vault._collateral;
       const startDebt = vault._dTokenDebt;
+      const paymentTokenStartBalance = await this.paymentToken.balanceOf(user);
 
       const amount = ether("1");
       const mintAmount = ether("1");
-      const res = await this.contract.depositAndMint(amount, mintAmount, {
-        from: user,
-      });
+      const maxSlippage = ether("0.0005"); // 5 basis points
+      const res = await this.contract.depositMintAndSell(
+        amount,
+        mintAmount,
+        maxSlippage,
+        {
+          from: user,
+        }
+      );
 
       expectEvent(res, "Deposited", {
         account: user,
@@ -704,9 +718,47 @@ describe("TwinYield", function () {
         amount: mintAmount,
       });
 
+      expectEvent(res, "SoldToBalancerPool", {
+        seller: user,
+        balancerPool: this.balancerPool.address,
+        tokenIn: this.dToken.address,
+        tokenOut: this.paymentToken.address,
+        sellAmount: ether("1"),
+        maxSlippage: ether("0.0005"),
+      });
+
       vault = await this.contract.getVault(user);
       assert.equal(vault._collateral.toString(), startCol.add(amount));
       assert.equal(vault._dTokenDebt.toString(), startDebt.add(mintAmount));
+
+      // check that we've received the deposit
+      assert.equal(
+        (
+          await this.collateralAsset.balanceOf(this.contract.address)
+        ).toString(),
+        ether("1")
+      );
+
+      // double check that we're not holding onto any leftover tokens...
+      assert.equal(await this.dToken.balanceOf(this.contract.address), 0);
+      assert.equal(await this.paymentToken.balanceOf(this.contract.address), 0);
+
+      // check that the user has received the paymentTokens from the sale
+      assert.equal(
+        (await this.paymentToken.balanceOf(user)).toString(),
+        paymentTokenStartBalance.add(ether("400"))
+      );
+
+      // check that the token swap allowance has been rescinded
+      assert(
+        (
+          await this.dToken.allowance(
+            this.contract.address,
+            this.balancerPool.address
+          )
+        ).toString(),
+        0
+      );
     });
   });
 });

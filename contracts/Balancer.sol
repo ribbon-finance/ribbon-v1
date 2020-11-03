@@ -5,11 +5,26 @@ import "./lib/DSMath.sol";
 import "./lib/upgrades/Initializable.sol";
 import "./interfaces/BalancerInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 contract Balancer is DSMath, Initializable {
+    using SafeERC20 for IERC20;
+
     address private _dToken;
     address private _paymentToken;
     BalancerPool private _balancerPool;
+
+    /**
+     * @notice Emitted when a user sells their tokens to the balancer pool via this contract
+     */
+    event SoldToBalancerPool(
+        address seller,
+        address balancerPool,
+        address tokenIn,
+        address tokenOut,
+        uint256 sellAmount,
+        uint256 maxSlippage
+    );
 
     /**
      * @notice Initializes the contract with params and creates a new pool, with address(this) as the pool's controller.
@@ -60,14 +75,13 @@ contract Balancer is DSMath, Initializable {
     {
         address dToken = _dToken;
         address paymentToken = _paymentToken;
-        uint256 spot = _balancerPool.getSpotPrice(dToken, _paymentToken);
+        BalancerPool balancerPool = _balancerPool;
+        uint256 spot = balancerPool.getSpotPrice(dToken, _paymentToken);
         uint256 maxPrice = wmul(spot, add(1 ether, _maxSlippage));
         uint256 minAmountOut = wdiv(_sellAmount, maxPrice);
 
         // we need to approve the transfer beforehand
-        IERC20 tokenIn = IERC20(dToken);
-        IERC20 tokenOut = IERC20(paymentToken);
-        tokenIn.approve(address(_balancerPool), _sellAmount);
+        IERC20(dToken).approve(address(balancerPool), _sellAmount);
 
         (tokenAmountOut, spotPriceAfter) = _balancerPool.swapExactAmountIn(
             _dToken,
@@ -77,10 +91,25 @@ contract Balancer is DSMath, Initializable {
             maxPrice
         );
 
+        // After swapping, we need to rescind the allowance for the balancer pool
+        // Allowances depend on the implementation of the ERC20 contract so
+        // it's possible that an ERC20 token doesn't reduce the allowance after a transferFrom
+        // BONUS: It gives a gas refund for setting the allowance to zero.
+        IERC20(dToken).approve(address(balancerPool), 0);
+
         // After the swap is complete, we need to transfer the swapped tokens back to the msg.sender
         require(
-            tokenOut.transfer(msg.sender, tokenAmountOut),
+            IERC20(paymentToken).transfer(msg.sender, tokenAmountOut),
             "Token out transfer fail"
+        );
+
+        emit SoldToBalancerPool(
+            msg.sender,
+            address(balancerPool),
+            dToken,
+            paymentToken,
+            _sellAmount,
+            _maxSlippage
         );
     }
 

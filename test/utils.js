@@ -71,7 +71,7 @@ async function getDefaultArgs(admin, owner, user) {
     from: user,
   });
   const paymentToken = await MockERC20.new("USD Coin", "USDC", supply, {
-    from: user
+    from: user,
   });
   const bFactory = await MockBFactory.new({ from: user });
 
@@ -86,7 +86,7 @@ async function getDefaultArgs(admin, owner, user) {
     "address",
     "address",
     "address",
-    "address"
+    "address",
   ];
   const initArgs = [
     await factory.dataProvider(),
@@ -99,7 +99,7 @@ async function getDefaultArgs(admin, owner, user) {
     targetAsset.address,
     paymentToken.address,
     await factory.liquidatorProxy(),
-    bFactory.address
+    bFactory.address,
   ];
   const initBytes = encodeCall("initialize", initTypes, initArgs);
 
@@ -129,6 +129,8 @@ async function getDefaultArgs(admin, owner, user) {
     liquidatorProxy,
     args,
     dataProvider,
+    bFactory,
+    paymentToken,
     instrumentLogic,
   };
 }

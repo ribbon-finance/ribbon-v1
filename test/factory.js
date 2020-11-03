@@ -17,6 +17,8 @@ const newInstrumentTypes = [
   "address",
   "address",
   "address",
+  "address",
+  "address",
 ];
 
 describe("DojimaFactory", function () {
@@ -33,6 +35,8 @@ describe("DojimaFactory", function () {
       liquidatorProxy,
       dataProvider,
       instrumentLogic,
+      bFactory,
+      paymentToken,
     } = await getDefaultArgs(admin, owner, user);
 
     this.factory = factory;
@@ -43,6 +47,8 @@ describe("DojimaFactory", function () {
     this.liquidatorProxy = liquidatorProxy;
     this.dataProvider = dataProvider;
     this.instrumentLogic = instrumentLogic;
+    this.bFactory = bFactory;
+    this.paymentToken = paymentToken;
     this.args = args;
 
     this.contractAddress = instrument.address;
@@ -96,7 +102,9 @@ describe("DojimaFactory", function () {
       this.args.colRatio.toString(),
       this.collateralAsset.address,
       this.targetAsset.address,
+      this.paymentToken.address,
       this.liquidatorProxy.address,
+      this.bFactory.address,
     ]);
 
     const newContract = this.factory.newInstrument(
@@ -117,8 +125,10 @@ describe("DojimaFactory", function () {
       "42000000000",
       "1",
       "0x0000000000000000000000000000000000000000",
+      "0x0000000000000000000000000000000000000000",
       "0x0000000000000000000000000000000000000001",
       this.liquidatorProxy.address,
+      "0x0000000000000000000000000000000000000002",
     ]);
 
     const tx = this.factory.newInstrument(
@@ -140,8 +150,10 @@ describe("DojimaFactory", function () {
       "42000000000",
       "1",
       "0x0000000000000000000000000000000000000000",
+      "0x0000000000000000000000000000000000000000",
       "0x0000000000000000000000000000000000000001",
       this.liquidatorProxy.address,
+      "0x0000000000000000000000000000000000000002",
     ]);
 
     const res = await this.factory.newInstrument(

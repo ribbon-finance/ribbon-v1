@@ -80,14 +80,14 @@ contract TwinYield is
      * @param _amount is amount of dToken to mint
      */
     function mint(uint256 _amount) public virtual override nonReentrant {
-        mintInternal(_amount);
+        mintInternal(msg.sender, _amount);
     }
 
     /**
      * @notice Mints dTokens and debits the debt in the caller's vault
      * @param _amount is amount of dToken to mint
      */
-    function mintInternal(uint256 _amount) internal {
+    function mintInternal(address _recipient, uint256 _amount) internal {
         require(!expired, "Instrument must not be expired");
         Vault storage vault = vaults[msg.sender];
 
@@ -100,7 +100,7 @@ contract TwinYield is
         vault.dTokenDebt = newDebt;
 
         DToken dTokenContract = DToken(dToken());
-        dTokenContract.mint(msg.sender, _amount);
+        dTokenContract.mint(_recipient, _amount);
         emit Minted(msg.sender, _amount);
     }
 
@@ -116,7 +116,27 @@ contract TwinYield is
         nonReentrant
     {
         depositInternal(_collateral);
-        mintInternal(_dToken);
+        mintInternal(msg.sender, _dToken);
+    }
+
+    /**
+     * @notice Deposits collateral, mints dToken, sells dToken atomically
+     * @param _collateral is amount of collateral to deposit
+     * @param _dToken is amount of dTokens to mint
+     * @param _maxSlippage is max % amount of slippage in WAD
+     */
+    function depositMintAndSell(
+        uint256 _collateral,
+        uint256 _dToken,
+        uint256 _maxSlippage
+    ) external nonReentrant {
+        depositInternal(_collateral);
+
+        // mint the tokens and set the instrument as the recipient of the newly minted tokens
+        // this avoids an extra approval to the Balancer pool for the seller
+        mintInternal(address(this), _dToken);
+
+        Balancer.sellToPool(_dToken, _maxSlippage);
     }
 
     /**

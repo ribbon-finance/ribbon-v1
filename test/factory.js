@@ -1,7 +1,11 @@
 const { accounts, contract } = require("@openzeppelin/test-environment");
 const { assert } = require("chai");
 
-const { expectEvent, expectRevert } = require("@openzeppelin/test-helpers");
+const {
+  ZERO_ADDRESS,
+  expectEvent,
+  expectRevert,
+} = require("@openzeppelin/test-helpers");
 const { getDefaultArgs } = require("./utils.js");
 const { encodeCall } = require("@openzeppelin/upgrades");
 
@@ -78,6 +82,12 @@ describe("DojimaFactory", function () {
     );
     assert.equal(await this.contract.targetAsset(), this.targetAsset.address);
     assert.equal(await this.contract.expired(), false);
+    assert.equal(await this.contract.balancerDToken(), this.dTokenAddress);
+    assert.equal(
+      await this.contract.balancerPaymentToken(),
+      this.paymentToken.address
+    );
+    assert.notEqual(await this.contract.balancerPool(), ZERO_ADDRESS);
   });
 
   it("adds instrument to mapping", async function () {

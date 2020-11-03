@@ -2,6 +2,7 @@
 pragma solidity >=0.6.0;
 
 import "./lib/DSMath.sol";
+import "./lib/upgrades/Initializable.sol";
 import "./interfaces/BalancerInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -20,7 +21,7 @@ contract Balancer is DSMath {
         address bFactory,
         address dToken,
         address paymentToken
-    ) public {
+    ) public initializer {
         _dToken = dToken;
         _paymentToken = paymentToken;
         _balancerPool = newPool(bFactory, dToken, paymentToken);

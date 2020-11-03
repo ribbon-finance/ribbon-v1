@@ -268,7 +268,7 @@ describe("TwinYield", function () {
     });
 
     it("works if instrument is expired, and emits correct events", async function () {
-      const settlePrice = "42000000000"
+      const settlePrice = "42000000000";
       const expiryTimestamp = parseInt(this.args.expiry);
       const newTimestamp = 1 + expiryTimestamp;
       time.increaseTo(newTimestamp);
@@ -284,10 +284,7 @@ describe("TwinYield", function () {
       const blockTimestamp = settled.logs[0].args.timestamp.toNumber();
       assert.isAtLeast(blockTimestamp, expiryTimestamp);
 
-      assert.equal(
-        (await this.contract.settlePrice()).toString(),
-        settlePrice
-      );
+      assert.equal((await this.contract.settlePrice()).toString(), settlePrice);
     });
 
     it("cannot mint, deposit, or withdrawCol after settled", async function () {
@@ -313,7 +310,6 @@ describe("TwinYield", function () {
       await expectRevert(depositAndMint, "Instrument must not be expired");
     });
   });
-
 
   describe("#redeem", () => {
     before(async function () {
@@ -557,7 +553,10 @@ describe("TwinYield", function () {
         from: user,
       });
       const endBalance = await this.collateralAsset.balanceOf(user);
-      assert.equal(endBalance.sub(startBalance).toString(), expectedWithdrawAmount);
+      assert.equal(
+        endBalance.sub(startBalance).toString(),
+        expectedWithdrawAmount
+      );
 
       expectEvent(withdrawCol, "WithdrewExpired", {
         account: user,
@@ -592,7 +591,10 @@ describe("TwinYield", function () {
         from: user,
       });
       const endBalance = await this.collateralAsset.balanceOf(user);
-      assert.equal(endBalance.sub(startBalance).toString(), expectedWithdrawAmount);
+      assert.equal(
+        endBalance.sub(startBalance).toString(),
+        expectedWithdrawAmount
+      );
 
       expectEvent(withdrawCol, "WithdrewExpired", {
         account: user,
@@ -627,7 +629,7 @@ describe("TwinYield", function () {
       time.increaseTo(newTimestamp);
 
       await this.contract.settle({ from: user });
-      // Change price after settle 
+      // Change price after settle
       await dataProvider.setPrice(this.collateralAsset.address, "30000000000", {
         from: owner,
       });
@@ -638,7 +640,10 @@ describe("TwinYield", function () {
         from: user,
       });
       const endBalance = await this.collateralAsset.balanceOf(user);
-      assert.equal(endBalance.sub(startBalance).toString(), expectedWithdrawAmount);
+      assert.equal(
+        endBalance.sub(startBalance).toString(),
+        expectedWithdrawAmount
+      );
 
       expectEvent(withdrawCol, "WithdrewExpired", {
         account: user,

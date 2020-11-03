@@ -11,6 +11,7 @@ const MockERC20 = contract.fromArtifact("MockERC20");
 const DToken = contract.fromArtifact("DToken");
 const MockDataProvider = contract.fromArtifact("MockDataProvider");
 const LiquidatorProxy = contract.fromArtifact("LiquidatorProxy");
+const MockBFactory = contract.fromArtifact("MockBFactory");
 
 module.exports = {
   getDefaultArgs,
@@ -69,6 +70,10 @@ async function getDefaultArgs(admin, owner, user) {
   const targetAsset = await MockERC20.new("USD", "USDC", supply, {
     from: user,
   });
+  const paymentToken = await MockERC20.new("USD Coin", "USDC", supply, {
+    from: user,
+  });
+  const bFactory = await MockBFactory.new({ from: user });
 
   const initTypes = [
     "address",
@@ -77,6 +82,8 @@ async function getDefaultArgs(admin, owner, user) {
     "uint256",
     "uint256",
     "uint256",
+    "address",
+    "address",
     "address",
     "address",
     "address",
@@ -90,7 +97,9 @@ async function getDefaultArgs(admin, owner, user) {
     colRatio.toString(),
     colAsset.address,
     targetAsset.address,
+    paymentToken.address,
     await factory.liquidatorProxy(),
+    bFactory.address,
   ];
   const initBytes = encodeCall("initialize", initTypes, initArgs);
 
@@ -120,6 +129,8 @@ async function getDefaultArgs(admin, owner, user) {
     liquidatorProxy,
     args,
     dataProvider,
+    bFactory,
+    paymentToken,
     instrumentLogic,
   };
 }

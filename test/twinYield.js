@@ -12,6 +12,7 @@ const helper = require("./helper.js");
 const { getDefaultArgs } = require("./utils.js");
 
 const MockDataProvider = contract.fromArtifact("MockDataProvider");
+const MockBPool = contract.fromArtifact("MockBPool");
 
 describe("TwinYield", function () {
   const [admin, owner, user, user2, user3] = accounts;
@@ -27,6 +28,7 @@ describe("TwinYield", function () {
       instrument,
       dToken,
       args,
+      paymentToken,
     } = await getDefaultArgs(admin, owner, user);
 
     self = this;
@@ -36,6 +38,8 @@ describe("TwinYield", function () {
     this.contract = instrument;
     this.dToken = dToken;
     this.args = args;
+    this.paymentToken = paymentToken;
+    this.balancerPool = await MockBPool.at(await this.contract.balancerPool());
 
     await this.collateralAsset.approve(this.contract.address, supply, {
       from: user,
@@ -268,7 +272,7 @@ describe("TwinYield", function () {
     });
 
     it("works if instrument is expired, and emits correct events", async function () {
-      const settlePrice = "42000000000"
+      const settlePrice = "42000000000";
       const expiryTimestamp = parseInt(this.args.expiry);
       const newTimestamp = 1 + expiryTimestamp;
       time.increaseTo(newTimestamp);
@@ -284,10 +288,7 @@ describe("TwinYield", function () {
       const blockTimestamp = settled.logs[0].args.timestamp.toNumber();
       assert.isAtLeast(blockTimestamp, expiryTimestamp);
 
-      assert.equal(
-        (await this.contract.settlePrice()).toString(),
-        settlePrice
-      );
+      assert.equal((await this.contract.settlePrice()).toString(), settlePrice);
     });
 
     it("cannot mint, deposit, or withdrawCol after settled", async function () {
@@ -313,7 +314,6 @@ describe("TwinYield", function () {
       await expectRevert(depositAndMint, "Instrument must not be expired");
     });
   });
-
 
   describe("#redeem", () => {
     before(async function () {
@@ -557,7 +557,10 @@ describe("TwinYield", function () {
         from: user,
       });
       const endBalance = await this.collateralAsset.balanceOf(user);
-      assert.equal(endBalance.sub(startBalance).toString(), expectedWithdrawAmount);
+      assert.equal(
+        endBalance.sub(startBalance).toString(),
+        expectedWithdrawAmount
+      );
 
       expectEvent(withdrawCol, "WithdrewExpired", {
         account: user,
@@ -592,7 +595,10 @@ describe("TwinYield", function () {
         from: user,
       });
       const endBalance = await this.collateralAsset.balanceOf(user);
-      assert.equal(endBalance.sub(startBalance).toString(), expectedWithdrawAmount);
+      assert.equal(
+        endBalance.sub(startBalance).toString(),
+        expectedWithdrawAmount
+      );
 
       expectEvent(withdrawCol, "WithdrewExpired", {
         account: user,
@@ -627,7 +633,7 @@ describe("TwinYield", function () {
       time.increaseTo(newTimestamp);
 
       await this.contract.settle({ from: user });
-      // Change price after settle 
+      // Change price after settle
       await dataProvider.setPrice(this.collateralAsset.address, "30000000000", {
         from: owner,
       });
@@ -638,7 +644,10 @@ describe("TwinYield", function () {
         from: user,
       });
       const endBalance = await this.collateralAsset.balanceOf(user);
-      assert.equal(endBalance.sub(startBalance).toString(), expectedWithdrawAmount);
+      assert.equal(
+        endBalance.sub(startBalance).toString(),
+        expectedWithdrawAmount
+      );
 
       expectEvent(withdrawCol, "WithdrewExpired", {
         account: user,
@@ -658,6 +667,98 @@ describe("TwinYield", function () {
       });
 
       await expectRevert(withdrawCol, "Instrument must be expired");
+    });
+  });
+
+  describe("#depositMintAndSell", () => {
+    beforeEach(async function () {
+      // We have to first seed the deployed Balancer pool with USDC (the payment token)
+      await this.paymentToken.transfer(
+        this.balancerPool.address,
+        ether("1000"),
+        {
+          from: user,
+        }
+      );
+      await this.balancerPool.setSpotPrice(ether("400")); // 400 DAI per DToken
+
+      snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
+    it("deposits and mints correctly", async function () {
+      vault = await this.contract.getVault(user);
+      const startCol = vault._collateral;
+      const startDebt = vault._dTokenDebt;
+      const paymentTokenStartBalance = await this.paymentToken.balanceOf(user);
+
+      const amount = ether("1");
+      const mintAmount = ether("1");
+      const maxSlippage = ether("0.0005"); // 5 basis points
+      const res = await this.contract.depositMintAndSell(
+        amount,
+        mintAmount,
+        maxSlippage,
+        {
+          from: user,
+        }
+      );
+
+      expectEvent(res, "Deposited", {
+        account: user,
+        amount: amount,
+      });
+
+      expectEvent(res, "Minted", {
+        account: user,
+        amount: mintAmount,
+      });
+
+      expectEvent(res, "SoldToBalancerPool", {
+        seller: user,
+        balancerPool: this.balancerPool.address,
+        tokenIn: this.dToken.address,
+        tokenOut: this.paymentToken.address,
+        sellAmount: ether("1"),
+        maxSlippage: ether("0.0005"),
+      });
+
+      vault = await this.contract.getVault(user);
+      assert.equal(vault._collateral.toString(), startCol.add(amount));
+      assert.equal(vault._dTokenDebt.toString(), startDebt.add(mintAmount));
+
+      // check that we've received the deposit
+      assert.equal(
+        (
+          await this.collateralAsset.balanceOf(this.contract.address)
+        ).toString(),
+        ether("1")
+      );
+
+      // double check that we're not holding onto any leftover tokens...
+      assert.equal(await this.dToken.balanceOf(this.contract.address), 0);
+      assert.equal(await this.paymentToken.balanceOf(this.contract.address), 0);
+
+      // check that the user has received the paymentTokens from the sale
+      assert.equal(
+        (await this.paymentToken.balanceOf(user)).toString(),
+        paymentTokenStartBalance.add(ether("400"))
+      );
+
+      // check that the token swap allowance has been rescinded
+      assert(
+        (
+          await this.dToken.allowance(
+            this.contract.address,
+            this.balancerPool.address
+          )
+        ).toString(),
+        0
+      );
     });
   });
 });

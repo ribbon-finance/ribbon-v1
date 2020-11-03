@@ -1,7 +1,11 @@
 const { accounts, contract } = require("@openzeppelin/test-environment");
 const { assert } = require("chai");
 
-const { expectEvent, expectRevert } = require("@openzeppelin/test-helpers");
+const {
+  ZERO_ADDRESS,
+  expectEvent,
+  expectRevert,
+} = require("@openzeppelin/test-helpers");
 const { getDefaultArgs } = require("./utils.js");
 const { encodeCall } = require("@openzeppelin/upgrades");
 
@@ -14,6 +18,8 @@ const newInstrumentTypes = [
   "uint256",
   "uint256",
   "uint256",
+  "address",
+  "address",
   "address",
   "address",
   "address",
@@ -33,6 +39,8 @@ describe("DojimaFactory", function () {
       liquidatorProxy,
       dataProvider,
       instrumentLogic,
+      bFactory,
+      paymentToken,
     } = await getDefaultArgs(admin, owner, user);
 
     this.factory = factory;
@@ -43,6 +51,8 @@ describe("DojimaFactory", function () {
     this.liquidatorProxy = liquidatorProxy;
     this.dataProvider = dataProvider;
     this.instrumentLogic = instrumentLogic;
+    this.bFactory = bFactory;
+    this.paymentToken = paymentToken;
     this.args = args;
 
     this.contractAddress = instrument.address;
@@ -72,6 +82,12 @@ describe("DojimaFactory", function () {
     );
     assert.equal(await this.contract.targetAsset(), this.targetAsset.address);
     assert.equal(await this.contract.expired(), false);
+    assert.equal(await this.contract.balancerDToken(), this.dTokenAddress);
+    assert.equal(
+      await this.contract.balancerPaymentToken(),
+      this.paymentToken.address
+    );
+    assert.notEqual(await this.contract.balancerPool(), ZERO_ADDRESS);
   });
 
   it("adds instrument to mapping", async function () {
@@ -96,7 +112,9 @@ describe("DojimaFactory", function () {
       this.args.colRatio.toString(),
       this.collateralAsset.address,
       this.targetAsset.address,
+      this.paymentToken.address,
       this.liquidatorProxy.address,
+      this.bFactory.address,
     ]);
 
     const newContract = this.factory.newInstrument(
@@ -117,8 +135,10 @@ describe("DojimaFactory", function () {
       "42000000000",
       "1",
       "0x0000000000000000000000000000000000000000",
+      "0x0000000000000000000000000000000000000000",
       "0x0000000000000000000000000000000000000001",
       this.liquidatorProxy.address,
+      "0x0000000000000000000000000000000000000002",
     ]);
 
     const tx = this.factory.newInstrument(
@@ -140,8 +160,10 @@ describe("DojimaFactory", function () {
       "42000000000",
       "1",
       "0x0000000000000000000000000000000000000000",
+      "0x0000000000000000000000000000000000000000",
       "0x0000000000000000000000000000000000000001",
       this.liquidatorProxy.address,
+      this.bFactory.address,
     ]);
 
     const res = await this.factory.newInstrument(

@@ -29,6 +29,8 @@ contract MockBPool is DSMath {
         uint256 minAmountOut,
         uint256 maxPrice
     ) external returns (uint256 tokenAmountOut, uint256 spotPriceAfter) {
+        require(_spotPrice > 0, "Spot price is not set yet, call setSpotPrice");
+
         IERC20 erc20TokenIn = IERC20(tokenIn);
         IERC20 erc20TokenOut = IERC20(tokenOut);
 

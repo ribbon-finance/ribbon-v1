@@ -1,6 +1,10 @@
 const { accounts, contract } = require("@openzeppelin/test-environment");
 const { assert } = require("chai");
-const { ether, ZERO_ADDRESS } = require("@openzeppelin/test-helpers");
+const {
+  ether,
+  ZERO_ADDRESS,
+  expectRevert,
+} = require("@openzeppelin/test-helpers");
 
 const Balancer = contract.fromArtifact("Balancer");
 const MockBFactory = contract.fromArtifact("MockBFactory");
@@ -27,21 +31,25 @@ describe("Balancer", function () {
       await this.balancer.initialize(
         this.bFactory.address,
         this.dToken.address,
-        this.dai.address,
-        ether("0.0001")
+        this.dai.address
       );
 
       // check the balancer params are set correctly
-      assert.equal(
-        (await this.balancer.balancerMaxSlippage()).toString(),
-        ether("0.0001")
-      );
       assert.equal(await this.balancer.balancerDToken(), this.dToken.address);
       assert.equal(
         await this.balancer.balancerPaymentToken(),
         this.dai.address
       );
       assert.notEqual(await this.balancer.balancerPool(), ZERO_ADDRESS);
+    });
+
+    it("reverts when initialize is called again", async function () {
+      const res = this.balancer.initialize(
+        this.bFactory.address,
+        this.dToken.address,
+        this.dai.address
+      );
+      expectRevert(res, "Contract instance has already been initialized");
     });
   });
 
@@ -64,7 +72,9 @@ describe("Balancer", function () {
     });
 
     it("sells to pool", async function () {
-      await this.balancer.sellToPool(ether("1"), { from: user });
+      await this.balancer.sellToPool(ether("1"), ether("0.0001"), {
+        from: user,
+      });
       assert.equal((await this.dai.balanceOf(user)).toString(), ether("400"));
       assert.equal(
         (await this.dToken.balanceOf(this.pool.address)).toString(),

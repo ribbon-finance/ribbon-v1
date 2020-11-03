@@ -11,11 +11,13 @@ contract BaseInstrumentStorageV1 is InstrumentStorageInterface {
     uint256 public collateralizationRatio;
     address public collateralAsset;
     address public targetAsset;
+    address public paymentToken;
     address internal _dToken;
     address public dataProvider;
     bool public expired;
     uint256 public settlePrice;
     address public liquidatorProxy;
+    address public balancerFactory;
 
     /**
      * @notice Vault struct contains collateral and dToken debt

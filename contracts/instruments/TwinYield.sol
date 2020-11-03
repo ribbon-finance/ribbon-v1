@@ -24,7 +24,9 @@ contract TwinYield is
         uint256 _collateralizationRatio,
         address _collateralAsset,
         address _targetAsset,
-        address _liquidatorProxy
+        address _paymentToken,
+        address _liquidatorProxy,
+        address _balancerFactory
     ) public initializer {
         require(block.timestamp < _expiry, "Expiry has already passed");
 
@@ -37,6 +39,8 @@ contract TwinYield is
         dataProvider = _dataProvider;
         liquidatorProxy = _liquidatorProxy;
         strikePrice = _strikePrice;
+        paymentToken = _paymentToken;
+        balancerFactory = _balancerFactory;
 
         // Init new DToken
         DToken newDToken = new DToken(_name, symbol);

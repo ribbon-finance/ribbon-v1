@@ -66,8 +66,8 @@ contract DojimaFactory is Initializable, CloneFactory, DojimaFactoryStorageV1 {
         returns (address)
     {
         address clone = createClone(_logic);
-        (bool success, ) = clone.call(_initData);
-        require(success);
+        (bool success, bytes memory reason) = clone.call(_initData);
+        require(success, string(reason));
         emit ProxyCreated(_logic, clone);
         return clone;
     }

@@ -105,7 +105,7 @@ describe("DojimaFactory", function () {
       { from: owner }
     );
 
-    expectRevert(newContract, "Instrument already exists");
+    await expectRevert(newContract, "Instrument already exists");
   });
 
   it("reverts if any account other than owner calls", async function () {
@@ -153,12 +153,12 @@ describe("DojimaFactory", function () {
     const instrument = await Instrument.at(res.logs[1].args.instrumentAddress);
     const dToken = await instrument.dToken();
 
-    expectEvent(res, "ProxyCreated", {
+    await expectEvent(res, "ProxyCreated", {
       logic: this.instrumentLogic.address,
       proxyAddress: instrument.address,
     });
 
-    expectEvent(res, "InstrumentCreated", {
+    await expectEvent(res, "InstrumentCreated", {
       name: name,
       instrumentAddress: instrument.address,
       dTokenAddress: dToken,

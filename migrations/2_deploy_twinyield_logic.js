@@ -9,5 +9,5 @@ async function deployTwinYieldLogic(deployer) {
 
 module.exports = async function (deployer, network) {
   await deployTwinYieldLogic(deployer);
-  await updateDeployedAddresses(network, "TwinYield", TwinYield.address);
+  await updateDeployedAddresses(network, "TwinYieldLogic", TwinYield.address);
 };

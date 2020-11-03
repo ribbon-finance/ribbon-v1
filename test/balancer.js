@@ -44,7 +44,7 @@ describe("Balancer", function () {
     });
 
     it("reverts when initialize is called again", async function () {
-      const res = await this.balancer.initialize(
+      const res = this.balancer.initialize(
         this.bFactory.address,
         this.dToken.address,
         this.dai.address

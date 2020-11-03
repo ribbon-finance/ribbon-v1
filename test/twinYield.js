@@ -27,6 +27,7 @@ describe("TwinYield", function () {
       instrument,
       dToken,
       args,
+      paymentToken,
     } = await getDefaultArgs(admin, owner, user);
 
     self = this;
@@ -36,6 +37,8 @@ describe("TwinYield", function () {
     this.contract = instrument;
     this.dToken = dToken;
     this.args = args;
+    this.paymentToken = paymentToken;
+    this.balancerPool = await this.contract.balancerPool();
 
     await this.collateralAsset.approve(this.contract.address, supply, {
       from: user,
@@ -663,6 +666,47 @@ describe("TwinYield", function () {
       });
 
       await expectRevert(withdrawCol, "Instrument must be expired");
+    });
+  });
+
+  describe("#depositMintAndSell", () => {
+    beforeEach(async function () {
+      // We have to first seed the deployed Balancer pool with USDC (the payment token)
+      await this.paymentToken.transfer(this.balancerPool, ether("1000"), {
+        from: user,
+      });
+      snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
+    it("deposits and mints correctly", async function () {
+      vault = await this.contract.getVault(user);
+      const startCol = vault._collateral;
+      const startDebt = vault._dTokenDebt;
+
+      const amount = ether("1");
+      const mintAmount = ether("1");
+      const res = await this.contract.depositAndMint(amount, mintAmount, {
+        from: user,
+      });
+
+      expectEvent(res, "Deposited", {
+        account: user,
+        amount: amount,
+      });
+
+      expectEvent(res, "Minted", {
+        account: user,
+        amount: mintAmount,
+      });
+
+      vault = await this.contract.getVault(user);
+      assert.equal(vault._collateral.toString(), startCol.add(amount));
+      assert.equal(vault._dTokenDebt.toString(), startDebt.add(mintAmount));
     });
   });
 });

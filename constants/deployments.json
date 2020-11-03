@@ -1,1 +1,9 @@
-{"kovan":{},"development":{"DataProvider":"0x2612Af3A521c2df9EAF28422Ca335b04AdF3ac66"}}
+{
+	"kovan": {},
+	"development": {
+		"DataProvider": "0xA586074FA4Fe3E546A132a16238abe37951D41fE",
+		"LiquidatorProxy": "0x970e8f18ebfEa0B08810f33a5A40438b9530FBCF",
+		"DojimaFactory": "0xaf5C4C6C7920B4883bC6252e9d9B8fE27187Cf68",
+		"TwinYield": "0xEC5d4F247aF81A843612eb1371CBCfa88b762119"
+	}
+}

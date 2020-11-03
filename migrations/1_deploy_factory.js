@@ -3,9 +3,39 @@ const LiquidatorProxy = artifacts.require("LiquidatorProxy");
 const Factory = artifacts.require("DojimaFactory");
 const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const { encodeCall } = require("@openzeppelin/upgrades");
-const { ether } = require("@openzeppelin/test-helpers");
-const ADDRESSES = require("../addresses.json");
-const WETH_ADDRESS = ADDRESSES.assets.weth;
+const { ether, constants } = require("@openzeppelin/test-helpers");
+const {
+  updateDeployedAddresses,
+} = require("../scripts/updateDeployedAddresses");
+const ADDRESSES = require("../constants/externalAddresses.json");
+
+module.exports = async function (deployer, network, accounts) {
+  const [admin, owner] = accounts;
+
+  let wethAddress;
+  if (network === "development") {
+    wethAddress = constants.ZERO_ADDRESS;
+  } else {
+    wethAddress = ADDRESSES[network].assets.weth;
+  }
+
+  await deployer.deploy(DataProvider, wethAddress);
+  await updateDeployedAddresses(network, "DataProvider", DataProvider.address);
+
+  await deployLiquidatorProxy(deployer, admin, owner);
+  await updateDeployedAddresses(
+    network,
+    "LiquidatorProxy",
+    AdminUpgradeabilityProxy.address
+  );
+
+  await deployFactory(deployer, admin, owner);
+  await updateDeployedAddresses(
+    network,
+    "DojimaFactory",
+    AdminUpgradeabilityProxy.address
+  );
+};
 
 async function deployLiquidatorProxy(deployer, admin, owner) {
   await deployer.deploy(LiquidatorProxy);
@@ -49,13 +79,3 @@ async function deployFactory(deployer, admin, owner) {
     }
   );
 }
-
-module.exports = async function (deployer, _, accounts) {
-  const [admin, owner] = accounts;
-
-  await deployer.deploy(DataProvider, WETH_ADDRESS);
-
-  await deployLiquidatorProxy(deployer, admin, owner);
-
-  await deployFactory(deployer, admin, owner);
-};

@@ -36,8 +36,8 @@ async function deployFactory(deployer, admin, owner) {
 
   const initBytes = encodeCall(
     "initialize",
-    ["address", "address", "address"],
-    [owner, dataProvider, liquidatorProxy]
+    ["address", "address", "address", "address"],
+    [owner, dataProvider, admin, liquidatorProxy]
   );
   await deployer.deploy(
     AdminUpgradeabilityProxy,

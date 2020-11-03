@@ -153,12 +153,12 @@ describe("DojimaFactory", function () {
     const instrument = await Instrument.at(res.logs[1].args.instrumentAddress);
     const dToken = await instrument.dToken();
 
-    await expectEvent(res, "ProxyCreated", {
+    expectEvent(res, "ProxyCreated", {
       logic: this.instrumentLogic.address,
       proxyAddress: instrument.address,
     });
 
-    await expectEvent(res, "InstrumentCreated", {
+    expectEvent(res, "InstrumentCreated", {
       name: name,
       instrumentAddress: instrument.address,
       dTokenAddress: dToken,

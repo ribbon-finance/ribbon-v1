@@ -105,7 +105,7 @@ describe("DojimaFactory", function () {
       { from: owner }
     );
 
-    await expectRevert(newContract, "Instrument already exists");
+    expectRevert(newContract, "Instrument already exists");
   });
 
   it("reverts if any account other than owner calls", async function () {

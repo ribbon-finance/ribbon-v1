@@ -1,4 +1,4 @@
-const { accounts, contract } = require("@openzeppelin/test-environment");
+const { accounts, contract, web3 } = require("@openzeppelin/test-environment");
 const { assert } = require("chai");
 
 const {
@@ -24,6 +24,10 @@ const newInstrumentTypes = [
   "address",
   "address",
 ];
+const ADMIN_SLOT =
+  "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
+const IMPL_SLOT =
+  "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
 describe("DojimaFactory", function () {
   const [admin, owner, user] = accounts;
@@ -66,6 +70,15 @@ describe("DojimaFactory", function () {
     );
     assert.equal(await this.factory.dataProvider(), this.dataProvider.address);
     assert.equal(await this.factory.owner(), owner);
+
+    // check the storage for admin
+    assert.equal(
+      web3.utils.toChecksumAddress(
+        await web3.eth.getStorageAt(this.factory.address, ADMIN_SLOT)
+      ),
+      admin
+    );
+    assert.equal(await this.factory.instrumentAdmin(), admin);
   });
 
   it("initializes contract correctly", async function () {
@@ -88,6 +101,19 @@ describe("DojimaFactory", function () {
       this.paymentToken.address
     );
     assert.notEqual(await this.contract.balancerPool(), ZERO_ADDRESS);
+
+    assert.equal(
+      web3.utils.toChecksumAddress(
+        await web3.eth.getStorageAt(this.contract.address, ADMIN_SLOT)
+      ),
+      admin
+    );
+    assert.equal(
+      web3.utils.toChecksumAddress(
+        await web3.eth.getStorageAt(this.contract.address, IMPL_SLOT)
+      ),
+      this.instrumentLogic.address
+    );
   });
 
   it("adds instrument to mapping", async function () {

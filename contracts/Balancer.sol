@@ -9,25 +9,21 @@ contract Balancer is DSMath {
     address private _dToken;
     address private _paymentToken;
     BalancerPool private _balancerPool;
-    uint256 private _maxSlippage;
 
     /**
      * @notice Initializes the contract with params and creates a new pool, with address(this) as the pool's controller.
      * @param bFactory is the address of the Balancer Core Factory
      * @param dToken is the address of the instrument dToken
      * @param paymentToken is the address of the paymentToken (the token sellers get when selling dToken)
-     * @param maxSlippage is the maximum slippage allowed in % from the current pool's spot price, normally in bps
      */
     function initialize(
         address bFactory,
         address dToken,
-        address paymentToken,
-        uint256 maxSlippage
+        address paymentToken
     ) public {
         _dToken = dToken;
         _paymentToken = paymentToken;
         _balancerPool = newPool(bFactory, dToken, paymentToken);
-        _maxSlippage = maxSlippage;
     }
 
     /**
@@ -57,7 +53,7 @@ contract Balancer is DSMath {
      * @notice Sell _sellAmount worth of dTokens to the Balancer pool and get tokenAmountOut worth of paymentTokens in return
      * @param _sellAmount is the amount of dTokens to sell. All of the tokens will be sold.
      */
-    function sellToPool(uint256 _sellAmount)
+    function sellToPool(uint256 _sellAmount, uint256 _maxSlippage)
         public
         returns (uint256 tokenAmountOut, uint256 spotPriceAfter)
     {
@@ -108,12 +104,5 @@ contract Balancer is DSMath {
      */
     function balancerPool() public view returns (address) {
         return address(_balancerPool);
-    }
-
-    /**
-     * @notice Returns the static max slippage
-     */
-    function balancerMaxSlippage() public view returns (uint256) {
-        return _maxSlippage;
     }
 }

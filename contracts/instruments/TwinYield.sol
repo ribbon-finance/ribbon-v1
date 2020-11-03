@@ -48,13 +48,7 @@ contract TwinYield is
         address dToken = address(newDToken);
         _dToken = dToken;
 
-        // max slippage is 5 basis points
-        Balancer.initialize(
-            _balancerFactory,
-            dToken,
-            _paymentToken,
-            0.0005 ether
-        );
+        Balancer.initialize(_balancerFactory, dToken, _paymentToken);
     }
 
     /**

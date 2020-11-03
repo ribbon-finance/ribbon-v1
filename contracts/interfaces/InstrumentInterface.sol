@@ -10,6 +10,12 @@ interface InstrumentInterface {
     function depositAndMint(uint256 collateralAmount, uint256 tokenAmount)
         external;
 
+    function depositMintAndSell(
+        uint256 collateral,
+        uint256 dToken,
+        uint256 maxSlippage
+    ) external;
+
     // Withdrawals
     function withdrawAfterExpiry() external;
 

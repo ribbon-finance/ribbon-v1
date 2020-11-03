@@ -55,7 +55,7 @@ contract TwinYield is
      * @notice Deposits collateral into the system. Calls the `depositInteral` function
      * @param _amount is amount of collateral to deposit
      */
-    function deposit(uint256 _amount) public virtual override nonReentrant {
+    function deposit(uint256 _amount) public override nonReentrant {
         depositInternal(_amount);
     }
 
@@ -79,7 +79,7 @@ contract TwinYield is
      * @notice Mints dTokens. Calls the `mintInternal` function
      * @param _amount is amount of dToken to mint
      */
-    function mint(uint256 _amount) public virtual override nonReentrant {
+    function mint(uint256 _amount) public override nonReentrant {
         mintInternal(msg.sender, _amount);
     }
 
@@ -111,7 +111,6 @@ contract TwinYield is
      */
     function depositAndMint(uint256 _collateral, uint256 _dToken)
         external
-        virtual
         override
         nonReentrant
     {
@@ -129,7 +128,7 @@ contract TwinYield is
         uint256 _collateral,
         uint256 _dToken,
         uint256 _maxSlippage
-    ) external nonReentrant {
+    ) external override nonReentrant {
         depositInternal(_collateral);
 
         // mint the tokens and set the instrument as the recipient of the newly minted tokens
@@ -146,7 +145,6 @@ contract TwinYield is
      */
     function repayDebt(address _account, uint256 _amount)
         public
-        virtual
         override
         nonReentrant
     {

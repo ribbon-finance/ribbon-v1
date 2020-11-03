@@ -17,16 +17,32 @@ const defaultExpirySeconds = parseInt(
 program.version("0.0.1");
 program
   .option("-N, --network <network>", "Ethereum network", "kovan")
-  .option("-n, --instrumentName <name>", "name of instrument (must be unique)")
-  .option("-s, --symbol <symbol>", "symbol")
-  .requiredOption("-x, --strike <strike>", "strike")
+  .requiredOption("-x, --strikePrice <strike>", "strike")
   .option(
     "-e, --expiry <time>",
     "defaults to current day + 1 week",
     defaultExpirySeconds
-  )
+  );
+
+const expiryDate = new Date(program.expiry * 1000);
+const expiryInName = `${expiryDate.getDay()}/${expiryDate.getMonth()}/${expiryDate
+  .getFullYear()
+  .toString()
+  .substr(-2)}`;
+const expiryInSymbol = expiryInName.replace("/", "");
+
+const defaultName = `TwinYield ETH-USDC ${expiryInName}`;
+const defaultSymbol = `TY-ETHUSDC-${expiryInSymbol}`;
+
+program
   .option(
-    "-m, --collatratio <collatratio>",
+    "-n, --instrumentName <name>",
+    "name of instrument (must be unique)",
+    defaultName
+  )
+  .option("-s, --symbol <symbol>", "symbol", defaultSymbol)
+  .option(
+    "-m, --collateralizationRatio <collatratio>",
     "defaults to 100%",
     "1000000000000000000"
   )
@@ -59,27 +75,32 @@ program
 program.parse(process.argv);
 
 (async function () {
-  const expiryDate = new Date(program.expiry * 1000);
-  const expiryInName = `${expiryDate.getDay()}/${expiryDate.getMonth()}/${expiryDate
-    .getFullYear()
-    .toString()
-    .substr(-2)}`;
-  const expiryInSymbol = expiryInName.replace("/", "");
+  const {
+    instrumentName: name,
+    symbol,
+    expiry,
+    strikePrice,
+    collateralizationRatio,
+    collateralAsset,
+    targetAsset,
+    paymentToken,
+    liquidatorProxy,
+    balancerFactory,
+  } = program;
 
   const opts = {
     dataProvider: deployments.kovan.DataProvider,
-    name: program.instrumentName || `TwinYield ETH-USDC ${expiryInName}`,
-    symbol: program.symbol || `TY-ETHUSDC-${expiryInSymbol}`,
-    expiry: program.expiry,
-    strikePrice: program.strike,
-    collateralizationRatio: program.collatratio,
-    collateralAsset: program.collateralAsset,
-    targetAsset: program.targetAsset,
-    paymentToken: program.paymentToken,
-    liquidatorProxy: program.liquidatorProxy,
-    balancerFactory: program.balancerFactory,
+    name,
+    symbol,
+    expiry,
+    strikePrice,
+    collateralizationRatio,
+    collateralAsset,
+    targetAsset,
+    paymentToken,
+    liquidatorProxy,
+    balancerFactory,
   };
-
   await newTwinYield(opts);
 
   // newTwinYield({expiry

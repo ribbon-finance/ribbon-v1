@@ -31,7 +31,7 @@
   },
   "scripts": {
     "test": "mocha --timeout 10000 --exit --recursive test",
-    "build-contracts": "sol-merger \"./contracts/*.sol\" ./build",
-    "process-contracts": "sol-merger  --export-plugin SPDXLicenseRemovePlugin \"./contracts/*.sol\" compiled"
+    "verify": " npx truffle run verify DataProvider LiquidatorProxy DojimaFactory AdminUpgradeabilityProxy --network kovan --license MIT",
+    "merge-contracts": "sol-merger  --export-plugin SPDXLicenseRemovePlugin \"./contracts/**/*.sol\" ./build/compiled"
   }
 }

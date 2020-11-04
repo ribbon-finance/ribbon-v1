@@ -1,7 +1,8 @@
+const fs = require("fs");
+const path = require("path");
 const { encodeCall } = require("@openzeppelin/upgrades");
-const { updateDeployedAddresses } = require("./updateDeployedAddresses");
+const { verifyEtherscan } = require("./etherscanHelpers");
 const factoryJSON = require("../build/contracts/DojimaFactory.json");
-
 const accountAddresses = require("../constants/accounts.json");
 const deployedAddresses = require("../constants/deployments");
 
@@ -65,6 +66,7 @@ async function newTwinYield(web3, opts) {
   const initData = encodeTwinYieldData(opts);
   const logic = deployedAddresses.kovan.TwinYieldLogic;
   const owner = accountAddresses.kovan.owner;
+  const constructorArgs = [logic, initData];
 
   const receipt = await factory.methods.newInstrument(logic, initData).send({
     from: owner,
@@ -73,4 +75,13 @@ async function newTwinYield(web3, opts) {
     value: "0",
   });
   console.log("Txhash: " + receipt.transactionHash);
+
+  console.log("Waiting 1 minute to complete deploy");
+  await timeout(60000);
+
+  await verifyEtherscan(instrumentAddress, "TwinYield.sol", constructorArgs);
+}
+
+async function timeout(time) {
+  return new Promise((resolve) => setTimeout(resolve, time));
 }

@@ -18,7 +18,9 @@ async function waitUntil(condition, task) {
   });
 }
 
-async function verifyEtherscan(address, source, constructorArgs) {
+async function verifyEtherscan(address, contractName, constructorArgs) {
+  const source = getSoliditySource(contractName);
+
   const guid = await sendVerificationRequest(address, source, constructorArgs);
 
   console.log("Polling verification status for 30 seconds...");
@@ -83,4 +85,19 @@ async function sendVerificationRequest(address, source, constructorArgs) {
   console.log("Sent verification request " + guid);
 
   return guid;
+}
+
+async function getSoliditySource(filename) {
+  console.log("Reading solidity source");
+  const filepath = path.normalize(
+    path.join(__dirname, "..", "build", "compiled", filename)
+  );
+
+  const exists = await promisify(fs.exists)(filepath);
+  if (!exists) {
+    console.log("File doesnt exist");
+  }
+  const source = await promisify(fs.readFile)(filepath).toString();
+  console.log("Done reading");
+  return source;
 }

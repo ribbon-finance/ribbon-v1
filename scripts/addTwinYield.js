@@ -18,29 +18,13 @@ program.version("0.0.1");
 program
   .option("-N, --network <network>", "Ethereum network", "kovan")
   .requiredOption("-x, --strikePrice <strike>", "strike")
-  .option(
+  .requiredOption(
     "-e, --expiry <time>",
     "defaults to current day + 1 week",
     defaultExpirySeconds
-  );
-
-const expiryDate = new Date(program.expiry * 1000);
-const expiryInName = `${expiryDate.getDay()}/${expiryDate.getMonth()}/${expiryDate
-  .getFullYear()
-  .toString()
-  .substr(-2)}`;
-const expiryInSymbol = expiryInName.replace("/", "");
-
-const defaultName = `TwinYield ETH-USDC ${expiryInName}`;
-const defaultSymbol = `TY-ETHUSDC-${expiryInSymbol}`;
-
-program
-  .option(
-    "-n, --instrumentName <name>",
-    "name of instrument (must be unique)",
-    defaultName
   )
-  .option("-s, --symbol <symbol>", "symbol", defaultSymbol)
+  .option("-n, --instrumentName <name>", "name of instrument (must be unique)")
+  .option("-s, --symbol <symbol>", "symbol")
   .option(
     "-m, --collateralizationRatio <collatratio>",
     "defaults to 100%",
@@ -76,7 +60,7 @@ program.parse(process.argv);
 
 (async function () {
   const {
-    instrumentName: name,
+    instrumentName,
     symbol,
     expiry,
     strikePrice,
@@ -88,10 +72,20 @@ program.parse(process.argv);
     balancerFactory,
   } = program;
 
+  const expiryDate = new Date(program.expiry * 1000);
+  const expiryInName = `${expiryDate.getDay()}/${expiryDate.getMonth()}/${expiryDate
+    .getFullYear()
+    .toString()
+    .substr(-2)}`;
+  const expiryInSymbol = expiryInName.replace("/", "");
+
+  const defaultName = `TwinYield ETH-USDC ${strikePrice} ${expiryInName}`;
+  const defaultSymbol = `TY-ETHUSDC-${strikePrice}-${expiryInSymbol}`;
+
   const opts = {
     dataProvider: deployments.kovan.DataProvider,
-    name,
-    symbol,
+    name: instrumentName || defaultName,
+    symbol: symbol || defaultSymbol,
     expiry,
     strikePrice,
     collateralizationRatio,

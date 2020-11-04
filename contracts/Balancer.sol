@@ -58,9 +58,9 @@ contract Balancer is DSMath, Initializable {
 
         // We need to set the weights for dToken and paymentToken to be equal i.e. 50/50
         // https://docs.balancer.finance/protocol/concepts#terminology
-        pool.bind(dToken, 0, 1);
-        pool.bind(paymentToken, 0, 1);
-        pool.finalize();
+        // pool.bind(dToken, 0, 1);
+        // pool.bind(paymentToken, 0, 1);
+        // pool.finalize();
 
         return pool;
     }

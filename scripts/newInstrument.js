@@ -1,8 +1,8 @@
 const { encodeCall } = require("@openzeppelin/upgrades");
 const { updateDeployedAddresses } = require("./updateDeployedAddresses");
-const { contract } = require("@openzeppelin/test-environment");
-const Factory = contract.fromArtifact("DojimaFactory");
+const factoryJSON = require("../build/contracts/DojimaFactory.json");
 
+const accountAddresses = require("../constants/accounts.json");
 const deployedAddresses = require("../constants/deployments");
 
 module.exports = {
@@ -56,8 +56,21 @@ function encodeTwinYieldData({
   return initData;
 }
 
-async function newTwinYield(opts) {
+async function newTwinYield(web3, opts) {
+  const factory = new web3.eth.Contract(
+    factoryJSON.abi,
+    deployedAddresses.kovan.DojimaFactory
+  );
+
   const initData = encodeTwinYieldData(opts);
-  const factory = await Factory.at(deployedAddresses.kovan.DojimaFactory);
-  await factory.newInstrument(deployedAddresses.kovan.TwinYieldLogic, initData);
+  const logic = deployedAddresses.kovan.TwinYieldLogic;
+  const owner = accountAddresses.kovan.owner;
+
+  const receipt = await factory.methods.newInstrument(logic, initData).send({
+    from: owner,
+    gasPrice: "10000000000", // 10 Gwei
+    gasLimit: "8000000", // 5m gas limit
+    value: "0",
+  });
+  console.log("Txhash: " + receipt.transactionHash);
 }

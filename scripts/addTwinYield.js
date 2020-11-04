@@ -101,16 +101,6 @@ program.parse(process.argv);
     liquidatorProxy,
     balancerFactory,
   };
-  await newTwinYield(opts);
-
-  // newTwinYield({expiry
-  //   dataProvider: deployments.kovan.DataProvider,
-  //   name,
-  //   symbol,
-  //   expiry: program.expiry,
-  //   strikePrice: program.strike,
-  //   collateralizationRatio: program.collatratio,
-  // });
 
   try {
     const provider = new HDWalletProvider(
@@ -120,6 +110,8 @@ program.parse(process.argv);
     const web3 = new Web3(
       new Web3.providers.HttpProvider(process.env.INFURA_KOVAN_URI)
     );
+    web3.setProvider(provider);
+    await newTwinYield(web3, opts);
   } catch (e) {
     console.error(e);
   }

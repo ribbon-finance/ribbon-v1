@@ -19,7 +19,7 @@ contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
     /**
      * @notice Emitted when a new instrument is created
      */
-    event ProxyCreated(address logic, address proxyAddress);
+    event ProxyCreated(address logic, address proxyAddress, bytes initData);
 
     /**
      * @notice Constructor takes a DataProvider contract address
@@ -72,7 +72,7 @@ contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
             instrumentAdmin,
             _initData
         );
-        emit ProxyCreated(_logic, address(proxy));
+        emit ProxyCreated(_logic, address(proxy), _initData);
         return address(proxy);
     }
 }

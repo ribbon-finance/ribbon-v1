@@ -25,6 +25,7 @@ program.parse(process.argv);
     "../constants/deployments.json",
     "../constants/externalAddresses.json",
     "../constants/instruments.json",
+    "../build/contracts/TwinYield.json",
     "../build/contracts/InstrumentInterface.json",
   ].map((p) => path.normalize(path.join(__dirname, p)));
 

@@ -1,4 +1,7 @@
+require("dotenv").config();
 const { promisify } = require("util");
+const path = require("path");
+const fs = require("fs");
 const request = require("request");
 
 module.exports = { verifyEtherscan };
@@ -19,7 +22,7 @@ async function waitUntil(condition, task) {
 }
 
 async function verifyEtherscan(address, contractName, constructorArgs) {
-  const source = getSoliditySource(contractName);
+  const source = await getSoliditySource(contractName);
 
   const guid = await sendVerificationRequest(address, source, constructorArgs);
 
@@ -70,6 +73,7 @@ async function sendVerificationRequest(address, source, constructorArgs) {
     runs: 200,
     constructorArguments: constructorArgs,
   };
+  console.log(data);
 
   const res = await promisify(request.post)({
     url: "http://api-kovan.etherscan.io/api",
@@ -97,7 +101,7 @@ async function getSoliditySource(filename) {
   if (!exists) {
     console.log("File doesnt exist");
   }
-  const source = await promisify(fs.readFile)(filepath).toString();
+  const source = (await promisify(fs.readFile)(filepath)).toString();
   console.log("Done reading");
   return source;
 }

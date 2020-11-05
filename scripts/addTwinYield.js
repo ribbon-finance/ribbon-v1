@@ -73,11 +73,12 @@ program.parse(process.argv);
   } = program;
 
   const expiryDate = new Date(program.expiry * 1000);
-  const expiryInName = `${expiryDate.getDay()}/${expiryDate.getMonth()}/${expiryDate
-    .getFullYear()
-    .toString()
-    .substr(-2)}`;
-  const expiryInSymbol = expiryInName.replace("/", "");
+  const expiryInName = expiryDate.toLocaleDateString("en-GB", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const expiryInSymbol = expiryInName.replace(/\//g, "");
 
   const defaultName = `TwinYield ETH-USDC ${strikePrice} ${expiryInName}`;
   const defaultSymbol = `TY-ETHUSDC-${strikePrice}-${expiryInSymbol}`;
@@ -95,6 +96,8 @@ program.parse(process.argv);
     liquidatorProxy,
     balancerFactory,
   };
+  console.log("Deploying with parameters:");
+  console.log(opts);
 
   try {
     const provider = new HDWalletProvider(

@@ -13,6 +13,7 @@ const Instrument = contract.fromArtifact("TwinYield");
 
 const newInstrumentTypes = [
   "address",
+  "address",
   "string",
   "string",
   "uint256",
@@ -130,6 +131,7 @@ describe("DojimaFactory", function () {
 
   it("reverts if instrument already exists", async function () {
     const initData = encodeCall("initialize", newInstrumentTypes, [
+      owner,
       this.dataProvider.address,
       this.args.name,
       this.args.symbol,
@@ -154,6 +156,7 @@ describe("DojimaFactory", function () {
 
   it("reverts if any account other than owner calls", async function () {
     const initData = encodeCall("initialize", newInstrumentTypes, [
+      owner,
       this.dataProvider.address,
       "test",
       "test",
@@ -180,6 +183,7 @@ describe("DojimaFactory", function () {
     const symbol = "symbol";
 
     const initData = encodeCall("initialize", newInstrumentTypes, [
+      owner,
       this.dataProvider.address,
       name,
       symbol,

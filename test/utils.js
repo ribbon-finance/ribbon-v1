@@ -77,6 +77,7 @@ async function getDefaultArgs(admin, owner, user) {
 
   const initTypes = [
     "address",
+    "address",
     "string",
     "string",
     "uint256",
@@ -89,6 +90,7 @@ async function getDefaultArgs(admin, owner, user) {
     "address",
   ];
   const initArgs = [
+    owner,
     await factory.dataProvider(),
     name,
     symbol,

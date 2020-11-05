@@ -12,6 +12,7 @@ module.exports = {
 };
 
 function encodeTwinYieldData({
+  owner,
   dataProvider,
   name,
   symbol,
@@ -26,6 +27,7 @@ function encodeTwinYieldData({
 }) {
   const newInstrumentTypes = [
     "address",
+    "address",
     "string",
     "string",
     "uint256",
@@ -38,6 +40,7 @@ function encodeTwinYieldData({
     "address",
   ];
   const newInstrumentArgs = [
+    owner,
     dataProvider,
     name,
     symbol,
@@ -70,11 +73,6 @@ async function newTwinYield(web3, opts) {
   const initData = encodeTwinYieldData(opts);
   const logic = deployedAddresses.kovan.TwinYieldLogic;
   const owner = accountAddresses.kovan.owner;
-  const constructorArgs = [logic, initData];
-  const constructorData = web3.eth.abi.encodeParameters(
-    ["address", "bytes"],
-    constructorArgs
-  );
 
   const receipt = await factory.methods.newInstrument(logic, initData).send({
     from: owner,
@@ -88,7 +86,7 @@ async function newTwinYield(web3, opts) {
   console.log("Waiting 1 minute to complete deploy");
   await timeout(60000);
 
-  const instrumentAddress = await getInstrumentDeployData(web3, txhash);
+  const instrumentAddress = await getInstrumentAddress(web3, txhash);
   console.log(
     `Instrument is deployed at ${instrumentAddress}, verify with https://kovan.etherscan.io/proxyContractChecker?a=${instrumentAddress}`
   );
@@ -102,7 +100,7 @@ async function newTwinYield(web3, opts) {
   );
 }
 
-async function getInstrumentDeployData(
+async function getInstrumentAddress(
   web3,
   txhash,
   topicName = InstrumentCreatedTopic
@@ -116,15 +114,9 @@ async function getInstrumentDeployData(
     throw new Error(`No logs found with topic ${topicName}`);
   }
 
-  const logs = eventLog["data"];
-  const newInstrumentABI = [
-    { type: "string", name: "name" },
-    { type: "address", name: "instrumentAddress" },
-    { type: "address", name: "dTokenAddress" },
-  ];
-
-  const res = await web3.eth.abi.decodeParameters(newInstrumentABI, logs);
-  return res["instrumentAddress"];
+  const addressTopic = eventLog.topics[1];
+  const instrumentAddress = "0x" + addressTopic.slice(addressTopic.length - 40);
+  return instrumentAddress;
 }
 
 async function addNewInstrumentToConstants(

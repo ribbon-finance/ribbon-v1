@@ -3,7 +3,19 @@ const program = require("commander");
 const fs = require("fs");
 const path = require("path");
 
-program.requiredOption("-o, --output <directory>", "output directory");
+const defaultDstPath = path.join(
+  "..",
+  "dojima-frontend",
+  "mvp",
+  "src",
+  "constants"
+);
+
+program.requiredOption(
+  "-o, --output <directory>",
+  "output directory",
+  defaultDstPath
+);
 program.parse(process.argv);
 
 (async function () {
@@ -13,7 +25,7 @@ program.parse(process.argv);
     "../constants/deployments.json",
     "../constants/externalAddresses.json",
     "../constants/instruments.json",
-    "../build/contracts/TwinYield.json",
+    "../build/contracts/InstrumentInterface.json",
   ].map((p) => path.normalize(path.join(__dirname, p)));
 
   const promises = artefactPaths.map((src) => {

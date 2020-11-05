@@ -19,8 +19,8 @@ contract Balancer is DSMath, Initializable {
      * @notice Emitted when a user sells their tokens to the balancer pool via this contract
      */
     event SoldToBalancerPool(
-        address seller,
-        address balancerPool,
+        address indexed seller,
+        address indexed balancerPool,
         address tokenIn,
         address tokenOut,
         uint256 sellAmount,

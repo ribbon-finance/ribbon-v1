@@ -18,7 +18,7 @@ contract TwinYield is
     function initialize(
         address _dataProvider,
         string memory name,
-        string memory _symbol,
+        string memory symbol,
         uint256 _expiry,
         uint256 _strikePrice,
         uint256 _collateralizationRatio,
@@ -31,7 +31,7 @@ contract TwinYield is
         require(block.timestamp < _expiry, "Expiry has already passed");
 
         _name = name;
-        symbol = _symbol;
+        _symbol = symbol;
         expiry = _expiry;
         collateralizationRatio = _collateralizationRatio;
         collateralAsset = _collateralAsset;

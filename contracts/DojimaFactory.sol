@@ -12,14 +12,18 @@ contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
      */
     event InstrumentCreated(
         string name,
-        address instrumentAddress,
-        address dTokenAddress
+        address indexed instrumentAddress,
+        address indexed dTokenAddress
     );
 
     /**
      * @notice Emitted when a new instrument is created
      */
-    event ProxyCreated(address logic, address proxyAddress, bytes initData);
+    event ProxyCreated(
+        address indexed logic,
+        address indexed proxyAddress,
+        bytes initData
+    );
 
     /**
      * @notice Constructor takes a DataProvider contract address

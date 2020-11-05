@@ -5,7 +5,7 @@ import "../interfaces/InstrumentInterface.sol";
 
 contract BaseInstrumentStorageV1 is InstrumentStorageInterface {
     string internal _name;
-    string public symbol;
+    string internal _symbol;
     uint256 public expiry;
     uint256 public strikePrice;
     uint256 public collateralizationRatio;
@@ -44,5 +44,12 @@ contract BaseInstrumentStorageV1 is InstrumentStorageInterface {
      */
     function dToken() public virtual override view returns (address) {
         return _dToken;
+    }
+
+    /**
+     * @notice Returns the symbol of the instrument
+     */
+    function symbol() public virtual override view returns (string memory) {
+        return _symbol;
     }
 }

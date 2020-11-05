@@ -115,6 +115,8 @@ describe("DojimaFactory", function () {
       ),
       this.instrumentLogic.address
     );
+
+    assert.equal(await this.contract.owner(), owner);
   });
 
   it("adds instrument to mapping", async function () {

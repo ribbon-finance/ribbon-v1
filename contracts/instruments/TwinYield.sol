@@ -44,7 +44,7 @@ contract TwinYield is
         expired = false;
 
         // Init new DToken
-        DToken newDToken = new DToken(_name, symbol);
+        DToken newDToken = new DToken(name, symbol);
         address dToken = address(newDToken);
         _dToken = dToken;
 

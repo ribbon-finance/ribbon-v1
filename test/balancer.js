@@ -29,6 +29,7 @@ describe("Balancer", function () {
   describe("#initialize", () => {
     it("creates a new BPool", async function () {
       await this.balancer.initialize(
+        owner,
         this.bFactory.address,
         this.dToken.address,
         this.dai.address
@@ -45,6 +46,7 @@ describe("Balancer", function () {
 
     it("reverts when initialize is called again", async function () {
       const res = this.balancer.initialize(
+        owner,
         this.bFactory.address,
         this.dToken.address,
         this.dai.address
@@ -80,6 +82,20 @@ describe("Balancer", function () {
         (await this.dToken.balanceOf(this.pool.address)).toString(),
         ether("1")
       );
+    });
+  });
+
+  describe("#finalizePool", () => {
+    it("reverts when not owner calls", async function () {
+      const res = this.balancer.finalizePool({ from: user });
+      expectRevert(res, "only owner");
+    });
+
+    it("finalizes the pool", async function () {
+      await this.balancer.finalizePool({ from: owner });
+      const poolAddr = await this.balancer.balancerPool();
+      const pool = await MockBPool.at(poolAddr);
+      assert.equal(await pool.isFinalized(), true);
     });
   });
 });

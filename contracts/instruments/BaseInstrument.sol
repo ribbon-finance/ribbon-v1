@@ -11,43 +11,43 @@ import "../DToken.sol";
 import "../DataProviderInterface.sol";
 import "../lib/DSMath.sol";
 
-contract BaseInstrument is
-    ReentrancyGuard,
-    DSMath,
-    BaseInstrumentStorageV1
-{
+contract BaseInstrument is ReentrancyGuard, DSMath, BaseInstrumentStorageV1 {
     using SafeERC20 for IERC20;
 
     /**
      * @notice Emitted when an account deposits collateral
      */
-    event Deposited(address account, uint256 amount);
+    event Deposited(address indexed account, uint256 amount);
 
     /**
      * @notice Emitted when an account deposits collateral
      */
-    event Minted(address account, uint256 amount);
+    event Minted(address indexed account, uint256 amount);
 
     /**
      * @notice Emitted when an account repays collateral in a vault
      */
-    event Repaid(address repayer, address vault, uint256 amount);
+    event Repaid(
+        address indexed repayer,
+        address indexed vault,
+        uint256 amount
+    );
 
     /**
      * @notice Emitted when an account withdraws collateral in a vault
      */
-    event Withdrew(address account, uint256 amount);
+    event Withdrew(address indexed account, uint256 amount);
 
     /**
      * @notice Emitted when an account withdraws all collateral from an expired instrument
      */
-    event WithdrewExpired(address account, uint256 amount);
+    event WithdrewExpired(address indexed account, uint256 amount);
 
     /**
      * @notice Emitted when dTokens are redeemed
      */
     event Redeemed(
-        address account,
+        address indexed account,
         uint256 dTokenAmount,
         uint256 collateralAmount
     );
@@ -55,17 +55,14 @@ contract BaseInstrument is
     /**
      * @notice Emitted when the instrument is settled
      */
-    event Settled(
-        uint256 timestamp,
-        uint256 settlePrice
-    );
+    event Settled(uint256 indexed timestamp, uint256 settlePrice);
 
     /**
      * @notice Emitted when a vault is liquidated
      */
     event Liquidated(
-        address liquidator,
-        address liquidated,
+        address indexed liquidator,
+        address indexed liquidated,
         uint256 liquidateAmount,
         uint256 collateralLiquidated,
         uint256 newLiquidatorCollateral,

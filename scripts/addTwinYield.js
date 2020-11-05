@@ -6,6 +6,7 @@ const program = new Command();
 
 const externalAddresses = require("../constants/externalAddresses.json");
 const deployments = require("../constants/deployments.json");
+const accountAddresses = require("../constants/accounts.json");
 const { newTwinYield } = require("./newInstrument");
 
 // expiry 1 week from now
@@ -84,6 +85,7 @@ program.parse(process.argv);
   const defaultSymbol = `TY-ETHUSDC-${strikePrice}-${expiryInSymbol}`;
 
   const opts = {
+    owner: accountAddresses.kovan.owner,
     dataProvider: deployments.kovan.DataProvider,
     name: instrumentName || defaultName,
     symbol: symbol || defaultSymbol,

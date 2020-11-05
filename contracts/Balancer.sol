@@ -13,13 +13,14 @@ contract Balancer is DSMath, Initializable {
     address private _dToken;
     address private _paymentToken;
     BalancerPool private _balancerPool;
+    address private _balancerController;
 
     /**
      * @notice Emitted when a user sells their tokens to the balancer pool via this contract
      */
     event SoldToBalancerPool(
-        address seller,
-        address balancerPool,
+        address indexed seller,
+        address indexed balancerPool,
         address tokenIn,
         address tokenOut,
         uint256 sellAmount,
@@ -33,6 +34,7 @@ contract Balancer is DSMath, Initializable {
      * @param paymentToken is the address of the paymentToken (the token sellers get when selling dToken)
      */
     function initialize(
+        address owner,
         address bFactory,
         address dToken,
         address paymentToken
@@ -40,6 +42,7 @@ contract Balancer is DSMath, Initializable {
         _dToken = dToken;
         _paymentToken = paymentToken;
         _balancerPool = newPool(bFactory, dToken, paymentToken);
+        _balancerController = owner;
     }
 
     /**
@@ -55,14 +58,20 @@ contract Balancer is DSMath, Initializable {
     ) private returns (BalancerPool) {
         BalancerFactory balancerFactory = BalancerFactory(bFactory);
         BalancerPool pool = balancerFactory.newBPool();
-
-        // We need to set the weights for dToken and paymentToken to be equal i.e. 50/50
-        // https://docs.balancer.finance/protocol/concepts#terminology
-        // pool.bind(dToken, 0, 1);
-        // pool.bind(paymentToken, 0, 1);
-        // pool.finalize();
-
         return pool;
+    }
+
+    function finalizePool() public {
+        require(msg.sender == _balancerController, "only owner");
+        // We need to set the weights for dToken and paymentToken to be equal i.e. 50/50
+        // Use the minimum (MIN_BALANCE) to bind the tokens
+        // https://docs.balancer.finance/protocol/concepts#terminology
+        address pool = address(_balancerPool);
+        IERC20(_dToken).approve(pool, 10**6);
+        IERC20(_paymentToken).approve(pool, 10**6);
+        _balancerPool.bind(_dToken, 10**6, 1);
+        _balancerPool.bind(_paymentToken, 10**6, 1);
+        _balancerPool.finalize();
     }
 
     /**

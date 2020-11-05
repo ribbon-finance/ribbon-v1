@@ -11,15 +11,19 @@ contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
      * @notice Emitted when a new instrument is created
      */
     event InstrumentCreated(
-        string name,
-        address instrumentAddress,
-        address dTokenAddress
+        string symbol,
+        address indexed instrumentAddress,
+        address indexed dTokenAddress
     );
 
     /**
      * @notice Emitted when a new instrument is created
      */
-    event ProxyCreated(address logic, address proxyAddress, bytes initData);
+    event ProxyCreated(
+        address indexed logic,
+        address indexed proxyAddress,
+        bytes initData
+    );
 
     /**
      * @notice Constructor takes a DataProvider contract address
@@ -56,11 +60,11 @@ contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
         InstrumentStorageInterface instrument = InstrumentStorageInterface(
             instrumentAddress
         );
-        string memory name = instrument.name();
-        require(instruments[name] == address(0), "Instrument already exists");
+        string memory symbol = instrument.symbol();
+        require(instruments[symbol] == address(0), "Instrument already exists");
 
-        instruments[name] = instrumentAddress;
-        emit InstrumentCreated(name, instrumentAddress, instrument.dToken());
+        instruments[symbol] = instrumentAddress;
+        emit InstrumentCreated(symbol, instrumentAddress, instrument.dToken());
     }
 
     function createProxy(address _logic, bytes memory _initData)

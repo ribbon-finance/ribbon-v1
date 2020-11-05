@@ -32,4 +32,6 @@ interface InstrumentStorageInterface {
     function name() external view returns (string memory);
 
     function dToken() external view returns (address);
+
+    function symbol() external view returns (string memory);
 }

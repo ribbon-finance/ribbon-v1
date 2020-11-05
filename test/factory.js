@@ -13,6 +13,7 @@ const Instrument = contract.fromArtifact("TwinYield");
 
 const newInstrumentTypes = [
   "address",
+  "address",
   "string",
   "string",
   "uint256",
@@ -114,11 +115,13 @@ describe("DojimaFactory", function () {
       ),
       this.instrumentLogic.address
     );
+
+    assert.equal(await this.contract.owner(), owner);
   });
 
   it("adds instrument to mapping", async function () {
     assert.equal(
-      await this.factory.getInstrument(this.args.name),
+      await this.factory.getInstrument(this.args.symbol),
       this.contract.address
     );
   });
@@ -130,6 +133,7 @@ describe("DojimaFactory", function () {
 
   it("reverts if instrument already exists", async function () {
     const initData = encodeCall("initialize", newInstrumentTypes, [
+      owner,
       this.dataProvider.address,
       this.args.name,
       this.args.symbol,
@@ -154,6 +158,7 @@ describe("DojimaFactory", function () {
 
   it("reverts if any account other than owner calls", async function () {
     const initData = encodeCall("initialize", newInstrumentTypes, [
+      owner,
       this.dataProvider.address,
       "test",
       "test",
@@ -177,11 +182,13 @@ describe("DojimaFactory", function () {
 
   it("emits event correctly", async function () {
     const name = "test";
+    const symbol = "symbol";
 
     const initData = encodeCall("initialize", newInstrumentTypes, [
+      owner,
       this.dataProvider.address,
       name,
-      "test",
+      symbol,
       "32503680000",
       "42000000000",
       "1",
@@ -204,10 +211,11 @@ describe("DojimaFactory", function () {
     expectEvent(res, "ProxyCreated", {
       logic: this.instrumentLogic.address,
       proxyAddress: instrument.address,
+      initData,
     });
 
     expectEvent(res, "InstrumentCreated", {
-      name: name,
+      symbol,
       instrumentAddress: instrument.address,
       dTokenAddress: dToken,
     });

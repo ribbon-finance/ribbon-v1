@@ -16,9 +16,10 @@ contract TwinYield is
     using SafeERC20 for IERC20;
 
     function initialize(
+        address _owner,
         address _dataProvider,
         string memory name,
-        string memory _symbol,
+        string memory symbol,
         uint256 _expiry,
         uint256 _strikePrice,
         uint256 _collateralizationRatio,
@@ -30,8 +31,9 @@ contract TwinYield is
     ) public initializer {
         require(block.timestamp < _expiry, "Expiry has already passed");
 
+        owner = _owner;
         _name = name;
-        symbol = _symbol;
+        _symbol = symbol;
         expiry = _expiry;
         collateralizationRatio = _collateralizationRatio;
         collateralAsset = _collateralAsset;
@@ -44,11 +46,11 @@ contract TwinYield is
         expired = false;
 
         // Init new DToken
-        DToken newDToken = new DToken(_name, symbol);
+        DToken newDToken = new DToken(name, symbol);
         address dToken = address(newDToken);
         _dToken = dToken;
 
-        Balancer.initialize(_balancerFactory, dToken, _paymentToken);
+        Balancer.initialize(_owner, _balancerFactory, dToken, _paymentToken);
     }
 
     /**

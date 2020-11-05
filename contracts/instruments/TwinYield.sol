@@ -16,6 +16,7 @@ contract TwinYield is
     using SafeERC20 for IERC20;
 
     function initialize(
+        address _owner,
         address _dataProvider,
         string memory name,
         string memory symbol,
@@ -30,6 +31,7 @@ contract TwinYield is
     ) public initializer {
         require(block.timestamp < _expiry, "Expiry has already passed");
 
+        owner = _owner;
         _name = name;
         _symbol = symbol;
         expiry = _expiry;
@@ -48,7 +50,7 @@ contract TwinYield is
         address dToken = address(newDToken);
         _dToken = dToken;
 
-        Balancer.initialize(_balancerFactory, dToken, _paymentToken);
+        Balancer.initialize(_owner, _balancerFactory, dToken, _paymentToken);
     }
 
     /**

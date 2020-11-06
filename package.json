@@ -30,6 +30,9 @@
     "verify-on-etherscan": "^1.2.1"
   },
   "scripts": {
+    "compile": "npx truffle compile",
+    "migrate": "npx truffle migrate --network kovan",
+    "deploy-kovan": "npm run compile && npm run migrate && npm run verify && npm run export-artefacts",
     "test": "mocha --timeout 10000 --exit --recursive test",
     "verify": " npx truffle run verify DataProvider LiquidatorProxy DojimaFactory AdminUpgradeabilityProxy TwinYield --network kovan --license MIT",
     "merge-contracts": "sol-merger  --export-plugin SPDXLicenseRemovePlugin \"./contracts/**/*.sol\" ./build/compiled",

@@ -1,7 +1,7 @@
 const TwinYield = artifacts.require("TwinYield");
 const {
   updateDeployedAddresses,
-} = require("../scripts/updateDeployedAddresses");
+} = require("../scripts/helpers/updateDeployedAddresses");
 
 async function deployTwinYieldLogic(deployer) {
   await deployer.deploy(TwinYield);

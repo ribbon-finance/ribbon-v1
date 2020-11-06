@@ -6,7 +6,7 @@ const program = new Command();
 const externalAddresses = require("../constants/externalAddresses.json");
 const deployments = require("../constants/deployments.json");
 const accountAddresses = require("../constants/accounts.json");
-const { newTwinYield } = require("./newInstrument");
+const { newTwinYield } = require("./helpers/newInstrument");
 
 // expiry 1 week from now
 const defaultExpirySeconds = parseInt(

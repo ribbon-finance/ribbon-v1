@@ -14,59 +14,67 @@ program.option("-n, --network <network>", "ethereum network name", "kovan");
 
 program.parse(process.argv);
 
+const instrumentAddress = web3.utils.toChecksumAddress(program.instrument);
 const MIN_BALANCE = "1000000";
 
 async function finalizeBalancerPool() {
-  const instrument = new web3.eth.Contract(
-    twinYieldJSON.abi,
-    program.instrument
-  );
-  const symbol = await instrument.methods.symbol().call();
-  const paymentToken = await instrument.methods.paymentToken().call();
-  const dToken = await instrument.methods.dToken().call();
-  const paymentERC20 = new web3.eth.Contract(IERC20JSON.abi, paymentToken);
-  const dTokenERC20 = new web3.eth.Contract(IERC20JSON.abi, dToken);
+  try {
+    const instrument = new web3.eth.Contract(
+      twinYieldJSON.abi,
+      instrumentAddress
+    );
+    const symbol = await instrument.methods.symbol().call();
+    const paymentToken = await instrument.methods.paymentToken().call();
+    const dToken = await instrument.methods.dToken().call();
+    const paymentERC20 = new web3.eth.Contract(IERC20JSON.abi, paymentToken);
+    const dTokenERC20 = new web3.eth.Contract(IERC20JSON.abi, dToken);
 
-  const owner = accounts[program.network].owner;
+    const owner = accounts[program.network].owner;
 
-  console.log(`Finalizing the instrument ${symbol}`);
+    console.log(`Finalizing the instrument ${symbol}`);
 
-  await depositAndMintDtoken(instrument, owner);
+    await depositAndMintDtoken(instrument, owner);
 
-  // First we need to transfer the min amount to the pool, which is 10**6
-  console.log("Transferring the paymentToken for the pool's MIN_BALANCE");
-  const paymentReceipt = await paymentERC20.methods
-    .transfer(program.instrument, MIN_BALANCE)
-    .send({ from: owner });
-  console.log(
-    `Transfer txhash: https://kovan.etherscan.io/address/${paymentReceipt.transactionHash}\n`
-  );
-  sleep(60000);
+    // First we need to transfer the min amount to the pool, which is 10**6
+    console.log("Transferring the paymentToken for the pool's MIN_BALANCE");
+    const paymentReceipt = await paymentERC20.methods
+      .transfer(instrumentAddress, MIN_BALANCE)
+      .send({ from: owner });
+    console.log(
+      `Transfer txhash: https://kovan.etherscan.io/tx/${paymentReceipt.transactionHash}\n`
+    );
+    sleep(60000);
 
-  console.log("Transferring the dToken for the pool's MIN_BALANCE");
-  const dTokenReceipt = await dTokenERC20.methods
-    .transfer(program.instrument, MIN_BALANCE)
-    .send({ from: owner });
-  console.log(
-    `Transfer txhash: https://kovan.etherscan.io/address/${dTokenReceipt.transactionHash}\n`
-  );
-  sleep(60000);
+    console.log("Transferring the dToken for the pool's MIN_BALANCE");
+    const dTokenReceipt = await dTokenERC20.methods
+      .transfer(instrumentAddress, MIN_BALANCE)
+      .send({ from: owner });
+    console.log(
+      `Transfer txhash: https://kovan.etherscan.io/tx/${dTokenReceipt.transactionHash}\n`
+    );
+    sleep(60000);
 
-  console.log("Calling finalizePool");
-  const finalizeReceipt = await instrument.methods
-    .finalizePool()
-    .send({ from: owner });
-  console.log(
-    `Finalizing txhash: https://kovan.etherscan.io/address/${finalizeReceipt.transactionHash}\n`
-  );
+    console.log("Calling finalizePool");
+    const finalizeReceipt = await instrument.methods
+      .finalizePool()
+      .send({ from: owner });
+    console.log(
+      `Finalizing txhash: https://kovan.etherscan.io/tx/${finalizeReceipt.transactionHash}\n`
+    );
 
-  console.log("Finalization process completed 🎉");
+    console.log("Finalization process completed 🎉");
 
-  process.exit();
+    process.exit();
+  } catch (e) {
+    console.error(e);
+    process.exit(1);
+  }
 }
 
 async function depositAndMintDtoken(instrument, owner) {
   const collateralAsset = await instrument.methods.collateralAsset().call();
+  const dToken = await instrument.methods.dToken().call();
+  const dTokenERC20 = new web3.eth.Contract(IERC20JSON.abi, dToken);
   const collateralERC20 = new web3.eth.Contract(
     IERC20JSON.abi,
     collateralAsset
@@ -74,10 +82,10 @@ async function depositAndMintDtoken(instrument, owner) {
 
   console.log("Approving collateralAsset");
   const approveReceipt = await collateralERC20.methods
-    .approve(program.instrument, MIN_BALANCE)
+    .approve(instrumentAddress, MIN_BALANCE)
     .send({ from: owner });
   console.log(
-    `Approve txhash: https://kovan.etherscan.io/address/${approveReceipt.transactionHash}\n`
+    `Approve txhash: https://kovan.etherscan.io/tx/${approveReceipt.transactionHash}\n`
   );
   sleep(60000);
 
@@ -86,7 +94,7 @@ async function depositAndMintDtoken(instrument, owner) {
     .depositAndMint(MIN_BALANCE, MIN_BALANCE)
     .send({ from: owner });
   console.log(
-    `Minting txhash: https://kovan.etherscan.io/address/${mintReceipt.transactionHash}\n`
+    `Minting txhash: https://kovan.etherscan.io/tx/${mintReceipt.transactionHash}\n`
   );
   sleep(60000);
 

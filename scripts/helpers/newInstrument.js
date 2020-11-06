@@ -3,9 +3,9 @@ const fs = require("fs");
 const { promisify } = require("util");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const { sleep } = require("./utils");
-const factoryJSON = require("../build/contracts/DojimaFactory.json");
-const accountAddresses = require("../constants/accounts.json");
-const deployedAddresses = require("../constants/deployments");
+const factoryJSON = require("../../build/contracts/DojimaFactory.json");
+const accountAddresses = require("../../constants/accounts.json");
+const deployedAddresses = require("../../constants/deployments");
 
 module.exports = {
   newTwinYield,
@@ -127,7 +127,7 @@ async function addNewInstrumentToConstants(
   address
 ) {
   const filepath = path.normalize(
-    path.join(__dirname, "..", "constants", "instruments.json")
+    path.join(__dirname, "..", "..", "constants", "instruments.json")
   );
 
   const content = await promisify(fs.readFile)(filepath);

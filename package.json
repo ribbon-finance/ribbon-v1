@@ -37,6 +37,7 @@
     "verify": " npx truffle run verify DataProvider LiquidatorProxy DojimaFactory AdminUpgradeabilityProxy TwinYield --network kovan --license MIT",
     "merge-contracts": "sol-merger  --export-plugin SPDXLicenseRemovePlugin \"./contracts/**/*.sol\" ./build/compiled",
     "export-artefacts": "node ./scripts/exportArtefacts.js",
-    "deploy-instrument": "node ./scripts/addTwinYield.js"
+    "deploy-instrument": "node ./scripts/addTwinYield.js",
+    "finalize-pool": "node ./scripts/finalizeBalancerPool.js"
   }
 }

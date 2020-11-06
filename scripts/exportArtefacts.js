@@ -3,13 +3,7 @@ const program = require("commander");
 const fs = require("fs");
 const path = require("path");
 
-const defaultDstPath = path.join(
-  "..",
-  "dojima-frontend",
-  "mvp",
-  "src",
-  "constants"
-);
+const defaultDstPath = path.join("..", "dojima-frontend", "mvp", "src");
 
 program.requiredOption(
   "-o, --output <directory>",
@@ -18,16 +12,10 @@ program.requiredOption(
 );
 program.parse(process.argv);
 
-(async function () {
-  const dstPath = path.normalize(path.join(__dirname, "..", program.output));
-
-  const artefactPaths = [
-    "../constants/deployments.json",
-    "../constants/externalAddresses.json",
-    "../constants/instruments.json",
-    "../build/contracts/TwinYield.json",
-    "../constants/abis/BPool.json",
-  ].map((p) => path.normalize(path.join(__dirname, p)));
+async function copyToPath(srcPaths, dstPath) {
+  const artefactPaths = srcPaths.map((p) =>
+    path.normalize(path.join(__dirname, p))
+  );
 
   const promises = artefactPaths.map((src) => {
     const filename = path.basename(src);
@@ -37,4 +25,21 @@ program.parse(process.argv);
   });
   await Promise.all(promises);
   console.log("Done!");
+}
+
+(async function () {
+  const dstPath = path.normalize(path.join(__dirname, "..", program.output));
+
+  const addressesPath = [
+    "../constants/deployments.json",
+    "../constants/externalAddresses.json",
+    "../constants/instruments.json",
+  ];
+  await copyToPath(addressesPath, path.join(dstPath, "constants"));
+
+  const artefactsPath = [
+    "../build/contracts/TwinYield.json",
+    "../constants/abis/BPool.json",
+  ];
+  await copyToPath(artefactsPath, path.join(dstPath, "abis"));
 })();

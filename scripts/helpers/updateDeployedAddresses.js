@@ -8,7 +8,7 @@ module.exports = {
 
 async function updateDeployedAddresses(network, contractName, address) {
   const filepath = path.normalize(
-    path.join(__dirname, "..", "constants", "deployments.json")
+    path.join(__dirname, "..", "..", "constants", "deployments.json")
   );
 
   const content = await promisify(fs.readFile)(filepath);

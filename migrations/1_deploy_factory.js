@@ -6,7 +6,7 @@ const { encodeCall } = require("@openzeppelin/upgrades");
 const { ether, constants } = require("@openzeppelin/test-helpers");
 const {
   updateDeployedAddresses,
-} = require("../scripts/updateDeployedAddresses");
+} = require("../scripts/helpers/updateDeployedAddresses");
 const ADDRESSES = require("../constants/externalAddresses.json");
 
 module.exports = async function (deployer, network, accounts) {

@@ -1,13 +1,12 @@
 require("dotenv").config();
-const Web3 = require("web3");
-const HDWalletProvider = require("@truffle/hdwallet-provider");
+const web3 = require("./helpers/web3");
 const { Command } = require("commander");
 const program = new Command();
 
 const externalAddresses = require("../constants/externalAddresses.json");
 const deployments = require("../constants/deployments.json");
 const accountAddresses = require("../constants/accounts.json");
-const { newTwinYield } = require("./newInstrument");
+const { newTwinYield } = require("./helpers/newInstrument");
 
 // expiry 1 week from now
 const defaultExpirySeconds = parseInt(
@@ -102,14 +101,6 @@ program.parse(process.argv);
   console.log(opts);
 
   try {
-    const provider = new HDWalletProvider(
-      process.env.MNEMONIC,
-      process.env.INFURA_KOVAN_URI
-    );
-    const web3 = new Web3(
-      new Web3.providers.HttpProvider(process.env.INFURA_KOVAN_URI)
-    );
-    web3.setProvider(provider);
     await newTwinYield(web3, opts);
   } catch (e) {
     console.error(e);

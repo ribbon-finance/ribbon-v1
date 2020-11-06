@@ -1,11 +1,12 @@
+const web3 = require("./web3");
 const path = require("path");
 const fs = require("fs");
 const { promisify } = require("util");
 const { encodeCall } = require("@openzeppelin/upgrades");
-const { updateDeployedAddresses } = require("./updateDeployedAddresses");
-const factoryJSON = require("../build/contracts/DojimaFactory.json");
-const accountAddresses = require("../constants/accounts.json");
-const deployedAddresses = require("../constants/deployments");
+const { sleep } = require("./utils");
+const factoryJSON = require("../../build/contracts/DojimaFactory.json");
+const accountAddresses = require("../../constants/accounts.json");
+const deployedAddresses = require("../../constants/deployments");
 
 module.exports = {
   newTwinYield,
@@ -84,7 +85,7 @@ async function newTwinYield(web3, opts) {
   console.log("Txhash: " + txhash);
 
   console.log("Waiting 1 minute to complete deploy");
-  await timeout(60000);
+  await sleep(60000);
 
   const instrumentAddress = await getInstrumentAddress(web3, txhash);
   console.log(
@@ -127,7 +128,7 @@ async function addNewInstrumentToConstants(
   address
 ) {
   const filepath = path.normalize(
-    path.join(__dirname, "..", "constants", "instruments.json")
+    path.join(__dirname, "..", "..", "constants", "instruments.json")
   );
 
   const content = await promisify(fs.readFile)(filepath);
@@ -138,7 +139,7 @@ async function addNewInstrumentToConstants(
       txhash,
       expiry,
       instrumentSymbol,
-      address,
+      address: web3.utils.toChecksumAddress(address),
     },
   ]);
 
@@ -157,8 +158,4 @@ async function addNewInstrumentToConstants(
     filepath,
     JSON.stringify(instrumentsDeployed, null, "\t") + "\n"
   );
-}
-
-async function timeout(time) {
-  return new Promise((resolve) => setTimeout(resolve, time));
 }

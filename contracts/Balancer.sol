@@ -69,8 +69,8 @@ contract Balancer is DSMath, Initializable {
         address pool = address(_balancerPool);
         IERC20(_dToken).approve(pool, 10**6);
         IERC20(_paymentToken).approve(pool, 10**6);
-        _balancerPool.bind(_dToken, 10**6, 1);
-        _balancerPool.bind(_paymentToken, 10**6, 1);
+        _balancerPool.bind(_dToken, 10**6, WAD);
+        _balancerPool.bind(_paymentToken, 10**6, WAD);
         _balancerPool.finalize();
     }
 

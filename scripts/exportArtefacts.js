@@ -41,5 +41,5 @@ async function copyToPath(srcPaths, dstPath) {
     "../build/contracts/TwinYield.json",
     "../constants/abis/BPool.json",
   ];
-  await copyToPath(artefactsPath, path.join(dstPath, "abis"));
+  await copyToPath(artefactsPath, path.join(dstPath, "constants", "abis"));
 })();

@@ -143,9 +143,9 @@ async function addNewInstrumentToConstants(
   ]);
 
   const reverseSortedInstruments = newInstruments.sort((insA, insB) => {
-    if (insA.expiry > insB) {
+    if (insA.expiry > insB.expiry) {
       return -1;
-    } else if (insA < insB) {
+    } else if (insA.expiry < insB.expiry) {
       return 1;
     }
     return 0;

@@ -26,13 +26,15 @@ program.parse(process.argv);
     "../constants/externalAddresses.json",
     "../constants/instruments.json",
     "../build/contracts/TwinYield.json",
-    "../build/contracts/InstrumentInterface.json",
+    "../constants/abis/BPool.json",
   ].map((p) => path.normalize(path.join(__dirname, p)));
 
   const promises = artefactPaths.map((src) => {
     const filename = path.basename(src);
     const newFileName = path.join(dstPath, filename);
+    console.log(`Copying ${filename} to ${newFileName}`);
     return promisify(fs.copyFile)(src, newFileName);
   });
   await Promise.all(promises);
+  console.log("Done!");
 })();

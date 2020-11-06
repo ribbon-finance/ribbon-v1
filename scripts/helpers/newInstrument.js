@@ -1,3 +1,4 @@
+const web3 = require("./web3");
 const path = require("path");
 const fs = require("fs");
 const { promisify } = require("util");
@@ -138,7 +139,7 @@ async function addNewInstrumentToConstants(
       txhash,
       expiry,
       instrumentSymbol,
-      address,
+      address: web3.utils.toChecksumAddress(address),
     },
   ]);
 

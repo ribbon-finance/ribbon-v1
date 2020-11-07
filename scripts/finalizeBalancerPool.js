@@ -36,7 +36,7 @@ async function finalizeBalancerPool() {
     console.log(`Finalizing the instrument ${symbol}`);
 
     const mintAmount = await depositAndMintDtoken(instrument, owner);
-    const paymentTokenAmount = parseInt(mintAmount * program.price);
+    const paymentTokenAmount = parseInt(mintAmount * parseFloat(program.price));
 
     // First we need to transfer the min amount to the pool, which is 10**6
     console.log(
@@ -61,7 +61,7 @@ async function finalizeBalancerPool() {
 
     console.log("Calling finalizePool");
     const finalizeReceipt = await instrument.methods
-      .finalizePool()
+      .finalizePool(mintAmount, paymentTokenAmount)
       .send({ from: owner });
     console.log(
       `Finalizing txhash: https://kovan.etherscan.io/tx/${finalizeReceipt.transactionHash}\n`

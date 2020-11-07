@@ -61,16 +61,19 @@ contract Balancer is DSMath, Initializable {
         return pool;
     }
 
-    function finalizePool() public {
+    function finalizePool(
+        uint256 _initDTokenAmount,
+        uint256 _initPaymentTokenAmount
+    ) public {
         require(msg.sender == _balancerController, "only owner");
         // We need to set the weights for dToken and paymentToken to be equal i.e. 50/50
         // Use the minimum (MIN_BALANCE) to bind the tokens
         // https://docs.balancer.finance/protocol/concepts#terminology
         address pool = address(_balancerPool);
-        IERC20(_dToken).approve(pool, 10**6);
-        IERC20(_paymentToken).approve(pool, 10**6);
-        _balancerPool.bind(_dToken, 10**6, WAD);
-        _balancerPool.bind(_paymentToken, 10**6, WAD);
+        IERC20(_dToken).approve(pool, _initDTokenAmount);
+        IERC20(_paymentToken).approve(pool, _initPaymentTokenAmount);
+        _balancerPool.bind(_dToken, _initDTokenAmount, WAD);
+        _balancerPool.bind(_paymentToken, _initPaymentTokenAmount, WAD);
         _balancerPool.finalize();
     }
 

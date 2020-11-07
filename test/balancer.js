@@ -87,12 +87,12 @@ describe("Balancer", function () {
 
   describe("#finalizePool", () => {
     it("reverts when not owner calls", async function () {
-      const res = this.balancer.finalizePool({ from: user });
+      const res = this.balancer.finalizePool(100, 100, { from: user });
       expectRevert(res, "only owner");
     });
 
     it("finalizes the pool", async function () {
-      await this.balancer.finalizePool({ from: owner });
+      await this.balancer.finalizePool(100, 100, { from: owner });
       const poolAddr = await this.balancer.balancerPool();
       const pool = await MockBPool.at(poolAddr);
       assert.equal(await pool.isFinalized(), true);

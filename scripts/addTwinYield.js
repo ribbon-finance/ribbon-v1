@@ -17,7 +17,7 @@ const defaultExpirySeconds = parseInt(
 program.version("0.0.1");
 program
   .option("-N, --network <network>", "Ethereum network", "kovan")
-  .requiredOption("-x, --strikePrice <strike>", "strike")
+  .requiredOption("-x, --strikePrice <strike>", "strike", parseInt)
   .requiredOption(
     "-e, --expiry <time>",
     "defaults to current day + 1 week",
@@ -88,8 +88,8 @@ program.parse(process.argv);
     dataProvider: deployments.kovan.DataProvider,
     name: instrumentName || defaultName,
     symbol: symbol || defaultSymbol,
-    expiry,
-    strikePrice,
+    expiry: parseInt(expiry),
+    strikePrice: strikePrice * 10 ** 7,
     collateralizationRatio,
     collateralAsset,
     targetAsset,

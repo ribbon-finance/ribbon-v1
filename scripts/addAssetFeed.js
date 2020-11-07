@@ -1,13 +1,14 @@
 require("dotenv").config();
 
-const HDWalletProvider = require("@truffle/hdwallet-provider");
-var json = require("../addresses.json");
+const web3 = require("./helpers/web3");
 var dataProviderJSON = require("../build/contracts/DataProvider.json");
-const ADDRESSES = require("../constants/externalAddresses.json");
+const deployments = require("../constants/deployments.json");
+const externalAddresses = require("../constants/externalAddresses.json");
+const accountAddresses = require("../constants/accounts.json");
 
 async function addAssetFeed(asset, feed) {
-  const dataProviderAddress = json["contracts"]["dataProvider"];
-  const adminAddress = json["accounts"]["admin"];
+  const dataProviderAddress = deployments.kovan.DataProvider;
+  const adminAddress = accountAddresses.kovan.admin;
 
   const contract = new web3.eth.Contract(
     dataProviderJSON.abi,
@@ -27,36 +28,28 @@ async function addAssetFeed(asset, feed) {
 }
 
 async function getFeed(asset) {
-  const dataProviderAddress = json["contracts"]["dataProvider"];
-  const adminAddress = json["accounts"]["admin"];
+  const dataProviderAddress = deployments.kovan.DataProvider;
+  const adminAddress = accountAddresses.kovan.admin;
 
   const contract = new web3.eth.Contract(
     dataProviderJSON.abi,
     dataProviderAddress
   );
-  await contract.methods.getChainlinkFeed(asset).call(
-    {
-      from: adminAddress,
-    },
-    function (error, result) {
-      console.log(result);
-    }
-  );
+  const result = await contract.methods.getChainlinkFeed(asset).call({
+    from: adminAddress,
+  });
+  console.log(result);
 }
 
-module.exports = async function (done) {
-  const provider = new HDWalletProvider(
-    process.env.MNEMONIC,
-    process.env.INFURA_KOVAN_URI
-  );
-  web3.setProvider(provider);
+async function main() {
+  const usdc = externalAddresses.kovan.assets.usdc;
+  const daiEthFeed = externalAddresses.kovan.feeds["dai/eth"];
 
-  const usdc = ADDRESSES.kovan.assets.usdc;
-  const usdcFeed = ADDRESSES.kovan.feeds["eth/usd"];
-
-  await addAssetFeed(usdc, usdcFeed);
+  await addAssetFeed(usdc, daiEthFeed);
   await getFeed(usdc);
   // await getFeed(link);
 
-  done();
-};
+  process.exit();
+}
+
+main();

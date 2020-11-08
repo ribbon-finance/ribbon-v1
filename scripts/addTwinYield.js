@@ -42,8 +42,8 @@ program
   )
   .option(
     "-p, --paymentToken <address>",
-    "payment token, defaults to USDC",
-    externalAddresses.kovan.assets.usdc
+    "payment token, defaults to DAI",
+    externalAddresses.kovan.assets.dai
   )
   .option(
     "-l, --liquidatorProxy <address>",
@@ -89,7 +89,7 @@ program.parse(process.argv);
     name: instrumentName || defaultName,
     symbol: symbol || defaultSymbol,
     expiry: parseInt(expiry),
-    strikePrice: strikePrice * 10 ** 7,
+    strikePrice: web3.utils.toWei(program.strikePrice.toString(), "ether"),
     collateralizationRatio,
     collateralAsset,
     targetAsset,

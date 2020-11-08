@@ -272,7 +272,7 @@ describe("TwinYield", function () {
     });
 
     it("works if instrument is expired, and emits correct events", async function () {
-      const settlePrice = "42000000000";
+      const settlePrice = "420000000000000000000";
       const expiryTimestamp = parseInt(this.args.expiry);
       const newTimestamp = 1 + expiryTimestamp;
       time.increaseTo(newTimestamp);

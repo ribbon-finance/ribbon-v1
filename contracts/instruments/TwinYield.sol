@@ -191,7 +191,9 @@ contract TwinYield is
 
         // Set settlePrice to the current price of target and collat assets
         DataProviderInterface data = DataProviderInterface(dataProvider);
-        settlePrice = data.getPrice(collateralAsset);
+
+        // Padding to convert prices (10^8) to 10^18
+        settlePrice = mul(data.getPrice(collateralAsset), 10**10);
 
         emit Settled(block.timestamp, settlePrice);
     }
@@ -203,15 +205,11 @@ contract TwinYield is
     function redeem(uint256 _dTokenAmount) external override nonReentrant {
         require(expired, "Instrument must be expired");
 
-        // Padding to convert prices (10^7) to 10^18
-        uint256 settlePriceWAD = mul(settlePrice, 10**11);
-        uint256 strikePriceWAD = mul(strikePrice, 10**11);
-
         uint256 withdrawAmount;
         if (settlePrice < strikePrice) {
             withdrawAmount = _dTokenAmount;
         } else {
-            uint256 price = wdiv(strikePriceWAD, settlePriceWAD);
+            uint256 price = wdiv(strikePrice, settlePrice);
             withdrawAmount = wmul(_dTokenAmount, price);
         }
 
@@ -232,16 +230,13 @@ contract TwinYield is
         Vault storage vault = vaults[msg.sender];
 
         require(vault.collateral > 0, "Vault must have collateral");
-        // Padding to convert prices (10^7) to 10^18
-        uint256 settlePriceWAD = mul(settlePrice, 10**11);
-        uint256 strikePriceWAD = mul(strikePrice, 10**11);
 
         uint256 withdrawAmount;
         if (settlePrice < strikePrice) {
             // Vault owner cannot withdraw excess collateral if settle < strike
             withdrawAmount = 0;
         } else {
-            uint256 price = wdiv(strikePriceWAD, settlePriceWAD);
+            uint256 price = wdiv(strikePrice, settlePrice);
             // Max amount that can be redeemed against this vault
             uint256 maxRedeem = wmul(vault.dTokenDebt, price);
             // WithdrawAmount is col - maxRedeem

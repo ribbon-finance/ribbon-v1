@@ -45,7 +45,7 @@ async function getDefaultArgs(admin, owner, user) {
   const name = "ETH Future Expiry 12/25/20";
   const symbol = "dETH-1225";
   const expiry = "32503680000";
-  const strikePrice = "40000000000";
+  const strikePrice = "400000000000000000000";
   const colRatio = ether("1.15");
 
   const dataProvider = await MockDataProvider.new({ from: owner });

@@ -43,9 +43,9 @@ async function getFeed(asset) {
 
 async function main() {
   const usdc = externalAddresses.kovan.assets.usdc;
-  const daiEthFeed = externalAddresses.kovan.feeds["dai/eth"];
+  const ethUSDFeed = externalAddresses.kovan.feeds["eth/usd"];
 
-  await addAssetFeed(usdc, daiEthFeed);
+  await addAssetFeed(usdc, ethUSDFeed);
   await getFeed(usdc);
   // await getFeed(link);
 

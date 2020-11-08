@@ -45,8 +45,10 @@ async function main() {
   const usdc = externalAddresses.kovan.assets.usdc;
   const ethUSDFeed = externalAddresses.kovan.feeds["eth/usd"];
 
-  await addAssetFeed(usdc, ethUSDFeed);
-  await getFeed(usdc);
+  // await addAssetFeed(usdc, ethUSDFeed);
+  // await getFeed(usdc);
+  await addAssetFeed(externalAddresses.kovan.assets.dai, ethUSDFeed);
+  await getFeed(externalAddresses.kovan.assets.weth);
   // await getFeed(link);
 
   process.exit();

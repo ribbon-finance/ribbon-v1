@@ -4,6 +4,7 @@ const { sleep } = require("./helpers/utils");
 const accounts = require("../constants/accounts.json");
 const twinYieldJSON = require("../build/contracts/TwinYield.json");
 const IERC20JSON = require("../build/contracts/IERC20.json");
+const { depositAndMintDtoken } = require("./helpers/instrument");
 
 program
   .requiredOption(
@@ -35,7 +36,11 @@ async function finalizeBalancerPool() {
 
     console.log(`Finalizing the instrument ${symbol}`);
 
-    const mintAmount = await depositAndMintDtoken(instrument, owner);
+    const mintAmount = await depositAndMintDtoken(
+      instrument,
+      owner,
+      MIN_BALANCE
+    );
     const paymentTokenAmount = parseInt(mintAmount * parseFloat(program.price));
 
     // First we need to transfer the min amount to the pool, which is 10**6
@@ -74,47 +79,6 @@ async function finalizeBalancerPool() {
     console.error(e);
     process.exit(1);
   }
-}
-
-async function depositAndMintDtoken(instrument, owner) {
-  const collateralAsset = await instrument.methods.collateralAsset().call();
-  const dToken = await instrument.methods.dToken().call();
-  const dTokenERC20 = new web3.eth.Contract(IERC20JSON.abi, dToken);
-  const collateralERC20 = new web3.eth.Contract(
-    IERC20JSON.abi,
-    collateralAsset
-  );
-
-  const mintAmount = MIN_BALANCE;
-  console.log(`Approving collateralAsset ${mintAmount}`);
-
-  const approveReceipt = await collateralERC20.methods
-    .approve(instrumentAddress, MIN_BALANCE)
-    .send({ from: owner });
-  console.log(
-    `Approve txhash: https://kovan.etherscan.io/tx/${approveReceipt.transactionHash}\n`
-  );
-  sleep(60000);
-
-  console.log("Performing an initial depositAndMint to mint dTokens");
-  const mintReceipt = await instrument.methods
-    .depositAndMint(mintAmount, mintAmount)
-    .send({ from: owner });
-  console.log(
-    `Minting txhash: https://kovan.etherscan.io/tx/${mintReceipt.transactionHash}\n`
-  );
-  sleep(60000);
-
-  const dTokenBalance = await dTokenERC20.methods.balanceOf(owner);
-
-  if (dTokenBalance < mintAmount) {
-    throw new Error(
-      `dToken balance for ${owner} (${dTokenBalance}) is less than ${mintAmount}`
-    );
-  }
-  console.log("Sufficient dToken balance for funding balancer pool.");
-
-  return mintAmount;
 }
 
 finalizeBalancerPool();

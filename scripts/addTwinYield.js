@@ -80,8 +80,8 @@ program.parse(process.argv);
   });
   const expiryInSymbol = expiryInName.replace(/\//g, "");
 
-  const defaultName = `TwinYield ETH-USDC ${strikePrice} ${expiryInName}`;
-  const defaultSymbol = `TY-ETHUSDC-${strikePrice}-${expiryInSymbol}`;
+  const defaultName = `TwinYield ETH-USD ${strikePrice} ${expiryInName}`;
+  const defaultSymbol = `TY-ETHUSD-${strikePrice}-${expiryInSymbol}`;
 
   const opts = {
     owner: accountAddresses.kovan.owner,

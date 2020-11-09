@@ -65,6 +65,7 @@ contract Balancer is DSMath, Initializable {
         uint256 _initDTokenAmount,
         uint256 _initPaymentTokenAmount
     ) public {
+        require(_balancerPool.getNumTokens() == 0, "tokens already binded");
         require(msg.sender == _balancerController, "only owner");
         // We need to set the weights for dToken and paymentToken to be equal i.e. 50/50
         // Use the minimum (MIN_BALANCE) to bind the tokens

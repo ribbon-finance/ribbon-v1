@@ -5,22 +5,21 @@ const IERC20JSON = require("../build/contracts/IERC20.json");
 const web3 = require("./helpers/web3");
 const accounts = require("../constants/accounts");
 const { depositAndMintDtoken } = require("./helpers/instrument");
-const { sleep } = require("./helpers/utils");
+const { sleep, wmul, wdiv } = require("./helpers/utils");
 
 program.option("-n, --network <name>", "network", "kovan");
 
 program
-  .requiredOption("-r, --ratio <ratio>", "ratio")
   .requiredOption("-i, --instrument <address>", "instrument")
   .option(
     "-d, --dTokenAmount <amount>",
     "dtoken amount to seed",
-    web3.utils.toWei("0.1", "ether")
+    new web3.utils.BN(web3.utils.toWei("0.3", "ether"))
   )
   .option(
     "-p, --paymentAmount <amount>",
     "payment token amount to seed",
-    web3.utils.toWei("50", "ether")
+    new web3.utils.BN(web3.utils.toWei("100", "ether"))
   )
   .requiredOption(
     "-a, --address <caller>",
@@ -41,26 +40,27 @@ async function joinPool() {
   const dTokenAddress = await instrument.methods.dToken().call();
   const paymentAddress = await instrument.methods.paymentToken().call();
   const pool = new web3.eth.Contract(balancerJSON, poolAddress);
-  const poolAmountOut = parseInt(
-    (await pool.methods.totalSupply().call()) * program.ratio
-  ).toString();
 
-  const tokens = await pool.methods.getFinalTokens().call();
-  const promises = tokens.map((token) => pool.methods.getBalance(token).call());
-  const balances = await Promise.all(promises);
-
-  console.log(
-    `Found ${balances[0].toString()}, max is ${program.dTokenAmount}`
+  const initialSupply = new web3.utils.BN(
+    await pool.methods.totalSupply().call()
   );
+  const dTokenBalance = new web3.utils.BN(
+    await pool.methods.getBalance(dTokenAddress).call()
+  );
+  const ratio = wdiv(program.dTokenAmount, dTokenBalance);
+  const newSupply = wmul(initialSupply, ratio);
+
   console.log(
-    `Found ${balances[1].toString()}, max is ${program.paymentAmount}`
+    `Initial supply is ${initialSupply}, new supply is ${newSupply}, expansion ratio of ${web3.utils.fromWei(
+      ratio
+    )}`
   );
 
   const dToken = new web3.eth.Contract(IERC20JSON.abi, dTokenAddress);
   const paymentToken = new web3.eth.Contract(IERC20JSON.abi, paymentAddress);
 
   const mintAmount = program.dTokenAmount;
-  // await depositAndMintDtoken(instrument, program.address, mintAmount);
+  await depositAndMintDtoken(instrument, program.address, mintAmount);
 
   console.log("Approve dToken");
   const approveDTokenReceipt = await dToken.methods
@@ -82,7 +82,7 @@ async function joinPool() {
 
   console.log("Calling joinPool...");
   const joinReceipt = await pool.methods
-    .joinPool(poolAmountOut, [mintAmount, program.paymentAmount])
+    .joinPool(newSupply, [mintAmount, program.paymentAmount])
     .send({ from: program.address });
   console.log(
     `joinPool txhash: https://kovan.etherscan.io/tx/${joinReceipt.transactionHash}\n`

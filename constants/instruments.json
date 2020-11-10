@@ -1,22 +1,16 @@
 {
 	"kovan": [
 		{
-			"txhash": "0x7d4fd24ac1dd151d8722c6207f7349127f29e392efd75f0cf79303450f293217",
+			"txhash": "0xdd3df5e078a4d6c26498b236050fc665600cc372c53aa2b8f0e94cc61f66330a",
+			"expiry": 1606435200,
+			"instrumentSymbol": "TY-ETHUSD-440-11272020",
+			"address": "0xb435E00159FE0309D9c4fC9eE6c6071132AB5F83"
+		},
+		{
+			"txhash": "0xce624253959f0f6b5be539ce79dbce6c521dae63df4ff8244539adb33840d547",
 			"expiry": 1606435200,
 			"instrumentSymbol": "TY-ETHUSD-480-11272020",
-			"address": "0x5a5522297C8bD1AC4080CA08172630898BC1d5BD"
-		},
-		{
-			"txhash": "0x12235b46078d81c5da1cd49714194555c082a2b736a372425b08515352d38c5f",
-			"expiry": 1606435200,
-			"instrumentSymbol": "TY-ETHUSD-520-11272020",
-			"address": "0x68ef67d9037C9048c54B4A3016f44bf2cf27bea7"
-		},
-		{
-			"txhash": "0xef66e39de8e2086c4dfbfc72dfb9e7243bca616f863ff4c6ac6ca0339a0b6396",
-			"expiry": 1606435200,
-			"instrumentSymbol": "TY-ETHUSD-420-11272020",
-			"address": "0x314Fbf0C8Fbf3a15491D58DA1BE8dDEEeEE5eB4f"
+			"address": "0x008C2047935C352ac3128697aca43a2f93A75Bc1"
 		}
 	],
 	"development": []

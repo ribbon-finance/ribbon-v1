@@ -18,7 +18,7 @@ program.option("-n, --network <network>", "ethereum network name", "kovan");
 program.parse(process.argv);
 
 const instrumentAddress = web3.utils.toChecksumAddress(program.instrument);
-const MIN_BALANCE = "1000000";
+const MIN_BALANCE = "10000000";
 
 async function finalizeBalancerPool() {
   try {

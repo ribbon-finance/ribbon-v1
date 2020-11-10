@@ -8,7 +8,7 @@ import "./DataProviderInterface.sol";
 import "./lib/DSMath.sol";
 
 contract DataProvider is Ownable, DataProviderInterface, DSMath {
-    uint constant ETHPrice = 1 * WAD;
+    uint256 constant ETHPrice = 1 * WAD;
 
     /**
      * @notice Mapping of token address to address of its' Chainlink feed.
@@ -19,7 +19,7 @@ contract DataProvider is Ownable, DataProviderInterface, DSMath {
     address public weth;
 
     constructor(address _weth) public {
-      weth = _weth;
+        weth = _weth;
     }
 
     /**
@@ -34,19 +34,26 @@ contract DataProvider is Ownable, DataProviderInterface, DSMath {
      * @notice Gets Chainlink feed from chainlinkRegistry
      * @param _asset is the address of the asset contract
      */
-    function getChainlinkFeed(address _asset) public view returns (address _feed) {
-        require(chainlinkRegistry[_asset] != address(0), "Feed does not exist in chainlinkRegistry");
+    function getChainlinkFeed(address _asset)
+        public
+        view
+        returns (address _feed)
+    {
+        require(
+            chainlinkRegistry[_asset] != address(0),
+            "Feed does not exist in chainlinkRegistry"
+        );
         _feed = chainlinkRegistry[_asset];
     }
 
     /**
-     * @notice Gets the latest price of an asset. 
+     * @notice Gets the latest price of an asset.
      */
-    function getPrice(address _asset) external view override returns(uint){
-        // If the asset is ETH, return the ETHPrice constant
-        if (_asset == weth) {
-            return ETHPrice;
-        }
+    function getPrice(address _asset) external override view returns (uint256) {
+        // // If the asset is ETH, return the ETHPrice constant
+        // if (_asset == weth) {
+        //     return ETHPrice;
+        // }
         // Get price from Chainlink
         address feed = getChainlinkFeed(_asset);
         return getLatestChainlinkPrice(feed);
@@ -56,20 +63,28 @@ contract DataProvider is Ownable, DataProviderInterface, DSMath {
      * @notice Internal function that calls Chainlink to get the latest price
      * @return _price is returned in WAD
      */
-    function getLatestChainlinkPrice(address _feed) internal view returns (uint) { 
+    function getLatestChainlinkPrice(address _feed)
+        internal
+        view
+        returns (uint256)
+    {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(_feed);
-        (,int price,,uint timeStamp,) = priceFeed.latestRoundData();  
+        (, int256 price, , uint256 timeStamp, ) = priceFeed.latestRoundData();
         require(price >= 0, "Price is negative");
         // If the round is not complete yet, timestamp is 0
         require(timeStamp > 0, "Round not complete");
 
-        return convertToWAD(uint(price), priceFeed.decimals());
+        return convertToWAD(uint256(price), priceFeed.decimals());
     }
 
     /**
      * @notice Internal function that converts a price feed to WAD
      */
-    function convertToWAD(uint _price, uint8 _decimals) pure internal returns (uint) {
-        return mul(_price, 10 ** sub(18, _decimals));
+    function convertToWAD(uint256 _price, uint8 _decimals)
+        internal
+        pure
+        returns (uint256)
+    {
+        return mul(_price, 10**sub(18, _decimals));
     }
 }

@@ -29,4 +29,6 @@ interface BalancerPool {
     function getSpotPrice(address tokenIn, address tokenOut)
         external
         returns (uint256);
+
+    function getNumTokens() external returns (uint256);
 }

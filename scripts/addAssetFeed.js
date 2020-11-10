@@ -47,7 +47,8 @@ async function main() {
 
   // await addAssetFeed(usdc, ethUSDFeed);
   // await getFeed(usdc);
-  await addAssetFeed(externalAddresses.kovan.assets.dai, ethUSDFeed);
+  await addAssetFeed(externalAddresses.kovan.assets.weth, ethUSDFeed);
+  // await addAssetFeed(externalAddresses.kovan.assets.dai, ethUSDFeed);
   await getFeed(externalAddresses.kovan.assets.weth);
   // await getFeed(link);
 

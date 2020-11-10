@@ -42,8 +42,8 @@ program
   )
   .option(
     "-p, --paymentToken <address>",
-    "payment token, defaults to DAI",
-    externalAddresses.kovan.assets.dai
+    "payment token, defaults to WETH",
+    externalAddresses.kovan.assets.weth
   )
   .option(
     "-l, --liquidatorProxy <address>",

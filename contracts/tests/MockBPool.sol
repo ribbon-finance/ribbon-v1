@@ -51,6 +51,13 @@ contract MockBPool is DSMath {
         spotPriceAfter = _spotPrice;
     }
 
+    function getNumTokens() public view returns (uint256) {
+        if (isFinalized()) {
+            return 2;
+        }
+        return 0;
+    }
+
     function getSpotPrice(address tokenIn, address tokenOut)
         external
         view

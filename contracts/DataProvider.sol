@@ -16,10 +16,17 @@ contract DataProvider is Ownable, DataProviderInterface, DSMath {
      */
     mapping(address => address) public chainlinkRegistry;
 
-    address public weth;
+    address private _weth;
 
-    constructor(address _weth) public {
-        weth = _weth;
+    constructor(address weth) public {
+        _weth = weth;
+    }
+
+    /**
+     * @notice WETH address getter
+     */
+    function weth() external override view returns (address) {
+        return _weth;
     }
 
     /**

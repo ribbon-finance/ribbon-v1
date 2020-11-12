@@ -127,7 +127,14 @@ contract BaseInstrument is ReentrancyGuard, DSMath, BaseInstrumentStorageV1 {
      * @notice function to determine if the collateral is WETH token
      */
     function collateralIsWETH() private view returns (bool) {
+        return collateralAsset == getWETHAddress();
+    }
+
+    /**
+     * @notice get weth address from DataProvider
+     */
+    function getWETHAddress() internal view returns (address) {
         DataProviderInterface data = DataProviderInterface(dataProvider);
-        return collateralAsset == data.weth();
+        return data.weth();
     }
 }

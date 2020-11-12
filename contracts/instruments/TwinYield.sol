@@ -3,6 +3,7 @@ pragma solidity >=0.6.0;
 
 import "../lib/upgrades/Initializable.sol";
 import "../interfaces/InstrumentInterface.sol";
+import "../interfaces/IWETH9.sol";
 
 import "./BaseInstrument.sol";
 import "../Balancer.sol";
@@ -75,7 +76,12 @@ contract TwinYield is
         Vault storage vault = vaults[msg.sender];
         vault.collateral = add(vault.collateral, _amount);
 
-        if (!depositedETH) {
+        if (depositedETH) {
+            address wethAddr = BaseInstrument.getWETHAddress();
+            IWETH9 weth = IWETH9(wethAddr);
+            weth.deposit{value: _amount}();
+            require(weth.balanceOf(address(this)) >= _amount); // _amount should be minted
+        } else {
             colToken.safeTransferFrom(msg.sender, address(this), _amount);
         }
         emit Deposited(msg.sender, _amount);

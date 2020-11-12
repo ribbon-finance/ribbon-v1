@@ -48,7 +48,18 @@ async function getDefaultArgs(admin, owner, user) {
   const strikePrice = "400000000000000000000";
   const colRatio = ether("1.15");
 
-  const dataProvider = await MockDataProvider.new({ from: owner });
+  const colAsset = await MockERC20.new("Wrapped Ether", "WETH", supply, {
+    from: user,
+  });
+  const targetAsset = await MockERC20.new("USD", "USDC", supply, {
+    from: user,
+  });
+  const paymentToken = await MockERC20.new("USD Coin", "USDC", supply, {
+    from: user,
+  });
+  const dataProvider = await MockDataProvider.new(colAsset.address, {
+    from: owner,
+  });
 
   const liquidatorProxy = await deployProxy(
     LiquidatorProxy,
@@ -64,15 +75,6 @@ async function getDefaultArgs(admin, owner, user) {
   );
   const instrumentLogic = await Instrument.new({ from: owner });
 
-  const colAsset = await MockERC20.new("Ether", "ETH", supply, {
-    from: user,
-  });
-  const targetAsset = await MockERC20.new("USD", "USDC", supply, {
-    from: user,
-  });
-  const paymentToken = await MockERC20.new("USD Coin", "USDC", supply, {
-    from: user,
-  });
   const bFactory = await MockBFactory.new({ from: user });
 
   const initTypes = [

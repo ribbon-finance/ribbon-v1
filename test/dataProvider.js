@@ -42,12 +42,9 @@ describe("DataProvider", function () {
     });
   });
 
-  describe("#getPrice", () => {
-    it("returns 1 ether when checking WETH price", async function () {
-      assert.equal(
-        (await this.contract.getPrice(mockWETH)).toString(),
-        ether("1")
-      );
+  describe("#weth", () => {
+    it("returns the weth address", async function () {
+      assert.equal(await this.contract.weth(), mockWETH);
     });
   });
 });

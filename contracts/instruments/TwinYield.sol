@@ -66,7 +66,7 @@ contract TwinYield is
      * @param _amount is amount of collateral to deposit
      */
     function depositInternal(uint256 _amount) internal {
-        bool depositedETH = isETHDeposit(msg.value, _amount);
+        bool depositedETH = BaseInstrument.isETHDeposit(msg.value, _amount);
 
         require(!expired, "Instrument must not be expired");
 
@@ -255,38 +255,5 @@ contract TwinYield is
         IERC20 colToken = IERC20(collateralAsset);
         colToken.safeTransfer(msg.sender, withdrawAmount);
         emit WithdrewExpired(msg.sender, withdrawAmount);
-    }
-
-    /**
-     * @notice function to determine if the transaction holds msg.value and is attempting to transfer native ETH
-     * @param _msgValue is the msg.value passed by the calling function
-     * @param _collateral is the the collateral amount deposited
-     */
-    function isETHDeposit(uint256 _msgValue, uint256 _collateral)
-        private
-        view
-        returns (bool)
-    {
-        if (_msgValue == 0) {
-            return false;
-        }
-        require(
-            collateralIsWETH(),
-            "only WETH collateral allowed for value transfer"
-        );
-        // Also double check that the msg.value matches the stated deposit amount
-        require(
-            _msgValue == _collateral,
-            "msg.value amount don't match _collateral"
-        );
-        return true;
-    }
-
-    /**
-     * @notice function to determine if the collateral is WETH token
-     */
-    function collateralIsWETH() private view returns (bool) {
-        DataProviderInterface data = DataProviderInterface(dataProvider);
-        return collateralAsset == data.weth();
     }
 }

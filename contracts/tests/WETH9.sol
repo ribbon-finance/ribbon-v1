@@ -29,9 +29,6 @@ contract WETH9 {
     mapping (address => uint)                       public  balanceOf;
     mapping (address => mapping (address => uint))  public  allowance;
 
-    fallback() external payable {
-        deposit();
-    }
     receive() external payable {
         deposit();
     }
@@ -74,7 +71,7 @@ contract WETH9 {
         balanceOf[src] -= wad;
         balanceOf[dst] += wad;
 
-        Transfer(src, dst, wad);
+        emit Transfer(src, dst, wad);
 
         return true;
     }

@@ -17,7 +17,7 @@ const MockBPool = contract.fromArtifact("MockBPool");
 describe("TwinYield", function () {
   const [admin, owner, user, user2, user3] = accounts;
   const supply = ether("1000000000000");
-  const transferAmount = ether("100000000");
+  const transferAmount = ether("5");
   let self, snapshotId;
 
   before(async function () {
@@ -83,7 +83,7 @@ describe("TwinYield", function () {
         from: user3,
       });
 
-      await expectRevert(deposited, "ERC20: transfer amount exceeds balance");
+      await expectRevert(deposited, "SafeERC20: low-level call failed");
     });
   });
 

@@ -12,6 +12,7 @@ const DToken = contract.fromArtifact("DToken");
 const MockDataProvider = contract.fromArtifact("MockDataProvider");
 const LiquidatorProxy = contract.fromArtifact("LiquidatorProxy");
 const MockBFactory = contract.fromArtifact("MockBFactory");
+const WETH9 = contract.fromArtifact("WETH9");
 
 module.exports = {
   getDefaultArgs,
@@ -42,15 +43,16 @@ async function deployProxy(
 
 async function getDefaultArgs(admin, owner, user) {
   const supply = ether("1000000000000");
+  const wethMintAmount = ether("20");
   const name = "ETH Future Expiry 12/25/20";
   const symbol = "dETH-1225";
   const expiry = "32503680000";
   const strikePrice = "400000000000000000000";
   const colRatio = ether("1.15");
 
-  const colAsset = await MockERC20.new("Wrapped Ether", "WETH", supply, {
-    from: user,
-  });
+  const colAsset = await WETH9.new();
+  await colAsset.deposit({ from: user, value: wethMintAmount }); // mint weths to use
+
   const targetAsset = await MockERC20.new("USD", "USDC", supply, {
     from: user,
   });

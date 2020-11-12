@@ -3,18 +3,19 @@ pragma solidity >=0.6.0;
 
 interface InstrumentInterface {
     // Deposit and minting processes
-    function deposit(uint256 collateralAmount) external;
+    function deposit(uint256 collateralAmount) external payable;
 
     function mint(uint256 tokenAmount) external;
 
     function depositAndMint(uint256 collateralAmount, uint256 tokenAmount)
-        external;
+        external
+        payable;
 
     function depositMintAndSell(
         uint256 collateral,
         uint256 dToken,
         uint256 maxSlippage
-    ) external;
+    ) external payable;
 
     // Withdrawals
     function withdrawAfterExpiry() external;

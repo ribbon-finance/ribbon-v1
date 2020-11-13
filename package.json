@@ -40,6 +40,7 @@
     "export-artefacts": "node ./scripts/exportArtefacts.js",
     "deploy-instrument": "node ./scripts/addTwinYield.js",
     "finalize-pool": "node ./scripts/finalizeBalancerPool.js",
-    "seed-pool": "node ./scripts/seedPool.js"
+    "seed-pool": "node ./scripts/seedPool.js",
+    "upgrade-instrument": "node ./scripts/upgradeInstrument.js"
   }
 }

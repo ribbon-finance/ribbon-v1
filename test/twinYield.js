@@ -53,7 +53,6 @@ describe("TwinYield", function () {
   });
 
   async function testDepositWithMsgValue(testFunction) {
-    const startWETHBalance = await self.collateralAsset.balanceOf(user);
     const startETHBalance = new BN(await web3.eth.getBalance(user));
     const vaultWETHBalance = await self.collateralAsset.balanceOf(
       self.contract.address
@@ -68,10 +67,8 @@ describe("TwinYield", function () {
     // WETH token balance should be the same as before
     // the native ETH balance should be deducted
     const expectedTxGasUse = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
-    const endWETHBalance = await self.collateralAsset.balanceOf(user);
     const endETHBalance = new BN(await web3.eth.getBalance(user));
 
-    assert.equal(endWETHBalance.toString(), startWETHBalance);
     assert.equal(
       endETHBalance.toString(),
       startETHBalance.sub(amount).sub(expectedTxGasUse).toString()
@@ -135,6 +132,7 @@ describe("TwinYield", function () {
 
     describe("deposit ETH with msg.value", () => {
       it("takes deposit via msg.value", async function () {
+        const startWETHBalance = await self.collateralAsset.balanceOf(user);
         await testDepositWithMsgValue(async (amount) => {
           return await this.contract.deposit(amount, {
             from: user,
@@ -142,6 +140,8 @@ describe("TwinYield", function () {
             gasPrice,
           });
         });
+        const endWETHBalance = await self.collateralAsset.balanceOf(user);
+        assert.equal(endWETHBalance.toString(), startWETHBalance.toString());
       });
 
       it("reverts when msg.value does not match input amount", async function () {
@@ -754,18 +754,14 @@ describe("TwinYield", function () {
 
   describe("#depositMintAndSell", () => {
     beforeEach(async function () {
-      // We have to first seed the deployed Balancer pool with USDC (the payment token)
-      await this.paymentToken.transfer(
-        this.balancerPool.address,
-        ether("1000"),
-        {
-          from: user,
-        }
-      );
-      await this.balancerPool.setSpotPrice(ether("400")); // 400 DAI per DToken
-
       snapShot = await helper.takeSnapshot();
       snapshotId = snapShot["result"];
+
+      // We have to first seed the deployed Balancer pool with USDC (the payment token)
+      await this.paymentToken.transfer(this.balancerPool.address, ether("1"), {
+        from: user,
+      });
+      await this.balancerPool.setSpotPrice(ether("1")); // 1 WETH per DToken
     });
 
     afterEach(async () => {
@@ -777,6 +773,12 @@ describe("TwinYield", function () {
       const startCol = vault._collateral;
       const startDebt = vault._dTokenDebt;
       const paymentTokenStartBalance = await this.paymentToken.balanceOf(user);
+      const instrumentDTokenStartBalance = await this.dToken.balanceOf(
+        this.contract.address
+      );
+      const instrumentPaymentStartBalance = await this.paymentToken.balanceOf(
+        this.contract.address
+      );
 
       const amount = ether("1");
       const mintAmount = ether("1");
@@ -823,12 +825,15 @@ describe("TwinYield", function () {
 
       // double check that we're not holding onto any leftover tokens...
       assert.equal(await this.dToken.balanceOf(this.contract.address), 0);
-      assert.equal(await this.paymentToken.balanceOf(this.contract.address), 0);
+      assert.equal(
+        (await this.paymentToken.balanceOf(this.contract.address)).toString(),
+        amount
+      );
 
       // check that the user has received the paymentTokens from the sale
       assert.equal(
         (await this.paymentToken.balanceOf(user)).toString(),
-        paymentTokenStartBalance.add(ether("400"))
+        paymentTokenStartBalance.toString()
       );
 
       // check that the token swap allowance has been rescinded
@@ -901,7 +906,6 @@ describe("TwinYield", function () {
         from: user,
         value: amount,
       });
-      console.log(res);
     });
   });
 });

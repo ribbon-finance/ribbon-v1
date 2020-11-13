@@ -6,18 +6,19 @@ const {
   time,
   expectEvent, // Assertions for emitted events
   expectRevert, // Assertions for transactions that should fail
-  constants,
 } = require("@openzeppelin/test-helpers");
 const helper = require("./helper.js");
 const { getDefaultArgs } = require("./utils.js");
 
 const MockDataProvider = contract.fromArtifact("MockDataProvider");
 const MockBPool = contract.fromArtifact("MockBPool");
+const WETH9 = contract.fromArtifact("WETH9");
 
 describe("TwinYield", function () {
   const [admin, owner, user, user2, user3] = accounts;
   const supply = ether("1000000000000");
-  const transferAmount = ether("100000000");
+  const gasPrice = web3.utils.toWei("10", "gwei");
+  const transferAmount = ether("5");
   let self, snapshotId;
 
   before(async function () {
@@ -51,6 +52,52 @@ describe("TwinYield", function () {
     });
   });
 
+  async function testDepositWithMsgValue(testFunction) {
+    const startWETHBalance = await self.collateralAsset.balanceOf(user);
+    const startETHBalance = new BN(await web3.eth.getBalance(user));
+    const vaultWETHBalance = await self.collateralAsset.balanceOf(
+      self.contract.address
+    );
+    const wethStartContractBalance = new BN(
+      await web3.eth.getBalance(self.collateralAsset.address)
+    );
+    const amount = ether("0.1");
+
+    const res = await testFunction(amount);
+
+    // WETH token balance should be the same as before
+    // the native ETH balance should be deducted
+    const expectedTxGasUse = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+    const endWETHBalance = await self.collateralAsset.balanceOf(user);
+    const endETHBalance = new BN(await web3.eth.getBalance(user));
+
+    assert.equal(endWETHBalance.toString(), startWETHBalance);
+    assert.equal(
+      endETHBalance.toString(),
+      startETHBalance.sub(amount).sub(expectedTxGasUse).toString()
+    );
+    // all the ETH would have gone to the WETH contract
+    // same number of WETH would remain in the vault
+    assert.equal(
+      await web3.eth.getBalance(self.collateralAsset.address),
+      wethStartContractBalance.add(amount)
+    );
+    assert.equal(
+      (await self.collateralAsset.balanceOf(self.contract.address)).toString(),
+      vaultWETHBalance.add(amount)
+    );
+
+    await expectEvent.inTransaction(res.tx, WETH9, "Deposit", {
+      dst: self.contract.address,
+      wad: amount,
+    });
+
+    await expectEvent(res, "Deposited", {
+      account: user,
+      amount: amount,
+    });
+  }
+
   describe("#deposit", () => {
     beforeEach(async () => {
       snapShot = await helper.takeSnapshot();
@@ -83,7 +130,30 @@ describe("TwinYield", function () {
         from: user3,
       });
 
-      await expectRevert(deposited, "ERC20: transfer amount exceeds balance");
+      await expectRevert(deposited, "SafeERC20: low-level call failed");
+    });
+
+    describe("deposit ETH with msg.value", () => {
+      it("takes deposit via msg.value", async function () {
+        await testDepositWithMsgValue(async (amount) => {
+          return await this.contract.deposit(amount, {
+            from: user,
+            value: amount,
+            gasPrice,
+          });
+        });
+      });
+
+      it("reverts when msg.value does not match input amount", async function () {
+        const msgValue = ether("0.1");
+        const inputAmount = ether("0.2");
+        const res = this.contract.deposit(inputAmount, {
+          from: user,
+          value: msgValue,
+        });
+
+        expectRevert(res, "msg.value amount don't match _collateral");
+      });
     });
   });
 
@@ -154,6 +224,18 @@ describe("TwinYield", function () {
       vault = await this.contract.getVault(user);
       assert.equal(vault._collateral.toString(), startCol.add(amount));
       assert.equal(vault._dTokenDebt.toString(), startDebt.add(mintAmount));
+    });
+
+    describe("depositAndMint via msg.value", () => {
+      it("takes deposit via msg.value", async function () {
+        await testDepositWithMsgValue(async (amount) => {
+          return await this.contract.depositAndMint(amount, amount, {
+            from: user,
+            value: amount,
+            gasPrice,
+          });
+        });
+      });
     });
   });
 
@@ -759,6 +841,25 @@ describe("TwinYield", function () {
         ).toString(),
         0
       );
+    });
+
+    describe("depositMintAndSell via msg.value", () => {
+      const maxSlippage = ether("0.0005"); // 5 basis points
+
+      it("takes deposit via msg.value", async function () {
+        await testDepositWithMsgValue(async (amount) => {
+          return await this.contract.depositMintAndSell(
+            amount,
+            amount,
+            maxSlippage,
+            {
+              from: user,
+              value: amount,
+              gasPrice,
+            }
+          );
+        });
+      });
     });
   });
 });

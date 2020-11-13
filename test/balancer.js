@@ -97,5 +97,10 @@ describe("Balancer", function () {
       const pool = await MockBPool.at(poolAddr);
       assert.equal(await pool.isFinalized(), true);
     });
+
+    it("reverts when finalizing a second time", async function () {
+      const res = this.balancer.finalizePool(100, 100, { from: owner });
+      expectRevert(res, "tokens already binded");
+    });
   });
 });

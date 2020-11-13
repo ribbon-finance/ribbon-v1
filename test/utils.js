@@ -12,6 +12,7 @@ const DToken = contract.fromArtifact("DToken");
 const MockDataProvider = contract.fromArtifact("MockDataProvider");
 const LiquidatorProxy = contract.fromArtifact("LiquidatorProxy");
 const MockBFactory = contract.fromArtifact("MockBFactory");
+const WETH9 = contract.fromArtifact("WETH9");
 
 module.exports = {
   getDefaultArgs,
@@ -42,13 +43,26 @@ async function deployProxy(
 
 async function getDefaultArgs(admin, owner, user) {
   const supply = ether("1000000000000");
+  const wethMintAmount = ether("20");
   const name = "ETH Future Expiry 12/25/20";
   const symbol = "dETH-1225";
   const expiry = "32503680000";
   const strikePrice = "400000000000000000000";
   const colRatio = ether("1.15");
 
-  const dataProvider = await MockDataProvider.new({ from: owner });
+  const colAsset = await WETH9.new();
+  const weth = colAsset;
+  await colAsset.deposit({ from: user, value: wethMintAmount }); // mint weths to use
+
+  const targetAsset = await MockERC20.new("USD", "USDC", supply, {
+    from: user,
+  });
+  const paymentToken = await MockERC20.new("USD Coin", "USDC", supply, {
+    from: user,
+  });
+  const dataProvider = await MockDataProvider.new(colAsset.address, {
+    from: owner,
+  });
 
   const liquidatorProxy = await deployProxy(
     LiquidatorProxy,
@@ -64,15 +78,6 @@ async function getDefaultArgs(admin, owner, user) {
   );
   const instrumentLogic = await Instrument.new({ from: owner });
 
-  const colAsset = await MockERC20.new("Ether", "ETH", supply, {
-    from: user,
-  });
-  const targetAsset = await MockERC20.new("USD", "USDC", supply, {
-    from: user,
-  });
-  const paymentToken = await MockERC20.new("USD Coin", "USDC", supply, {
-    from: user,
-  });
   const bFactory = await MockBFactory.new({ from: user });
 
   const initTypes = [
@@ -123,6 +128,7 @@ async function getDefaultArgs(admin, owner, user) {
   };
 
   return {
+    weth,
     factory,
     colAsset,
     targetAsset,

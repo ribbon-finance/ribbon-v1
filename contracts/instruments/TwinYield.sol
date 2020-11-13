@@ -3,6 +3,7 @@ pragma solidity >=0.6.0;
 
 import "../lib/upgrades/Initializable.sol";
 import "../interfaces/InstrumentInterface.sol";
+import "../interfaces/IWETH9.sol";
 
 import "./BaseInstrument.sol";
 import "../Balancer.sol";
@@ -57,7 +58,7 @@ contract TwinYield is
      * @notice Deposits collateral into the system. Calls the `depositInteral` function
      * @param _amount is amount of collateral to deposit
      */
-    function deposit(uint256 _amount) public override nonReentrant {
+    function deposit(uint256 _amount) public override payable nonReentrant {
         depositInternal(_amount);
     }
 
@@ -66,6 +67,8 @@ contract TwinYield is
      * @param _amount is amount of collateral to deposit
      */
     function depositInternal(uint256 _amount) internal {
+        bool depositedETH = BaseInstrument.isETHDeposit(msg.value, _amount);
+
         require(!expired, "Instrument must not be expired");
 
         IERC20 colToken = IERC20(collateralAsset);
@@ -73,7 +76,14 @@ contract TwinYield is
         Vault storage vault = vaults[msg.sender];
         vault.collateral = add(vault.collateral, _amount);
 
-        colToken.safeTransferFrom(msg.sender, address(this), _amount);
+        if (depositedETH) {
+            address wethAddr = BaseInstrument.getWETHAddress();
+            IWETH9 weth = IWETH9(wethAddr);
+            weth.deposit{value: _amount}();
+            require(weth.balanceOf(address(this)) >= _amount); // _amount should be minted
+        } else {
+            colToken.safeTransferFrom(msg.sender, address(this), _amount);
+        }
         emit Deposited(msg.sender, _amount);
     }
 
@@ -114,6 +124,7 @@ contract TwinYield is
     function depositAndMint(uint256 _collateral, uint256 _dToken)
         external
         override
+        payable
         nonReentrant
     {
         depositInternal(_collateral);
@@ -130,7 +141,7 @@ contract TwinYield is
         uint256 _collateral,
         uint256 _dToken,
         uint256 _maxSlippage
-    ) external override nonReentrant {
+    ) external override payable nonReentrant {
         depositInternal(_collateral);
 
         // mint the tokens and set the instrument as the recipient of the newly minted tokens

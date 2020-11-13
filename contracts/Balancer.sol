@@ -41,21 +41,15 @@ contract Balancer is DSMath, Initializable {
     ) public initializer {
         _dToken = dToken;
         _paymentToken = paymentToken;
-        _balancerPool = newPool(bFactory, dToken, paymentToken);
+        _balancerPool = newPool(bFactory);
         _balancerController = owner;
     }
 
     /**
      * @notice Creates a new pool with 50/50 weights between dToken and the paymentToken. The pool also gets finalized right after creation, which means the settings are set in stone.
      * @param bFactory is the address of the Balancer Core Factory
-     * @param dToken is the address of the instrument dToken
-     * @param paymentToken is the address of the paymentToken (the token sellers get when selling dToken)
      */
-    function newPool(
-        address bFactory,
-        address dToken,
-        address paymentToken
-    ) private returns (BalancerPool) {
+    function newPool(address bFactory) private returns (BalancerPool) {
         BalancerFactory balancerFactory = BalancerFactory(bFactory);
         BalancerPool pool = balancerFactory.newBPool();
         return pool;

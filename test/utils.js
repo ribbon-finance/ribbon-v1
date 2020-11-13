@@ -51,6 +51,7 @@ async function getDefaultArgs(admin, owner, user) {
   const colRatio = ether("1.15");
 
   const colAsset = await WETH9.new();
+  const weth = colAsset;
   await colAsset.deposit({ from: user, value: wethMintAmount }); // mint weths to use
 
   const targetAsset = await MockERC20.new("USD", "USDC", supply, {
@@ -127,6 +128,7 @@ async function getDefaultArgs(admin, owner, user) {
   };
 
   return {
+    weth,
     factory,
     colAsset,
     targetAsset,

@@ -152,7 +152,7 @@ describe("TwinYield", function () {
           value: msgValue,
         });
 
-        expectRevert(res, "msg.value amount don't match _collateral");
+        expectRevert(res, "msg.value amount don't match _amount");
       });
     });
   });
@@ -860,6 +860,48 @@ describe("TwinYield", function () {
           );
         });
       });
+    });
+  });
+
+  describe("#buyFromPool", () => {
+    beforeEach(async function () {
+      await this.balancerPool.setSpotPrice(ether("1")); // 1dToken == 1 ETH
+      snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+
+      const mintAmount = ether("0.5");
+      await this.contract.depositAndMint(mintAmount, mintAmount, {
+        from: user,
+        value: mintAmount,
+      });
+      await this.dToken.transfer(this.balancerPool.address, mintAmount, {
+        from: user,
+      });
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
+    it("reverts when msg.value does not match input amount", async function () {
+      const amount = ether("0.1");
+      const maxPrice = ether("1");
+      const res = this.contract.buyFromPool(amount, amount, maxPrice, {
+        from: user,
+        value: 1,
+      });
+      expectRevert(res, "msg.value amount don't match _amount");
+    });
+
+    it("buys from the balancer pool", async function () {
+      const amount = ether("0.1");
+      const maxPrice = ether("1");
+
+      const res = await this.contract.buyFromPool(amount, amount, maxPrice, {
+        from: user,
+        value: amount,
+      });
+      console.log(res);
     });
   });
 });

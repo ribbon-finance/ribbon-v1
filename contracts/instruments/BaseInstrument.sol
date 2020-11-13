@@ -101,9 +101,9 @@ contract BaseInstrument is ReentrancyGuard, DSMath, BaseInstrumentStorageV1 {
     /**
      * @notice function to determine if the transaction holds msg.value and is attempting to transfer native ETH
      * @param _msgValue is the msg.value passed by the calling function
-     * @param _collateral is the the collateral amount deposited
+     * @param _amount is the the collateral amount deposited
      */
-    function isETHDeposit(uint256 _msgValue, uint256 _collateral)
+    function isETHDeposit(uint256 _msgValue, uint256 _amount)
         internal
         view
         returns (bool)
@@ -111,15 +111,8 @@ contract BaseInstrument is ReentrancyGuard, DSMath, BaseInstrumentStorageV1 {
         if (_msgValue == 0) {
             return false;
         }
-        require(
-            collateralIsWETH(),
-            "only WETH collateral allowed for value transfer"
-        );
         // Also double check that the msg.value matches the stated deposit amount
-        require(
-            _msgValue == _collateral,
-            "msg.value amount don't match _collateral"
-        );
+        require(_msgValue == _amount, "msg.value amount don't match _amount");
         return true;
     }
 

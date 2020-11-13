@@ -50,16 +50,14 @@ async function getDefaultArgs(admin, owner, user) {
   const strikePrice = "400000000000000000000";
   const colRatio = ether("1.15");
 
-  const colAsset = await WETH9.new();
-  const weth = colAsset;
+  const weth = await WETH9.new();
+  const colAsset = weth;
   await colAsset.deposit({ from: user, value: wethMintAmount }); // mint weths to use
 
   const targetAsset = await MockERC20.new("USD", "USDC", supply, {
     from: user,
   });
-  const paymentToken = await MockERC20.new("USD Coin", "USDC", supply, {
-    from: user,
-  });
+  const paymentToken = weth;
   const dataProvider = await MockDataProvider.new(colAsset.address, {
     from: owner,
   });

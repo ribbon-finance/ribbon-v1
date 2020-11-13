@@ -68,6 +68,13 @@ contract TwinYield is
      */
     function depositInternal(uint256 _amount) internal {
         bool depositedETH = BaseInstrument.isETHDeposit(msg.value, _amount);
+        address wethAddr = BaseInstrument.getWETHAddress();
+        if (depositedETH) {
+            require(
+                collateralAsset == wethAddr,
+                "only WETH collateral allowed for value transfer"
+            );
+        }
 
         require(!expired, "Instrument must not be expired");
 
@@ -77,7 +84,6 @@ contract TwinYield is
         vault.collateral = add(vault.collateral, _amount);
 
         if (depositedETH) {
-            address wethAddr = BaseInstrument.getWETHAddress();
             IWETH9 weth = IWETH9(wethAddr);
             weth.deposit{value: _amount}();
             require(weth.balanceOf(address(this)) >= _amount); // _amount should be minted
@@ -261,5 +267,65 @@ contract TwinYield is
         IERC20 colToken = IERC20(collateralAsset);
         colToken.safeTransfer(msg.sender, withdrawAmount);
         emit WithdrewExpired(msg.sender, withdrawAmount);
+    }
+
+    /**
+     * @notice Pass-through that enables users to buy from the pool with ETH
+     * @param _paymentAmount is the amount of paymentTokens used to purchase dTokens
+     * @param _minAmountOut is the min amount of dTokens output from swap
+     * @param _maxPrice is the max price before and after swap
+     */
+    function buyFromPool(
+        uint256 _paymentAmount,
+        uint256 _minAmountOut,
+        uint256 _maxPrice
+    ) public payable returns (uint256 tokenAmountOut, uint256 spotPriceAfter) {
+        bool depositedETH = BaseInstrument.isETHDeposit(
+            msg.value,
+            _paymentAmount
+        );
+        address wethAddr = BaseInstrument.getWETHAddress();
+        if (depositedETH) {
+            require(
+                paymentToken == wethAddr,
+                "only able to receive ETH when WETH is paymentToken"
+            );
+        }
+
+        address _paymentToken = paymentToken;
+        address dTokenAddress = _dToken;
+        IERC20 paymentERC20 = IERC20(_paymentToken);
+        IERC20 dToken = IERC20(dTokenAddress);
+
+        if (depositedETH) {
+            IWETH9 weth = IWETH9(wethAddr);
+            weth.deposit{value: msg.value}();
+        } else {
+            paymentERC20.transferFrom(
+                msg.sender,
+                address(this),
+                _paymentAmount
+            );
+        }
+        // must have received the WETH
+        require(
+            paymentERC20.balanceOf(address(this)) >= _paymentAmount,
+            "collateral balance not enough to swap"
+        );
+
+        address poolAddress = Balancer.balancerPool();
+        paymentERC20.approve(poolAddress, _paymentAmount);
+
+        (tokenAmountOut, spotPriceAfter) = BalancerPool(poolAddress)
+            .swapExactAmountIn(
+            _paymentToken,
+            _paymentAmount,
+            dTokenAddress,
+            _minAmountOut,
+            _maxPrice
+        );
+
+        // // Finally send the swapped tokens back to user
+        dToken.transfer(msg.sender, tokenAmountOut);
     }
 }

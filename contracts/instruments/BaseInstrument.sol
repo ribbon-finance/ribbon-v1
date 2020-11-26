@@ -105,7 +105,7 @@ contract BaseInstrument is ReentrancyGuard, DSMath, BaseInstrumentStorageV1 {
      */
     function isETHDeposit(uint256 _msgValue, uint256 _amount)
         internal
-        view
+        pure
         returns (bool)
     {
         if (_msgValue == 0) {

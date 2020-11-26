@@ -105,7 +105,7 @@ contract BaseInstrument is ReentrancyGuard, DSMath, BaseInstrumentStorageV1 {
      */
     function isETHDeposit(uint256 _msgValue, uint256 _amount)
         internal
-        view
+        pure
         returns (bool)
     {
         if (_msgValue == 0) {
@@ -129,5 +129,9 @@ contract BaseInstrument is ReentrancyGuard, DSMath, BaseInstrumentStorageV1 {
     function getWETHAddress() internal view returns (address) {
         DataProviderInterface data = DataProviderInterface(dataProvider);
         return data.weth();
+    }
+
+    function raiseNotImplemented() internal view {
+        require(false, "Not implemented");
     }
 }

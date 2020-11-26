@@ -130,4 +130,8 @@ contract BaseInstrument is ReentrancyGuard, DSMath, BaseInstrumentStorageV1 {
         DataProviderInterface data = DataProviderInterface(dataProvider);
         return data.weth();
     }
+
+    function raiseNotImplemented() internal view {
+        require(false, "Not implemented");
+    }
 }

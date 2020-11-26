@@ -2,30 +2,25 @@
 pragma solidity >=0.6.0;
 
 import "../lib/upgrades/Initializable.sol";
+import "../lib/DSMath.sol";
 import "../interfaces/InstrumentInterface.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "./DojiVolatilityStorage.sol";
 
-import "./BaseInstrument.sol";
-
-contract VolatilityStraddle is
+contract DojiVolatility is
     Initializable,
     InstrumentInterface,
-    BaseInstrument
+    ReentrancyGuard,
+    DSMath,
+    DojiVolatilityStorageV1
 {
-    using SafeERC20 for IERC20;
-
     function initialize(
         address _owner,
-        address _dataProvider,
         string memory name,
         string memory symbol,
         uint256 _expiry,
         uint256 _strikePrice,
-        uint256 _collateralizationRatio,
-        address _collateralAsset,
-        address _targetAsset,
-        address _paymentToken,
-        address _liquidatorProxy,
-        address _balancerFactory
+        address _hegicOption
     ) public initializer {
         require(block.timestamp < _expiry, "Expiry has already passed");
 
@@ -33,28 +28,27 @@ contract VolatilityStraddle is
         _name = name;
         _symbol = symbol;
         expiry = _expiry;
-        collateralizationRatio = _collateralizationRatio;
-        collateralAsset = _collateralAsset;
-        targetAsset = _targetAsset;
-        dataProvider = _dataProvider;
-        liquidatorProxy = _liquidatorProxy;
         strikePrice = _strikePrice;
-        paymentToken = _paymentToken;
-        balancerFactory = _balancerFactory;
-        expired = false;
+        hegicOption = _hegicOption;
     }
 
     /**
      * @notice Deposits collateral into the system. Calls the `depositInteral` function
      * @param _amount is amount of collateral to deposit
      */
-    function deposit(uint256 _amount) public override payable nonReentrant {}
+    function deposit(uint256 _amount) public override payable nonReentrant {
+        raiseNotImplemented();
+        require(_amount == 0);
+    }
 
     /**
      * @notice Mints dTokens. Calls the `mintInternal` function
      * @param _amount is amount of dToken to mint
      */
-    function mint(uint256 _amount) public override nonReentrant {}
+    function mint(uint256 _amount) public override nonReentrant {
+        raiseNotImplemented();
+        require(_amount == 0);
+    }
 
     /**
      * @notice Deposits collateral and mints dToken atomically
@@ -66,7 +60,10 @@ contract VolatilityStraddle is
         override
         payable
         nonReentrant
-    {}
+    {
+        raiseNotImplemented();
+        require(_collateral == 0 && _dToken == 0);
+    }
 
     /**
      * @notice Deposits collateral, mints dToken, sells dToken atomically
@@ -78,7 +75,10 @@ contract VolatilityStraddle is
         uint256 _collateral,
         uint256 _dToken,
         uint256 _maxSlippage
-    ) external override payable nonReentrant {}
+    ) external override payable nonReentrant {
+        raiseNotImplemented();
+        require(_collateral == 0 && _dToken == 0 && _maxSlippage == 0);
+    }
 
     /**
      * @notice Repays dToken debt in a vault
@@ -89,35 +89,37 @@ contract VolatilityStraddle is
         public
         override
         nonReentrant
-    {}
-
-    /**
-     * @notice Repays dToken debt in a vault
-     * @param _repayer is the address who is paying down the debt with dTokens
-     * @param _account is the address which debt is being repaid
-     * @param _amount is amount of dToken to repay
-     */
-    function repayDebtInternal(
-        address _repayer,
-        address _account,
-        uint256 _amount
-    ) internal {}
+    {
+        raiseNotImplemented();
+        require(_account == address(0) && _amount == 0);
+    }
 
     /**
      * @notice Changes `expired` to True if timestamp is greater than expiry
      * It calculates the `settlePrice` with the current prices of target and
      * collateral assets, then sets them in stone.
      */
-    function settle() public override {}
+    function settle() public override {
+        raiseNotImplemented();
+    }
 
     /**
      * @notice Redeems dToken for collateral after expiry
      * @param _dTokenAmount is amount of dTokens to redeem
      */
-    function redeem(uint256 _dTokenAmount) external override nonReentrant {}
+    function redeem(uint256 _dTokenAmount) external override nonReentrant {
+        raiseNotImplemented();
+        require(_dTokenAmount == 0);
+    }
 
     /**
      * @notice Withdraws collateral after instrument is expired
      */
-    function withdrawAfterExpiry() external override nonReentrant {}
+    function withdrawAfterExpiry() external override nonReentrant {
+        raiseNotImplemented();
+    }
+
+    function raiseNotImplemented() private pure {
+        require(false, "Not implemented");
+    }
 }

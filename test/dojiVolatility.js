@@ -85,8 +85,8 @@ describe("VolatilityStraddle", () => {
         ether("1")
       );
       assert.equal(totalCost.toString(), ether("0.05735"));
-      assert.equal(costOfCall.toString(), ether("0.28675"));
-      assert.equal(costOfPut.toString(), ether("0.28675"));
+      assert.equal(costOfCall.toString(), ether("0.028675"));
+      assert.equal(costOfPut.toString(), ether("0.028675"));
     });
   });
 

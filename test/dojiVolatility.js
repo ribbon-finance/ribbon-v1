@@ -10,7 +10,7 @@ const {
 } = require("@openzeppelin/test-helpers");
 const helper = require("./helper.js");
 const { deployProxy } = require("./utils");
-const { ProxyFactory, encodeCall } = require("@openzeppelin/upgrades");
+const { encodeCall } = require("@openzeppelin/upgrades");
 const DojimaVolatility = contract.fromArtifact("DojiVolatility");
 const Factory = contract.fromArtifact("DojimaFactory");
 

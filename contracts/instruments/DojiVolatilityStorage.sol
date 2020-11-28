@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
+pragma experimental ABIEncoderV2;
 
 import "../interfaces/InstrumentInterface.sol";
 
@@ -10,6 +11,19 @@ contract DojiVolatilityStorageV1 is InstrumentStorageInterface {
     uint256 public expiry;
     string public _name;
     string public _symbol;
+
+    struct OptionsPosition {
+        uint8 protocol;
+        uint256 amount;
+        bytes metadata;
+    }
+
+    struct InstrumentPosition {
+        OptionsPosition callPosition;
+        OptionsPosition putPosition;
+    }
+
+    mapping(address => InstrumentPosition[]) instrumentPositions;
 
     /**
      * @notice Returns the name of the contract

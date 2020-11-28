@@ -13,6 +13,13 @@ contract MockHegicETHOptions is IHegicETHOptions {
     uint256 public constant optionCollateralizationRatio = 100;
     Option[] public override options;
     uint256 internal constant PRICE_DECIMALS = 1e8;
+    address public pool;
+    address public settlementFeeRecipient;
+
+    constructor(address _pool, address _settlementFeeRecipient) public {
+        pool = _pool;
+        settlementFeeRecipient = _settlementFeeRecipient;
+    }
 
     function fees(
         uint256 period,
@@ -81,6 +88,12 @@ contract MockHegicETHOptions is IHegicETHOptions {
         );
 
         options.push(option);
+        (bool transferSuccess1, ) = settlementFeeRecipient.call{
+            value: settlementFee
+        }("");
+        (bool transferSuccess2, ) = pool.call{value: option.premium}("");
+        require(transferSuccess1);
+        require(transferSuccess2);
     }
 
     /**

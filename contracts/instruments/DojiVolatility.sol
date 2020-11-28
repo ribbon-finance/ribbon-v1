@@ -42,8 +42,9 @@ contract DojiVolatility is
      */
     function buyInstrument(uint256 _amount) public payable nonReentrant {
         require(block.timestamp < expiry, "Cannot buy instrument after expiry");
-        uint256 period = block.timestamp - expiry;
+        uint256 period = expiry - block.timestamp;
         IHegicETHOptions options = IHegicETHOptions(hegicOptions);
+
         uint256 putOptionID = options.create(
             period,
             _amount,

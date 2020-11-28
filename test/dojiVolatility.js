@@ -13,18 +13,30 @@ const { deployProxy } = require("./utils");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const DojimaVolatility = contract.fromArtifact("DojiVolatility");
 const Factory = contract.fromArtifact("DojimaFactory");
+const MockHegicETHOptions = contract.fromArtifact("MockHegicETHOptions");
 
 describe("VolatilityStraddle", () => {
   const [admin, owner, user] = accounts;
+  const settlementFeeRecipient = "0x0000000000000000000000000000000000000420";
+  const pool = "0x0000000000000000000000000000000000000069";
   let self;
 
   before(async function () {
     self = this;
-    this.hegicOptionAddress = constants.ZERO_ADDRESS;
     this.name = "VOL 500 25/12/2020";
     this.symbol = "VOL-500-251220";
-    this.expiry = "32503680000";
-    this.strikePrice = "500000000000000000000";
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 2);
+    this.expiry = Math.floor(expiryDate.getTime() / 1000);
+
+    this.strikePrice = ether("500");
+
+    this.hegicOptions = await MockHegicETHOptions.new(
+      pool,
+      settlementFeeRecipient,
+      { from: owner }
+    );
+    await this.hegicOptions.setCurrentPrice(ether("500"));
 
     this.factory = await deployProxy(
       Factory,
@@ -48,8 +60,8 @@ describe("VolatilityStraddle", () => {
       this.name,
       this.symbol,
       this.expiry,
-      this.strikePrice,
-      this.hegicOptionAddress,
+      this.strikePrice.toString(),
+      this.hegicOptions.address,
     ];
     const initBytes = encodeCall("initialize", initTypes, initArgs);
     const res = await this.factory.newInstrument(
@@ -63,21 +75,33 @@ describe("VolatilityStraddle", () => {
     this.contract = await DojimaVolatility.at(
       res.logs[1].args.instrumentAddress
     );
+
+    await time.increaseTo(Math.floor(Date.now() / 1000));
   });
 
-  describe("deposit", () => {
+  describe("#buyInstrument", () => {
+    it("buys options on hegic", async function () {
+      // console.log(
+      //   await this.hegicOptions.fees(86400 * 2, ether("1"), ether("500"), 1)
+      // );
+
+      const res = await this.contract.buyInstrument(1, { from: user });
+    });
+  });
+
+  describe("#deposit", () => {
     it("raises not implemented exception", async function () {
       expectRevert(this.contract.deposit(1, { from: user }), "Not implemented");
     });
   });
 
-  describe("mint", () => {
+  describe("#mint", () => {
     it("raises not implemented exception", async function () {
       expectRevert(this.contract.mint(1, { from: user }), "Not implemented");
     });
   });
 
-  describe("depositAndMint", () => {
+  describe("#depositAndMint", () => {
     it("raises not implemented exception", async function () {
       expectRevert(
         this.contract.depositAndMint(1, 1, { from: user }),
@@ -86,7 +110,7 @@ describe("VolatilityStraddle", () => {
     });
   });
 
-  describe("depositMintAndSell", () => {
+  describe("#depositMintAndSell", () => {
     it("raises not implemented exception", async function () {
       expectRevert(
         this.contract.depositMintAndSell(1, 1, 1, { from: user }),
@@ -95,13 +119,13 @@ describe("VolatilityStraddle", () => {
     });
   });
 
-  describe("settle", () => {
+  describe("#settle", () => {
     it("raises not implemented exception", async function () {
       expectRevert(this.contract.settle({ from: user }), "Not implemented");
     });
   });
 
-  describe("repayDebt", () => {
+  describe("#repayDebt", () => {
     it("raises not implemented exception", async function () {
       expectRevert(
         this.contract.repayDebt(constants.ZERO_ADDRESS, 1, { from: user }),
@@ -110,7 +134,7 @@ describe("VolatilityStraddle", () => {
     });
   });
 
-  describe("withdrawAfterExpiry", () => {
+  describe("#withdrawAfterExpiry", () => {
     it("raises not implemented exception", async function () {
       expectRevert(
         this.contract.withdrawAfterExpiry({ from: user }),

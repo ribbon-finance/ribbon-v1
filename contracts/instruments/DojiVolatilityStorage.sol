@@ -23,7 +23,9 @@ contract DojiVolatilityStorageV1 is InstrumentStorageInterface {
         OptionsPosition putPosition;
     }
 
-    mapping(address => InstrumentPosition[]) instrumentPositions;
+    mapping(address => InstrumentPosition[]) public instrumentPositions;
+
+    mapping(address => uint256) public positionIndex;
 
     /**
      * @notice Returns the name of the contract

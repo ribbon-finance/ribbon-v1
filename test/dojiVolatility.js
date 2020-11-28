@@ -19,7 +19,7 @@ describe("VolatilityStraddle", () => {
   const [admin, owner, user] = accounts;
   const settlementFeeRecipient = "0x0000000000000000000000000000000000000420";
   const pool = "0x0000000000000000000000000000000000000069";
-  let self;
+  let self, snapshotId;
 
   before(async function () {
     self = this;
@@ -91,11 +91,71 @@ describe("VolatilityStraddle", () => {
   });
 
   describe("#buyInstrument", () => {
+    beforeEach(async () => {
+      const snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
+    it("reverts when not enough value is passed", async function () {
+      expectRevert(
+        this.contract.buyInstrument(ether("1"), {
+          from: user,
+          value: ether("0.01"),
+        }),
+        "Value does not cover total cost"
+      );
+    });
+
     it("buys options on hegic", async function () {
+      const { costOfCall, costOfPut } = await this.contract.cost(ether("1"));
+
       const res = await this.contract.buyInstrument(ether("1"), {
         from: user,
         value: ether("0.05735"),
       });
+
+      expectEvent(res, "PositionCreated", {
+        account: user,
+        positionID: "0",
+        callOptionPosition: [
+          "2",
+          ether("1").toString(),
+          web3.eth.abi.encodeParameters(["uint256"], ["0"]),
+        ],
+        putOptionPosition: [
+          "2",
+          ether("1").toString(),
+          web3.eth.abi.encodeParameters(["uint256"], ["1"]),
+        ],
+        costOfCall,
+        costOfPut,
+      });
+
+      const index = await this.contract.positionIndex(user);
+      assert.equal(index, 1);
+
+      const {
+        callPosition,
+        putPosition,
+      } = await this.contract.instrumentPositions(user, 0);
+
+      assert.equal(callPosition.protocol, "2");
+      assert.equal(callPosition.amount, ether("1"));
+      assert.equal(
+        callPosition.metadata,
+        web3.eth.abi.encodeParameters(["uint256"], ["0"])
+      );
+
+      assert.equal(putPosition.protocol, "2");
+      assert.equal(putPosition.amount, ether("1"));
+      assert.equal(
+        putPosition.metadata,
+        web3.eth.abi.encodeParameters(["uint256"], ["1"])
+      );
     });
   });
 

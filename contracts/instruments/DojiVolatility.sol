@@ -19,7 +19,7 @@ contract DojiVolatility is
     enum Protocols {Unknown, HegicBTC, HegicETH, OpynV1}
     uint8 constant STATIC_PROTOCOL = uint8(Protocols.HegicETH);
 
-    event NewInstrumentPosition(
+    event PositionCreated(
         address account,
         uint256 positionID,
         OptionsPosition callOptionPosition,
@@ -59,19 +59,19 @@ contract DojiVolatility is
             _amount
         );
 
-        require(msg.value == totalCost, "Value does not match total cost");
+        require(msg.value >= totalCost, "Value does not cover total cost");
 
-        uint256 putOptionID = options.create{value: costOfPut}(
-            period,
-            _amount,
-            strikePrice,
-            OptionType.Put
-        );
         uint256 callOptionID = options.create{value: costOfCall}(
             period,
             _amount,
             strikePrice,
             OptionType.Call
+        );
+        uint256 putOptionID = options.create{value: costOfPut}(
+            period,
+            _amount,
+            strikePrice,
+            OptionType.Put
         );
 
         OptionsPosition memory putOptionPos = OptionsPosition(
@@ -94,8 +94,9 @@ contract DojiVolatility is
             .sender];
         uint256 positionID = positions.length;
         positions.push(position);
+        positionIndex[msg.sender] += 1;
 
-        emit NewInstrumentPosition(
+        emit PositionCreated(
             msg.sender,
             positionID,
             callOptionPos,

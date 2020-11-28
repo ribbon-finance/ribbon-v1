@@ -81,20 +81,21 @@ describe("VolatilityStraddle", () => {
 
   describe("#cost", () => {
     it("returns the total cost", async function () {
-      assert.equal(
-        (await this.contract.cost(ether("1"))).toString(),
-        ether("0.05735")
+      const { totalCost, costOfCall, costOfPut } = await this.contract.cost(
+        ether("1")
       );
+      assert.equal(totalCost.toString(), ether("0.05735"));
+      assert.equal(costOfCall.toString(), ether("0.28675"));
+      assert.equal(costOfPut.toString(), ether("0.28675"));
     });
   });
 
   describe("#buyInstrument", () => {
     it("buys options on hegic", async function () {
-      // console.log(
-      //   await this.hegicOptions.fees(86400 * 2, ether("1"), ether("500"), 1)
-      // );
-
-      const res = await this.contract.buyInstrument(1, { from: user });
+      const res = await this.contract.buyInstrument(ether("1"), {
+        from: user,
+        value: ether("0.05735"),
+      });
     });
   });
 

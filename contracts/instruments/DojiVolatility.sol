@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
+pragma experimental ABIEncoderV2;
 
 import "../lib/upgrades/Initializable.sol";
 import "../lib/DSMath.sol";
@@ -17,6 +18,15 @@ contract DojiVolatility is
 {
     enum Protocols {Unknown, HegicBTC, HegicETH, OpynV1}
     uint8 constant STATIC_PROTOCOL = uint8(Protocols.HegicETH);
+
+    event NewInstrumentPosition(
+        address account,
+        uint256 positionID,
+        OptionsPosition callOptionPosition,
+        uint256 costOfCall,
+        OptionsPosition putOptionPosition,
+        uint256 costOfPut
+    );
 
     function initialize(
         address _owner,
@@ -45,13 +55,19 @@ contract DojiVolatility is
         uint256 period = expiry - block.timestamp;
         IHegicETHOptions options = IHegicETHOptions(hegicOptions);
 
-        uint256 putOptionID = options.create(
+        (uint256 totalCost, uint256 costOfCall, uint256 costOfPut) = cost(
+            _amount
+        );
+
+        require(msg.value == totalCost, "Value does not match total cost");
+
+        uint256 putOptionID = options.create{value: costOfPut}(
             period,
             _amount,
             strikePrice,
             OptionType.Put
         );
-        uint256 callOptionID = options.create(
+        uint256 callOptionID = options.create{value: costOfCall}(
             period,
             _amount,
             strikePrice,
@@ -73,7 +89,20 @@ contract DojiVolatility is
             callOptionPos,
             putOptionPos
         );
-        instrumentPositions[msg.sender].push(position);
+
+        InstrumentPosition[] storage positions = instrumentPositions[msg
+            .sender];
+        uint256 positionID = positions.length;
+        positions.push(position);
+
+        emit NewInstrumentPosition(
+            msg.sender,
+            positionID,
+            callOptionPos,
+            costOfCall,
+            putOptionPos,
+            costOfPut
+        );
     }
 
     /**
@@ -167,22 +196,31 @@ contract DojiVolatility is
         require(false, "Not implemented");
     }
 
-    function cost(uint256 _amount) public view returns (uint256) {
+    function cost(uint256 _amount)
+        public
+        view
+        returns (
+            uint256 totalCost,
+            uint256 costOfCall,
+            uint256 costOfPut
+        )
+    {
+        uint256 _strike = strikePrice;
         uint256 period = expiry - block.timestamp;
         IHegicETHOptions options = IHegicETHOptions(hegicOptions);
 
-        (uint256 totalETHPut, , , ) = options.fees(
+        (costOfPut, , , ) = options.fees(
             period,
             _amount,
-            strikePrice,
+            _strike,
             OptionType.Put
         );
-        (uint256 totalETHCall, , , ) = options.fees(
+        (costOfCall, , , ) = options.fees(
             period,
             _amount,
-            strikePrice,
+            _strike,
             OptionType.Call
         );
-        return totalETHPut + totalETHCall;
+        totalCost = costOfCall + costOfPut;
     }
 }

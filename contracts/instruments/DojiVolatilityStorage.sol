@@ -6,7 +6,7 @@ import "../interfaces/InstrumentInterface.sol";
 
 contract DojiVolatilityStorageV1 is InstrumentStorageInterface {
     address public owner;
-    address public hegicOption;
+    address public hegicOptions;
     uint256 public strikePrice;
     uint256 public expiry;
     string public _name;

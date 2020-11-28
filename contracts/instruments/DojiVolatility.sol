@@ -4,6 +4,7 @@ pragma solidity >=0.6.0;
 import "../lib/upgrades/Initializable.sol";
 import "../lib/DSMath.sol";
 import "../interfaces/InstrumentInterface.sol";
+import "../interfaces/HegicInterface.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./DojiVolatilityStorage.sol";
 
@@ -14,13 +15,16 @@ contract DojiVolatility is
     DSMath,
     DojiVolatilityStorageV1
 {
+    enum Protocols {Unknown, HegicBTC, HegicETH, OpynV1}
+    uint8 constant STATIC_PROTOCOL = uint8(Protocols.HegicETH);
+
     function initialize(
         address _owner,
         string memory name,
         string memory symbol,
         uint256 _expiry,
         uint256 _strikePrice,
-        address _hegicOption
+        address _hegicOptions
     ) public initializer {
         require(block.timestamp < _expiry, "Expiry has already passed");
 
@@ -29,7 +33,46 @@ contract DojiVolatility is
         _symbol = symbol;
         expiry = _expiry;
         strikePrice = _strikePrice;
-        hegicOption = _hegicOption;
+        hegicOptions = _hegicOptions;
+    }
+
+    /**
+     * @notice Buy instrument and create the underlying options positions
+     * @param _amount is amount of collateral to deposit
+     */
+    function buyInstrument(uint256 _amount) public payable nonReentrant {
+        require(block.timestamp < expiry, "Cannot buy instrument after expiry");
+        uint256 period = block.timestamp - expiry;
+        IHegicETHOptions options = IHegicETHOptions(hegicOptions);
+        uint256 putOptionID = options.create(
+            period,
+            _amount,
+            strikePrice,
+            OptionType.Put
+        );
+        uint256 callOptionID = options.create(
+            period,
+            _amount,
+            strikePrice,
+            OptionType.Call
+        );
+
+        OptionsPosition memory putOptionPos = OptionsPosition(
+            STATIC_PROTOCOL,
+            _amount,
+            abi.encodePacked(putOptionID)
+        );
+        OptionsPosition memory callOptionPos = OptionsPosition(
+            STATIC_PROTOCOL,
+            _amount,
+            abi.encodePacked(callOptionID)
+        );
+
+        InstrumentPosition memory position = InstrumentPosition(
+            callOptionPos,
+            putOptionPos
+        );
+        instrumentPositions[msg.sender].push(position);
     }
 
     /**

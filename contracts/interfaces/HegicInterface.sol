@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
 
+enum OptionType {Invalid, Put, Call}
+
 interface IHegicOptions {
     event Create(
         uint256 indexed id,
@@ -12,7 +14,6 @@ interface IHegicOptions {
     event Exercise(uint256 indexed id, uint256 profit);
     event Expire(uint256 indexed id, uint256 premium);
     enum State {Inactive, Active, Exercised, Expired}
-    enum OptionType {Invalid, Put, Call}
 
     struct Option {
         State state;

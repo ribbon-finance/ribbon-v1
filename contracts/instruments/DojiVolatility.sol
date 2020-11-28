@@ -166,4 +166,23 @@ contract DojiVolatility is
     function raiseNotImplemented() private pure {
         require(false, "Not implemented");
     }
+
+    function cost(uint256 _amount) public view returns (uint256) {
+        uint256 period = expiry - block.timestamp;
+        IHegicETHOptions options = IHegicETHOptions(hegicOptions);
+
+        (uint256 totalETHPut, , , ) = options.fees(
+            period,
+            _amount,
+            strikePrice,
+            OptionType.Put
+        );
+        (uint256 totalETHCall, , , ) = options.fees(
+            period,
+            _amount,
+            strikePrice,
+            OptionType.Call
+        );
+        return totalETHPut + totalETHCall;
+    }
 }

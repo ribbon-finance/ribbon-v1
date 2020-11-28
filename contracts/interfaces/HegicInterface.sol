@@ -58,6 +58,7 @@ interface IHegicETHOptions is IHegicOptions {
         OptionType optionType
     )
         external
+        view
         returns (
             uint256 total,
             uint256 settlementFee,

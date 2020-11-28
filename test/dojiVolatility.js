@@ -79,6 +79,15 @@ describe("VolatilityStraddle", () => {
     await time.increaseTo(Math.floor(Date.now() / 1000));
   });
 
+  describe("#cost", () => {
+    it("returns the total cost", async function () {
+      assert.equal(
+        (await this.contract.cost(ether("1"))).toString(),
+        ether("0.05735")
+      );
+    });
+  });
+
   describe("#buyInstrument", () => {
     it("buys options on hegic", async function () {
       // console.log(

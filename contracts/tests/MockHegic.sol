@@ -29,6 +29,7 @@ contract MockHegicETHOptions is IHegicETHOptions {
     )
         public
         override
+        view
         returns (
             uint256 total,
             uint256 settlementFee,

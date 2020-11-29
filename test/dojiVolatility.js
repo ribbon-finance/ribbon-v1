@@ -79,11 +79,13 @@ describe("VolatilityStraddle", () => {
     await time.increaseTo(Math.floor(Date.now() / 1000));
   });
 
-  describe("#cost", () => {
+  describe("#getHegicCost", () => {
     it("returns the total cost", async function () {
-      const { totalCost, costOfCall, costOfPut } = await this.contract.cost(
-        ether("1")
-      );
+      const {
+        totalCost,
+        costOfCall,
+        costOfPut,
+      } = await this.contract.getHegicCost(ether("1"));
       assert.equal(totalCost.toString(), ether("0.05735"));
       assert.equal(costOfCall.toString(), ether("0.028675"));
       assert.equal(costOfPut.toString(), ether("0.028675"));
@@ -111,7 +113,9 @@ describe("VolatilityStraddle", () => {
     });
 
     it("buys options on hegic", async function () {
-      const { costOfCall, costOfPut } = await this.contract.cost(ether("1"));
+      const { costOfCall, costOfPut } = await this.contract.getHegicCost(
+        ether("1")
+      );
 
       const res = await this.contract.buyInstrument(ether("1"), {
         from: user,

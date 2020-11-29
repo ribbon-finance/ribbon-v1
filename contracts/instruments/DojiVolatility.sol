@@ -95,7 +95,9 @@ contract DojiVolatility is
         uint256 period = expiry - block.timestamp;
         IHegicETHOptions options = IHegicETHOptions(hegicOptions);
 
-        (uint256 totalCost, uint256 callCost, uint256 putCost) = cost(_amount);
+        (uint256 totalCost, uint256 callCost, uint256 putCost) = getHegicCost(
+            _amount
+        );
         costOfCall = callCost;
         costOfPut = putCost;
 
@@ -212,11 +214,18 @@ contract DojiVolatility is
         raiseNotImplemented();
     }
 
+    /**
+     * @notice Raises to prevent calling
+     */
     function raiseNotImplemented() private pure {
         require(false, "Not implemented");
     }
 
-    function cost(uint256 _amount)
+    /**
+     * @notice returns the cost to purchase Hegic calls and puts
+     * @param _amount is the amount of option contracts to purchase
+     */
+    function getHegicCost(uint256 _amount)
         public
         view
         returns (

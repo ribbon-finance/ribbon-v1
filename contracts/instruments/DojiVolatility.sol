@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
+pragma experimental ABIEncoderV2;
 
 import "../lib/upgrades/Initializable.sol";
 import "../lib/DSMath.sol";
 import "../interfaces/InstrumentInterface.sol";
+import "../interfaces/HegicInterface.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./DojiVolatilityStorage.sol";
 
@@ -14,13 +16,29 @@ contract DojiVolatility is
     DSMath,
     DojiVolatilityStorageV1
 {
+    enum Protocols {Unknown, HegicBTC, HegicETH, OpynV1}
+    uint8 constant STATIC_PROTOCOL = uint8(Protocols.HegicETH);
+
+    event PositionCreated(
+        address account,
+        uint256 positionID,
+        uint256 costOfCall,
+        uint256 costOfPut,
+        uint8 callOptionProtocol,
+        uint8 putOptionProtocol,
+        uint256 callOptionAmount,
+        uint256 putOptionAmount,
+        uint256 callOptionID,
+        uint256 putOptionID
+    );
+
     function initialize(
         address _owner,
         string memory name,
         string memory symbol,
         uint256 _expiry,
         uint256 _strikePrice,
-        address _hegicOption
+        address _hegicOptions
     ) public initializer {
         require(block.timestamp < _expiry, "Expiry has already passed");
 
@@ -29,7 +47,84 @@ contract DojiVolatility is
         _symbol = symbol;
         expiry = _expiry;
         strikePrice = _strikePrice;
-        hegicOption = _hegicOption;
+        hegicOptions = _hegicOptions;
+    }
+
+    /**
+     * @notice Buy instrument and create the underlying options positions
+     * @param _amount is amount of instruments to purchase
+     */
+    function buyInstrument(uint256 _amount) public payable nonReentrant {
+        require(block.timestamp < expiry, "Cannot buy instrument after expiry");
+
+        (
+            InstrumentPosition memory position,
+            uint256 costOfCall,
+            uint256 costOfPut
+        ) = createHegicOptions(_amount);
+
+        uint256 positionID = instrumentPositions[msg.sender].length;
+        instrumentPositions[msg.sender].push(position);
+
+        emit PositionCreated(
+            msg.sender,
+            positionID,
+            costOfCall,
+            costOfPut,
+            position.callProtocol,
+            position.putProtocol,
+            _amount,
+            _amount,
+            position.callOptionID,
+            position.putOptionID
+        );
+    }
+
+    /**
+     * @notice Buy instrument and create the underlying options positions
+     * @param _amount is amount of instruments to purchase
+     */
+    function createHegicOptions(uint256 _amount)
+        internal
+        returns (
+            InstrumentPosition memory position,
+            uint256 costOfCall,
+            uint256 costOfPut
+        )
+    {
+        uint256 period = expiry - block.timestamp;
+        IHegicETHOptions options = IHegicETHOptions(hegicOptions);
+
+        (uint256 totalCost, uint256 callCost, uint256 putCost) = getHegicCost(
+            _amount
+        );
+        costOfCall = callCost;
+        costOfPut = putCost;
+
+        require(msg.value >= totalCost, "Value does not cover total cost");
+
+        uint256 callOptionID = options.create{value: costOfCall}(
+            period,
+            _amount,
+            strikePrice,
+            OptionType.Call
+        );
+        uint256 putOptionID = options.create{value: costOfPut}(
+            period,
+            _amount,
+            strikePrice,
+            OptionType.Put
+        );
+
+        position = InstrumentPosition(
+            false,
+            STATIC_PROTOCOL,
+            STATIC_PROTOCOL,
+            uint32(callOptionID),
+            uint32(putOptionID),
+            _amount,
+            _amount
+        );
     }
 
     /**
@@ -119,7 +214,42 @@ contract DojiVolatility is
         raiseNotImplemented();
     }
 
+    /**
+     * @notice Raises to prevent calling
+     */
     function raiseNotImplemented() private pure {
         require(false, "Not implemented");
+    }
+
+    /**
+     * @notice returns the cost to purchase Hegic calls and puts
+     * @param _amount is the amount of option contracts to purchase
+     */
+    function getHegicCost(uint256 _amount)
+        public
+        view
+        returns (
+            uint256 totalCost,
+            uint256 costOfCall,
+            uint256 costOfPut
+        )
+    {
+        uint256 _strike = strikePrice;
+        uint256 period = expiry - block.timestamp;
+        IHegicETHOptions options = IHegicETHOptions(hegicOptions);
+
+        (costOfPut, , , ) = options.fees(
+            period,
+            _amount,
+            _strike,
+            OptionType.Put
+        );
+        (costOfCall, , , ) = options.fees(
+            period,
+            _amount,
+            _strike,
+            OptionType.Call
+        );
+        totalCost = costOfCall + costOfPut;
     }
 }

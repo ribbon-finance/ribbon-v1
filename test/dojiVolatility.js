@@ -121,41 +121,48 @@ describe("VolatilityStraddle", () => {
       expectEvent(res, "PositionCreated", {
         account: user,
         positionID: "0",
-        callOptionPosition: [
-          "2",
-          ether("1").toString(),
-          web3.eth.abi.encodeParameters(["uint256"], ["0"]),
-        ],
-        putOptionPosition: [
-          "2",
-          ether("1").toString(),
-          web3.eth.abi.encodeParameters(["uint256"], ["1"]),
-        ],
         costOfCall,
         costOfPut,
+        callOptionProtocol: "2",
+        putOptionProtocol: "2",
+        callOptionAmount: ether("1"),
+        putOptionAmount: ether("1"),
+        callOptionID: "0",
+        putOptionID: "1",
       });
 
-      const index = await this.contract.positionIndex(user);
-      assert.equal(index, 1);
+      const position = await this.contract.instrumentPositions(user, 0);
 
-      const {
-        callPosition,
-        putPosition,
-      } = await this.contract.instrumentPositions(user, 0);
+      assert.equal(position.callProtocol, "2");
+      assert.equal(position.callAmount.toString(), ether("1"));
+      assert.equal(position.callOptionID, "0");
+      assert.equal(position.putProtocol, "2");
+      assert.equal(position.putAmount.toString(), ether("1"));
+      assert.equal(position.putOptionID, "1");
+    });
 
-      assert.equal(callPosition.protocol, "2");
-      assert.equal(callPosition.amount, ether("1"));
-      assert.equal(
-        callPosition.metadata,
-        web3.eth.abi.encodeParameters(["uint256"], ["0"])
-      );
+    it("does not exceed gas limit budget", async function () {
+      const firstRes = await this.contract.buyInstrument(ether("1"), {
+        from: user,
+        value: ether("0.05735"),
+      });
+      const secondRes = await this.contract.buyInstrument(ether("1"), {
+        from: user,
+        value: ether("0.05735"),
+      });
+      assert.isAtMost(firstRes.receipt.gasUsed, 650000);
+      assert.isAtMost(secondRes.receipt.gasUsed, 550000);
+    });
+  });
 
-      assert.equal(putPosition.protocol, "2");
-      assert.equal(putPosition.amount, ether("1"));
-      assert.equal(
-        putPosition.metadata,
-        web3.eth.abi.encodeParameters(["uint256"], ["1"])
-      );
+  describe("#numOfPositions", () => {
+    it("gets the number of positions", async function () {
+      assert.equal(await this.contract.numOfPositions(user), 0);
+      await this.contract.buyInstrument(ether("1"), {
+        from: user,
+        value: ether("0.05735"),
+      });
+      assert.equal(await this.contract.numOfPositions(user), 1);
     });
   });
 

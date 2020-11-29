@@ -22,10 +22,14 @@ contract DojiVolatility is
     event PositionCreated(
         address account,
         uint256 positionID,
-        OptionsPosition callOptionPosition,
         uint256 costOfCall,
-        OptionsPosition putOptionPosition,
-        uint256 costOfPut
+        uint256 costOfPut,
+        uint8 callOptionProtocol,
+        uint8 putOptionProtocol,
+        uint256 callOptionAmount,
+        uint256 putOptionAmount,
+        uint256 callOptionID,
+        uint256 putOptionID
     );
 
     function initialize(
@@ -48,16 +52,52 @@ contract DojiVolatility is
 
     /**
      * @notice Buy instrument and create the underlying options positions
-     * @param _amount is amount of collateral to deposit
+     * @param _amount is amount of instruments to purchase
      */
     function buyInstrument(uint256 _amount) public payable nonReentrant {
         require(block.timestamp < expiry, "Cannot buy instrument after expiry");
+
+        (
+            InstrumentPosition memory position,
+            uint256 costOfCall,
+            uint256 costOfPut
+        ) = createHegicOptions(_amount);
+
+        uint256 positionID = instrumentPositions[msg.sender].length;
+        instrumentPositions[msg.sender].push(position);
+
+        emit PositionCreated(
+            msg.sender,
+            positionID,
+            costOfCall,
+            costOfPut,
+            position.callProtocol,
+            position.putProtocol,
+            _amount,
+            _amount,
+            position.callOptionID,
+            position.putOptionID
+        );
+    }
+
+    /**
+     * @notice Buy instrument and create the underlying options positions
+     * @param _amount is amount of instruments to purchase
+     */
+    function createHegicOptions(uint256 _amount)
+        internal
+        returns (
+            InstrumentPosition memory position,
+            uint256 costOfCall,
+            uint256 costOfPut
+        )
+    {
         uint256 period = expiry - block.timestamp;
         IHegicETHOptions options = IHegicETHOptions(hegicOptions);
 
-        (uint256 totalCost, uint256 costOfCall, uint256 costOfPut) = cost(
-            _amount
-        );
+        (uint256 totalCost, uint256 callCost, uint256 putCost) = cost(_amount);
+        costOfCall = callCost;
+        costOfPut = putCost;
 
         require(msg.value >= totalCost, "Value does not cover total cost");
 
@@ -74,35 +114,14 @@ contract DojiVolatility is
             OptionType.Put
         );
 
-        OptionsPosition memory putOptionPos = OptionsPosition(
+        position = InstrumentPosition(
+            false,
             STATIC_PROTOCOL,
-            _amount,
-            abi.encodePacked(putOptionID)
-        );
-        OptionsPosition memory callOptionPos = OptionsPosition(
             STATIC_PROTOCOL,
+            uint32(callOptionID),
+            uint32(putOptionID),
             _amount,
-            abi.encodePacked(callOptionID)
-        );
-
-        InstrumentPosition memory position = InstrumentPosition(
-            callOptionPos,
-            putOptionPos
-        );
-
-        InstrumentPosition[] storage positions = instrumentPositions[msg
-            .sender];
-        uint256 positionID = positions.length;
-        positions.push(position);
-        positionIndex[msg.sender] += 1;
-
-        emit PositionCreated(
-            msg.sender,
-            positionID,
-            callOptionPos,
-            costOfCall,
-            putOptionPos,
-            costOfPut
+            _amount
         );
     }
 

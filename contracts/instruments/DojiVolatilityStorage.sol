@@ -12,20 +12,17 @@ contract DojiVolatilityStorageV1 is InstrumentStorageInterface {
     string public _name;
     string public _symbol;
 
-    struct OptionsPosition {
-        uint8 protocol;
-        uint256 amount;
-        bytes metadata;
-    }
-
     struct InstrumentPosition {
-        OptionsPosition callPosition;
-        OptionsPosition putPosition;
+        bool exercised;
+        uint8 callProtocol;
+        uint8 putProtocol;
+        uint32 callOptionID;
+        uint32 putOptionID;
+        uint256 callAmount;
+        uint256 putAmount;
     }
 
     mapping(address => InstrumentPosition[]) public instrumentPositions;
-
-    mapping(address => uint256) public positionIndex;
 
     /**
      * @notice Returns the name of the contract
@@ -46,5 +43,13 @@ contract DojiVolatilityStorageV1 is InstrumentStorageInterface {
      */
     function symbol() public virtual override view returns (string memory) {
         return _symbol;
+    }
+
+    /**
+     * @notice Returns the symbol of the instrument
+     * @param _account is the address which has opened InstrumentPositions
+     */
+    function numOfPositions(address _account) public view returns (uint256) {
+        return instrumentPositions[_account].length;
     }
 }

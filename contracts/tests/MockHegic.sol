@@ -2,6 +2,7 @@
 // Credit to Molly Wintermute, Hegic Protocol
 pragma solidity >=0.6.0;
 
+import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "../interfaces/HegicInterface.sol";
 
@@ -11,21 +12,23 @@ contract MockHegicETHOptions is IHegicETHOptions {
     uint256 private _currentPrice;
     uint256 public constant impliedVolRate = 4500;
     uint256 public constant optionCollateralizationRatio = 100;
-    Option[] public override options;
+    HegicOption[] public override options;
     uint256 internal constant PRICE_DECIMALS = 1e8;
     address public pool;
     address public settlementFeeRecipient;
+    address private _priceProvider;
 
     constructor(address _pool, address _settlementFeeRecipient) public {
         pool = _pool;
         settlementFeeRecipient = _settlementFeeRecipient;
+        _priceProvider = address(new MockAggregator());
     }
 
     function fees(
         uint256 period,
         uint256 amount,
         uint256 strike,
-        OptionType optionType
+        HegicOptionType optionType
     )
         public
         override
@@ -54,7 +57,7 @@ contract MockHegicETHOptions is IHegicETHOptions {
         uint256 period,
         uint256 amount,
         uint256 strike,
-        OptionType optionType
+        HegicOptionType optionType
     ) external override payable returns (uint256 optionID) {
         (uint256 total, uint256 settlementFee, uint256 strikeFee, ) = fees(
             period,
@@ -64,7 +67,8 @@ contract MockHegicETHOptions is IHegicETHOptions {
         );
 
         require(
-            optionType == OptionType.Call || optionType == OptionType.Put,
+            optionType == HegicOptionType.Call ||
+                optionType == HegicOptionType.Put,
             "Wrong option type"
         );
         require(period >= 1 days, "Period is too short");
@@ -75,7 +79,7 @@ contract MockHegicETHOptions is IHegicETHOptions {
 
         uint256 strikeAmount = amount.sub(strikeFee);
         optionID = options.length;
-        Option memory option = Option(
+        HegicOption memory option = HegicOption(
             State.Active,
             msg.sender,
             strike,
@@ -102,7 +106,7 @@ contract MockHegicETHOptions is IHegicETHOptions {
      * @param optionID ID of your option
      */
     function exercise(uint256 optionID) external override {
-        Option storage option = options[optionID];
+        HegicOption storage option = options[optionID];
 
         require(option.expiration >= block.timestamp, "Option has expired");
         require(option.holder == msg.sender, "Wrong msg.sender");
@@ -119,9 +123,9 @@ contract MockHegicETHOptions is IHegicETHOptions {
      * @param optionID A specific option contract id
      */
     function payProfit(uint256 optionID) internal returns (uint256 profit) {
-        Option memory option = options[optionID];
+        HegicOption memory option = options[optionID];
         uint256 currentPrice = getCurrentPrice();
-        if (option.optionType == OptionType.Call) {
+        if (option.optionType == HegicOptionType.Call) {
             require(option.strike <= currentPrice, "Current price is too low");
             profit = currentPrice.sub(option.strike).mul(option.amount).div(
                 currentPrice
@@ -139,7 +143,7 @@ contract MockHegicETHOptions is IHegicETHOptions {
 
     /**
      * @notice Calculates settlementFee
-     * @param amount Option amount
+     * @param amount HegicOption amount
      * @return fee Settlement fee amount
      */
     function getSettlementFee(uint256 amount)
@@ -152,8 +156,8 @@ contract MockHegicETHOptions is IHegicETHOptions {
 
     /**
      * @notice Calculates periodFee
-     * @param amount Option amount
-     * @param period Option period in seconds (1 days <= period <= 4 weeks)
+     * @param amount HegicOption amount
+     * @param period HegicOption period in seconds (1 days <= period <= 4 weeks)
      * @param strike Strike price of the option
      * @param currentPrice Current price of ETH
      * @return fee Period fee amount
@@ -170,9 +174,9 @@ contract MockHegicETHOptions is IHegicETHOptions {
         uint256 period,
         uint256 strike,
         uint256 currentPrice,
-        OptionType optionType
+        HegicOptionType optionType
     ) internal pure returns (uint256 fee) {
-        if (optionType == OptionType.Put)
+        if (optionType == HegicOptionType.Put)
             return
                 amount
                     .mul(sqrt(period))
@@ -192,7 +196,7 @@ contract MockHegicETHOptions is IHegicETHOptions {
 
     /**
      * @notice Calculates strikeFee
-     * @param amount Option amount
+     * @param amount HegicOption amount
      * @param strike Strike price of the option
      * @param currentPrice Current price of ETH
      * @return fee Strike fee amount
@@ -201,11 +205,11 @@ contract MockHegicETHOptions is IHegicETHOptions {
         uint256 amount,
         uint256 strike,
         uint256 currentPrice,
-        OptionType optionType
+        HegicOptionType optionType
     ) internal pure returns (uint256 fee) {
-        if (strike > currentPrice && optionType == OptionType.Put)
+        if (strike > currentPrice && optionType == HegicOptionType.Put)
             return strike.sub(currentPrice).mul(amount).div(currentPrice);
-        if (strike < currentPrice && optionType == OptionType.Call)
+        if (strike < currentPrice && optionType == HegicOptionType.Call)
             return currentPrice.sub(strike).mul(amount).div(currentPrice);
         return 0;
     }
@@ -216,6 +220,12 @@ contract MockHegicETHOptions is IHegicETHOptions {
 
     function setCurrentPrice(uint256 currentPrice) public {
         _currentPrice = currentPrice;
+        MockAggregator pp = MockAggregator(_priceProvider);
+        pp.setPrice(currentPrice);
+    }
+
+    function priceProvider() external override returns (address) {
+        return _priceProvider;
     }
 
     /**
@@ -225,5 +235,30 @@ contract MockHegicETHOptions is IHegicETHOptions {
         result = x;
         uint256 k = x.div(2).add(1);
         while (k < result) (result, k) = (k, x.div(k).add(k).div(2));
+    }
+}
+
+contract MockAggregator {
+    int256 private latestPrice;
+
+    function setPrice(uint256 _latestPrice) public {
+        latestPrice = int256(_latestPrice);
+    }
+
+    function latestRoundData()
+        external
+        returns (
+            uint80 roundID,
+            int256 price,
+            uint256 startedAt,
+            uint256 timeStamp,
+            uint80 answeredInRound
+        )
+    {
+        roundID = 0;
+        price = latestPrice;
+        startedAt = 0;
+        timeStamp = 0;
+        answeredInRound = 0;
     }
 }

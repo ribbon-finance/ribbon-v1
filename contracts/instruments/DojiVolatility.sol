@@ -2,11 +2,12 @@
 pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../lib/upgrades/Initializable.sol";
 import "../lib/DSMath.sol";
 import "../interfaces/InstrumentInterface.sol";
 import "../interfaces/HegicInterface.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./DojiVolatilityStorage.sol";
 
 contract DojiVolatility is
@@ -16,6 +17,7 @@ contract DojiVolatility is
     DSMath,
     DojiVolatilityStorageV1
 {
+    using SafeMath for uint256;
     enum Protocols {Unknown, HegicBTC, HegicETH, OpynV1}
     uint8 constant STATIC_PROTOCOL = uint8(Protocols.HegicETH);
 
@@ -107,13 +109,13 @@ contract DojiVolatility is
             period,
             _amount,
             strikePrice,
-            OptionType.Call
+            HegicOptionType.Call
         );
         uint256 putOptionID = options.create{value: costOfPut}(
             period,
             _amount,
             strikePrice,
-            OptionType.Put
+            HegicOptionType.Put
         );
 
         position = InstrumentPosition(
@@ -125,6 +127,67 @@ contract DojiVolatility is
             _amount,
             _amount
         );
+    }
+
+    function exerciseHegicOptions(address _account, uint256 positionID)
+        private
+        returns (uint256 totalProfit)
+    {
+        InstrumentPosition[] memory positions = instrumentPositions[_account];
+        InstrumentPosition memory position = positions[positionID];
+        IHegicETHOptions options = IHegicETHOptions(hegicOptions);
+        uint256 callProfit = calculateHegicExerciseProfit(
+            position.callOptionID
+        );
+        uint256 putProfit = calculateHegicExerciseProfit(position.putOptionID);
+
+        if (callProfit > putProfit) {
+            options.exercise(position.callOptionID);
+            totalProfit = callProfit;
+        } else if (putProfit > 0) {
+            options.exercise(position.putOptionID);
+            totalProfit = putProfit;
+        } else {
+            totalProfit = 0;
+        }
+    }
+
+    function calculateHegicExerciseProfit(uint256 optionID)
+        public
+        returns (uint256 profit)
+    {
+        IHegicETHOptions options = IHegicETHOptions(hegicOptions);
+        AggregatorV3Interface priceProvider = AggregatorV3Interface(
+            options.priceProvider()
+        );
+        (, int256 latestPrice, , , ) = priceProvider.latestRoundData();
+        uint256 currentPrice = uint256(latestPrice);
+
+        (
+            ,
+            ,
+            uint256 strike,
+            uint256 amount,
+            uint256 lockedAmount,
+            ,
+            ,
+            HegicOptionType optionType
+        ) = options.options(optionID);
+
+        if (optionType == HegicOptionType.Call) {
+            if (currentPrice >= strike) {
+                profit = 0;
+            } else {
+                profit = currentPrice.sub(strike).mul(amount).div(currentPrice);
+            }
+        } else {
+            if (currentPrice <= strike) {
+                profit = 0;
+            } else {
+                profit = strike.sub(currentPrice).mul(amount).div(currentPrice);
+            }
+        }
+        if (profit > lockedAmount) profit = lockedAmount;
     }
 
     /**
@@ -242,13 +305,13 @@ contract DojiVolatility is
             period,
             _amount,
             _strike,
-            OptionType.Put
+            HegicOptionType.Put
         );
         (costOfCall, , , ) = options.fees(
             period,
             _amount,
             _strike,
-            OptionType.Call
+            HegicOptionType.Call
         );
         totalCost = costOfCall + costOfPut;
     }

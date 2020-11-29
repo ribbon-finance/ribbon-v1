@@ -129,6 +129,17 @@ contract DojiVolatility is
         );
     }
 
+    function exercise(positionID) returns (uint256 profit) {
+        InstrumentPosition memory positions = instrumentPositions[msg.sender];
+        InstrumentPosition storage position = positions[positionID];
+
+        require(!position.exercised, "Already exercised");
+        require(block.timestamp <= expiry, "Already expired");
+
+        profit = exerciseHegicOptions(msg.sender, positionID);
+        position.exercised = true;
+    }
+
     function exerciseHegicOptions(address _account, uint256 positionID)
         private
         returns (uint256 totalProfit)

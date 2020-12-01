@@ -224,7 +224,7 @@ contract MockHegicETHOptions is IHegicETHOptions {
         pp.setPrice(currentPrice);
     }
 
-    function priceProvider() external override returns (address) {
+    function priceProvider() external override view returns (address) {
         return _priceProvider;
     }
 

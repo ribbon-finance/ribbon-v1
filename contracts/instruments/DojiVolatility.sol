@@ -129,8 +129,9 @@ contract DojiVolatility is
         );
     }
 
-    function exercise(positionID) returns (uint256 profit) {
-        InstrumentPosition memory positions = instrumentPositions[msg.sender];
+    function exercise(uint256 positionID) public returns (uint256 profit) {
+        InstrumentPosition[] storage positions = instrumentPositions[msg
+            .sender];
         InstrumentPosition storage position = positions[positionID];
 
         require(!position.exercised, "Already exercised");
@@ -165,6 +166,7 @@ contract DojiVolatility is
 
     function calculateHegicExerciseProfit(uint256 optionID)
         public
+        view
         returns (uint256 profit)
     {
         IHegicETHOptions options = IHegicETHOptions(hegicOptions);
@@ -187,15 +189,15 @@ contract DojiVolatility is
 
         if (optionType == HegicOptionType.Call) {
             if (currentPrice >= strike) {
-                profit = 0;
-            } else {
                 profit = currentPrice.sub(strike).mul(amount).div(currentPrice);
+            } else {
+                profit = 0;
             }
         } else {
             if (currentPrice <= strike) {
-                profit = 0;
-            } else {
                 profit = strike.sub(currentPrice).mul(amount).div(currentPrice);
+            } else {
+                profit = 0;
             }
         }
         if (profit > lockedAmount) profit = lockedAmount;

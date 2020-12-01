@@ -159,6 +159,107 @@ describe("VolatilityStraddle", () => {
     });
   });
 
+  // describe("#exercise", () => {
+  //   let positionID;
+
+  //   beforeEach(async function () {
+  //     const snapShot = await helper.takeSnapshot();
+  //     snapshotId = snapShot["result"];
+
+  //     const res = await this.contract.buyInstrument(ether("1"), {
+  //       from: user,
+  //       value: ether("0.05735"),
+  //     });
+  //     positionID = res.receipt.logs[0].args.positionID;
+  //   });
+
+  //   afterEach(async () => {
+  //     await helper.revertToSnapShot(snapshotId);
+  //   });
+
+  //   it("exercises options", async function () {
+  //     await this.contract.exercise(positionID);
+  //   });
+  // });
+
+  describe("#calculateHegicExerciseProfit", () => {
+    let positionID;
+
+    beforeEach(async function () {
+      const snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+
+      const res = await this.contract.buyInstrument(ether("1"), {
+        from: user,
+        value: ether("0.05735"),
+      });
+      positionID = res.receipt.logs[0].args.positionID;
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
+    it("calculates profit for call option", async function () {
+      const { callOptionID } = await this.contract.instrumentPositions(
+        user,
+        positionID
+      );
+
+      // should be zero if price == strike
+      assert.equal(
+        await this.contract.calculateHegicExerciseProfit(callOptionID),
+        "0"
+      );
+
+      // should be zero if price < strike
+      await this.hegicOptions.setCurrentPrice(ether("490"));
+      assert.equal(
+        await this.contract.calculateHegicExerciseProfit(callOptionID),
+        "0"
+      );
+
+      // should be positive if price > strike
+      await this.hegicOptions.setCurrentPrice(ether("550"));
+
+      assert.equal(
+        (
+          await this.contract.calculateHegicExerciseProfit(callOptionID)
+        ).toString(),
+        ether("0.090909090909090909")
+      );
+    });
+
+    it("calculates profit for put option", async function () {
+      const { putOptionID } = await this.contract.instrumentPositions(
+        user,
+        positionID
+      );
+
+      // should be zero if price == strike
+      assert.equal(
+        await this.contract.calculateHegicExerciseProfit(putOptionID),
+        "0"
+      );
+
+      // should be zero if price > strike
+      await this.hegicOptions.setCurrentPrice(ether("550"));
+      assert.equal(
+        await this.contract.calculateHegicExerciseProfit(putOptionID),
+        "0"
+      );
+
+      // should be zero if price < strike
+      await this.hegicOptions.setCurrentPrice(ether("450"));
+      assert.equal(
+        (
+          await this.contract.calculateHegicExerciseProfit(putOptionID)
+        ).toString(),
+        "111111111111111111"
+      );
+    });
+  });
+
   describe("#numOfPositions", () => {
     it("gets the number of positions", async function () {
       assert.equal(await this.contract.numOfPositions(user), 0);

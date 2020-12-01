@@ -50,7 +50,7 @@ interface IHegicOptions {
 
     function exercise(uint256 optionID) external;
 
-    function priceProvider() external returns (address);
+    function priceProvider() external view returns (address);
 }
 
 interface IHegicETHOptions is IHegicOptions {

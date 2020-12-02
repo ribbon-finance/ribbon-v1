@@ -22,8 +22,8 @@ contract DojiVolatility is
     uint8 constant STATIC_PROTOCOL = uint8(Protocols.HegicETH);
 
     event PositionCreated(
-        address account,
-        uint256 positionID,
+        address indexed account,
+        uint256 indexed positionID,
         uint256 costOfCall,
         uint256 costOfPut,
         uint8 callOptionProtocol,
@@ -32,6 +32,11 @@ contract DojiVolatility is
         uint256 putOptionAmount,
         uint256 callOptionID,
         uint256 putOptionID
+    );
+    event Exercised(
+        address indexed account,
+        uint256 indexed positionID,
+        uint256 totalProfit
     );
 
     function initialize(
@@ -139,6 +144,7 @@ contract DojiVolatility is
 
         profit = exerciseHegicOptions(msg.sender, positionID);
         position.exercised = true;
+        emit Exercised(msg.sender, positionID, profit);
     }
 
     function exerciseHegicOptions(address _account, uint256 positionID)

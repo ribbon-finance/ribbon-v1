@@ -103,12 +103,24 @@ describe("VolatilityStraddle", () => {
     });
 
     it("reverts when not enough value is passed", async function () {
-      expectRevert(
+      await expectRevert(
         this.contract.buyInstrument(ether("1"), {
           from: user,
           value: ether("0.01"),
         }),
         "Value does not cover total cost"
+      );
+    });
+
+    it("reverts when buying after expiry", async function () {
+      await time.increaseTo(this.expiry + 1);
+
+      await expectRevert(
+        this.contract.buyInstrument(ether("1"), {
+          from: user,
+          value: ether("0.01"),
+        }),
+        "Cannot buy instrument after expiry"
       );
     });
 
@@ -159,28 +171,51 @@ describe("VolatilityStraddle", () => {
     });
   });
 
-  // describe("#exercise", () => {
-  //   let positionID;
+  describe("#exercise", () => {
+    let positionID;
 
-  //   beforeEach(async function () {
-  //     const snapShot = await helper.takeSnapshot();
-  //     snapshotId = snapShot["result"];
+    beforeEach(async function () {
+      const snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
 
-  //     const res = await this.contract.buyInstrument(ether("1"), {
-  //       from: user,
-  //       value: ether("0.05735"),
-  //     });
-  //     positionID = res.receipt.logs[0].args.positionID;
-  //   });
+      const res = await this.contract.buyInstrument(ether("1"), {
+        from: user,
+        value: ether("0.05735"),
+      });
+      positionID = res.receipt.logs[0].args.positionID;
+    });
 
-  //   afterEach(async () => {
-  //     await helper.revertToSnapShot(snapshotId);
-  //   });
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
 
-  //   it("exercises options", async function () {
-  //     await this.contract.exercise(positionID);
-  //   });
-  // });
+    it("exercises options with 0 profit", async function () {
+      const res = await this.contract.exercise(positionID, { from: user });
+      expectEvent(res, "Exercised", {
+        account: user,
+        positionID: "0",
+        totalProfit: "0",
+      });
+    });
+
+    it("reverts when exercising twice", async function () {
+      await this.contract.exercise(positionID, { from: user });
+
+      await expectRevert(
+        this.contract.exercise(positionID, { from: user }),
+        "Already exercised"
+      );
+    });
+
+    it("reverts when past expiry", async function () {
+      await time.increaseTo(this.expiry + 1);
+
+      await expectRevert(
+        this.contract.exercise(positionID, { from: user }),
+        "Already expired"
+      );
+    });
+  });
 
   describe("#calculateHegicExerciseProfit", () => {
     let positionID;
@@ -273,19 +308,25 @@ describe("VolatilityStraddle", () => {
 
   describe("#deposit", () => {
     it("raises not implemented exception", async function () {
-      expectRevert(this.contract.deposit(1, { from: user }), "Not implemented");
+      await expectRevert(
+        this.contract.deposit(1, { from: user }),
+        "Not implemented"
+      );
     });
   });
 
   describe("#mint", () => {
     it("raises not implemented exception", async function () {
-      expectRevert(this.contract.mint(1, { from: user }), "Not implemented");
+      await expectRevert(
+        this.contract.mint(1, { from: user }),
+        "Not implemented"
+      );
     });
   });
 
   describe("#depositAndMint", () => {
     it("raises not implemented exception", async function () {
-      expectRevert(
+      await expectRevert(
         this.contract.depositAndMint(1, 1, { from: user }),
         "Not implemented"
       );
@@ -294,7 +335,7 @@ describe("VolatilityStraddle", () => {
 
   describe("#depositMintAndSell", () => {
     it("raises not implemented exception", async function () {
-      expectRevert(
+      await expectRevert(
         this.contract.depositMintAndSell(1, 1, 1, { from: user }),
         "Not implemented"
       );
@@ -303,13 +344,16 @@ describe("VolatilityStraddle", () => {
 
   describe("#settle", () => {
     it("raises not implemented exception", async function () {
-      expectRevert(this.contract.settle({ from: user }), "Not implemented");
+      await expectRevert(
+        this.contract.settle({ from: user }),
+        "Not implemented"
+      );
     });
   });
 
   describe("#repayDebt", () => {
     it("raises not implemented exception", async function () {
-      expectRevert(
+      await expectRevert(
         this.contract.repayDebt(constants.ZERO_ADDRESS, 1, { from: user }),
         "Not implemented"
       );
@@ -318,7 +362,7 @@ describe("VolatilityStraddle", () => {
 
   describe("#withdrawAfterExpiry", () => {
     it("raises not implemented exception", async function () {
-      expectRevert(
+      await expectRevert(
         this.contract.withdrawAfterExpiry({ from: user }),
         "Not implemented"
       );

@@ -3,7 +3,7 @@ pragma solidity >=0.6.0;
 
 enum OptionType {Invalid, Put, Call}
 
-interface ProtocolAdapter {
+interface IProtocolAdapter {
     function protocolName() external pure returns (string memory);
 
     function nonFungible() external pure returns (bool);
@@ -11,7 +11,6 @@ interface ProtocolAdapter {
     function premium(
         address underlying,
         address strikeAsset,
-        address collateral,
         uint256 expiry,
         uint256 strikePrice,
         OptionType optionType,
@@ -19,16 +18,23 @@ interface ProtocolAdapter {
     ) external view returns (uint256 cost);
 
     function exerciseProfit(
+        address options,
+        uint256 optionID,
+        uint256 amount
+    ) external view returns (uint256 profit);
+
+    function purchase(
         address underlying,
         address strikeAsset,
-        address collateral,
         uint256 expiry,
         uint256 strikePrice,
         OptionType optionType,
-        uint256 exerciseAmount
-    ) external view returns (uint256 profit);
+        uint256 amount
+    ) external payable returns (uint256 optionID);
 
-    function purchase(uint256 amount) external payable;
-
-    function exercise(uint256 amount, uint256 optionID) external payable;
+    function exercise(
+        address options,
+        uint256 optionID,
+        uint256 amount
+    ) external payable;
 }

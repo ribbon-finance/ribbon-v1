@@ -4,9 +4,9 @@ pragma solidity >=0.6.0;
 enum OptionType {Invalid, Put, Call}
 
 interface ProtocolAdapter {
-    function protocolName() external view returns (string memory);
+    function protocolName() external pure returns (string memory);
 
-    function nonFungible() external view returns (bool);
+    function nonFungible() external pure returns (bool);
 
     function premium(
         address underlying,

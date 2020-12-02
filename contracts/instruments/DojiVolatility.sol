@@ -57,6 +57,8 @@ contract DojiVolatility is
         hegicOptions = _hegicOptions;
     }
 
+    receive() external payable {}
+
     /**
      * @notice Buy instrument and create the underlying options positions
      * @param _amount is amount of instruments to purchase
@@ -134,7 +136,11 @@ contract DojiVolatility is
         );
     }
 
-    function exercise(uint256 positionID) public returns (uint256 profit) {
+    function exercise(uint256 positionID)
+        public
+        nonReentrant
+        returns (uint256 profit)
+    {
         InstrumentPosition[] storage positions = instrumentPositions[msg
             .sender];
         InstrumentPosition storage position = positions[positionID];
@@ -144,6 +150,8 @@ contract DojiVolatility is
 
         profit = exerciseHegicOptions(msg.sender, positionID);
         position.exercised = true;
+        (bool success, ) = msg.sender.call{value: profit}("");
+        require(success, "Transferring profit failed");
         emit Exercised(msg.sender, positionID, profit);
     }
 
@@ -159,6 +167,9 @@ contract DojiVolatility is
         );
         uint256 putProfit = calculateHegicExerciseProfit(position.putOptionID);
 
+        // TODO: Do a PR to get Hegic to return the profit number from exercise
+        // Doing the profit calculation separately makes it prone for Hegic and Doji to diverge
+        // which could result in erroneously sending users more ether
         if (callProfit > putProfit) {
             options.exercise(position.callOptionID);
             totalProfit = callProfit;

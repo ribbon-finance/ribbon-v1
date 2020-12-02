@@ -24,6 +24,8 @@ contract MockHegicETHOptions is IHegicETHOptions {
         _priceProvider = address(new MockAggregator());
     }
 
+    receive() external payable {}
+
     function fees(
         uint256 period,
         uint256 amount,
@@ -247,6 +249,7 @@ contract MockAggregator {
 
     function latestRoundData()
         external
+        view
         returns (
             uint80 roundID,
             int256 price,

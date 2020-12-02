@@ -11,6 +11,7 @@ const {
 const helper = require("./helper.js");
 const { deployProxy } = require("./utils");
 const { encodeCall } = require("@openzeppelin/upgrades");
+const balance = require("@openzeppelin/test-helpers/src/balance");
 const DojimaVolatility = contract.fromArtifact("DojiVolatility");
 const Factory = contract.fromArtifact("DojimaFactory");
 const MockHegicETHOptions = contract.fromArtifact("MockHegicETHOptions");
@@ -19,6 +20,7 @@ describe("VolatilityStraddle", () => {
   const [admin, owner, user] = accounts;
   const settlementFeeRecipient = "0x0000000000000000000000000000000000000420";
   const pool = "0x0000000000000000000000000000000000000069";
+  const gasPrice = web3.utils.toWei("10", "gwei");
   let self, snapshotId;
 
   before(async function () {
@@ -183,6 +185,13 @@ describe("VolatilityStraddle", () => {
         value: ether("0.05735"),
       });
       positionID = res.receipt.logs[0].args.positionID;
+
+      // Load some ETH into the contract for payouts
+      await web3.eth.sendTransaction({
+        from: admin,
+        to: this.hegicOptions.address,
+        value: ether("10"),
+      });
     });
 
     afterEach(async () => {
@@ -214,6 +223,58 @@ describe("VolatilityStraddle", () => {
         this.contract.exercise(positionID, { from: user }),
         "Already expired"
       );
+    });
+
+    it("exercises the call option", async function () {
+      await this.hegicOptions.setCurrentPrice(ether("550"));
+
+      const revenue = ether("0.090909090909090909");
+
+      const hegicTracker = await balance.tracker(this.hegicOptions.address);
+      const dojiTracker = await balance.tracker(this.contract.address);
+      const userTracker = await balance.tracker(user);
+
+      const res = await this.contract.exercise(positionID, {
+        from: user,
+        gasPrice,
+      });
+      const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+      const profit = revenue.sub(gasFee);
+
+      assert.equal((await userTracker.delta()).toString(), profit.toString());
+      assert.equal(
+        (await hegicTracker.delta()).toString(),
+        "-" + revenue.toString()
+      );
+
+      // make sure doji doesn't accidentally retain any ether
+      assert.equal((await dojiTracker.delta()).toString(), "0");
+    });
+
+    it("exercises the put option", async function () {
+      await this.hegicOptions.setCurrentPrice(ether("450"));
+
+      const revenue = new BN("111111111111111111");
+
+      const hegicTracker = await balance.tracker(this.hegicOptions.address);
+      const dojiTracker = await balance.tracker(this.contract.address);
+      const userTracker = await balance.tracker(user);
+
+      const res = await this.contract.exercise(positionID, {
+        from: user,
+        gasPrice,
+      });
+      const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+      const profit = revenue.sub(gasFee);
+
+      assert.equal((await userTracker.delta()).toString(), profit.toString());
+      assert.equal(
+        (await hegicTracker.delta()).toString(),
+        "-" + revenue.toString()
+      );
+
+      // make sure doji doesn't accidentally retain any ether
+      assert.equal((await dojiTracker.delta()).toString(), "0");
     });
   });
 

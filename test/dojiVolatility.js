@@ -11,6 +11,7 @@ const {
 const helper = require("./helper.js");
 const { deployProxy } = require("./utils");
 const { encodeCall } = require("@openzeppelin/upgrades");
+const balance = require("@openzeppelin/test-helpers/src/balance");
 const DojimaVolatility = contract.fromArtifact("DojiVolatility");
 const Factory = contract.fromArtifact("DojimaFactory");
 const MockHegicETHOptions = contract.fromArtifact("MockHegicETHOptions");
@@ -19,6 +20,7 @@ describe("VolatilityStraddle", () => {
   const [admin, owner, user] = accounts;
   const settlementFeeRecipient = "0x0000000000000000000000000000000000000420";
   const pool = "0x0000000000000000000000000000000000000069";
+  const gasPrice = web3.utils.toWei("10", "gwei");
   let self, snapshotId;
 
   before(async function () {
@@ -103,12 +105,24 @@ describe("VolatilityStraddle", () => {
     });
 
     it("reverts when not enough value is passed", async function () {
-      expectRevert(
+      await expectRevert(
         this.contract.buyInstrument(ether("1"), {
           from: user,
           value: ether("0.01"),
         }),
         "Value does not cover total cost"
+      );
+    });
+
+    it("reverts when buying after expiry", async function () {
+      await time.increaseTo(this.expiry + 1);
+
+      await expectRevert(
+        this.contract.buyInstrument(ether("1"), {
+          from: user,
+          value: ether("0.01"),
+        }),
+        "Cannot buy instrument after expiry"
       );
     });
 
@@ -159,6 +173,189 @@ describe("VolatilityStraddle", () => {
     });
   });
 
+  describe("#exercise", () => {
+    let positionID;
+
+    beforeEach(async function () {
+      const snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+
+      const res = await this.contract.buyInstrument(ether("1"), {
+        from: user,
+        value: ether("0.05735"),
+      });
+      positionID = res.receipt.logs[0].args.positionID;
+
+      // Load some ETH into the contract for payouts
+      await web3.eth.sendTransaction({
+        from: admin,
+        to: this.hegicOptions.address,
+        value: ether("10"),
+      });
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
+    it("exercises options with 0 profit", async function () {
+      const res = await this.contract.exercise(positionID, { from: user });
+      expectEvent(res, "Exercised", {
+        account: user,
+        positionID: "0",
+        totalProfit: "0",
+      });
+    });
+
+    it("reverts when exercising twice", async function () {
+      await this.contract.exercise(positionID, { from: user });
+
+      await expectRevert(
+        this.contract.exercise(positionID, { from: user }),
+        "Already exercised"
+      );
+    });
+
+    it("reverts when past expiry", async function () {
+      await time.increaseTo(this.expiry + 1);
+
+      await expectRevert(
+        this.contract.exercise(positionID, { from: user }),
+        "Already expired"
+      );
+    });
+
+    it("exercises the call option", async function () {
+      await this.hegicOptions.setCurrentPrice(ether("550"));
+
+      const revenue = ether("0.090909090909090909");
+
+      const hegicTracker = await balance.tracker(this.hegicOptions.address);
+      const dojiTracker = await balance.tracker(this.contract.address);
+      const userTracker = await balance.tracker(user);
+
+      const res = await this.contract.exercise(positionID, {
+        from: user,
+        gasPrice,
+      });
+      const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+      const profit = revenue.sub(gasFee);
+
+      assert.equal((await userTracker.delta()).toString(), profit.toString());
+      assert.equal(
+        (await hegicTracker.delta()).toString(),
+        "-" + revenue.toString()
+      );
+
+      // make sure doji doesn't accidentally retain any ether
+      assert.equal((await dojiTracker.delta()).toString(), "0");
+    });
+
+    it("exercises the put option", async function () {
+      await this.hegicOptions.setCurrentPrice(ether("450"));
+
+      const revenue = new BN("111111111111111111");
+
+      const hegicTracker = await balance.tracker(this.hegicOptions.address);
+      const dojiTracker = await balance.tracker(this.contract.address);
+      const userTracker = await balance.tracker(user);
+
+      const res = await this.contract.exercise(positionID, {
+        from: user,
+        gasPrice,
+      });
+      const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+      const profit = revenue.sub(gasFee);
+
+      assert.equal((await userTracker.delta()).toString(), profit.toString());
+      assert.equal(
+        (await hegicTracker.delta()).toString(),
+        "-" + revenue.toString()
+      );
+
+      // make sure doji doesn't accidentally retain any ether
+      assert.equal((await dojiTracker.delta()).toString(), "0");
+    });
+  });
+
+  describe("#calculateHegicExerciseProfit", () => {
+    let positionID;
+
+    beforeEach(async function () {
+      const snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+
+      const res = await this.contract.buyInstrument(ether("1"), {
+        from: user,
+        value: ether("0.05735"),
+      });
+      positionID = res.receipt.logs[0].args.positionID;
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
+    it("calculates profit for call option", async function () {
+      const { callOptionID } = await this.contract.instrumentPositions(
+        user,
+        positionID
+      );
+
+      // should be zero if price == strike
+      assert.equal(
+        await this.contract.calculateHegicExerciseProfit(callOptionID),
+        "0"
+      );
+
+      // should be zero if price < strike
+      await this.hegicOptions.setCurrentPrice(ether("490"));
+      assert.equal(
+        await this.contract.calculateHegicExerciseProfit(callOptionID),
+        "0"
+      );
+
+      // should be positive if price > strike
+      await this.hegicOptions.setCurrentPrice(ether("550"));
+
+      assert.equal(
+        (
+          await this.contract.calculateHegicExerciseProfit(callOptionID)
+        ).toString(),
+        ether("0.090909090909090909")
+      );
+    });
+
+    it("calculates profit for put option", async function () {
+      const { putOptionID } = await this.contract.instrumentPositions(
+        user,
+        positionID
+      );
+
+      // should be zero if price == strike
+      assert.equal(
+        await this.contract.calculateHegicExerciseProfit(putOptionID),
+        "0"
+      );
+
+      // should be zero if price > strike
+      await this.hegicOptions.setCurrentPrice(ether("550"));
+      assert.equal(
+        await this.contract.calculateHegicExerciseProfit(putOptionID),
+        "0"
+      );
+
+      // should be zero if price < strike
+      await this.hegicOptions.setCurrentPrice(ether("450"));
+      assert.equal(
+        (
+          await this.contract.calculateHegicExerciseProfit(putOptionID)
+        ).toString(),
+        "111111111111111111"
+      );
+    });
+  });
+
   describe("#numOfPositions", () => {
     it("gets the number of positions", async function () {
       assert.equal(await this.contract.numOfPositions(user), 0);
@@ -172,19 +369,25 @@ describe("VolatilityStraddle", () => {
 
   describe("#deposit", () => {
     it("raises not implemented exception", async function () {
-      expectRevert(this.contract.deposit(1, { from: user }), "Not implemented");
+      await expectRevert(
+        this.contract.deposit(1, { from: user }),
+        "Not implemented"
+      );
     });
   });
 
   describe("#mint", () => {
     it("raises not implemented exception", async function () {
-      expectRevert(this.contract.mint(1, { from: user }), "Not implemented");
+      await expectRevert(
+        this.contract.mint(1, { from: user }),
+        "Not implemented"
+      );
     });
   });
 
   describe("#depositAndMint", () => {
     it("raises not implemented exception", async function () {
-      expectRevert(
+      await expectRevert(
         this.contract.depositAndMint(1, 1, { from: user }),
         "Not implemented"
       );
@@ -193,7 +396,7 @@ describe("VolatilityStraddle", () => {
 
   describe("#depositMintAndSell", () => {
     it("raises not implemented exception", async function () {
-      expectRevert(
+      await expectRevert(
         this.contract.depositMintAndSell(1, 1, 1, { from: user }),
         "Not implemented"
       );
@@ -202,13 +405,16 @@ describe("VolatilityStraddle", () => {
 
   describe("#settle", () => {
     it("raises not implemented exception", async function () {
-      expectRevert(this.contract.settle({ from: user }), "Not implemented");
+      await expectRevert(
+        this.contract.settle({ from: user }),
+        "Not implemented"
+      );
     });
   });
 
   describe("#repayDebt", () => {
     it("raises not implemented exception", async function () {
-      expectRevert(
+      await expectRevert(
         this.contract.repayDebt(constants.ZERO_ADDRESS, 1, { from: user }),
         "Not implemented"
       );
@@ -217,7 +423,7 @@ describe("VolatilityStraddle", () => {
 
   describe("#withdrawAfterExpiry", () => {
     it("raises not implemented exception", async function () {
-      expectRevert(
+      await expectRevert(
         this.contract.withdrawAfterExpiry({ from: user }),
         "Not implemented"
       );

@@ -1,7 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
+import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
 
-enum OptionType {Invalid, Put, Call}
+enum HegicOptionType {Invalid, Put, Call}
+enum State {Inactive, Active, Exercised, Expired}
+
+struct HegicOption {
+    State state;
+    address payable holder;
+    uint256 strike;
+    uint256 amount;
+    uint256 lockedAmount;
+    uint256 premium;
+    uint256 expiration;
+    HegicOptionType optionType;
+}
 
 interface IHegicOptions {
     event Create(
@@ -13,18 +26,6 @@ interface IHegicOptions {
 
     event Exercise(uint256 indexed id, uint256 profit);
     event Expire(uint256 indexed id, uint256 premium);
-    enum State {Inactive, Active, Exercised, Expired}
-
-    struct Option {
-        State state;
-        address payable holder;
-        uint256 strike;
-        uint256 amount;
-        uint256 lockedAmount;
-        uint256 premium;
-        uint256 expiration;
-        OptionType optionType;
-    }
 
     function options(uint256)
         external
@@ -37,17 +38,19 @@ interface IHegicOptions {
             uint256 lockedAmount,
             uint256 premium,
             uint256 expiration,
-            OptionType optionType
+            HegicOptionType optionType
         );
 
     function create(
         uint256 period,
         uint256 amount,
         uint256 strike,
-        OptionType optionType
+        HegicOptionType optionType
     ) external payable returns (uint256 optionID);
 
     function exercise(uint256 optionID) external;
+
+    function priceProvider() external view returns (address);
 }
 
 interface IHegicETHOptions is IHegicOptions {
@@ -55,7 +58,7 @@ interface IHegicETHOptions is IHegicOptions {
         uint256 period,
         uint256 amount,
         uint256 strike,
-        OptionType optionType
+        HegicOptionType optionType
     )
         external
         view
@@ -72,7 +75,7 @@ interface IHegicBTCOptions is IHegicOptions {
         uint256 period,
         uint256 amount,
         uint256 strike,
-        OptionType optionType
+        HegicOptionType optionType
     )
         external
         returns (

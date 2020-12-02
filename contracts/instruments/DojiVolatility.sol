@@ -2,11 +2,12 @@
 pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../lib/upgrades/Initializable.sol";
 import "../lib/DSMath.sol";
 import "../interfaces/InstrumentInterface.sol";
 import "../interfaces/HegicInterface.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./DojiVolatilityStorage.sol";
 
 contract DojiVolatility is
@@ -16,12 +17,13 @@ contract DojiVolatility is
     DSMath,
     DojiVolatilityStorageV1
 {
+    using SafeMath for uint256;
     enum Protocols {Unknown, HegicBTC, HegicETH, OpynV1}
     uint8 constant STATIC_PROTOCOL = uint8(Protocols.HegicETH);
 
     event PositionCreated(
-        address account,
-        uint256 positionID,
+        address indexed account,
+        uint256 indexed positionID,
         uint256 costOfCall,
         uint256 costOfPut,
         uint8 callOptionProtocol,
@@ -30,6 +32,11 @@ contract DojiVolatility is
         uint256 putOptionAmount,
         uint256 callOptionID,
         uint256 putOptionID
+    );
+    event Exercised(
+        address indexed account,
+        uint256 indexed positionID,
+        uint256 totalProfit
     );
 
     function initialize(
@@ -49,6 +56,8 @@ contract DojiVolatility is
         strikePrice = _strikePrice;
         hegicOptions = _hegicOptions;
     }
+
+    receive() external payable {}
 
     /**
      * @notice Buy instrument and create the underlying options positions
@@ -107,13 +116,13 @@ contract DojiVolatility is
             period,
             _amount,
             strikePrice,
-            OptionType.Call
+            HegicOptionType.Call
         );
         uint256 putOptionID = options.create{value: costOfPut}(
             period,
             _amount,
             strikePrice,
-            OptionType.Put
+            HegicOptionType.Put
         );
 
         position = InstrumentPosition(
@@ -125,6 +134,90 @@ contract DojiVolatility is
             _amount,
             _amount
         );
+    }
+
+    function exercise(uint256 positionID)
+        public
+        nonReentrant
+        returns (uint256 profit)
+    {
+        InstrumentPosition[] storage positions = instrumentPositions[msg
+            .sender];
+        InstrumentPosition storage position = positions[positionID];
+
+        require(!position.exercised, "Already exercised");
+        require(block.timestamp <= expiry, "Already expired");
+
+        profit = exerciseHegicOptions(msg.sender, positionID);
+        position.exercised = true;
+        (bool success, ) = msg.sender.call{value: profit}("");
+        require(success, "Transferring profit failed");
+        emit Exercised(msg.sender, positionID, profit);
+    }
+
+    function exerciseHegicOptions(address _account, uint256 positionID)
+        private
+        returns (uint256 totalProfit)
+    {
+        InstrumentPosition[] memory positions = instrumentPositions[_account];
+        InstrumentPosition memory position = positions[positionID];
+        IHegicETHOptions options = IHegicETHOptions(hegicOptions);
+        uint256 callProfit = calculateHegicExerciseProfit(
+            position.callOptionID
+        );
+        uint256 putProfit = calculateHegicExerciseProfit(position.putOptionID);
+
+        // TODO: Do a PR to get Hegic to return the profit number from exercise
+        // Doing the profit calculation separately makes it prone for Hegic and Doji to diverge
+        // which could result in erroneously sending users more ether
+        if (callProfit > putProfit) {
+            options.exercise(position.callOptionID);
+            totalProfit = callProfit;
+        } else if (putProfit > 0) {
+            options.exercise(position.putOptionID);
+            totalProfit = putProfit;
+        } else {
+            totalProfit = 0;
+        }
+    }
+
+    function calculateHegicExerciseProfit(uint256 optionID)
+        public
+        view
+        returns (uint256 profit)
+    {
+        IHegicETHOptions options = IHegicETHOptions(hegicOptions);
+        AggregatorV3Interface priceProvider = AggregatorV3Interface(
+            options.priceProvider()
+        );
+        (, int256 latestPrice, , , ) = priceProvider.latestRoundData();
+        uint256 currentPrice = uint256(latestPrice);
+
+        (
+            ,
+            ,
+            uint256 strike,
+            uint256 amount,
+            uint256 lockedAmount,
+            ,
+            ,
+            HegicOptionType optionType
+        ) = options.options(optionID);
+
+        if (optionType == HegicOptionType.Call) {
+            if (currentPrice >= strike) {
+                profit = currentPrice.sub(strike).mul(amount).div(currentPrice);
+            } else {
+                profit = 0;
+            }
+        } else {
+            if (currentPrice <= strike) {
+                profit = strike.sub(currentPrice).mul(amount).div(currentPrice);
+            } else {
+                profit = 0;
+            }
+        }
+        if (profit > lockedAmount) profit = lockedAmount;
     }
 
     /**
@@ -242,13 +335,13 @@ contract DojiVolatility is
             period,
             _amount,
             _strike,
-            OptionType.Put
+            HegicOptionType.Put
         );
         (costOfCall, , , ) = options.fees(
             period,
             _amount,
             _strike,
-            OptionType.Call
+            HegicOptionType.Call
         );
         totalCost = costOfCall + costOfPut;
     }

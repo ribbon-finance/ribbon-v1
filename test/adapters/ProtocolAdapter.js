@@ -1,54 +1,37 @@
 const { accounts, contract, web3 } = require("@openzeppelin/test-environment");
-const {
-  ether,
-  ZERO_ADDRESS,
-  expectRevert,
-} = require("@openzeppelin/test-helpers");
-const MockERC20 = contract.fromArtifact("MockERC20");
-const HegicAdapter = contract.fromArtifact("HegicAdapter");
-const MockHegicETHOptions = contract.fromArtifact("MockHegicETHOptions");
-const MockHegicWBTCOptions = contract.fromArtifact("MockHegicWBTCOptions");
-const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
-const [admin, owner, hegicPool, hegicSettlementFeeRecipient] = accounts;
+const { assert } = require("chai");
+const { ether, expectRevert } = require("@openzeppelin/test-helpers");
 
-describe("ProtocolAdapter", () => {
-  before(async function () {
-    const hegicAdapter = await initHegicAdapter(
-      hegicPool,
-      hegicSettlementFeeRecipient
-    );
+const [admin, owner, user] = accounts;
 
-    this.adapters = [hegicAdapter];
+const PUT_OPTION_TYPE = 1;
+const CALL_OPTION_TYPE = 2;
+
+exports.shouldBehaveLikeProtocolAdapter = function () {
+  describe("#protocolName", () => {
+    it("matches the protocol name", async function () {
+      assert.equal(await this.adapter.protocolName(), this.protocolName);
+    });
+  });
+
+  describe("#nonFungible", () => {
+    it("matches the nonFungible bool", async function () {
+      assert.equal(await this.adapter.nonFungible(), this.nonFungible);
+    });
   });
 
   describe("#premium", () => {
-    it("shows premium", async function () {});
+    it("gets the premium for call option", async function () {
+      const premium1 = await this.adapter.premium(
+        this.underlying1,
+        this.strikeAsset,
+        this.expiry,
+        this.strikePrice,
+        CALL_OPTION_TYPE,
+        ether("1")
+      );
+      console.log(premium1.toString());
+      assert.equal(premium1, this.callPremium);
+    });
   });
-});
-
-async function initHegicAdapter(pool, settlementFeeRecipient) {
-  const mintAmount = ether("1000");
-  const WBTC = await MockERC20.new("Wrapped Bitcoin", "WBTC", mintAmount, {
-    from: owner,
-  });
-  const ethOptions = await MockHegicETHOptions.new(
-    pool,
-    settlementFeeRecipient,
-    { from: admin }
-  );
-  const wbtcOptions = await MockHegicETHOptions.new(
-    pool,
-    settlementFeeRecipient,
-    { from: admin }
-  );
-
-  const adapter = await HegicAdapter.new(
-    ethOptions.address,
-    wbtcOptions.address,
-    ETH_ADDRESS,
-    WBTC.address
-  );
-  return adapter;
-}
-
-function premium(adapterContract) {}
+};

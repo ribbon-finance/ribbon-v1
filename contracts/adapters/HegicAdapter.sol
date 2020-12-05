@@ -60,6 +60,7 @@ contract HegicAdapter is IProtocolAdapter, HegicAdapterStorageV1 {
         OptionType optionType,
         uint256 purchaseAmount
     ) public override view returns (uint256 cost) {
+        require(block.timestamp < expiry, "Cannot purchase after expiry");
         uint256 period = expiry - block.timestamp;
 
         if (underlying == ethAddress) {
@@ -138,6 +139,7 @@ contract HegicAdapter is IProtocolAdapter, HegicAdapterStorageV1 {
             underlying == ethAddress || underlying == wbtcAddress,
             "underlying must match either ETH or WBTC"
         );
+        require(block.timestamp < expiry, "Cannot purchase after expiry");
 
         uint256 period = expiry - block.timestamp;
         IHegicOptions options = IHegicOptions(underlying);
@@ -156,6 +158,18 @@ contract HegicAdapter is IProtocolAdapter, HegicAdapterStorageV1 {
             amount,
             strikePrice,
             HegicOptionType(uint8(optionType))
+        );
+
+        emit Purchased(
+            _name,
+            underlying,
+            strikeAsset,
+            expiry,
+            strikePrice,
+            optionType,
+            amount,
+            cost,
+            optionID
         );
     }
 

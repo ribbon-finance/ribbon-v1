@@ -4,6 +4,18 @@ pragma solidity >=0.6.0;
 enum OptionType {Invalid, Put, Call}
 
 interface IProtocolAdapter {
+    event Purchased(
+        string indexed protocolName,
+        address indexed underlying,
+        address strikeAsset,
+        uint256 expiry,
+        uint256 strikePrice,
+        OptionType optionType,
+        uint256 amount,
+        uint256 premium,
+        uint256 optionID
+    );
+
     function protocolName() external pure returns (string memory);
 
     function nonFungible() external pure returns (bool);

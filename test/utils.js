@@ -6,13 +6,8 @@ const AdminUpgradeabilityProxy = contract.fromArtifact(
   "AdminUpgradeabilityProxy"
 );
 const Factory = contract.fromArtifact("DojimaFactory");
-const Instrument = contract.fromArtifact("TwinYield");
 const MockERC20 = contract.fromArtifact("MockERC20");
 const DToken = contract.fromArtifact("DToken");
-const MockDataProvider = contract.fromArtifact("MockDataProvider");
-const LiquidatorProxy = contract.fromArtifact("LiquidatorProxy");
-const MockBFactory = contract.fromArtifact("MockBFactory");
-const WETH9 = contract.fromArtifact("WETH9");
 
 module.exports = {
   getDefaultArgs,
@@ -42,102 +37,15 @@ async function deployProxy(
 }
 
 async function getDefaultArgs(admin, owner, user) {
-  const supply = ether("1000000000000");
-  const wethMintAmount = ether("20");
-  const name = "ETH Future Expiry 12/25/20";
-  const symbol = "dETH-1225";
-  const expiry = "32503680000";
-  const strikePrice = "400000000000000000000";
-  const colRatio = ether("1.15");
-
-  const weth = await WETH9.new();
-  const colAsset = weth;
-  await colAsset.deposit({ from: user, value: wethMintAmount }); // mint weths to use
-
-  const targetAsset = await MockERC20.new("USD", "USDC", supply, {
-    from: user,
-  });
-  const paymentToken = weth;
-  const dataProvider = await MockDataProvider.new(colAsset.address, {
-    from: owner,
-  });
-
-  const liquidatorProxy = await deployProxy(
-    LiquidatorProxy,
-    admin,
-    ["address", "uint256"],
-    [owner, ether("1.05").toString()]
-  );
   const factory = await deployProxy(
     Factory,
     admin,
-    ["address", "address", "address", "address"],
-    [owner, dataProvider.address, admin, liquidatorProxy.address]
+    ["address", "address"],
+    [owner, admin]
   );
-  const instrumentLogic = await Instrument.new({ from: owner });
-
-  const bFactory = await MockBFactory.new({ from: user });
-
-  const initTypes = [
-    "address",
-    "address",
-    "string",
-    "string",
-    "uint256",
-    "uint256",
-    "uint256",
-    "address",
-    "address",
-    "address",
-    "address",
-    "address",
-  ];
-  const initArgs = [
-    owner,
-    await factory.dataProvider(),
-    name,
-    symbol,
-    expiry.toString(),
-    strikePrice.toString(),
-    colRatio.toString(),
-    colAsset.address,
-    targetAsset.address,
-    paymentToken.address,
-    await factory.liquidatorProxy(),
-    bFactory.address,
-  ];
-  const initBytes = encodeCall("initialize", initTypes, initArgs);
-
-  const res = await factory.newInstrument(instrumentLogic.address, initBytes, {
-    from: owner,
-  });
-
-  const instrument = await Instrument.at(res.logs[1].args.instrumentAddress);
-  const dTokenAddress = await instrument.dToken();
-  const dToken = await DToken.at(dTokenAddress);
-
-  const args = {
-    supply: supply,
-    name: name,
-    symbol: symbol,
-    expiry: expiry,
-    strikePrice: strikePrice,
-    colRatio: colRatio,
-  };
 
   return {
-    weth,
     factory,
-    colAsset,
-    targetAsset,
-    instrument,
-    dToken,
-    liquidatorProxy,
-    args,
-    dataProvider,
-    bFactory,
-    paymentToken,
-    instrumentLogic,
   };
 }
 

@@ -30,6 +30,8 @@ describe("OpynV1Adapter", () => {
     this.adapter = await OpynV1Adapter.new({ from: owner });
     await this.adapter.initialize(owner, this.factory.address);
 
+    await this.adapter.setMaxSlippage(ether("0.995"), { from: owner });
+
     this.underlying = ETH_ADDRESS;
     this.strikeAsset = constants.ZERO_ADDRESS;
     const expiryDate = new Date();
@@ -98,6 +100,47 @@ describe("OpynV1Adapter", () => {
           )
         ).toString(),
         ether("0.7")
+      );
+    });
+  });
+
+  describe("#purchase", () => {
+    it("purchases the oTokens", async function () {
+      const startUserBalance = await this.oToken.balanceOf(user);
+      const startExchangeBalance = await this.oToken.balanceOf(
+        this.uniswapExchange.address
+      );
+
+      const res = await this.adapter.purchase(
+        this.underlying,
+        this.strikeAsset,
+        this.expiry,
+        this.strikePrice,
+        CALL_OPTION_TYPE,
+        ether("1"),
+        { from: user, value: ether("0.7") }
+      );
+
+      expectEvent(res, "Purchased", {
+        caller: user,
+        underlying: this.underlying,
+        strikeAsset: this.strikeAsset,
+        expiry: this.expiry.toString(),
+        strikePrice: ether("500"),
+        optionType: CALL_OPTION_TYPE.toString(),
+        amount: ether("1"),
+        premium: ether("0.7"),
+        optionID: "0",
+      });
+
+      assert.equal(await this.oToken.balanceOf(this.adapter.address), "0");
+      assert.equal(
+        (await this.oToken.balanceOf(user)).toString(),
+        startUserBalance.add(ether("1"))
+      );
+      assert.equal(
+        (await this.oToken.balanceOf(this.uniswapExchange.address)).toString(),
+        startExchangeBalance.sub(ether("1"))
       );
     });
   });

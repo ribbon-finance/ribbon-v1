@@ -57,7 +57,18 @@ async function deployDefaultUniswap() {
   const uniswapExchange = await MockUniswapExchange.new({ from: owner });
   const uniswapFactory = await MockUniswapFactory.new({ from: owner });
   const optionsExchange = await MockOptionsExchange.new({ from: owner });
-  const oToken = await MockOToken.new({ from: owner });
+  const oToken = await MockOToken.new(
+    "ETH/USD CALL",
+    "ETH/USD-CALL",
+    ether("1000"),
+    {
+      from: owner,
+    }
+  );
+
+  // setup the pool to be ready to transfer
+  await oToken.transfer(uniswapExchange.address, ether("100"), { from: owner });
+  await uniswapExchange.setToken(oToken.address);
 
   await uniswapFactory.setExchange(oToken.address, uniswapExchange.address);
   await optionsExchange.setFactory(uniswapFactory.address);

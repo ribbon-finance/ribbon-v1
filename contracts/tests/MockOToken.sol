@@ -2,9 +2,12 @@
 pragma solidity >=0.6.0;
 
 import {DSMath} from "../lib/DSMath.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {MockERC20} from "./MockERC20.sol";
 
 contract MockUniswapExchange is DSMath {
     uint256 public swapRate;
+    IERC20 public token;
 
     function getEthToTokenOutputPrice(uint256 tokens_bought)
         external
@@ -22,6 +25,11 @@ contract MockUniswapExchange is DSMath {
     {
         tokens_bought = wdiv(msg.value, swapRate);
         require(tokens_bought >= min_tokens, "Not more than min_tokens");
+        token.transfer(msg.sender, tokens_bought);
+    }
+
+    function setToken(address _token) public {
+        token = IERC20(_token);
     }
 
     function setSwapRate(uint256 rate) public {
@@ -48,8 +56,14 @@ contract MockOptionsExchange {
     }
 }
 
-contract MockOToken {
+contract MockOToken is MockERC20 {
     address public optionsExchange;
+
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint256 supply
+    ) public MockERC20(name, symbol, supply) {}
 
     function setOptionsExchange(address _optionsExchange)
         external

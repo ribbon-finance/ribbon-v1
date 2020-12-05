@@ -78,7 +78,8 @@ describe("VolatilityStraddle", () => {
       res.logs[1].args.instrumentAddress
     );
 
-    await time.increaseTo(Math.floor(Date.now() / 1000));
+    const now = Math.floor(Date.now() / 1000) + 60;
+    await time.increaseTo(now);
   });
 
   describe("#getHegicCost", () => {

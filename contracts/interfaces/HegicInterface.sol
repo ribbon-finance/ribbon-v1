@@ -78,6 +78,7 @@ interface IHegicBTCOptions is IHegicOptions {
         HegicOptionType optionType
     )
         external
+        view
         returns (
             uint256 total,
             uint256 totalETH,

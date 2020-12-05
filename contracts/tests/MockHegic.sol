@@ -6,7 +6,7 @@ import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "../interfaces/HegicInterface.sol";
 
-contract MockHegicETHOptions is IHegicETHOptions {
+abstract contract MockHegicOptions is IHegicOptions {
     using SafeMath for uint256;
 
     uint256 private _currentPrice;
@@ -16,7 +16,7 @@ contract MockHegicETHOptions is IHegicETHOptions {
     uint256 internal constant PRICE_DECIMALS = 1e8;
     address public pool;
     address public settlementFeeRecipient;
-    address private _priceProvider;
+    address internal _priceProvider;
 
     constructor(address _pool, address _settlementFeeRecipient) public {
         pool = _pool;
@@ -25,83 +25,6 @@ contract MockHegicETHOptions is IHegicETHOptions {
     }
 
     receive() external payable {}
-
-    function fees(
-        uint256 period,
-        uint256 amount,
-        uint256 strike,
-        HegicOptionType optionType
-    )
-        public
-        override
-        view
-        returns (
-            uint256 total,
-            uint256 settlementFee,
-            uint256 strikeFee,
-            uint256 periodFee
-        )
-    {
-        uint256 currentPrice = getCurrentPrice();
-        settlementFee = getSettlementFee(amount);
-        periodFee = getPeriodFee(
-            amount,
-            period,
-            strike,
-            currentPrice,
-            optionType
-        );
-        strikeFee = getStrikeFee(amount, strike, currentPrice, optionType);
-        total = periodFee.add(strikeFee).add(settlementFee);
-    }
-
-    function create(
-        uint256 period,
-        uint256 amount,
-        uint256 strike,
-        HegicOptionType optionType
-    ) external override payable returns (uint256 optionID) {
-        (uint256 total, uint256 settlementFee, uint256 strikeFee, ) = fees(
-            period,
-            amount,
-            strike,
-            optionType
-        );
-
-        require(
-            optionType == HegicOptionType.Call ||
-                optionType == HegicOptionType.Put,
-            "Wrong option type"
-        );
-        require(period >= 1 days, "Period is too short");
-        require(period <= 4 weeks, "Period is too long");
-        require(amount > strikeFee, "Price difference is too large");
-        require(msg.value >= total, "Wrong value");
-        if (msg.value > total) msg.sender.transfer(msg.value - total);
-
-        uint256 strikeAmount = amount.sub(strikeFee);
-        optionID = options.length;
-        HegicOption memory option = HegicOption(
-            State.Active,
-            msg.sender,
-            strike,
-            amount,
-            strikeAmount.mul(optionCollateralizationRatio).div(100).add(
-                strikeFee
-            ),
-            total.sub(settlementFee),
-            block.timestamp + period,
-            optionType
-        );
-
-        options.push(option);
-        (bool transferSuccess1, ) = settlementFeeRecipient.call{
-            value: settlementFee
-        }("");
-        (bool transferSuccess2, ) = pool.call{value: option.premium}("");
-        require(transferSuccess1);
-        require(transferSuccess2);
-    }
 
     /**
      * @notice Exercises an active option
@@ -263,5 +186,175 @@ contract MockAggregator {
         startedAt = 0;
         timeStamp = 0;
         answeredInRound = 0;
+    }
+}
+
+contract MockHegicETHOptions is MockHegicOptions {
+    constructor(address _pool, address _settlementFeeRecipient)
+        public
+        MockHegicOptions(_pool, _settlementFeeRecipient)
+    {}
+
+    function create(
+        uint256 period,
+        uint256 amount,
+        uint256 strike,
+        HegicOptionType optionType
+    ) external override payable returns (uint256 optionID) {
+        (uint256 total, uint256 settlementFee, uint256 strikeFee, ) = fees(
+            period,
+            amount,
+            strike,
+            optionType
+        );
+
+        require(
+            optionType == HegicOptionType.Call ||
+                optionType == HegicOptionType.Put,
+            "Wrong option type"
+        );
+        require(period >= 1 days, "Period is too short");
+        require(period <= 4 weeks, "Period is too long");
+        require(amount > strikeFee, "Price difference is too large");
+        require(msg.value >= total, "Wrong value");
+        if (msg.value > total) msg.sender.transfer(msg.value - total);
+
+        uint256 strikeAmount = amount.sub(strikeFee);
+        optionID = options.length;
+        HegicOption memory option = HegicOption(
+            State.Active,
+            msg.sender,
+            strike,
+            amount,
+            strikeAmount.mul(optionCollateralizationRatio).div(100).add(
+                strikeFee
+            ),
+            total.sub(settlementFee),
+            block.timestamp + period,
+            optionType
+        );
+
+        options.push(option);
+        (bool transferSuccess1, ) = settlementFeeRecipient.call{
+            value: settlementFee
+        }("");
+        (bool transferSuccess2, ) = pool.call{value: option.premium}("");
+        require(transferSuccess1);
+        require(transferSuccess2);
+    }
+
+    // For HegicETHOptions
+    function fees(
+        uint256 period,
+        uint256 amount,
+        uint256 strike,
+        HegicOptionType optionType
+    )
+        public
+        view
+        returns (
+            uint256 total,
+            uint256 settlementFee,
+            uint256 strikeFee,
+            uint256 periodFee
+        )
+    {
+        uint256 currentPrice = getCurrentPrice();
+        settlementFee = getSettlementFee(amount);
+        periodFee = getPeriodFee(
+            amount,
+            period,
+            strike,
+            currentPrice,
+            optionType
+        );
+        strikeFee = getStrikeFee(amount, strike, currentPrice, optionType);
+        total = periodFee.add(strikeFee).add(settlementFee);
+    }
+}
+
+contract MockHegicWBTCOptions is MockHegicOptions {
+    constructor(address _pool, address _settlementFeeRecipient)
+        public
+        MockHegicOptions(_pool, _settlementFeeRecipient)
+    {}
+
+    function create(
+        uint256 period,
+        uint256 amount,
+        uint256 strike,
+        HegicOptionType optionType
+    ) external override payable returns (uint256 optionID) {
+        (, uint256 totalETH, uint256 settlementFee, uint256 strikeFee, ) = fees(
+            period,
+            amount,
+            strike,
+            optionType
+        );
+
+        require(
+            optionType == HegicOptionType.Call ||
+                optionType == HegicOptionType.Put,
+            "Wrong option type"
+        );
+        require(period >= 1 days, "Period is too short");
+        require(period <= 4 weeks, "Period is too long");
+        require(amount > strikeFee, "Price difference is too large");
+        require(msg.value >= totalETH, "Wrong value");
+        if (msg.value > totalETH) msg.sender.transfer(msg.value - totalETH);
+
+        uint256 strikeAmount = amount.sub(strikeFee);
+        optionID = options.length;
+        HegicOption memory option = HegicOption(
+            State.Active,
+            msg.sender,
+            strike,
+            amount,
+            strikeAmount.mul(optionCollateralizationRatio).div(100).add(
+                strikeFee
+            ),
+            totalETH.sub(settlementFee),
+            block.timestamp + period,
+            optionType
+        );
+
+        options.push(option);
+        (bool transferSuccess1, ) = settlementFeeRecipient.call{
+            value: settlementFee
+        }("");
+        (bool transferSuccess2, ) = pool.call{value: option.premium}("");
+        require(transferSuccess1);
+        require(transferSuccess2);
+    }
+
+    // For HegicWBTCOptions
+    function fees(
+        uint256 period,
+        uint256 amount,
+        uint256 strike,
+        HegicOptionType optionType
+    )
+        public
+        view
+        returns (
+            uint256 total,
+            uint256 totalETH,
+            uint256 settlementFee,
+            uint256 strikeFee,
+            uint256 periodFee
+        )
+    {
+        uint256 currentPrice = getCurrentPrice();
+        settlementFee = getSettlementFee(amount);
+        periodFee = getPeriodFee(
+            amount,
+            period,
+            strike,
+            currentPrice,
+            optionType
+        );
+        strikeFee = getStrikeFee(amount, strike, currentPrice, optionType);
+        total = periodFee.add(strikeFee).add(settlementFee);
+        totalETH = total;
     }
 }

@@ -42,6 +42,8 @@ contract HegicAdapter is IProtocolAdapter, HegicAdapterStorageV1 {
         wbtcAddress = _wbtcAddress;
     }
 
+    receive() external payable {}
+
     function protocolName() public override pure returns (string memory) {
         return _name;
     }
@@ -157,6 +159,7 @@ contract HegicAdapter is IProtocolAdapter, HegicAdapterStorageV1 {
         );
 
         emit Purchased(
+            msg.sender,
             _name,
             underlying,
             strikeAsset,
@@ -179,8 +182,13 @@ contract HegicAdapter is IProtocolAdapter, HegicAdapterStorageV1 {
                 optionsAddress == address(wbtcOptions),
             "optionsAddress must match either ETH or WBTC options"
         );
+
+        uint256 profit = exerciseProfit(optionsAddress, optionID, amount);
         IHegicOptions options = IHegicOptions(optionsAddress);
         options.exercise(optionID);
+        (bool success, ) = msg.sender.call{value: profit}("");
+        require(success, "Failed transfer");
+        emit Exercised(msg.sender, optionsAddress, optionID, amount, 0);
     }
 
     function getHegicOptions(address underlying)

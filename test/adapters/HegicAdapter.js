@@ -1,10 +1,12 @@
 const { accounts, contract, web3 } = require("@openzeppelin/test-environment");
 const {
+  BN,
   ether,
   constants,
   time,
   expectRevert,
   expectEvent,
+  balance,
 } = require("@openzeppelin/test-helpers");
 const { assert } = require("chai");
 const { shouldBehaveLikeProtocolAdapter } = require("./ProtocolAdapter");
@@ -21,6 +23,7 @@ const CALL_OPTION_TYPE = 2;
 
 describe("HegicAdapter", () => {
   let snapshotId;
+  const gasPrice = web3.utils.toWei("10", "gwei");
 
   before(async function () {
     const mintAmount = ether("1000");
@@ -50,7 +53,7 @@ describe("HegicAdapter", () => {
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + 2);
     this.expiry = Math.floor(expiryDate.getTime() / 1000);
-    this.startTime = Math.floor(Date.now() / 1000);
+    this.startTime = Math.floor(Date.now() / 1000) + 60; // +60 seconds so we don't get flaky tests
     this.strikePrice = ether("500");
 
     // test cases
@@ -342,6 +345,155 @@ describe("HegicAdapter", () => {
         ).toString(),
         "111111111111111111"
       );
+    });
+  });
+
+  describe("#exercise", () => {
+    let callOptionID, putOptionID;
+
+    beforeEach(async function () {
+      const snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+
+      const callRes = await this.adapter.purchase(
+        this.underlying,
+        this.strikeAsset,
+        this.expiry,
+        this.strikePrice,
+        CALL_OPTION_TYPE,
+        ether("1"),
+        {
+          from: user,
+          value: ether("0.028675"),
+        }
+      );
+      callOptionID = callRes.receipt.logs[0].args.optionID;
+
+      const putRes = await this.adapter.purchase(
+        this.underlying,
+        this.strikeAsset,
+        this.expiry,
+        this.strikePrice,
+        PUT_OPTION_TYPE,
+        ether("1"),
+        {
+          from: user,
+          value: ether("0.028675"),
+        }
+      );
+      putOptionID = putRes.receipt.logs[0].args.optionID;
+
+      // Load some ETH into the contract for payouts
+      await web3.eth.sendTransaction({
+        from: admin,
+        to: this.ethOptions.address,
+        value: ether("10"),
+      });
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
+    it("exercises options with 0 profit", async function () {
+      const res = await this.adapter.exercise(
+        this.ethOptions.address,
+        callOptionID,
+        0,
+        { from: user }
+      );
+      expectEvent(res, "Exercised", {
+        caller: user,
+        optionID: "0",
+        amount: "0",
+        exerciseProfit: "0",
+      });
+    });
+
+    it("reverts when exercising twice", async function () {
+      await this.adapter.exercise(this.ethOptions.address, callOptionID, 0, {
+        from: user,
+      });
+      await expectRevert(
+        this.adapter.exercise(this.ethOptions.address, callOptionID, 0, {
+          from: user,
+        }),
+        "Wrong state"
+      );
+    });
+
+    it("reverts when past expiry", async function () {
+      await time.increaseTo(this.expiry + 1);
+
+      await expectRevert(
+        this.adapter.exercise(this.ethOptions.address, callOptionID, 0, {
+          from: user,
+        }),
+        "Option has expired"
+      );
+    });
+
+    it("exercises the call option", async function () {
+      await this.ethOptions.setCurrentPrice(ether("550"));
+
+      const revenue = ether("0.090909090909090909");
+
+      const hegicTracker = await balance.tracker(this.ethOptions.address);
+      const adapterTracker = await balance.tracker(this.adapter.address);
+      const userTracker = await balance.tracker(user);
+
+      const res = await this.adapter.exercise(
+        this.ethOptions.address,
+        callOptionID,
+        0,
+        {
+          from: user,
+          gasPrice,
+        }
+      );
+
+      const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+      const profit = revenue.sub(gasFee);
+
+      assert.equal((await userTracker.delta()).toString(), profit.toString());
+      assert.equal(
+        (await hegicTracker.delta()).toString(),
+        "-" + revenue.toString()
+      );
+
+      // make sure doji doesn't accidentally retain any ether
+      assert.equal((await adapterTracker.delta()).toString(), "0");
+    });
+
+    it("exercises the put option", async function () {
+      await this.ethOptions.setCurrentPrice(ether("450"));
+
+      const revenue = new BN("111111111111111111");
+
+      const hegicTracker = await balance.tracker(this.ethOptions.address);
+      const adapterTracker = await balance.tracker(this.adapter.address);
+      const userTracker = await balance.tracker(user);
+
+      const res = await this.adapter.exercise(
+        this.ethOptions.address,
+        putOptionID,
+        0,
+        {
+          from: user,
+          gasPrice,
+        }
+      );
+      const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+      const profit = revenue.sub(gasFee);
+
+      assert.equal((await userTracker.delta()).toString(), profit.toString());
+      assert.equal(
+        (await hegicTracker.delta()).toString(),
+        "-" + revenue.toString()
+      );
+
+      // make sure doji doesn't accidentally retain any ether
+      assert.equal((await adapterTracker.delta()).toString(), "0");
     });
   });
 });

@@ -5,6 +5,7 @@ enum OptionType {Invalid, Put, Call}
 
 interface IProtocolAdapter {
     event Purchased(
+        address indexed caller,
         string indexed protocolName,
         address indexed underlying,
         address strikeAsset,
@@ -14,6 +15,14 @@ interface IProtocolAdapter {
         uint256 amount,
         uint256 premium,
         uint256 optionID
+    );
+
+    event Exercised(
+        address indexed caller,
+        address indexed options,
+        uint256 indexed optionID,
+        uint256 amount,
+        uint256 exerciseProfit
     );
 
     function protocolName() external pure returns (string memory);

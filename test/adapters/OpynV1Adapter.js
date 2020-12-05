@@ -12,6 +12,7 @@ const { assert } = require("chai");
 const OpynV1Adapter = contract.fromArtifact("OpynV1Adapter");
 const MockDojiFactory = contract.fromArtifact("MockDojiFactory");
 const helper = require("../helper.js");
+const { deployDefaultUniswap } = require("../utils.js");
 
 const [admin, owner, user] = accounts;
 const PUT_OPTION_TYPE = 1;
@@ -47,6 +48,19 @@ describe("OpynV1Adapter", () => {
 
     const snapShot = await helper.takeSnapshot();
     initSnapshotId = snapShot["result"];
+
+    const { oToken } = await deployDefaultUniswap();
+    this.oToken = oToken;
+
+    await this.adapter.setOTokenWithTerms(
+      this.underlying,
+      this.strikeAsset,
+      this.expiry,
+      this.strikePrice,
+      CALL_OPTION_TYPE,
+      this.oToken.address,
+      { from: owner }
+    );
   });
 
   after(async () => {
@@ -54,18 +68,6 @@ describe("OpynV1Adapter", () => {
   });
 
   describe("#lookupOToken", () => {
-    before(async function () {
-      await this.adapter.setOTokenWithTerms(
-        this.underlying,
-        this.strikeAsset,
-        this.expiry,
-        this.strikePrice,
-        CALL_OPTION_TYPE,
-        user,
-        { from: owner }
-      );
-    });
-
     it("looks up the oToken with option terms", async function () {
       assert.equal(
         await this.adapter.lookupOToken(
@@ -75,7 +77,7 @@ describe("OpynV1Adapter", () => {
           this.strikePrice,
           CALL_OPTION_TYPE
         ),
-        user
+        this.oToken.address
       );
     });
   });

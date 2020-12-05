@@ -16,12 +16,12 @@ const DojimaVolatility = contract.fromArtifact("DojiVolatility");
 const Factory = contract.fromArtifact("DojimaFactory");
 const MockHegicETHOptions = contract.fromArtifact("MockHegicETHOptions");
 
-describe("VolatilityStraddle", () => {
+describe("DojiVolatility", () => {
   const [admin, owner, user] = accounts;
   const settlementFeeRecipient = "0x0000000000000000000000000000000000000420";
   const pool = "0x0000000000000000000000000000000000000069";
   const gasPrice = web3.utils.toWei("10", "gwei");
-  let self, snapshotId;
+  let self, snapshotId, initSnapshotId;
 
   before(async function () {
     self = this;
@@ -80,6 +80,13 @@ describe("VolatilityStraddle", () => {
 
     const now = Math.floor(Date.now() / 1000) + 60;
     await time.increaseTo(now);
+
+    const snapShot = await helper.takeSnapshot();
+    initSnapshotId = snapShot["result"];
+  });
+
+  after(async () => {
+    await helper.revertToSnapShot(initSnapshotId);
   });
 
   describe("#getHegicCost", () => {

@@ -42,7 +42,7 @@ contract HegicAdapter is IProtocolAdapter, HegicAdapterStorageV1 {
         wbtcAddress = _wbtcAddress;
     }
 
-    function protocolName() external override pure returns (string memory) {
+    function protocolName() public override pure returns (string memory) {
         return _name;
     }
 
@@ -135,14 +135,10 @@ contract HegicAdapter is IProtocolAdapter, HegicAdapterStorageV1 {
         OptionType optionType,
         uint256 amount
     ) external override payable returns (uint256 optionID) {
-        require(
-            underlying == ethAddress || underlying == wbtcAddress,
-            "underlying must match either ETH or WBTC"
-        );
+        IHegicOptions options = getHegicOptions(underlying);
         require(block.timestamp < expiry, "Cannot purchase after expiry");
 
         uint256 period = expiry - block.timestamp;
-        IHegicOptions options = IHegicOptions(underlying);
         uint256 cost = premium(
             underlying,
             strikeAsset,
@@ -185,5 +181,18 @@ contract HegicAdapter is IProtocolAdapter, HegicAdapterStorageV1 {
         );
         IHegicOptions options = IHegicOptions(optionsAddress);
         options.exercise(optionID);
+    }
+
+    function getHegicOptions(address underlying)
+        private
+        view
+        returns (IHegicOptions)
+    {
+        if (underlying == ethAddress) {
+            return ethOptions;
+        } else if (underlying == wbtcAddress) {
+            return wbtcOptions;
+        }
+        require(false, "No matching options contract");
     }
 }

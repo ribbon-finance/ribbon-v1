@@ -135,7 +135,14 @@ contract HegicAdapter is
         uint256 strikePrice,
         OptionType optionType,
         uint256 amount
-    ) external override payable nonReentrant returns (uint256 optionID) {
+    )
+        external
+        override
+        payable
+        nonReentrant
+        onlyInstrument
+        returns (uint256 optionID)
+    {
         IHegicOptions options = getHegicOptions(underlying);
         require(block.timestamp < expiry, "Cannot purchase after expiry");
 
@@ -175,7 +182,7 @@ contract HegicAdapter is
         address optionsAddress,
         uint256 optionID,
         uint256 amount
-    ) external override payable nonReentrant {
+    ) external override payable onlyInstrument nonReentrant {
         require(
             optionsAddress == address(ethOptions) ||
                 optionsAddress == address(wbtcOptions),

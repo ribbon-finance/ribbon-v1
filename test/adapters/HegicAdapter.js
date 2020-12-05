@@ -22,7 +22,7 @@ const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
 
 describe("HegicAdapter", () => {
-  let snapshotId;
+  let initSnapshotId, snapshotId;
   const gasPrice = web3.utils.toWei("10", "gwei");
 
   before(async function () {
@@ -67,6 +67,13 @@ describe("HegicAdapter", () => {
     await this.ethOptions.setCurrentPrice(ether("500"));
     await this.wbtcOptions.setCurrentPrice(ether("18000"));
     await time.increaseTo(this.startTime);
+
+    const snapShot = await helper.takeSnapshot();
+    initSnapshotId = snapShot["result"];
+  });
+
+  after(async () => {
+    await helper.revertToSnapShot(initSnapshotId);
   });
 
   shouldBehaveLikeProtocolAdapter();

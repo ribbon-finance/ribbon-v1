@@ -43,8 +43,8 @@ describe("VolatilityStraddle", () => {
     this.factory = await deployProxy(
       Factory,
       admin,
-      ["address", "address", "address", "address"],
-      [owner, constants.ZERO_ADDRESS, admin, constants.ZERO_ADDRESS]
+      ["address", "address"],
+      [owner, admin]
     );
 
     this.instrumentLogic = await DojimaVolatility.new({ from: admin });

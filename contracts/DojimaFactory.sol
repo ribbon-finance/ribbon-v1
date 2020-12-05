@@ -4,23 +4,12 @@ pragma solidity ^0.6.2;
 import "./lib/upgrades/Initializable.sol";
 import "./lib/upgrades/AdminUpgradeabilityProxy.sol";
 import "./interfaces/InstrumentInterface.sol";
-import "./DojimaFactoryStorage.sol";
 
 contract DojimaFactoryStorageV1 {
     /**
      * @notice Address of contract owner
      */
     address public owner;
-
-    /**
-     * @notice Address of dataProvider contract
-     */
-    address public dataProvider;
-
-    /**
-     * @notice Address of the liquidator proxy contract
-     */
-    address public liquidatorProxy;
 
     /**
      * @notice Address of the admin of all instruments
@@ -55,15 +44,11 @@ contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
     /**
      * @notice Constructor takes a DataProvider contract address
      */
-    function initialize(
-        address _owner,
-        address _dataProvider,
-        address _instrumentAdmin,
-        address _liquidatorProxy
-    ) public initializer {
+    function initialize(address _owner, address _instrumentAdmin)
+        public
+        initializer
+    {
         owner = _owner;
-        dataProvider = _dataProvider;
-        liquidatorProxy = _liquidatorProxy;
         instrumentAdmin = _instrumentAdmin;
     }
 

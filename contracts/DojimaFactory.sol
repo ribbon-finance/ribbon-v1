@@ -6,6 +6,33 @@ import "./lib/upgrades/AdminUpgradeabilityProxy.sol";
 import "./interfaces/InstrumentInterface.sol";
 import "./DojimaFactoryStorage.sol";
 
+contract DojimaFactoryStorageV1 {
+    /**
+     * @notice Address of contract owner
+     */
+    address public owner;
+
+    /**
+     * @notice Address of dataProvider contract
+     */
+    address public dataProvider;
+
+    /**
+     * @notice Address of the liquidator proxy contract
+     */
+    address public liquidatorProxy;
+
+    /**
+     * @notice Address of the admin of all instruments
+     */
+    address public instrumentAdmin;
+
+    /**
+     * @notice Mapping of created instruments
+     */
+    mapping(string => address) public instruments;
+}
+
 contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
     /**
      * @notice Emitted when a new instrument is created

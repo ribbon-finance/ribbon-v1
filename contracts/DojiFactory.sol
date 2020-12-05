@@ -5,7 +5,7 @@ import "./lib/upgrades/Initializable.sol";
 import "./lib/upgrades/AdminUpgradeabilityProxy.sol";
 import "./interfaces/InstrumentInterface.sol";
 
-contract DojimaFactoryStorageV1 {
+contract DojiFactoryStorageV1 {
     /**
      * @notice Address of contract owner
      */
@@ -20,9 +20,14 @@ contract DojimaFactoryStorageV1 {
      * @notice Mapping of created instruments
      */
     mapping(string => address) public instruments;
+
+    /**
+     * @notice Boolean check for if an address is an instrument
+     */
+    mapping(address => bool) public isInstrument;
 }
 
-contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
+contract DojiFactory is Initializable, DojiFactoryStorageV1 {
     /**
      * @notice Emitted when a new instrument is created
      */
@@ -76,6 +81,7 @@ contract DojimaFactory is Initializable, DojimaFactoryStorageV1 {
         require(instruments[symbol] == address(0), "Instrument already exists");
 
         instruments[symbol] = instrumentAddress;
+        isInstrument[instrumentAddress] = true;
         emit InstrumentCreated(symbol, instrumentAddress, instrument.dToken());
     }
 

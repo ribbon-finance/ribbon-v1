@@ -15,6 +15,7 @@ const MockERC20 = contract.fromArtifact("MockERC20");
 const HegicAdapter = contract.fromArtifact("HegicAdapter");
 const MockHegicETHOptions = contract.fromArtifact("MockHegicETHOptions");
 const MockHegicWBTCOptions = contract.fromArtifact("MockHegicWBTCOptions");
+const MockDojiFactory = contract.fromArtifact("MockDojiFactory");
 const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 const [admin, owner, user, pool, settlementFeeRecipient] = accounts;
 
@@ -41,12 +42,18 @@ describe("HegicAdapter", () => {
       { from: admin }
     );
 
+    // we assume the user account is the calling instrument
+    this.factory = await MockDojiFactory.new({ from: owner });
+    await this.factory.setInstrument(user, { from: user });
+
     this.adapter = await HegicAdapter.new(
       this.ethOptions.address,
       this.wbtcOptions.address,
       ETH_ADDRESS,
       WBTC.address
     );
+
+    await this.adapter.initialize(owner, this.factory.address);
 
     this.underlying = ETH_ADDRESS;
     this.strikeAsset = constants.ZERO_ADDRESS;

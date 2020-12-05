@@ -13,7 +13,7 @@ const { deployProxy } = require("./utils");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const balance = require("@openzeppelin/test-helpers/src/balance");
 const DojimaVolatility = contract.fromArtifact("DojiVolatility");
-const Factory = contract.fromArtifact("DojimaFactory");
+const Factory = contract.fromArtifact("DojiFactory");
 const MockHegicETHOptions = contract.fromArtifact("MockHegicETHOptions");
 
 describe("DojiVolatility", () => {

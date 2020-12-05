@@ -1,26 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
 
-import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "./IProtocolAdapter.sol";
+import {
+    AggregatorV3Interface
+} from "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
+import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {IProtocolAdapter, OptionType} from "./IProtocolAdapter.sol";
 import {
     IHegicOptions,
     HegicOptionType,
     IHegicETHOptions,
     IHegicBTCOptions
 } from "../interfaces/HegicInterface.sol";
+import {
+    ReentrancyGuard
+} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
 
-contract HegicAdapterStorageV1 {
-    address public owner;
-
-    modifier onlyOwner {
-        require(msg.sender == owner, "only owner");
-        _;
-    }
-}
-
-contract HegicAdapter is IProtocolAdapter, HegicAdapterStorageV1 {
+contract HegicAdapter is
+    IProtocolAdapter,
+    ReentrancyGuard,
+    BaseProtocolAdapter
+{
     using SafeMath for uint256;
 
     string private constant _name = "HEGIC";
@@ -51,8 +52,6 @@ contract HegicAdapter is IProtocolAdapter, HegicAdapterStorageV1 {
     function nonFungible() external override pure returns (bool) {
         return _nonFungible;
     }
-
-    function initialize() public {}
 
     function premium(
         address underlying,
@@ -136,7 +135,7 @@ contract HegicAdapter is IProtocolAdapter, HegicAdapterStorageV1 {
         uint256 strikePrice,
         OptionType optionType,
         uint256 amount
-    ) external override payable returns (uint256 optionID) {
+    ) external override payable nonReentrant returns (uint256 optionID) {
         IHegicOptions options = getHegicOptions(underlying);
         require(block.timestamp < expiry, "Cannot purchase after expiry");
 
@@ -176,7 +175,7 @@ contract HegicAdapter is IProtocolAdapter, HegicAdapterStorageV1 {
         address optionsAddress,
         uint256 optionID,
         uint256 amount
-    ) external override payable {
+    ) external override payable nonReentrant {
         require(
             optionsAddress == address(ethOptions) ||
                 optionsAddress == address(wbtcOptions),

@@ -49,8 +49,10 @@ describe("OpynV1Adapter", () => {
     const snapShot = await helper.takeSnapshot();
     initSnapshotId = snapShot["result"];
 
-    const { oToken } = await deployDefaultUniswap();
+    const { oToken, uniswapExchange } = await deployDefaultUniswap();
     this.oToken = oToken;
+    this.uniswapExchange = uniswapExchange;
+    await this.uniswapExchange.setSwapRate(ether("0.7"));
 
     await this.adapter.setOTokenWithTerms(
       this.underlying,
@@ -78,6 +80,24 @@ describe("OpynV1Adapter", () => {
           CALL_OPTION_TYPE
         ),
         this.oToken.address
+      );
+    });
+  });
+
+  describe("#premium", () => {
+    it("gets the premium for a call option", async function () {
+      assert.equal(
+        (
+          await this.adapter.premium(
+            this.underlying,
+            this.strikeAsset,
+            this.expiry,
+            this.strikePrice,
+            CALL_OPTION_TYPE,
+            ether("1")
+          )
+        ).toString(),
+        ether("0.7")
       );
     });
   });

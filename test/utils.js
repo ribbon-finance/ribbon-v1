@@ -67,6 +67,7 @@ async function deployDefaultUniswap() {
     uniswapFactory,
     optionsExchange,
     oToken,
+    uniswapExchange,
   };
 }
 

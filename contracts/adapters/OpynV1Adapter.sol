@@ -6,6 +6,12 @@ import {
     ReentrancyGuard
 } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+import {
+    IOToken,
+    IOptionsExchange,
+    IUniswapFactory,
+    UniswapExchangeInterface
+} from "../interfaces/OpynV1.sol";
 import {IProtocolAdapter, OptionType} from "./IProtocolAdapter.sol";
 import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
 
@@ -39,7 +45,17 @@ contract OpynV1Adapter is
         OptionType optionType,
         uint256 purchaseAmount
     ) public override view returns (uint256 cost) {
-        0;
+        address oToken = lookupOToken(
+            underlying,
+            strikeAsset,
+            expiry,
+            strikePrice,
+            optionType
+        );
+        UniswapExchangeInterface uniswapExchange = getUniswapExchangeFromOToken(
+            oToken
+        );
+        cost = uniswapExchange.getEthToTokenOutputPrice(purchaseAmount);
     }
 
     function exerciseProfit(
@@ -65,7 +81,7 @@ contract OpynV1Adapter is
         onlyInstrument
         returns (uint256 optionID)
     {
-        return 0;
+        0;
     }
 
     function exercise(
@@ -107,5 +123,17 @@ contract OpynV1Adapter is
             optionType
         );
         return optionTermsToOToken[optionTerms];
+    }
+
+    function getUniswapExchangeFromOToken(address oToken)
+        private
+        view
+        returns (UniswapExchangeInterface uniswapExchange)
+    {
+        IOptionsExchange optionsExchange = IOToken(oToken).optionsExchange();
+        IUniswapFactory uniswapFactory = optionsExchange.uniswapFactory();
+        uniswapExchange = UniswapExchangeInterface(
+            uniswapFactory.getExchange(oToken)
+        );
     }
 }

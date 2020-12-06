@@ -21,12 +21,4 @@ contract BaseProtocolAdapterStorageV1 {
     }
 }
 
-contract BaseProtocolAdapter is Initializable, BaseProtocolAdapterStorageV1 {
-    function initialize(address _owner, address _dojiFactory)
-        public
-        initializer
-    {
-        owner = _owner;
-        dojiFactory = _dojiFactory;
-    }
-}
+contract BaseProtocolAdapter is Initializable, BaseProtocolAdapterStorageV1 {}

@@ -13,6 +13,15 @@ interface IOptionsExchange {
 }
 
 interface IOToken {
+    function underlying() external view returns (address);
+
+    function collateral() external view returns (address);
+
+    function underlyingRequiredToExercise(uint256 oTokensToExercise)
+        external
+        view
+        returns (uint256);
+
     function optionsExchange() external view returns (IOptionsExchange);
 }
 

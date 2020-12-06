@@ -12,9 +12,14 @@ import {
     IOptionsExchange,
     IUniswapFactory,
     UniswapExchangeInterface
-} from "../interfaces/OpynV1.sol";
+} from "../interfaces/OpynV1Interface.sol";
 import {IProtocolAdapter, OptionType} from "./IProtocolAdapter.sol";
 import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
+import {
+    ILendingPool,
+    ILendingPoolAddressesProvider
+} from "../lib/aave/Interfaces.sol";
+import {FlashLoaner} from "../FlashLoaner.sol";
 
 contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
     mapping(bytes => address) public optionTermsToOToken;
@@ -26,6 +31,7 @@ contract OpynV1Adapter is
     DSMath,
     IProtocolAdapter,
     ReentrancyGuard,
+    FlashLoaner,
     OpynV1AdapterStorageV1
 {
     using SafeMath for uint256;
@@ -34,6 +40,24 @@ contract OpynV1Adapter is
     string private constant _name = "OPYN_V1";
     bool private constant _nonFungible = false;
     uint256 private constant _swapDeadline = 900; // 15 minutes
+
+    constructor(ILendingPoolAddressesProvider _addressProvider)
+        public
+        FlashLoaner(_addressProvider)
+    {}
+
+    function initialize(
+        address _owner,
+        address _dojiFactory,
+        ILendingPoolAddressesProvider _provider
+    ) public initializer {
+        owner = _owner;
+        dojiFactory = _dojiFactory;
+        _addressesProvider = _provider;
+        _lendingPool = ILendingPool(
+            ILendingPoolAddressesProvider(_provider).getLendingPool()
+        );
+    }
 
     function protocolName() public override pure returns (string memory) {
         return _name;

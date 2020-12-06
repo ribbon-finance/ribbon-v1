@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.6.0;
 
-import {FlashLoanReceiverBase} from "./lib/aave/FlashLoanReceiverBase.sol";
+import {FlashLoanReceiverBase} from "../lib/aave/FlashLoanReceiverBase.sol";
 import {
     ILendingPool,
     ILendingPoolAddressesProvider,
     IERC20
-} from "./lib/aave/Interfaces.sol";
+} from "../lib/aave/Interfaces.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
-import {IOToken} from "./interfaces/OpynV1Interface.sol";
+import {IOToken} from "../interfaces/OpynV1Interface.sol";
 
-contract FlashLoaner is FlashLoanReceiverBase {
+contract OpynV1FlashLoaner is FlashLoanReceiverBase {
     using SafeMath for uint256;
 
     constructor(ILendingPoolAddressesProvider _addressProvider)

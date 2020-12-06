@@ -19,7 +19,7 @@ import {
     ILendingPool,
     ILendingPoolAddressesProvider
 } from "../lib/aave/Interfaces.sol";
-import {FlashLoaner} from "../FlashLoaner.sol";
+import {OpynV1FlashLoaner} from "./OpynV1FlashLoaner.sol";
 
 contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
     mapping(bytes => address) public optionTermsToOToken;
@@ -31,7 +31,7 @@ contract OpynV1Adapter is
     DSMath,
     IProtocolAdapter,
     ReentrancyGuard,
-    FlashLoaner,
+    OpynV1FlashLoaner,
     OpynV1AdapterStorageV1
 {
     using SafeMath for uint256;
@@ -43,7 +43,7 @@ contract OpynV1Adapter is
 
     constructor(ILendingPoolAddressesProvider _addressProvider)
         public
-        FlashLoaner(_addressProvider)
+        OpynV1FlashLoaner(_addressProvider)
     {}
 
     function initialize(

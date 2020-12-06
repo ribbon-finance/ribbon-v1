@@ -51,7 +51,9 @@ contract OpynV1Adapter is
     function initialize(
         address _owner,
         address _dojiFactory,
-        ILendingPoolAddressesProvider _provider
+        ILendingPoolAddressesProvider _provider,
+        address router,
+        address weth
     ) public initializer {
         owner = _owner;
         dojiFactory = _dojiFactory;
@@ -59,6 +61,8 @@ contract OpynV1Adapter is
         _lendingPool = ILendingPool(
             ILendingPoolAddressesProvider(_provider).getLendingPool()
         );
+        _uniswapRouter = router;
+        _weth = weth;
     }
 
     function protocolName() public override pure returns (string memory) {

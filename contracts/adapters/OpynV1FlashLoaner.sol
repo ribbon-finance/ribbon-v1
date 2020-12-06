@@ -15,6 +15,7 @@ import {
     IUniswapFactory,
     UniswapExchangeInterface
 } from "../interfaces/OpynV1Interface.sol";
+import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 
 contract OpynV1FlashLoaner is FlashLoanReceiverBase {
     using SafeMath for uint256;
@@ -22,6 +23,9 @@ contract OpynV1FlashLoaner is FlashLoanReceiverBase {
 
     uint256 private constant _vaultStartIteration = 0;
     uint256 private constant _maxVaultIterations = 5;
+    uint256 private constant _swapWindow = 900;
+    address internal _uniswapRouter;
+    address internal _weth;
 
     constructor(ILendingPoolAddressesProvider _addressProvider)
         public
@@ -94,8 +98,40 @@ contract OpynV1FlashLoaner is FlashLoanReceiverBase {
         uint256 underlyingAmount
     ) private {
         IOToken oTokenContract = IOToken(oToken);
-        IOptionsExchange optionsExchange = oTokenContract.optionsExchange();
-        IUniswapFactory uniswapFactory = optionsExchange.uniswapFactory();
+
+        address collateral = oTokenContract.collateral();
+        IUniswapV2Router02 router = IUniswapV2Router02(_uniswapRouter);
+
+        if (collateral == address(0)) {
+            address[] memory paths = new address[](2);
+            paths[0] = _weth;
+            paths[1] = underlying;
+
+            router.swapETHForExactTokens(
+                underlyingAmount,
+                paths,
+                address(this),
+                block.timestamp + _swapWindow
+            );
+        } else {
+            address[] memory paths = new address[](3);
+            paths[0] = collateral;
+            paths[1] = _weth;
+            paths[2] = underlying;
+            IERC20 collateralToken = IERC20(collateral);
+
+            uint256 amountInMax = 0;
+
+            collateralToken.safeApprove(address(router), amountInMax);
+
+            router.swapTokensForExactTokens(
+                underlyingAmount,
+                amountInMax,
+                paths,
+                address(this),
+                block.timestamp + _swapWindow
+            );
+        }
     }
 
     function exerciseOTokens(address oToken, uint256 exerciseAmount) public {
@@ -141,7 +177,7 @@ contract OpynV1FlashLoaner is FlashLoanReceiverBase {
             underlyingToken.balanceOf(address(this)) >= approveAmount,
             "Not enough underlying to approve"
         );
-        underlyingToken.approve(spender, approveAmount);
+        underlyingToken.safeApprove(spender, approveAmount);
     }
 
     function getVaults(IOToken oTokenContract)

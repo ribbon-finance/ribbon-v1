@@ -13,6 +13,8 @@ interface IOptionsExchange {
 }
 
 interface IOToken {
+    function vaultOwners(uint256 index) external view returns (address payable);
+
     function underlying() external view returns (address);
 
     function collateral() external view returns (address);
@@ -23,6 +25,11 @@ interface IOToken {
         returns (uint256);
 
     function optionsExchange() external view returns (IOptionsExchange);
+
+    function exercise(
+        uint256 oTokensToExercise,
+        address payable[] calldata vaultsToExerciseFrom
+    ) external payable;
 }
 
 /* solhint-disable */

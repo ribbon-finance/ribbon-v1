@@ -103,31 +103,40 @@ contract OpynV1FlashLoaner is FlashLoanReceiverBase {
         IUniswapV2Router02 router = IUniswapV2Router02(_uniswapRouter);
 
         if (collateral == address(0)) {
-            address[] memory paths = new address[](2);
-            paths[0] = _weth;
-            paths[1] = underlying;
+            address[] memory path = new address[](2);
+            path[0] = _weth;
+            path[1] = underlying;
 
-            router.swapETHForExactTokens(
+            uint256[] memory amountsIn = router.getAmountsIn(
                 underlyingAmount,
-                paths,
+                path
+            );
+            uint256 maxCollateralAmount = amountsIn[0];
+
+            router.swapETHForExactTokens{value: maxCollateralAmount}(
+                underlyingAmount,
+                path,
                 address(this),
                 block.timestamp + _swapWindow
             );
         } else {
-            address[] memory paths = new address[](3);
-            paths[0] = collateral;
-            paths[1] = _weth;
-            paths[2] = underlying;
+            address[] memory path = new address[](3);
+            path[0] = collateral;
+            path[1] = _weth;
+            path[2] = underlying;
             IERC20 collateralToken = IERC20(collateral);
+            uint256[] memory amountsIn = router.getAmountsIn(
+                underlyingAmount,
+                path
+            );
+            uint256 maxCollateralAmount = amountsIn[0];
 
-            uint256 amountInMax = 0;
-
-            collateralToken.safeApprove(address(router), amountInMax);
+            collateralToken.safeApprove(address(router), maxCollateralAmount);
 
             router.swapTokensForExactTokens(
                 underlyingAmount,
-                amountInMax,
-                paths,
+                maxCollateralAmount,
+                path,
                 address(this),
                 block.timestamp + _swapWindow
             );

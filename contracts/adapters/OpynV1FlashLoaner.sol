@@ -191,6 +191,7 @@ contract OpynV1FlashLoaner is FlashLoanReceiverBase {
 
     function getVaults(IOToken oTokenContract)
         public
+        view
         returns (address payable[] memory vaults)
     {
         vaults = new address payable[](_maxVaultIterations);

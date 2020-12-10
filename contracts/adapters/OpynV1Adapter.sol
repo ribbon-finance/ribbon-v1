@@ -165,13 +165,24 @@ contract OpynV1Adapter is
     ) external override payable onlyInstrument nonReentrant {}
 
     function setOTokenWithTerms(
-        address underlying,
-        address strikeAsset,
-        uint256 expiry,
         uint256 strikePrice,
         OptionType optionType,
         address oToken
     ) external onlyOwner {
+        IOToken oTokenContract = IOToken(oToken);
+
+        address underlying;
+        address strikeAsset;
+
+        if (optionType == OptionType.Call) {
+            underlying = oTokenContract.collateral();
+            strikeAsset = oTokenContract.underlying();
+        } else if (optionType == OptionType.Put) {
+            underlying = oTokenContract.underlying();
+            strikeAsset = oTokenContract.collateral();
+        }
+        uint256 expiry = oTokenContract.expiry();
+
         bytes memory optionTerms = abi.encode(
             underlying,
             strikeAsset,

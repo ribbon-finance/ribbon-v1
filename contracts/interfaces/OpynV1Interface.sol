@@ -9,7 +9,7 @@ interface IUniswapFactory {
 }
 
 interface IOptionsExchange {
-    function uniswapFactory() external view returns (IUniswapFactory);
+    function UNISWAP_FACTORY() external view returns (IUniswapFactory);
 }
 
 interface IOToken {

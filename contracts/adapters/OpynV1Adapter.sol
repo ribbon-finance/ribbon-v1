@@ -214,13 +214,22 @@ contract OpynV1Adapter is
         return optionTermsToOToken[optionTerms];
     }
 
+    function normalizeDecimals(IOToken oToken, uint256 amount)
+        private
+        view
+        returns (normalized)
+    {
+        uint256 decimals = oToken.decimals();
+        normalized = amount / (18 - decimals);
+    }
+
     function getUniswapExchangeFromOToken(address oToken)
         private
         view
         returns (UniswapExchangeInterface uniswapExchange)
     {
         IOptionsExchange optionsExchange = IOToken(oToken).optionsExchange();
-        IUniswapFactory uniswapFactory = optionsExchange.uniswapFactory();
+        IUniswapFactory uniswapFactory = optionsExchange.UNISWAP_FACTORY();
         uniswapExchange = UniswapExchangeInterface(
             uniswapFactory.getExchange(oToken)
         );

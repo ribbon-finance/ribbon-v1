@@ -41,6 +41,7 @@
     "deploy-instrument": "node ./scripts/addTwinYield.js",
     "finalize-pool": "node ./scripts/finalizeBalancerPool.js",
     "seed-pool": "node ./scripts/seedPool.js",
-    "upgrade-instrument": "node ./scripts/upgradeInstrument.js"
+    "upgrade-instrument": "node ./scripts/upgradeInstrument.js",
+    "ganache": "ganache-cli --fork \"https://mainnet.infura.io/v3/d43d838246464b5690f8b10337b446d7@`node scripts/getCurrentBlock.js`\" --mnemonic 'become degree sausage theme poem flash bronze increase pioneer faith mask gas'"
   }
 }

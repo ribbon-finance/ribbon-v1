@@ -48,8 +48,12 @@ async function deployOpynV1Adapter(dojiFactoryAddress) {
 
   await setOToken(opynV1Instance);
 
+  return opynV1Instance;
+}
+
+async function purchaseOToken(opynV1Adapter) {
   const purchaseAmount = ether("1");
-  const premium = await opynV1Instance.methods
+  const premium = await opynV1Adapter.methods
     .premium(
       underlying,
       strikeAsset,
@@ -62,7 +66,7 @@ async function deployOpynV1Adapter(dojiFactoryAddress) {
 
   console.log(`Premium is ${web3.utils.fromWei(premium, "ether")} ETH`);
 
-  await opynV1Instance.methods
+  await opynV1Adapter.methods
     .purchase(
       underlying,
       strikeAsset,
@@ -74,8 +78,11 @@ async function deployOpynV1Adapter(dojiFactoryAddress) {
     .send({ value: premium, from: owner });
 
   const oToken = new web3.eth.Contract(IERC20.abi, oTokenAddress);
-  console.log(await oToken.methods.balanceOf(owner).call());
+  const oTokenBalance = await oToken.methods.balanceOf(owner).call();
+  console.log(`oToken balance: ${oTokenBalance}`);
 }
+
+async function exerciseOToken(opynV1Adapter) {}
 
 async function setOToken(opynV1Adapter) {
   await opynV1Adapter.methods
@@ -116,7 +123,8 @@ async function getMainnetForkWeb3() {
 async function main() {
   web3 = await getMainnetForkWeb3();
   const factoryAddress = await deployDojiFactory();
-  await deployOpynV1Adapter(factoryAddress);
+  const opynV1Adapter = await deployOpynV1Adapter(factoryAddress);
+  await purchaseOToken(opynV1Adapter);
 
   process.exit();
 }

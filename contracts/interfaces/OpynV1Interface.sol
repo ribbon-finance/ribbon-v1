@@ -13,11 +13,6 @@ interface IOptionsExchange {
 }
 
 interface IOToken {
-    struct Number {
-        uint256 value;
-        int32 exponent;
-    }
-
     function vaultOwners(uint256 index) external view returns (address payable);
 
     function underlying() external view returns (address);
@@ -25,6 +20,8 @@ interface IOToken {
     function collateral() external view returns (address);
 
     function expiry() external view returns (uint256);
+
+    function decimals() external view returns (uint256);
 
     function underlyingRequiredToExercise(uint256 oTokensToExercise)
         external

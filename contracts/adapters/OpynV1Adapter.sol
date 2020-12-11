@@ -53,7 +53,8 @@ contract OpynV1Adapter is
         address _dojiFactory,
         ILendingPoolAddressesProvider _provider,
         address router,
-        address weth
+        address weth,
+        uint256 _maxSlippage
     ) public initializer {
         owner = _owner;
         dojiFactory = _dojiFactory;
@@ -63,6 +64,7 @@ contract OpynV1Adapter is
         );
         _uniswapRouter = router;
         _weth = weth;
+        maxSlippage = _maxSlippage;
     }
 
     function protocolName() public override pure returns (string memory) {
@@ -91,7 +93,9 @@ contract OpynV1Adapter is
         UniswapExchangeInterface uniswapExchange = getUniswapExchangeFromOToken(
             oToken
         );
-        cost = uniswapExchange.getEthToTokenOutputPrice(purchaseAmount);
+        cost = uniswapExchange.getEthToTokenOutputPrice(
+            normalizeDecimals(IOToken(oToken), purchaseAmount)
+        );
     }
 
     function exerciseProfit(
@@ -135,14 +139,7 @@ contract OpynV1Adapter is
             optionType
         );
 
-        uint256 tokensBought = getUniswapExchangeFromOToken(oToken)
-            .ethToTokenSwapInput{value: cost}(
-            wmul(amount, maxSlippage),
-            block.timestamp + _swapDeadline
-        );
-
-        // Forward the tokens to the msg.sender
-        IERC20(oToken).safeTransfer(msg.sender, tokensBought);
+        uint256 scaledAmount = swapForOToken(oToken, cost, amount);
 
         emit Purchased(
             msg.sender,
@@ -152,10 +149,32 @@ contract OpynV1Adapter is
             expiry,
             strikePrice,
             optionType,
-            tokensBought,
+            scaledAmount,
             cost,
             0
         );
+    }
+
+    function swapForOToken(
+        address oToken,
+        uint256 tokenCost,
+        uint256 purchaseAmount
+    ) private returns (uint256 scaledAmount) {
+        scaledAmount = normalizeDecimals(IOToken(oToken), purchaseAmount);
+
+        uint256 ethSold = getUniswapExchangeFromOToken(oToken)
+            .ethToTokenSwapOutput{value: tokenCost}(
+            scaledAmount,
+            block.timestamp + _swapDeadline
+        );
+
+        (bool changeSuccess, ) = msg.sender.call{value: msg.value - ethSold}(
+            ""
+        );
+        require(changeSuccess, "Transfer of change failed");
+
+        // Forward the tokens to the msg.sender
+        IERC20(oToken).safeTransfer(msg.sender, scaledAmount);
     }
 
     function exercise(
@@ -217,10 +236,10 @@ contract OpynV1Adapter is
     function normalizeDecimals(IOToken oToken, uint256 amount)
         private
         view
-        returns (normalized)
+        returns (uint256 normalized)
     {
         uint256 decimals = oToken.decimals();
-        normalized = amount / (18 - decimals);
+        normalized = amount / 10**(18 - decimals);
     }
 
     function getUniswapExchangeFromOToken(address oToken)

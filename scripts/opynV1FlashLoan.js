@@ -5,6 +5,7 @@ const { ether } = require("@openzeppelin/test-helpers");
 const accounts = require("../constants/accounts.json");
 const OpynV1Adapter = require("../build/contracts/OpynV1Adapter.json");
 const MockFactory = require("../build/contracts/MockDojiFactory.json");
+const IERC20 = require("../build/contracts/IERC20.json");
 const { option } = require("commander");
 
 let web3;
@@ -40,7 +41,8 @@ async function deployOpynV1Adapter(dojiFactoryAddress) {
       dojiFactoryAddress,
       aaveAddressProvider,
       uniswapRouter,
-      weth
+      weth,
+      ether("0.995")
     )
     .send({ from: owner });
 
@@ -57,7 +59,22 @@ async function deployOpynV1Adapter(dojiFactoryAddress) {
       purchaseAmount
     )
     .call();
-  console.log(`Premium is ${premium}`);
+
+  console.log(`Premium is ${web3.utils.fromWei(premium, "ether")} ETH`);
+
+  await opynV1Instance.methods
+    .purchase(
+      underlying,
+      strikeAsset,
+      expiry,
+      strikePrice,
+      optionType,
+      purchaseAmount
+    )
+    .send({ value: premium, from: owner });
+
+  const oToken = new web3.eth.Contract(IERC20.abi, oTokenAddress);
+  console.log(await oToken.methods.balanceOf(owner).call());
 }
 
 async function setOToken(opynV1Adapter) {

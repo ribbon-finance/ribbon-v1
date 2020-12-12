@@ -8,18 +8,34 @@ interface IUniswapFactory {
         returns (address exchange);
 }
 
+interface CompoundOracleInterface {
+    function getPrice(address token) external view returns (uint256);
+}
+
 interface IOptionsExchange {
     function UNISWAP_FACTORY() external view returns (IUniswapFactory);
 }
 
 interface IOToken {
-    function vaultOwners(uint256 index) external view returns (address payable);
+    function COMPOUND_ORACLE() external view returns (address);
+
+    function getVaultOwners()
+        external
+        view
+        returns (address[] memory vaultOwners);
 
     function underlying() external view returns (address);
 
     function collateral() external view returns (address);
 
     function expiry() external view returns (uint256);
+
+    function strike() external view returns (address);
+
+    function strikePrice()
+        external
+        view
+        returns (uint256 value, int32 exponent);
 
     function decimals() external view returns (uint256);
 

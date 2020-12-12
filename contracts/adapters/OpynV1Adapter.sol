@@ -13,7 +13,8 @@ import {
     IOToken,
     IOptionsExchange,
     IUniswapFactory,
-    UniswapExchangeInterface
+    UniswapExchangeInterface,
+    CompoundOracleInterface
 } from "../interfaces/OpynV1Interface.sol";
 import {IProtocolAdapter, OptionType} from "./IProtocolAdapter.sol";
 import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
@@ -98,12 +99,43 @@ contract OpynV1Adapter is
         );
     }
 
-    function exerciseProfit(
-        address optionsAddress,
+    function canExercise(
+        address oToken,
         uint256 optionID,
         uint256 exerciseAmount
-    ) public override view returns (uint256 profit) {
-        0;
+    ) public returns (uint256 profit) {
+        IOToken oTokenContract = IOToken(oToken);
+
+        CompoundOracleInterface compoundOracle = CompoundOracleInterface(
+            oTokenContract.COMPOUND_ORACLE()
+        );
+        uint256 strikeAssetPrice = compoundOracle.getPrice(
+            oTokenContract.strike()
+        );
+        uint256 underlyingPrice = compoundOracle.getPrice(
+            oTokenContract.underlying()
+        );
+        uint256 strikePriceInUnderlying = wdiv(
+            strikeAssetPrice,
+            underlyingPrice
+        );
+
+        (uint256 strikePriceNum, int32 strikePriceExp) = oTokenContract
+            .strikePrice();
+        uint256 strikePriceWAD = strikePriceNum *
+            (10**uint256(18 - strikePriceExp));
+
+        bool isProfitable = strikePriceInUnderlying >= strikePriceWAD;
+
+        if (isProfitable) {
+            // TBD about returning profit in underlying or ETH
+            profit = sub(
+                wmul(strikePriceInUnderlying, exerciseAmount),
+                wmul(strikePriceWAD, exerciseAmount)
+            );
+        } else {
+            profit = 0;
+        }
     }
 
     function purchase(
@@ -178,10 +210,14 @@ contract OpynV1Adapter is
     }
 
     function exercise(
-        address optionsAddress,
+        address oToken,
         uint256 optionID,
         uint256 amount
-    ) external override payable onlyInstrument nonReentrant {}
+    ) external override payable onlyInstrument nonReentrant {
+        uint256 scaledAmount = normalizeDecimals(IOToken(oToken), amount);
+        IERC20(oToken).transferFrom(msg.sender, address(this), scaledAmount);
+        OpynV1FlashLoaner.exerciseOTokens(oToken, scaledAmount);
+    }
 
     function setOTokenWithTerms(
         uint256 strikePrice,

@@ -7,7 +7,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {
     ReentrancyGuard
 } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {DSMath} from "../lib/DSMath.sol";
 
 import {
     IOToken,
@@ -31,7 +30,6 @@ contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
 }
 
 contract OpynV1Adapter is
-    DSMath,
     IProtocolAdapter,
     ReentrancyGuard,
     OpynV1FlashLoaner,
@@ -99,11 +97,11 @@ contract OpynV1Adapter is
         );
     }
 
-    function canExercise(
+    function exerciseProfit(
         address oToken,
         uint256 optionID,
         uint256 exerciseAmount
-    ) public returns (uint256 profit) {
+    ) public override view returns (uint256 profit) {
         IOToken oTokenContract = IOToken(oToken);
 
         CompoundOracleInterface compoundOracle = CompoundOracleInterface(
@@ -215,7 +213,11 @@ contract OpynV1Adapter is
         uint256 amount
     ) external override payable onlyInstrument nonReentrant {
         uint256 scaledAmount = normalizeDecimals(IOToken(oToken), amount);
-        IERC20(oToken).transferFrom(msg.sender, address(this), scaledAmount);
+        IERC20(oToken).safeTransferFrom(
+            msg.sender,
+            address(this),
+            scaledAmount
+        );
         OpynV1FlashLoaner.exerciseOTokens(oToken, scaledAmount);
     }
 
@@ -250,6 +252,15 @@ contract OpynV1Adapter is
 
     function setMaxSlippage(uint256 _maxSlippage) public onlyOwner {
         maxSlippage = _maxSlippage;
+    }
+
+    function setVaults(address oToken, address payable[] memory vaultOwners)
+        public
+        onlyOwner
+    {
+        for (uint256 i = 0; i < vaultOwners.length; i++) {
+            vaults[oToken].push(vaultOwners[i]);
+        }
     }
 
     function lookupOToken(

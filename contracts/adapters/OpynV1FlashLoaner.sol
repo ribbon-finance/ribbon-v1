@@ -9,6 +9,7 @@ import {
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {DSMath} from "../lib/DSMath.sol";
 import {
     IOToken,
     IOptionsExchange,
@@ -17,7 +18,7 @@ import {
 } from "../interfaces/OpynV1Interface.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 
-contract OpynV1FlashLoaner is FlashLoanReceiverBase {
+contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -26,6 +27,7 @@ contract OpynV1FlashLoaner is FlashLoanReceiverBase {
     uint256 private constant _swapWindow = 900;
     address internal _uniswapRouter;
     address internal _weth;
+    mapping(address => address payable[]) internal vaults;
 
     constructor(ILendingPoolAddressesProvider _addressProvider)
         public
@@ -56,14 +58,19 @@ contract OpynV1FlashLoaner is FlashLoanReceiverBase {
         address underlying = assets[0];
         uint256 underlyingAmount = amounts[0];
 
-        (address oToken, uint256 exerciseAmount) = abi.decode(
+        (address oToken, uint256 exerciseAmount, address sender) = abi.decode(
             params,
-            (address, uint256)
+            (address, uint256, address)
         );
 
         exercisePostLoan(underlying, oToken, exerciseAmount);
 
-        swapForUnderlying(underlying, oToken, underlyingAmount + premiums[0]);
+        uint256 soldAmount = swapForUnderlying(
+            underlying,
+            oToken,
+            underlyingAmount + premiums[0]
+        );
+        uint256 settledProfit = sub(exerciseAmount, soldAmount);
 
         // At the end of your logic above, this contract owes
         // the flashloaned amounts + premiums.
@@ -75,6 +82,15 @@ contract OpynV1FlashLoaner is FlashLoanReceiverBase {
             address(_lendingPool),
             underlyingAmount + premiums[0]
         );
+
+        address collateral = IOToken(oToken).collateral();
+
+        if (collateral == address(0)) {
+            (bool returnExercise, ) = sender.call{value: settledProfit}("");
+            require(returnExercise, "Returning exercised ETH failed");
+        } else {
+            IERC20(collateral).safeTransfer(sender, settledProfit);
+        }
 
         return true;
     }
@@ -88,15 +104,15 @@ contract OpynV1FlashLoaner is FlashLoanReceiverBase {
 
         approveUnderlying(underlying, oToken, exerciseAmount);
 
-        address payable[] memory vaults = getVaults(oTokenContract);
-        oTokenContract.exercise(exerciseAmount, vaults);
+        address payable[] memory vaultOwners = vaults[oToken];
+        oTokenContract.exercise(exerciseAmount, vaultOwners);
     }
 
     function swapForUnderlying(
         address underlying,
         address oToken,
         uint256 underlyingAmount
-    ) private {
+    ) private returns (uint256 soldAmount) {
         IOToken oTokenContract = IOToken(oToken);
 
         address collateral = oTokenContract.collateral();
@@ -113,12 +129,15 @@ contract OpynV1FlashLoaner is FlashLoanReceiverBase {
             );
             uint256 maxCollateralAmount = amountsIn[0];
 
-            router.swapETHForExactTokens{value: maxCollateralAmount}(
+            uint256[] memory amounts = router.swapETHForExactTokens{
+                value: maxCollateralAmount
+            }(
                 underlyingAmount,
                 path,
                 address(this),
                 block.timestamp + _swapWindow
             );
+            soldAmount = amounts[1];
         } else {
             address[] memory path = new address[](3);
             path[0] = collateral;
@@ -133,13 +152,14 @@ contract OpynV1FlashLoaner is FlashLoanReceiverBase {
 
             collateralToken.safeApprove(address(router), maxCollateralAmount);
 
-            router.swapTokensForExactTokens(
+            uint256[] memory amounts = router.swapTokensForExactTokens(
                 underlyingAmount,
                 maxCollateralAmount,
                 path,
                 address(this),
                 block.timestamp + _swapWindow
             );
+            soldAmount = amounts[2];
         }
     }
 
@@ -152,7 +172,8 @@ contract OpynV1FlashLoaner is FlashLoanReceiverBase {
         );
 
         address[] memory assets = new address[](1);
-        assets[0] = oTokenContract.underlying();
+        address underlying = oTokenContract.underlying();
+        assets[0] = underlying == address(0) ? _weth : underlying;
 
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = underlyingAmount;
@@ -162,7 +183,7 @@ contract OpynV1FlashLoaner is FlashLoanReceiverBase {
         modes[0] = 0;
 
         address onBehalfOf = address(this);
-        bytes memory params = abi.encode(oToken, exerciseAmount);
+        bytes memory params = abi.encode(oToken, exerciseAmount, msg.sender);
         uint16 referralCode = 0;
 
         _lendingPool.flashLoan(
@@ -189,23 +210,23 @@ contract OpynV1FlashLoaner is FlashLoanReceiverBase {
         underlyingToken.safeApprove(spender, approveAmount);
     }
 
-    function getVaults(IOToken oTokenContract)
-        public
-        view
-        returns (address payable[] memory vaults)
-    {
-        vaults = new address payable[](_maxVaultIterations);
-        uint256 currentVaultIndex = 0;
-        for (
-            uint256 v = _vaultStartIteration;
-            v < _vaultStartIteration + _maxVaultIterations;
-            v++
-        ) {
-            address payable vault = oTokenContract.vaultOwners(v);
-            if (vault != address(0)) {
-                vaults[currentVaultIndex] = vault;
-                currentVaultIndex++;
-            }
-        }
-    }
+    // function getVaults(IOToken oTokenContract)
+    //     public
+    //     view
+    //     returns (address payable[] memory vaults)
+    // {
+    //     vaults = new address payable[](_maxVaultIterations);
+    //     uint256 currentVaultIndex = 0;
+    //     for (
+    //         uint256 v = _vaultStartIteration;
+    //         v < _vaultStartIteration + _maxVaultIterations;
+    //         v++
+    //     ) {
+    //         address payable vault = oTokenContract.vaultOwners(v);
+    //         if (vault != address(0)) {
+    //             vaults[currentVaultIndex] = vault;
+    //             currentVaultIndex++;
+    //         }
+    //     }
+    // }
 }

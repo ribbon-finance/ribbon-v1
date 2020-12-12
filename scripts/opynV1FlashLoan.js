@@ -6,7 +6,7 @@ const accounts = require("../constants/accounts.json");
 const OpynV1Adapter = require("../build/contracts/OpynV1Adapter.json");
 const MockFactory = require("../build/contracts/MockDojiFactory.json");
 const IERC20 = require("../build/contracts/IERC20.json");
-const { option } = require("commander");
+const IOToken = require("../build/contracts/IOToken.json");
 
 let web3;
 const admin = accounts.kovan.admin;
@@ -19,10 +19,14 @@ const weth = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const underlying = "0x0000000000000000000000000000000000000000";
 const strikeAsset = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
 const expiry = "1608883200";
-const oTokenAddress = "0x7EB6Dd0Cc2DF2EAe901f76A151cA82BB7be10d68";
+const oTokenAddress = "0xb759e6731df19abD72e0456184890f87dCb6C518";
 const CALL_TYPE = 2;
 const optionType = CALL_TYPE;
-const strikePrice = ether("640");
+const strikePrice = ether("500");
+const vaults = [
+  "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
+  "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
+];
 
 async function deployOpynV1Adapter(dojiFactoryAddress) {
   const opynV1Contract = new web3.eth.Contract(OpynV1Adapter.abi);
@@ -79,10 +83,42 @@ async function purchaseOToken(opynV1Adapter) {
 
   const oToken = new web3.eth.Contract(IERC20.abi, oTokenAddress);
   const oTokenBalance = await oToken.methods.balanceOf(owner).call();
-  console.log(`oToken balance: ${oTokenBalance}`);
+  console.log(`oToken starting balance: ${oTokenBalance}`);
 }
 
-async function exerciseOToken(opynV1Adapter) {}
+async function exerciseOToken(opynV1Adapter) {
+  const oToken = new web3.eth.Contract(IERC20.abi, oTokenAddress);
+
+  await opynV1Adapter.methods
+    .setVaults(oTokenAddress, vaults)
+    .send({ from: owner });
+
+  await oToken.methods
+    .approve(opynV1Adapter.options.address, "1000000")
+    .send({ from: owner });
+
+  await opynV1Adapter.methods
+    .exercise(oTokenAddress, 0, ether("1"))
+    .send({ from: owner });
+
+  const startETHBalance = await web3.eth.getBalance(owner);
+  console.log(
+    `Start ETH balance: ${web3.utils.fromWei(startETHBalance, "ether")}`
+  );
+
+  const oTokenBalance = await oToken.methods.balanceOf(owner).call();
+  console.log(`oToken balance after exercising: ${oTokenBalance}`);
+
+  const endETHBalance = await web3.eth.getBalance(owner);
+  console.log(`End ETH balance: ${web3.utils.fromWei(endETHBalance, "ether")}`);
+
+  const contractETHBalance = await web3.eth.getBalance(
+    opynV1Adapter.options.address
+  );
+  console.log(
+    `Adapter ETH balance: ${web3.utils.fromWei(contractETHBalance, "ether")}`
+  );
+}
 
 async function setOToken(opynV1Adapter) {
   await opynV1Adapter.methods
@@ -124,7 +160,15 @@ async function main() {
   web3 = await getMainnetForkWeb3();
   const factoryAddress = await deployDojiFactory();
   const opynV1Adapter = await deployOpynV1Adapter(factoryAddress);
+
+  // const optionsContract = new web3.eth.Contract(
+  //   IOToken.abi,
+  //   "0x7EB6Dd0Cc2DF2EAe901f76A151cA82BB7be10d68"
+  // );
+  // console.log(await optionsContract.methods.getVaultOwners().call());
+
   await purchaseOToken(opynV1Adapter);
+  await exerciseOToken(opynV1Adapter);
 
   process.exit();
 }

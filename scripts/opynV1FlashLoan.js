@@ -56,7 +56,7 @@ async function deployOpynV1Adapter(dojiFactoryAddress) {
 }
 
 async function purchaseOToken(opynV1Adapter) {
-  const purchaseAmount = ether("1");
+  const purchaseAmount = ether("500");
   const premium = await opynV1Adapter.methods
     .premium(
       underlying,
@@ -94,17 +94,17 @@ async function exerciseOToken(opynV1Adapter) {
     .send({ from: owner });
 
   await oToken.methods
-    .approve(opynV1Adapter.options.address, "1000000")
-    .send({ from: owner });
-
-  await opynV1Adapter.methods
-    .exercise(oTokenAddress, 0, ether("1"))
+    .approve(opynV1Adapter.options.address, "500000000")
     .send({ from: owner });
 
   const startETHBalance = await web3.eth.getBalance(owner);
   console.log(
     `Start ETH balance: ${web3.utils.fromWei(startETHBalance, "ether")}`
   );
+
+  await opynV1Adapter.methods
+    .exercise(oTokenAddress, 0, ether("500"))
+    .send({ from: owner });
 
   const oTokenBalance = await oToken.methods.balanceOf(owner).call();
   console.log(`oToken balance after exercising: ${oTokenBalance}`);

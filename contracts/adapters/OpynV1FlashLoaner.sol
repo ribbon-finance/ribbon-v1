@@ -53,7 +53,7 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
         // 3. call exercise
         // 4. Verify that we have received the collateral
         // 5. Swap the fee amount to underlying using the collateral
-        // 6. Leftover collateral used as profit
+        // 6. Leftover collateral (collateral - underlying) used as profit
 
         address underlying = assets[0];
         uint256 underlyingAmount = amounts[0];
@@ -62,37 +62,85 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
             params,
             (address, uint256, address)
         );
+        address collateral = IOToken(oToken).collateral();
 
+        // Get ETH back in return
         exercisePostLoan(underlying, oToken, exerciseAmount);
 
-        uint256 soldAmount = swapForUnderlying(
+        // Get 1 Ether
+
+        // Sell ETH for USDC
+        (uint256 soldCollateralAmount, ) = swapForUnderlying(
             underlying,
-            oToken,
+            collateral,
             underlyingAmount + premiums[0]
         );
-        uint256 settledProfit = sub(exerciseAmount, soldAmount);
+
+        returnExercisedProfit(
+            IOToken(oToken),
+            underlying,
+            collateral,
+            exerciseAmount,
+            soldCollateralAmount,
+            sender
+        );
 
         // At the end of your logic above, this contract owes
         // the flashloaned amounts + premiums.
         // Therefore ensure your contract has enough to repay
         // these amounts.
         // Approve the LendingPool contract allowance to *pull* the owed amount
-        approveUnderlying(
-            underlying,
+        IERC20(underlying).safeApprove(
             address(_lendingPool),
             underlyingAmount + premiums[0]
         );
 
-        address collateral = IOToken(oToken).collateral();
+        return true;
+    }
+
+    function returnExercisedProfit(
+        IOToken oToken,
+        address underlying,
+        address collateral,
+        uint256 exerciseAmount,
+        uint256 soldAmount,
+        address sender
+    ) private {
+        uint256 cashAmount = wdiv(
+            scaleUpDecimals(oToken, exerciseAmount),
+            500 ether
+        );
+        uint256 settledProfit = sub(cashAmount, soldAmount);
 
         if (collateral == address(0)) {
             (bool returnExercise, ) = sender.call{value: settledProfit}("");
-            require(returnExercise, "Returning exercised ETH failed");
+            require(returnExercise, "Transfer exercised profit failed");
         } else {
             IERC20(collateral).safeTransfer(sender, settledProfit);
         }
+    }
 
-        return true;
+    function uint2str(uint256 _i)
+        internal
+        pure
+        returns (string memory _uintAsString)
+    {
+        if (_i == 0) {
+            return "0";
+        }
+        uint256 j = _i;
+        uint256 len;
+        while (j != 0) {
+            len++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(len);
+        uint256 k = len - 1;
+        while (_i != 0) {
+            bstr[k--] = bytes1(uint8(48 + (_i % 10)));
+            _i /= 10;
+        }
+        return string(bstr);
     }
 
     function exercisePostLoan(
@@ -101,8 +149,19 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
         uint256 exerciseAmount
     ) private {
         IOToken oTokenContract = IOToken(oToken);
+        IERC20 underlyingToken = IERC20(underlying);
 
-        approveUnderlying(underlying, oToken, exerciseAmount);
+        require(
+            underlyingToken.balanceOf(address(this)) >= exerciseAmount,
+            "Not enough underlying to approve"
+        );
+        underlyingToken.safeApprove(oToken, exerciseAmount);
+
+        require(
+            IERC20(oToken).balanceOf(address(this)) >= exerciseAmount,
+            "Not enough oToken to approve"
+        );
+        IERC20(oToken).safeApprove(oToken, exerciseAmount);
 
         address payable[] memory vaultOwners = vaults[oToken];
         oTokenContract.exercise(exerciseAmount, vaultOwners);
@@ -110,12 +169,12 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
 
     function swapForUnderlying(
         address underlying,
-        address oToken,
+        address collateral,
         uint256 underlyingAmount
-    ) private returns (uint256 soldAmount) {
-        IOToken oTokenContract = IOToken(oToken);
-
-        address collateral = oTokenContract.collateral();
+    )
+        private
+        returns (uint256 soldCollateralAmount, uint256 boughtUnderlyingAmount)
+    {
         IUniswapV2Router02 router = IUniswapV2Router02(_uniswapRouter);
 
         if (collateral == address(0)) {
@@ -127,17 +186,17 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
                 underlyingAmount,
                 path
             );
-            uint256 maxCollateralAmount = amountsIn[0];
+            soldCollateralAmount = amountsIn[0];
 
             uint256[] memory amounts = router.swapETHForExactTokens{
-                value: maxCollateralAmount
+                value: soldCollateralAmount
             }(
                 underlyingAmount,
                 path,
                 address(this),
                 block.timestamp + _swapWindow
             );
-            soldAmount = amounts[1];
+            boughtUnderlyingAmount = amounts[1];
         } else {
             address[] memory path = new address[](3);
             path[0] = collateral;
@@ -148,18 +207,18 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
                 underlyingAmount,
                 path
             );
-            uint256 maxCollateralAmount = amountsIn[0];
+            soldCollateralAmount = amountsIn[0];
 
-            collateralToken.safeApprove(address(router), maxCollateralAmount);
+            collateralToken.safeApprove(address(router), soldCollateralAmount);
 
             uint256[] memory amounts = router.swapTokensForExactTokens(
                 underlyingAmount,
-                maxCollateralAmount,
+                soldCollateralAmount,
                 path,
                 address(this),
                 block.timestamp + _swapWindow
             );
-            soldAmount = amounts[2];
+            boughtUnderlyingAmount = amounts[2];
         }
     }
 
@@ -197,17 +256,32 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
         );
     }
 
-    function approveUnderlying(
-        address underlying,
-        address spender,
-        uint256 approveAmount
-    ) private {
-        IERC20 underlyingToken = IERC20(underlying);
-        require(
-            underlyingToken.balanceOf(address(this)) >= approveAmount,
-            "Not enough underlying to approve"
-        );
-        underlyingToken.safeApprove(spender, approveAmount);
+    function scaleUpDecimals(IOToken oToken, uint256 amount)
+        internal
+        view
+        returns (uint256 normalized)
+    {
+        uint256 decimals = oToken.decimals();
+        normalized = amount * 10**(18 - decimals);
+    }
+
+    function scaleDownDecimals(IOToken oToken, uint256 amount)
+        internal
+        view
+        returns (uint256 normalized)
+    {
+        uint256 decimals = oToken.decimals();
+        normalized = amount / 10**(18 - decimals);
+    }
+
+    function getStrikePrice(IOToken oTokenContract)
+        internal
+        view
+        returns (uint256 strikePrice)
+    {
+        (uint256 strikePriceNum, int32 strikePriceExp) = oTokenContract
+            .strikePrice();
+        strikePrice = strikePriceNum / (10**uint256(18 - strikePriceExp));
     }
 
     // function getVaults(IOToken oTokenContract)

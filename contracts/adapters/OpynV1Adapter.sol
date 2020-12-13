@@ -93,7 +93,7 @@ contract OpynV1Adapter is
             oToken
         );
         cost = uniswapExchange.getEthToTokenOutputPrice(
-            normalizeDecimals(IOToken(oToken), purchaseAmount)
+            scaleDownDecimals(IOToken(oToken), purchaseAmount)
         );
     }
 
@@ -190,7 +190,7 @@ contract OpynV1Adapter is
         uint256 tokenCost,
         uint256 purchaseAmount
     ) private returns (uint256 scaledAmount) {
-        scaledAmount = normalizeDecimals(IOToken(oToken), purchaseAmount);
+        scaledAmount = scaleDownDecimals(IOToken(oToken), purchaseAmount);
 
         uint256 ethSold = getUniswapExchangeFromOToken(oToken)
             .ethToTokenSwapOutput{value: tokenCost}(
@@ -212,7 +212,7 @@ contract OpynV1Adapter is
         uint256 optionID,
         uint256 amount
     ) external override payable onlyInstrument nonReentrant {
-        uint256 scaledAmount = normalizeDecimals(IOToken(oToken), amount);
+        uint256 scaledAmount = scaleDownDecimals(IOToken(oToken), amount);
         IERC20(oToken).safeTransferFrom(
             msg.sender,
             address(this),
@@ -278,15 +278,6 @@ contract OpynV1Adapter is
             optionType
         );
         return optionTermsToOToken[optionTerms];
-    }
-
-    function normalizeDecimals(IOToken oToken, uint256 amount)
-        private
-        view
-        returns (uint256 normalized)
-    {
-        uint256 decimals = oToken.decimals();
-        normalized = amount / 10**(18 - decimals);
     }
 
     function getUniswapExchangeFromOToken(address oToken)

@@ -11,10 +11,12 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {DSMath} from "../lib/DSMath.sol";
 import {
+    ERC20Decimals,
     IOToken,
     IOptionsExchange,
     IUniswapFactory,
-    UniswapExchangeInterface
+    UniswapExchangeInterface,
+    CompoundOracleInterface
 } from "../interfaces/OpynV1Interface.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 
@@ -106,12 +108,14 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
         uint256 soldAmount,
         address sender
     ) private {
+        uint256 strikePriceWAD = getStrikePrice(oToken) /
+            10**ERC20Decimals(underlying).decimals();
         uint256 cashAmount = wdiv(
             scaleUpDecimals(oToken, exerciseAmount),
-            500 ether
+            strikePriceWAD
         );
-        uint256 settledProfit = sub(cashAmount, soldAmount);
 
+        uint256 settledProfit = sub(cashAmount, soldAmount);
         if (collateral == address(0)) {
             (bool returnExercise, ) = sender.call{value: settledProfit}("");
             require(returnExercise, "Transfer exercised profit failed");
@@ -281,7 +285,18 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
     {
         (uint256 strikePriceNum, int32 strikePriceExp) = oTokenContract
             .strikePrice();
-        strikePrice = strikePriceNum / (10**uint256(18 - strikePriceExp));
+
+        uint256 strikePriceInStrikeAsset = mul(
+            strikePriceNum,
+            10**uint256(18 + strikePriceExp)
+        );
+        CompoundOracleInterface compoundOracle = CompoundOracleInterface(
+            oTokenContract.COMPOUND_ORACLE()
+        );
+        uint256 strikeAssetPrice = compoundOracle.getPrice(
+            oTokenContract.strike()
+        );
+        strikePrice = wdiv(strikeAssetPrice, strikePriceInStrikeAsset);
     }
 
     // function getVaults(IOToken oTokenContract)

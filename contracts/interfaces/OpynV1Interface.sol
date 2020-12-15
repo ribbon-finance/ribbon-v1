@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
 
+interface ERC20Decimals {
+    function decimals() external view returns (uint256);
+}
+
 interface IUniswapFactory {
     function getExchange(address token)
         external

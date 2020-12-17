@@ -67,7 +67,7 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
         address collateral = IOToken(oToken).collateral();
 
         // Get ETH back in return
-        exercisePostLoan(underlying, oToken, exerciseAmount);
+        exercisePostLoan(underlying, oToken, exerciseAmount, underlyingAmount);
 
         // Get 1 Ether
 
@@ -150,16 +150,17 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
     function exercisePostLoan(
         address underlying,
         address oToken,
-        uint256 exerciseAmount
+        uint256 exerciseAmount,
+        uint256 underlyingAmount
     ) private {
         IOToken oTokenContract = IOToken(oToken);
         IERC20 underlyingToken = IERC20(underlying);
 
         require(
-            underlyingToken.balanceOf(address(this)) >= exerciseAmount,
+            underlyingToken.balanceOf(address(this)) >= underlyingAmount,
             "Not enough underlying to approve"
         );
-        underlyingToken.safeApprove(oToken, exerciseAmount);
+        underlyingToken.safeApprove(oToken, underlyingAmount);
 
         require(
             IERC20(oToken).balanceOf(address(this)) >= exerciseAmount,
@@ -180,10 +181,11 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
         returns (uint256 soldCollateralAmount, uint256 boughtUnderlyingAmount)
     {
         IUniswapV2Router02 router = IUniswapV2Router02(_uniswapRouter);
+        address weth = _weth;
 
         if (collateral == address(0)) {
             address[] memory path = new address[](2);
-            path[0] = _weth;
+            path[0] = weth;
             path[1] = underlying;
 
             uint256[] memory amountsIn = router.getAmountsIn(
@@ -202,10 +204,21 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
             );
             boughtUnderlyingAmount = amounts[1];
         } else {
-            address[] memory path = new address[](3);
-            path[0] = collateral;
-            path[1] = _weth;
-            path[2] = underlying;
+            address[] memory path;
+            uint256 pathLength;
+
+            if (collateral == weth || underlying == weth) {
+                pathLength = 2;
+                path = new address[](pathLength);
+                path[0] = collateral;
+                path[1] = underlying;
+            } else {
+                pathLength = 3;
+                path = new address[](pathLength);
+                path[0] = collateral;
+                path[1] = weth;
+                path[2] = underlying;
+            }
             IERC20 collateralToken = IERC20(collateral);
             uint256[] memory amountsIn = router.getAmountsIn(
                 underlyingAmount,
@@ -214,15 +227,14 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
             soldCollateralAmount = amountsIn[0];
 
             collateralToken.safeApprove(address(router), soldCollateralAmount);
-
-            uint256[] memory amounts = router.swapTokensForExactTokens(
+            uint256[] memory amountsOut = router.swapTokensForExactTokens(
                 underlyingAmount,
                 soldCollateralAmount,
                 path,
                 address(this),
                 block.timestamp + _swapWindow
             );
-            boughtUnderlyingAmount = amounts[2];
+            boughtUnderlyingAmount = amountsOut[pathLength - 1];
         }
     }
 

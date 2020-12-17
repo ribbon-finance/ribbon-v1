@@ -25,8 +25,6 @@ import {OpynV1FlashLoaner} from "./OpynV1FlashLoaner.sol";
 
 contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
     mapping(bytes => address) public optionTermsToOToken;
-
-    uint256 public maxSlippage;
 }
 
 contract OpynV1Adapter is
@@ -52,8 +50,7 @@ contract OpynV1Adapter is
         address _dojiFactory,
         ILendingPoolAddressesProvider _provider,
         address router,
-        address weth,
-        uint256 _maxSlippage
+        address weth
     ) public initializer {
         owner = _owner;
         dojiFactory = _dojiFactory;
@@ -63,7 +60,6 @@ contract OpynV1Adapter is
         );
         _uniswapRouter = router;
         _weth = weth;
-        maxSlippage = _maxSlippage;
     }
 
     function protocolName() public override pure returns (string memory) {
@@ -248,10 +244,6 @@ contract OpynV1Adapter is
             optionType
         );
         optionTermsToOToken[optionTerms] = oToken;
-    }
-
-    function setMaxSlippage(uint256 _maxSlippage) public onlyOwner {
-        maxSlippage = _maxSlippage;
     }
 
     function setVaults(address oToken, address payable[] memory vaultOwners)

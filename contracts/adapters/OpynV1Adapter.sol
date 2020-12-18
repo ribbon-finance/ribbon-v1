@@ -155,7 +155,7 @@ contract OpynV1Adapter is
             optionType,
             amount
         );
-        require(msg.value >= cost, "Value doest not cover cost");
+        require(msg.value >= cost, "Value does not cover cost");
 
         address oToken = lookupOToken(
             underlying,

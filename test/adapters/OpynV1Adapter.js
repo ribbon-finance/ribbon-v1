@@ -31,6 +31,7 @@ const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
 describe("OpynV1Adapter", () => {
   let initSnapshotId, snapshotId;
+  const gasPrice = web3.utils.toWei("10", "gwei");
 
   before(async function () {
     // we assume the user account is the calling instrument
@@ -68,9 +69,6 @@ describe("OpynV1Adapter", () => {
     // premium
     this.callPremium = "226576941400395228";
 
-    const snapShot = await helper.takeSnapshot();
-    initSnapshotId = snapShot["result"];
-
     this.oToken = await IERC20.at(this.oTokenAddress);
     await this.adapter.setOTokenWithTerms(
       this.strikePrice,
@@ -89,6 +87,9 @@ describe("OpynV1Adapter", () => {
     this.uniswapExchange = await UniswapExchangeInterface.at(
       await uniswapFactory.getExchange(this.oTokenAddress)
     );
+
+    const snapShot = await helper.takeSnapshot();
+    initSnapshotId = snapShot["result"];
   });
 
   after(async () => {
@@ -129,6 +130,56 @@ describe("OpynV1Adapter", () => {
   });
 
   describe("#purchase", () => {
+    let snapshotId;
+
+    beforeEach(async () => {
+      const snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
+    it("reverts when not enough value passed", async function () {
+      await expectRevert(
+        this.adapter.purchase(
+          this.underlying,
+          this.strikeAsset,
+          this.expiry,
+          this.strikePrice,
+          this.optionType,
+          ether("500"),
+          { from: user, value: new BN(this.callPremium).sub(new BN("1")) }
+        ),
+        "Value does not cover cost."
+      );
+    });
+
+    it("returns the change if user passes extra value", async function () {
+      const userTracker = await balance.tracker(user, "wei");
+
+      const res = await this.adapter.purchase(
+        this.underlying,
+        this.strikeAsset,
+        this.expiry,
+        this.strikePrice,
+        this.optionType,
+        ether("500"),
+        {
+          from: user,
+          gasPrice,
+          value: new BN(this.callPremium).add(new BN("1")),
+        }
+      );
+      const gasUsed = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+
+      assert.equal(
+        (await userTracker.delta()).toString(),
+        new BN(this.callPremium).add(gasUsed).neg().toString()
+      );
+    });
+
     it("purchases the oTokens", async function () {
       const startUserBalance = await this.oToken.balanceOf(user);
       const startExchangeBalance = await this.oToken.balanceOf(
@@ -167,5 +218,9 @@ describe("OpynV1Adapter", () => {
         startExchangeBalance.sub(new BN("500000000"))
       );
     });
+  });
+
+  describe("#exercise", () => {
+    // it('exercises the tokens')
   });
 });

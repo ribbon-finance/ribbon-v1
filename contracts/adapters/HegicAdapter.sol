@@ -43,6 +43,14 @@ contract HegicAdapter is
         wbtcAddress = _wbtcAddress;
     }
 
+    function initialize(address _owner, address _dojiFactory)
+        public
+        initializer
+    {
+        owner = _owner;
+        dojiFactory = _dojiFactory;
+    }
+
     receive() external payable {}
 
     function protocolName() public override pure returns (string memory) {

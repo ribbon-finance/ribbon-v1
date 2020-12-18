@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
 
+interface ERC20Decimals {
+    function decimals() external view returns (uint256);
+}
+
 interface IUniswapFactory {
     function getExchange(address token)
         external
@@ -8,12 +12,48 @@ interface IUniswapFactory {
         returns (address exchange);
 }
 
+interface CompoundOracleInterface {
+    function getPrice(address token) external view returns (uint256);
+}
+
 interface IOptionsExchange {
-    function uniswapFactory() external view returns (IUniswapFactory);
+    function UNISWAP_FACTORY() external view returns (IUniswapFactory);
 }
 
 interface IOToken {
+    function COMPOUND_ORACLE() external view returns (address);
+
+    function getVaultOwners()
+        external
+        view
+        returns (address[] memory vaultOwners);
+
+    function underlying() external view returns (address);
+
+    function collateral() external view returns (address);
+
+    function expiry() external view returns (uint256);
+
+    function strike() external view returns (address);
+
+    function strikePrice()
+        external
+        view
+        returns (uint256 value, int32 exponent);
+
+    function decimals() external view returns (uint256);
+
+    function underlyingRequiredToExercise(uint256 oTokensToExercise)
+        external
+        view
+        returns (uint256);
+
     function optionsExchange() external view returns (IOptionsExchange);
+
+    function exercise(
+        uint256 oTokensToExercise,
+        address payable[] calldata vaultsToExerciseFrom
+    ) external payable;
 }
 
 /* solhint-disable */

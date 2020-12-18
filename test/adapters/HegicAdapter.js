@@ -60,7 +60,7 @@ describe("HegicAdapter", () => {
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + 2);
     this.expiry = Math.floor(expiryDate.getTime() / 1000);
-    this.startTime = Math.floor(Date.now() / 1000) + 60; // +60 seconds so we don't get flaky tests
+    this.startTime = Math.floor(Date.now() / 1000) + 100; // +60 seconds so we don't get flaky tests
     this.strikePrice = ether("500");
 
     // test cases

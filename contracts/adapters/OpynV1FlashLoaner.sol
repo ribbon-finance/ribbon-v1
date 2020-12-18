@@ -310,24 +310,4 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
         );
         strikePrice = wdiv(strikeAssetPrice, strikePriceInStrikeAsset);
     }
-
-    // function getVaults(IOToken oTokenContract)
-    //     public
-    //     view
-    //     returns (address payable[] memory vaults)
-    // {
-    //     vaults = new address payable[](_maxVaultIterations);
-    //     uint256 currentVaultIndex = 0;
-    //     for (
-    //         uint256 v = _vaultStartIteration;
-    //         v < _vaultStartIteration + _maxVaultIterations;
-    //         v++
-    //     ) {
-    //         address payable vault = oTokenContract.vaultOwners(v);
-    //         if (vault != address(0)) {
-    //             vaults[currentVaultIndex] = vault;
-    //             currentVaultIndex++;
-    //         }
-    //     }
-    // }
 }

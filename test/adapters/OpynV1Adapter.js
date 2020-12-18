@@ -221,6 +221,66 @@ describe("OpynV1Adapter", () => {
   });
 
   describe("#exercise", () => {
-    // it('exercises the tokens')
+    let snapshotId;
+
+    beforeEach(async function () {
+      await this.adapter.purchase(
+        this.underlying,
+        this.strikeAsset,
+        this.expiry,
+        this.strikePrice,
+        this.optionType,
+        ether("500"),
+        { from: user, value: this.callPremium }
+      );
+
+      await this.adapter.setVaults(this.oToken.address, this.vaults, {
+        from: owner,
+      });
+
+      const snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
+    it("exercises tokens", async function () {
+      const userTracker = await balance.tracker(user);
+
+      await this.oToken.approve(this.adapter.address, "500000000", {
+        from: user,
+      });
+
+      const res = await this.adapter.exercise(
+        this.oToken.address,
+        0,
+        ether("500"),
+        {
+          from: user,
+        }
+      );
+      const gasUsed = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+      const balanceChange = await userTracker.delta();
+      assert.equal(balanceChange.sub(gasUsed).toString(), "207731545706926439");
+
+      // adapter should not hold anything at the end
+      const strikeERC20 = await IERC20.at(this.strikeAsset);
+      assert.equal(await balance.current(this.adapter.address), "0");
+      assert.equal(await this.oToken.balanceOf(this.adapter.address), "0");
+      assert.equal(await strikeERC20.balanceOf(this.adapter.address), "0");
+    });
+  });
+
+  describe("#setVaults", () => {
+    it("reverts when not owner", async function () {
+      await expectRevert(
+        this.adapter.setVaults(this.oToken.address, this.vaults, {
+          from: owner,
+        }),
+        "only owner"
+      );
+    });
   });
 });

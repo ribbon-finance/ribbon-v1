@@ -277,7 +277,7 @@ describe("OpynV1Adapter", () => {
     it("reverts when not owner", async function () {
       await expectRevert(
         this.adapter.setVaults(this.oToken.address, this.vaults, {
-          from: owner,
+          from: user,
         }),
         "only owner"
       );

@@ -22,7 +22,8 @@ const helper = require("../helper.js");
 
 const aaveAddressProvider = "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5";
 const uniswapRouter = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
-const weth = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+const wethAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+const usdcAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 
 const [admin, owner, user] = accounts;
 const PUT_OPTION_TYPE = 1;
@@ -46,7 +47,7 @@ describe("OpynV1Adapter", () => {
       this.factory.address,
       aaveAddressProvider,
       uniswapRouter,
-      weth,
+      wethAddress,
       { from: owner }
     );
     this.vaults = [
@@ -82,9 +83,23 @@ describe("OpynV1Adapter", () => {
     oTokenAddress: "0xb759e6731df19abD72e0456184890f87dCb6C518",
     optionType: CALL_OPTION_TYPE,
     strikePrice: ether("500"),
-    premium: "226576941400395228",
+    premium: new BN("226576941400395228"),
     purchaseAmount: ether("500"),
     scaledPurchaseAmount: new BN("500000000"),
+    exerciseProfit: new BN("217016105706926439"),
+  });
+
+  behavesLikeOToken({
+    oTokenName: "ETH PUT ITM",
+    underlying: wethAddress,
+    strikeAsset: usdcAddress,
+    expiry: "1608883200",
+    oTokenAddress: "0xbC1e2390d693ad617142500E3b7094606433C234",
+    optionType: PUT_OPTION_TYPE,
+    strikePrice: ether("500"),
+    premium: new BN("2608714470601315"),
+    purchaseAmount: ether("1"),
+    scaledPurchaseAmount: new BN("10000000"),
     exerciseProfit: new BN("207731545706926439"),
   });
 });
@@ -169,7 +184,7 @@ function behavesLikeOToken(args) {
               this.purchaseAmount
             )
           ).toString(),
-          this.premium
+          this.premium.toString()
         );
       });
     });
@@ -210,7 +225,7 @@ function behavesLikeOToken(args) {
           this.expiry,
           this.strikePrice,
           this.optionType,
-          ether("500"),
+          this.purchaseAmount,
           {
             from: user,
             gasPrice,
@@ -219,6 +234,7 @@ function behavesLikeOToken(args) {
         );
         const gasUsed = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
 
+        // returns the extra 1 wei back to the user
         assert.equal(
           (await userTracker.delta()).toString(),
           new BN(this.premium).add(gasUsed).neg().toString()
@@ -246,8 +262,8 @@ function behavesLikeOToken(args) {
           underlying: this.underlying,
           strikeAsset: this.strikeAsset,
           expiry: this.expiry.toString(),
-          strikePrice: this.purchaseAmount,
-          optionType: CALL_OPTION_TYPE.toString(),
+          strikePrice: this.strikePrice,
+          optionType: this.optionType.toString(),
           amount: this.scaledPurchaseAmount,
           premium: this.premium,
           optionID: "0",
@@ -314,8 +330,9 @@ function behavesLikeOToken(args) {
         );
         const gasUsed = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
         const balanceChange = await userTracker.delta();
+
         assert.equal(
-          balanceChange.sub(gasUsed).toString(),
+          balanceChange.add(gasUsed).toString(),
           this.exerciseProfit.toString()
         );
 

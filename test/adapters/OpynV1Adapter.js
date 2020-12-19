@@ -63,9 +63,13 @@ describe("OpynV1Adapter", () => {
   describe("#setVaults", () => {
     it("reverts when not owner", async function () {
       await expectRevert(
-        this.adapter.setVaults(constants.ZERO_ADDRESS, this.vaults, {
-          from: user,
-        }),
+        this.adapter.setVaults(
+          constants.ZERO_ADDRESS,
+          [constants.ZERO_ADDRESS],
+          {
+            from: user,
+          }
+        ),
         "only owner"
       );
     });
@@ -93,17 +97,17 @@ describe("OpynV1Adapter", () => {
     oTokenName: "ETH PUT ITM",
     underlying: wethAddress,
     strikeAsset: usdcAddress,
-    expiry: "1608883200",
-    oTokenAddress: "0xbC1e2390d693ad617142500E3b7094606433C234",
+    expiry: "1608278400",
+    oTokenAddress: "0xef99E80D6963D801B1f2b4c61F780082D2642152",
     optionType: PUT_OPTION_TYPE,
-    strikePrice: ether("500"),
-    premium: new BN("2608714470601315"),
+    strikePrice: ether("600"),
+    premium: new BN("10887516835495378"),
     purchaseAmount: ether("1"),
     scaledPurchaseAmount: new BN("10000000"),
     exerciseProfit: new BN("207731545706926439"),
     vaults: [
-      "0x8C12674dDD8444CB53259b9B75e6363352a7C6bD",
-      "0x02ecf0F37Be1f0621B8B10cB0d98063d6C0746eb",
+      "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
+      "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",
     ],
   });
 });

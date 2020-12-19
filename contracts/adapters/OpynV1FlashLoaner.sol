@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: agpl-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
 
 import {FlashLoanReceiverBase} from "../lib/aave/FlashLoanReceiverBase.sol";
@@ -19,6 +19,7 @@ import {
     CompoundOracleInterface
 } from "../interfaces/OpynV1Interface.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
+import {IUniswapV2Factory} from "../interfaces/IUniswapV2Factory.sol";
 
 contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
     using SafeMath for uint256;
@@ -35,6 +36,40 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
         public
         FlashLoanReceiverBase(_addressProvider)
     {}
+
+    function exerciseOTokens(address oToken, uint256 exerciseAmount) public {
+        address receiverAddress = address(this);
+
+        IOToken oTokenContract = IOToken(oToken);
+        uint256 underlyingAmount = oTokenContract.underlyingRequiredToExercise(
+            exerciseAmount
+        );
+
+        address[] memory assets = new address[](1);
+        address underlying = oTokenContract.underlying();
+        assets[0] = underlying == address(0) ? _weth : underlying;
+
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = underlyingAmount;
+
+        // 0 = no debt, 1 = stable, 2 = variable
+        uint256[] memory modes = new uint256[](1);
+        modes[0] = 0;
+
+        address onBehalfOf = address(this);
+        bytes memory params = abi.encode(oToken, exerciseAmount, msg.sender);
+        uint16 referralCode = 0;
+
+        _lendingPool.flashLoan(
+            receiverAddress,
+            assets,
+            amounts,
+            modes,
+            onBehalfOf,
+            params,
+            referralCode
+        );
+    }
 
     /**
         This function is called after your contract has received the flash loaned amount
@@ -124,29 +159,6 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
         }
     }
 
-    function uint2str(uint256 _i)
-        internal
-        pure
-        returns (string memory _uintAsString)
-    {
-        if (_i == 0) {
-            return "0";
-        }
-        uint256 j = _i;
-        uint256 len;
-        while (j != 0) {
-            len++;
-            j /= 10;
-        }
-        bytes memory bstr = new bytes(len);
-        uint256 k = len - 1;
-        while (_i != 0) {
-            bstr[k--] = bytes1(uint8(48 + (_i % 10)));
-            _i /= 10;
-        }
-        return string(bstr);
-    }
-
     function exercisePostLoan(
         address underlying,
         address oToken,
@@ -226,7 +238,17 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
             );
             soldCollateralAmount = amountsIn[0];
 
-            collateralToken.safeApprove(address(router), soldCollateralAmount);
+            IUniswapV2Factory factory = IUniswapV2Factory(router.factory());
+            address pair = factory.getPair(path[0], path[1]);
+            require(false, uint2str(underlyingAmount));
+
+            require(
+                collateralToken.balanceOf(address(this)) >=
+                    soldCollateralAmount,
+                "Not enough collateral to swap"
+            );
+            collateralToken.safeApprove(pair, soldCollateralAmount);
+
             uint256[] memory amountsOut = router.swapTokensForExactTokens(
                 underlyingAmount,
                 soldCollateralAmount,
@@ -238,38 +260,44 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
         }
     }
 
-    function exerciseOTokens(address oToken, uint256 exerciseAmount) public {
-        address receiverAddress = address(this);
+    function toAsciiString(address x) private returns (string memory) {
+        bytes memory s = new bytes(40);
+        for (uint256 i = 0; i < 20; i++) {
+            bytes1 b = bytes1(uint8(uint256(x) / (2**(8 * (19 - i)))));
+            bytes1 hi = bytes1(uint8(b) / 16);
+            bytes1 lo = bytes1(uint8(b) - 16 * uint8(hi));
+            s[2 * i] = char(hi);
+            s[2 * i + 1] = char(lo);
+        }
+        return string(s);
+    }
 
-        IOToken oTokenContract = IOToken(oToken);
-        uint256 underlyingAmount = oTokenContract.underlyingRequiredToExercise(
-            exerciseAmount
-        );
+    function char(bytes1 b) private returns (bytes1 c) {
+        if (uint8(b) < 10) return bytes1(uint8(b) + 0x30);
+        else return bytes1(uint8(b) + 0x57);
+    }
 
-        address[] memory assets = new address[](1);
-        address underlying = oTokenContract.underlying();
-        assets[0] = underlying == address(0) ? _weth : underlying;
-
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = underlyingAmount;
-
-        // 0 = no debt, 1 = stable, 2 = variable
-        uint256[] memory modes = new uint256[](1);
-        modes[0] = 0;
-
-        address onBehalfOf = address(this);
-        bytes memory params = abi.encode(oToken, exerciseAmount, msg.sender);
-        uint16 referralCode = 0;
-
-        _lendingPool.flashLoan(
-            receiverAddress,
-            assets,
-            amounts,
-            modes,
-            onBehalfOf,
-            params,
-            referralCode
-        );
+    function uint2str(uint256 _i)
+        internal
+        pure
+        returns (string memory _uintAsString)
+    {
+        if (_i == 0) {
+            return "0";
+        }
+        uint256 j = _i;
+        uint256 len;
+        while (j != 0) {
+            len++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(len);
+        uint256 k = len - 1;
+        while (_i != 0) {
+            bstr[k--] = bytes1(uint8(48 + (_i % 10)));
+            _i /= 10;
+        }
+        return string(bstr);
     }
 
     function scaleUpDecimals(IOToken oToken, uint256 amount)

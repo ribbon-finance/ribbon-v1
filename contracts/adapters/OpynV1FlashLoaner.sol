@@ -239,15 +239,14 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
             soldCollateralAmount = amountsIn[0];
 
             IUniswapV2Factory factory = IUniswapV2Factory(router.factory());
-            address pair = factory.getPair(path[0], path[1]);
-            require(false, uint2str(underlyingAmount));
+            address uniswapPair = factory.getPair(path[0], path[1]);
 
             require(
                 collateralToken.balanceOf(address(this)) >=
                     soldCollateralAmount,
                 "Not enough collateral to swap"
             );
-            collateralToken.safeApprove(pair, soldCollateralAmount);
+            collateralToken.safeApprove(address(router), soldCollateralAmount);
 
             uint256[] memory amountsOut = router.swapTokensForExactTokens(
                 underlyingAmount,

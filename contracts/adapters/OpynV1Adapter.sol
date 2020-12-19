@@ -224,16 +224,10 @@ contract OpynV1Adapter is
     ) external onlyOwner {
         IOToken oTokenContract = IOToken(oToken);
 
-        address underlying;
-        address strikeAsset;
-
-        if (optionType == OptionType.Call) {
-            underlying = oTokenContract.collateral();
-            strikeAsset = oTokenContract.underlying();
-        } else if (optionType == OptionType.Put) {
-            underlying = oTokenContract.underlying();
-            strikeAsset = oTokenContract.collateral();
-        }
+        (address underlying, address strikeAsset) = getAssets(
+            oTokenContract,
+            optionType
+        );
         uint256 expiry = oTokenContract.expiry();
 
         bytes memory optionTerms = abi.encode(
@@ -244,6 +238,20 @@ contract OpynV1Adapter is
             optionType
         );
         optionTermsToOToken[optionTerms] = oToken;
+    }
+
+    function getAssets(IOToken oTokenContract, OptionType optionType)
+        private
+        view
+        returns (address underlying, address strikeAsset)
+    {
+        if (optionType == OptionType.Call) {
+            underlying = oTokenContract.collateral();
+            strikeAsset = oTokenContract.underlying();
+        } else if (optionType == OptionType.Put) {
+            underlying = oTokenContract.underlying();
+            strikeAsset = oTokenContract.collateral();
+        }
     }
 
     function setVaults(address oToken, address payable[] memory vaultOwners)

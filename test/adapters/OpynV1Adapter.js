@@ -63,6 +63,17 @@ describe("OpynV1Adapter", () => {
     await helper.revertToSnapShot(initSnapshotId);
   });
 
+  describe("#setVaults", () => {
+    it("reverts when not owner", async function () {
+      await expectRevert(
+        this.adapter.setVaults(constants.ZERO_ADDRESS, this.vaults, {
+          from: user,
+        }),
+        "only owner"
+      );
+    });
+  });
+
   behavesLikeOToken({
     oTokenName: "ETH CALL ITM",
     underlying: ETH_ADDRESS,
@@ -74,17 +85,7 @@ describe("OpynV1Adapter", () => {
     premium: "226576941400395228",
     purchaseAmount: ether("500"),
     scaledPurchaseAmount: new BN("500000000"),
-  });
-
-  describe("#setVaults", () => {
-    it("reverts when not owner", async function () {
-      await expectRevert(
-        this.adapter.setVaults(constants.ZERO_ADDRESS, this.vaults, {
-          from: user,
-        }),
-        "only owner"
-      );
-    });
+    exerciseProfit: new BN("207731545706926439"),
   });
 });
 
@@ -104,6 +105,7 @@ function behavesLikeOToken(args) {
         premium,
         purchaseAmount,
         scaledPurchaseAmount,
+        exerciseProfit,
       } = args;
       this.underlying = underlying;
       this.strikeAsset = strikeAsset;
@@ -114,6 +116,7 @@ function behavesLikeOToken(args) {
       this.optionType = optionType;
       this.purchaseAmount = purchaseAmount;
       this.scaledPurchaseAmount = scaledPurchaseAmount;
+      this.exerciseProfit = exerciseProfit;
 
       this.oToken = await IERC20.at(this.oTokenAddress);
       await this.adapter.setOTokenWithTerms(
@@ -264,57 +267,64 @@ function behavesLikeOToken(args) {
       });
     });
 
-    // describe("#exercise", () => {
-    //   let snapshotId;
+    describe("#exercise", () => {
+      let snapshotId;
 
-    //   beforeEach(async function () {
-    //     await this.adapter.purchase(
-    //       this.underlying,
-    //       this.strikeAsset,
-    //       this.expiry,
-    //       this.strikePrice,
-    //       this.optionType,
-    //       ether("500"),
-    //       { from: user, value: this.callPremium }
-    //     );
+      beforeEach(async function () {
+        await this.adapter.purchase(
+          this.underlying,
+          this.strikeAsset,
+          this.expiry,
+          this.strikePrice,
+          this.optionType,
+          ether("500"),
+          { from: user, value: this.premium }
+        );
 
-    //     await this.adapter.setVaults(this.oToken.address, this.vaults, {
-    //       from: owner,
-    //     });
+        await this.adapter.setVaults(this.oToken.address, this.vaults, {
+          from: owner,
+        });
 
-    //     const snapShot = await helper.takeSnapshot();
-    //     snapshotId = snapShot["result"];
-    //   });
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+      });
 
-    //   afterEach(async () => {
-    //     await helper.revertToSnapShot(snapshotId);
-    //   });
+      afterEach(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
 
-    //   it("exercises tokens", async function () {
-    //     const userTracker = await balance.tracker(user);
+      it("exercises tokens", async function () {
+        const userTracker = await balance.tracker(user);
 
-    //     await this.oToken.approve(this.adapter.address, "500000000", {
-    //       from: user,
-    //     });
+        await this.oToken.approve(
+          this.adapter.address,
+          this.scaledPurchaseAmount,
+          {
+            from: user,
+          }
+        );
 
-    //     const res = await this.adapter.exercise(
-    //       this.oToken.address,
-    //       0,
-    //       ether("500"),
-    //       {
-    //         from: user,
-    //       }
-    //     );
-    //     const gasUsed = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
-    //     const balanceChange = await userTracker.delta();
-    //     assert.equal(balanceChange.sub(gasUsed).toString(), "207731545706926439");
+        const res = await this.adapter.exercise(
+          this.oToken.address,
+          0,
+          this.purchaseAmount,
+          {
+            from: user,
+          }
+        );
+        const gasUsed = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+        const balanceChange = await userTracker.delta();
+        assert.equal(
+          balanceChange.sub(gasUsed).toString(),
+          this.exerciseProfit.toString()
+        );
 
-    //     // adapter should not hold anything at the end
-    //     const strikeERC20 = await IERC20.at(this.strikeAsset);
-    //     assert.equal(await balance.current(this.adapter.address), "0");
-    //     assert.equal(await this.oToken.balanceOf(this.adapter.address), "0");
-    //     assert.equal(await strikeERC20.balanceOf(this.adapter.address), "0");
-    //   });
-    // });
+        // adapter should not hold anything at the end
+        const strikeERC20 = await IERC20.at(this.strikeAsset);
+        assert.equal(await balance.current(this.adapter.address), "0");
+        assert.equal(await this.oToken.balanceOf(this.adapter.address), "0");
+        assert.equal(await strikeERC20.balanceOf(this.adapter.address), "0");
+      });
+    });
   });
 }

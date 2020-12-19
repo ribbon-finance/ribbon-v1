@@ -135,30 +135,6 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
         return true;
     }
 
-    function returnExercisedProfit(
-        IOToken oToken,
-        address underlying,
-        address collateral,
-        uint256 exerciseAmount,
-        uint256 soldAmount,
-        address sender
-    ) private {
-        uint256 strikePriceWAD = getStrikePrice(oToken) /
-            10**ERC20Decimals(underlying).decimals();
-        uint256 cashAmount = wdiv(
-            scaleUpDecimals(oToken, exerciseAmount),
-            strikePriceWAD
-        );
-
-        uint256 settledProfit = sub(cashAmount, soldAmount);
-        if (collateral == address(0)) {
-            (bool returnExercise, ) = sender.call{value: settledProfit}("");
-            require(returnExercise, "Transfer exercised profit failed");
-        } else {
-            IERC20(collateral).safeTransfer(sender, settledProfit);
-        }
-    }
-
     function exercisePostLoan(
         address underlying,
         address oToken,
@@ -256,6 +232,30 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
                 block.timestamp + _swapWindow
             );
             boughtUnderlyingAmount = amountsOut[pathLength - 1];
+        }
+    }
+
+    function returnExercisedProfit(
+        IOToken oToken,
+        address underlying,
+        address collateral,
+        uint256 exerciseAmount,
+        uint256 soldAmount,
+        address sender
+    ) private {
+        uint256 strikePriceWAD = getStrikePrice(oToken) /
+            10**ERC20Decimals(underlying).decimals();
+        uint256 cashAmount = wdiv(
+            scaleUpDecimals(oToken, exerciseAmount),
+            strikePriceWAD
+        );
+
+        uint256 settledProfit = sub(cashAmount, soldAmount);
+        if (collateral == address(0)) {
+            (bool returnExercise, ) = sender.call{value: settledProfit}("");
+            require(returnExercise, "Transfer exercised profit failed");
+        } else {
+            IERC20(collateral).safeTransfer(sender, settledProfit);
         }
     }
 

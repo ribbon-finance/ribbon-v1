@@ -50,10 +50,6 @@ describe("OpynV1Adapter", () => {
       wethAddress,
       { from: owner }
     );
-    this.vaults = [
-      "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
-      "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
-    ];
 
     // test cases
     this.protocolName = "OPYN_V1";
@@ -75,19 +71,23 @@ describe("OpynV1Adapter", () => {
     });
   });
 
-  behavesLikeOToken({
-    oTokenName: "ETH CALL ITM",
-    underlying: ETH_ADDRESS,
-    strikeAsset: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-    expiry: "1608883200",
-    oTokenAddress: "0xb759e6731df19abD72e0456184890f87dCb6C518",
-    optionType: CALL_OPTION_TYPE,
-    strikePrice: ether("500"),
-    premium: new BN("226576941400395228"),
-    purchaseAmount: ether("500"),
-    scaledPurchaseAmount: new BN("500000000"),
-    exerciseProfit: new BN("217016105706926439"),
-  });
+  // behavesLikeOToken({
+  //   oTokenName: "ETH CALL ITM",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+  //   expiry: "1608883200",
+  //   oTokenAddress: "0xb759e6731df19abD72e0456184890f87dCb6C518",
+  //   optionType: CALL_OPTION_TYPE,
+  //   strikePrice: ether("500"),
+  //   premium: new BN("226576941400395228"),
+  //   purchaseAmount: ether("500"),
+  //   scaledPurchaseAmount: new BN("500000000"),
+  //   exerciseProfit: new BN("217016105706926439"),
+  //   vaults: [
+  //     "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
+  //     "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
+  //   ],
+  // });
 
   behavesLikeOToken({
     oTokenName: "ETH PUT ITM",
@@ -101,6 +101,10 @@ describe("OpynV1Adapter", () => {
     purchaseAmount: ether("1"),
     scaledPurchaseAmount: new BN("10000000"),
     exerciseProfit: new BN("207731545706926439"),
+    vaults: [
+      "0x8C12674dDD8444CB53259b9B75e6363352a7C6bD",
+      "0x02ecf0F37Be1f0621B8B10cB0d98063d6C0746eb",
+    ],
   });
 });
 
@@ -121,6 +125,7 @@ function behavesLikeOToken(args) {
         purchaseAmount,
         scaledPurchaseAmount,
         exerciseProfit,
+        vaults,
       } = args;
       this.underlying = underlying;
       this.strikeAsset = strikeAsset;
@@ -132,6 +137,7 @@ function behavesLikeOToken(args) {
       this.purchaseAmount = purchaseAmount;
       this.scaledPurchaseAmount = scaledPurchaseAmount;
       this.exerciseProfit = exerciseProfit;
+      this.vaults = vaults;
 
       this.oToken = await IERC20.at(this.oTokenAddress);
       await this.adapter.setOTokenWithTerms(
@@ -293,7 +299,7 @@ function behavesLikeOToken(args) {
           this.expiry,
           this.strikePrice,
           this.optionType,
-          ether("500"),
+          this.purchaseAmount,
           { from: user, value: this.premium }
         );
 

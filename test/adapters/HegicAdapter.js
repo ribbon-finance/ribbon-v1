@@ -12,6 +12,7 @@ const { assert } = require("chai");
 const helper = require("../helper.js");
 const HegicAdapter = contract.fromArtifact("HegicAdapter");
 const MockDojiFactory = contract.fromArtifact("MockDojiFactory");
+const IHegicOptions = contract.fromArtifact("IHegicOptions");
 
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
@@ -42,6 +43,9 @@ describe("HegicAdapter", () => {
     );
     await this.adapter.initialize(owner, this.factory.address);
 
+    this.hegicETHOptions = await IHegicOptions.at(HEGIC_ETH_OPTIONS);
+    this.hegicWBTCOptions = await IHegicOptions.at(HEGIC_WBTC_OPTIONS);
+
     const snapShot = await helper.takeSnapshot();
     initSnapshotId = snapShot["result"];
   });
@@ -70,6 +74,7 @@ describe("HegicAdapter", () => {
     premium: new BN("10000000003407899"),
     purchaseAmount: ether("1"),
     optionType: CALL_OPTION_TYPE,
+    expectedOptionID: "1685",
   });
 
   function behavesLikeHegicOptions(params) {
@@ -83,6 +88,7 @@ describe("HegicAdapter", () => {
           premium,
           purchaseAmount,
           optionType,
+          expectedOptionID,
         } = params;
         this.underlying = underlying;
         this.strikeAsset = strikeAsset;
@@ -92,6 +98,7 @@ describe("HegicAdapter", () => {
         this.premium = premium;
         this.purchaseAmount = purchaseAmount;
         this.optionType = optionType;
+        this.expectedOptionID = expectedOptionID;
       });
 
       describe("#premium", () => {
@@ -125,11 +132,11 @@ describe("HegicAdapter", () => {
               this.strikeAsset,
               this.expiry,
               this.strikePrice,
-              CALL_OPTION_TYPE,
-              ether("1"),
+              this.optionType,
+              this.purchaseAmount,
               {
                 from: user,
-                value: ether("0.01"),
+                value: this.premium.sub(new BN("1")),
               }
             ),
             "Value does not cover cost"
@@ -145,11 +152,11 @@ describe("HegicAdapter", () => {
               this.strikeAsset,
               this.expiry,
               this.strikePrice,
-              CALL_OPTION_TYPE,
-              ether("1"),
+              this.optionType,
+              this.purchaseAmount,
               {
                 from: user,
-                value: ether("0.01"),
+                value: this.premium,
               }
             ),
             "Cannot purchase after expiry"
@@ -174,31 +181,42 @@ describe("HegicAdapter", () => {
           );
         });
 
-        it("buys call options on hegic", async function () {
+        it("creates options on hegic", async function () {
           const res = await this.adapter.purchase(
             this.underlying,
             this.strikeAsset,
             this.expiry,
             this.strikePrice,
-            CALL_OPTION_TYPE,
-            ether("1"),
+            this.optionType,
+            this.purchaseAmount,
             {
               from: user,
-              value: ether("0.028675"),
+              value: this.premium,
             }
           );
 
           expectEvent(res, "Purchased", {
             protocolName: web3.utils.sha3("HEGIC"),
-            underlying: ETH_ADDRESS,
+            underlying: this.underlying,
             strikeAsset: this.strikeAsset,
             expiry: this.expiry.toString(),
-            strikePrice: ether("500"),
-            optionType: CALL_OPTION_TYPE.toString(),
-            amount: ether("1"),
-            premium: ether("0.028675"),
-            optionID: "0",
+            strikePrice: this.strikePrice,
+            optionType: this.optionType.toString(),
+            amount: this.purchaseAmount,
+            premium: this.premium,
+            optionID: this.expectedOptionID,
           });
+
+          let hegicOptionsInstance;
+          if (this.underlying == ETH_ADDRESS) {
+            hegicOptionsInstance = this.hegicETHOptions;
+          } else if (this.underlying == WBTC_ADDRESS) {
+            hegicOptionsInstance = this.hegicWBTCOptions;
+          } else {
+            throw new Error(
+              `Unsupported underlying asset found: ${underlying}`
+            );
+          }
 
           const {
             holder,
@@ -208,60 +226,15 @@ describe("HegicAdapter", () => {
             premium,
             expiration,
             optionType,
-          } = await this.ethOptions.options(0);
+          } = await hegicOptionsInstance.options(this.expectedOptionID);
 
           assert.equal(holder, this.adapter.address);
-          assert.equal(strike.toString(), ether("500"));
-          assert.equal(amount.toString(), ether("1"));
-          assert.equal(lockedAmount.toString(), ether("1"));
-          assert.equal(premium.toString(), ether("0.018675"));
+          assert.equal(strike.toString(), this.strikePrice);
+          assert.equal(amount.toString(), this.purchaseAmount);
+          assert.equal(lockedAmount.toString(), this.purchaseAmount);
+          assert.equal(premium.toString(), this.premium);
           assert.equal(expiration, this.expiry);
-          assert.equal(optionType, CALL_OPTION_TYPE);
-        });
-
-        it("buys put options on hegic", async function () {
-          const res = await this.adapter.purchase(
-            this.underlying,
-            this.strikeAsset,
-            this.expiry,
-            this.strikePrice,
-            PUT_OPTION_TYPE,
-            ether("1"),
-            {
-              from: user,
-              value: ether("0.028675"),
-            }
-          );
-
-          expectEvent(res, "Purchased", {
-            protocolName: web3.utils.sha3("HEGIC"),
-            underlying: ETH_ADDRESS,
-            strikeAsset: this.strikeAsset,
-            expiry: this.expiry.toString(),
-            strikePrice: ether("500"),
-            optionType: PUT_OPTION_TYPE.toString(),
-            amount: ether("1"),
-            premium: ether("0.028675"),
-            optionID: "0",
-          });
-
-          const {
-            holder,
-            strike,
-            amount,
-            lockedAmount,
-            premium,
-            expiration,
-            optionType,
-          } = await this.ethOptions.options(0);
-
-          assert.equal(holder, this.adapter.address);
-          assert.equal(strike.toString(), ether("500"));
-          assert.equal(amount.toString(), ether("1"));
-          assert.equal(lockedAmount.toString(), ether("1"));
-          assert.equal(premium.toString(), ether("0.018675"));
-          assert.equal(expiration, this.expiry);
-          assert.equal(optionType, PUT_OPTION_TYPE);
+          assert.equal(optionType, this.optionType);
         });
       });
 

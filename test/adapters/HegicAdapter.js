@@ -76,6 +76,9 @@ describe("HegicAdapter", () => {
     purchaseAmount: ether("1"),
     optionType: CALL_OPTION_TYPE,
     expectedOptionID: "1685",
+    itmStrikePrice: ether("500"),
+    otmStrikePrice: ether("600"),
+    exerciseProfit: new BN("86680823070678630"),
   });
 
   behavesLikeHegicOptions({
@@ -86,7 +89,10 @@ describe("HegicAdapter", () => {
     premium: new BN("140095483573495796"),
     purchaseAmount: ether("1"),
     optionType: PUT_OPTION_TYPE,
-    expectedOptionID: "1686",
+    expectedOptionID: "1685",
+    itmStrikePrice: ether("600"),
+    otmStrikePrice: ether("500"),
+    exerciseProfit: new BN("95983012315185643"),
   });
 
   function behavesLikeHegicOptions(params) {
@@ -101,6 +107,9 @@ describe("HegicAdapter", () => {
           purchaseAmount,
           optionType,
           expectedOptionID,
+          itmStrikePrice,
+          otmStrikePrice,
+          exerciseProfit,
         } = params;
         this.underlying = underlying;
         this.strikeAsset = strikeAsset;
@@ -111,6 +120,9 @@ describe("HegicAdapter", () => {
         this.purchaseAmount = purchaseAmount;
         this.optionType = optionType;
         this.expectedOptionID = expectedOptionID;
+        this.itmStrikePrice = itmStrikePrice;
+        this.otmStrikePrice = otmStrikePrice;
+        this.exerciseProfit = exerciseProfit;
       });
 
       describe("#premium", () => {
@@ -189,7 +201,7 @@ describe("HegicAdapter", () => {
                 value: ether("0.028675"),
               }
             ),
-            "No matching options contract"
+            "No matching underlying"
           );
         });
 
@@ -247,7 +259,10 @@ describe("HegicAdapter", () => {
             this.optionType
           );
           assert.equal(holder, this.adapter.address);
-          assert.equal(strike.toString(), this.strikePrice);
+          assert.equal(
+            strike.toString(),
+            this.strikePrice.div(new BN("10000000000"))
+          );
           assert.equal(amount.toString(), this.purchaseAmount);
           assert.equal(lockedAmount.toString(), this.purchaseAmount);
           assert.equal(premium.toString(), this.premium.sub(settlementFee));
@@ -257,39 +272,9 @@ describe("HegicAdapter", () => {
       });
 
       describe("#exerciseProfit", () => {
-        let callOptionID, putOptionID;
-
         beforeEach(async function () {
           const snapShot = await helper.takeSnapshot();
           snapshotId = snapShot["result"];
-
-          const callRes = await this.adapter.purchase(
-            this.underlying,
-            this.strikeAsset,
-            this.expiry,
-            this.strikePrice,
-            CALL_OPTION_TYPE,
-            ether("1"),
-            {
-              from: user,
-              value: ether("0.028675"),
-            }
-          );
-          callOptionID = callRes.receipt.logs[0].args.optionID;
-
-          const putRes = await this.adapter.purchase(
-            this.underlying,
-            this.strikeAsset,
-            this.expiry,
-            this.strikePrice,
-            PUT_OPTION_TYPE,
-            ether("1"),
-            {
-              from: user,
-              value: ether("0.028675"),
-            }
-          );
-          putOptionID = putRes.receipt.logs[0].args.optionID;
         });
 
         afterEach(async () => {
@@ -298,84 +283,58 @@ describe("HegicAdapter", () => {
 
         it("reverts when unknown options address passed", async function () {
           await expectRevert(
-            this.adapter.exerciseProfit(
-              constants.ZERO_ADDRESS,
-              callOptionID,
-              0
-            ),
+            this.adapter.exerciseProfit(constants.ZERO_ADDRESS, 0, 0),
             "optionsAddress must match either ETH or WBTC options"
           );
         });
 
-        it("calculates the profit for exercising a call option", async function () {
-          // should be zero if price == strike
+        it("gets 0 profit for an out-the-money option", async function () {
+          const otmPurchaseRes = await this.adapter.purchase(
+            this.underlying,
+            this.strikeAsset,
+            this.expiry,
+            this.otmStrikePrice,
+            this.optionType,
+            this.purchaseAmount,
+            {
+              from: user,
+              value: this.premium,
+            }
+          );
+
           assert.equal(
             await this.adapter.exerciseProfit(
-              this.ethOptions.address,
-              callOptionID,
+              this.hegicETHOptions.address,
+              otmPurchaseRes.receipt.logs[0].args.optionID,
               0
             ),
             "0"
-          );
-
-          // should be zero if price < strike
-          await this.ethOptions.setCurrentPrice(ether("490"));
-          assert.equal(
-            await this.adapter.exerciseProfit(
-              this.ethOptions.address,
-              callOptionID,
-              0
-            ),
-            "0"
-          );
-
-          // should be positive if price > strike
-          await this.ethOptions.setCurrentPrice(ether("550"));
-          assert.equal(
-            (
-              await this.adapter.exerciseProfit(
-                this.ethOptions.address,
-                callOptionID,
-                0
-              )
-            ).toString(),
-            ether("0.090909090909090909")
           );
         });
 
-        it("calculates the profit for exercising a put option", async function () {
-          // should be zero if price == strike
-          assert.equal(
-            await this.adapter.exerciseProfit(
-              this.ethOptions.address,
-              putOptionID,
-              0
-            ),
-            "0"
+        it("gets profit for an in-the-money option", async function () {
+          const itmPurchaseRes = await this.adapter.purchase(
+            this.underlying,
+            this.strikeAsset,
+            this.expiry,
+            this.itmStrikePrice,
+            this.optionType,
+            this.purchaseAmount,
+            {
+              from: user,
+              value: this.premium,
+            }
           );
 
-          // should be zero if price > strike
-          await this.ethOptions.setCurrentPrice(ether("550"));
-          assert.equal(
-            await this.adapter.exerciseProfit(
-              this.ethOptions.address,
-              putOptionID,
-              0
-            ),
-            "0"
-          );
-
-          // should be zero if price < strike
-          await this.ethOptions.setCurrentPrice(ether("450"));
           assert.equal(
             (
               await this.adapter.exerciseProfit(
-                this.ethOptions.address,
-                putOptionID,
+                this.hegicETHOptions.address,
+                itmPurchaseRes.receipt.logs[0].args.optionID,
                 0
               )
             ).toString(),
-            "111111111111111111"
+            this.exerciseProfit
           );
         });
       });

@@ -16,11 +16,13 @@ import {
     ReentrancyGuard
 } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
+import "../tests/DebugLib.sol";
 
 contract HegicAdapter is
     IProtocolAdapter,
     ReentrancyGuard,
-    BaseProtocolAdapter
+    BaseProtocolAdapter,
+    DebugLib
 {
     using SafeMath for uint256;
 
@@ -153,12 +155,11 @@ contract HegicAdapter is
         returns (uint256 optionID)
     {
         require(block.timestamp < expiry, "Cannot purchase after expiry");
-        uint256 scaledStrikePrice = scaleDownStrikePrice(strikePrice);
         uint256 cost = premium(
             underlying,
             strikeAsset,
             expiry,
-            scaledStrikePrice,
+            strikePrice,
             optionType,
             amount
         );
@@ -167,7 +168,7 @@ contract HegicAdapter is
             cost,
             expiry,
             amount,
-            scaledStrikePrice,
+            strikePrice,
             optionType
         );
 
@@ -190,9 +191,10 @@ contract HegicAdapter is
         uint256 cost,
         uint256 expiry,
         uint256 amount,
-        uint256 scaledStrikePrice,
+        uint256 strikePrice,
         OptionType optionType
     ) private returns (uint256 optionID) {
+        uint256 scaledStrikePrice = scaleDownStrikePrice(strikePrice);
         uint256 period = expiry - block.timestamp;
         IHegicOptions options = getHegicOptions(underlying);
         require(msg.value >= cost, "Value does not cover cost");

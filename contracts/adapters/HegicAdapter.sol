@@ -71,19 +71,20 @@ contract HegicAdapter is
     ) public override view returns (uint256 cost) {
         require(block.timestamp < expiry, "Cannot purchase after expiry");
         uint256 period = expiry - block.timestamp;
+        uint256 scaledStrikePrice = scaleDownStrikePrice(strikePrice);
 
         if (underlying == ethAddress) {
             (cost, , , ) = ethOptions.fees(
                 period,
                 purchaseAmount,
-                strikePrice,
+                scaledStrikePrice,
                 HegicOptionType(uint8(optionType))
             );
         } else if (underlying == wbtcAddress) {
             (, cost, , , ) = wbtcOptions.fees(
                 period,
                 purchaseAmount,
-                strikePrice,
+                scaledStrikePrice,
                 HegicOptionType(uint8(optionType))
             );
         } else {
@@ -151,25 +152,23 @@ contract HegicAdapter is
         onlyInstrument
         returns (uint256 optionID)
     {
-        IHegicOptions options = getHegicOptions(underlying);
         require(block.timestamp < expiry, "Cannot purchase after expiry");
-
-        uint256 period = expiry - block.timestamp;
+        uint256 scaledStrikePrice = scaleDownStrikePrice(strikePrice);
         uint256 cost = premium(
             underlying,
             strikeAsset,
             expiry,
-            strikePrice,
+            scaledStrikePrice,
             optionType,
             amount
         );
-        require(msg.value >= cost, "Value does not cover cost");
-
-        optionID = options.create{value: cost}(
-            period,
+        optionID = _purchase(
+            underlying,
+            cost,
+            expiry,
             amount,
-            strikePrice,
-            HegicOptionType(uint8(optionType))
+            scaledStrikePrice,
+            optionType
         );
 
         emit Purchased(
@@ -183,6 +182,26 @@ contract HegicAdapter is
             amount,
             cost,
             optionID
+        );
+    }
+
+    function _purchase(
+        address underlying,
+        uint256 cost,
+        uint256 expiry,
+        uint256 amount,
+        uint256 scaledStrikePrice,
+        OptionType optionType
+    ) private returns (uint256 optionID) {
+        uint256 period = expiry - block.timestamp;
+        IHegicOptions options = getHegicOptions(underlying);
+        require(msg.value >= cost, "Value does not cover cost");
+
+        optionID = options.create{value: cost}(
+            period,
+            amount,
+            scaledStrikePrice,
+            HegicOptionType(uint8(optionType))
         );
     }
 
@@ -216,5 +235,14 @@ contract HegicAdapter is
             return wbtcOptions;
         }
         require(false, "No matching options contract");
+    }
+
+    function scaleDownStrikePrice(uint256 strikePrice)
+        private
+        pure
+        returns (uint256)
+    {
+        // converts strike price in 10**18 to 10**8
+        return strikePrice.div(10**10);
     }
 }

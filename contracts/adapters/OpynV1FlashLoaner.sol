@@ -20,6 +20,7 @@ import {
 } from "../interfaces/OpynV1Interface.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {IUniswapV2Factory} from "../interfaces/IUniswapV2Factory.sol";
+import {IWETH} from "../interfaces/IWETH.sol";
 
 contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
     using SafeMath for uint256;
@@ -243,19 +244,39 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
         uint256 soldAmount,
         address sender
     ) private {
-        uint256 strikePriceWAD = getStrikePrice(oToken) /
-            10**ERC20Decimals(underlying).decimals();
-        uint256 cashAmount = wdiv(
-            scaleUpDecimals(oToken, exerciseAmount),
-            strikePriceWAD
-        );
-
-        uint256 settledProfit = sub(cashAmount, soldAmount);
         if (collateral == address(0)) {
+            uint256 settledProfit = address(this).balance;
             (bool returnExercise, ) = sender.call{value: settledProfit}("");
             require(returnExercise, "Transfer exercised profit failed");
+        } else if (collateral == _weth) {
+            uint256 balance = address(this).balance;
+            IWETH wethContract = IWETH(_weth);
+            wethContract.withdraw(balance);
+            (bool returnExercise, ) = sender.call{value: balance}("");
+            require(returnExercise, "Transfer exercised profit failed");
         } else {
-            IERC20(collateral).safeTransfer(sender, settledProfit);
+            IUniswapV2Router02 router = IUniswapV2Router02(_uniswapRouter);
+            IERC20 collateralToken = IERC20(collateral);
+            uint256 collateralBalance = collateralToken.balanceOf(
+                address(this)
+            );
+            address[] memory path = new address[](2);
+            path[0] = collateral;
+            path[1] = _weth;
+            uint256[] memory amountsOut = router.getAmountsOut(
+                collateralBalance,
+                path
+            );
+
+            collateralToken.approve(address(router), collateralBalance);
+
+            router.swapExactTokensForETH(
+                collateralBalance,
+                amountsOut[1],
+                path,
+                sender,
+                block.timestamp + _swapWindow
+            );
         }
     }
 

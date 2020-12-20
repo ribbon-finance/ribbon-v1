@@ -104,7 +104,7 @@ describe("OpynV1Adapter", () => {
     premium: new BN("106920070230577145"),
     purchaseAmount: ether("1"),
     scaledPurchaseAmount: new BN("10000000"),
-    exerciseProfit: new BN("207731545706926439"),
+    exerciseProfit: new BN("86112058075270874"),
     vaults: [
       "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
       "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",

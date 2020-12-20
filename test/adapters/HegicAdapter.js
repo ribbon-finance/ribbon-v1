@@ -72,10 +72,21 @@ describe("HegicAdapter", () => {
     underlying: ETH_ADDRESS,
     strikeAsset: ETH_ADDRESS,
     strikePrice: ether("500"),
-    premium: new BN("10000000003407899"),
+    premium: new BN("130759818438591130"),
     purchaseAmount: ether("1"),
     optionType: CALL_OPTION_TYPE,
     expectedOptionID: "1685",
+  });
+
+  behavesLikeHegicOptions({
+    optionName: "ETH PUT ITM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: ETH_ADDRESS,
+    strikePrice: ether("600"),
+    premium: new BN("140095483573495796"),
+    purchaseAmount: ether("1"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "1686",
   });
 
   function behavesLikeHegicOptions(params) {
@@ -103,7 +114,7 @@ describe("HegicAdapter", () => {
       });
 
       describe("#premium", () => {
-        it("gets the premium for call option", async function () {
+        it("gets premium of option", async function () {
           const premium = await this.adapter.premium(
             this.underlying,
             this.strikeAsset,

@@ -23,6 +23,16 @@ interface IOptionsExchange {
 interface IOToken {
     function COMPOUND_ORACLE() external view returns (address);
 
+    function getVault(address payable vaultOwner)
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            bool
+        );
+
     function getVaultOwners()
         external
         view

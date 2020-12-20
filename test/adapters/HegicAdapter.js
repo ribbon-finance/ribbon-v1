@@ -12,7 +12,8 @@ const { assert } = require("chai");
 const helper = require("../helper.js");
 const HegicAdapter = contract.fromArtifact("HegicAdapter");
 const MockDojiFactory = contract.fromArtifact("MockDojiFactory");
-const IHegicOptions = contract.fromArtifact("IHegicOptions");
+const IHegicETHOptions = contract.fromArtifact("IHegicETHOptions");
+const IHegicBTCOptions = contract.fromArtifact("IHegicBTCOptions");
 
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
@@ -43,8 +44,8 @@ describe("HegicAdapter", () => {
     );
     await this.adapter.initialize(owner, this.factory.address);
 
-    this.hegicETHOptions = await IHegicOptions.at(HEGIC_ETH_OPTIONS);
-    this.hegicWBTCOptions = await IHegicOptions.at(HEGIC_WBTC_OPTIONS);
+    this.hegicETHOptions = await IHegicETHOptions.at(HEGIC_ETH_OPTIONS);
+    this.hegicWBTCOptions = await IHegicBTCOptions.at(HEGIC_WBTC_OPTIONS);
 
     const snapShot = await helper.takeSnapshot();
     initSnapshotId = snapShot["result"];
@@ -92,8 +93,8 @@ describe("HegicAdapter", () => {
         } = params;
         this.underlying = underlying;
         this.strikeAsset = strikeAsset;
-        const currentTimestamp = (await web3.eth.getBlock("latest")).timestamp;
-        this.expiry = expiry || currentTimestamp + 60 * 60 * 24 * 2; // 2 days from now
+        this.startTime = (await web3.eth.getBlock("latest")).timestamp;
+        this.expiry = expiry || this.startTime + 60 * 60 * 24 * 2; // 2 days from now
         this.strikePrice = strikePrice;
         this.premium = premium;
         this.purchaseAmount = purchaseAmount;
@@ -228,11 +229,17 @@ describe("HegicAdapter", () => {
             optionType,
           } = await hegicOptionsInstance.options(this.expectedOptionID);
 
+          const { settlementFee } = await hegicOptionsInstance.fees(
+            this.expiry - this.startTime,
+            this.purchaseAmount,
+            this.strikePrice,
+            this.optionType
+          );
           assert.equal(holder, this.adapter.address);
           assert.equal(strike.toString(), this.strikePrice);
           assert.equal(amount.toString(), this.purchaseAmount);
           assert.equal(lockedAmount.toString(), this.purchaseAmount);
-          assert.equal(premium.toString(), this.premium);
+          assert.equal(premium.toString(), this.premium.sub(settlementFee));
           assert.equal(expiration, this.expiry);
           assert.equal(optionType, this.optionType);
         });

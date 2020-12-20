@@ -75,23 +75,23 @@ describe("OpynV1Adapter", () => {
     });
   });
 
-  // behavesLikeOToken({
-  //   oTokenName: "ETH CALL ITM",
-  //   underlying: ETH_ADDRESS,
-  //   strikeAsset: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-  //   expiry: "1608883200",
-  //   oTokenAddress: "0xb759e6731df19abD72e0456184890f87dCb6C518",
-  //   optionType: CALL_OPTION_TYPE,
-  //   strikePrice: ether("500"),
-  //   premium: new BN("106656198359758724"),
-  //   purchaseAmount: ether("500"),
-  //   scaledPurchaseAmount: new BN("500000000"),
-  //   exerciseProfit: new BN("77866932707945605"),
-  //   vaults: [
-  //     "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
-  //     "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
-  //   ],
-  // });
+  behavesLikeOToken({
+    oTokenName: "ETH CALL ITM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    expiry: "1608883200",
+    oTokenAddress: "0xb759e6731df19abD72e0456184890f87dCb6C518",
+    optionType: CALL_OPTION_TYPE,
+    strikePrice: ether("500"),
+    premium: new BN("106656198359758724"),
+    purchaseAmount: ether("500"),
+    scaledPurchaseAmount: new BN("500000000"),
+    exerciseProfit: new BN("78069652707945605"),
+    vaults: [
+      "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
+      "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
+    ],
+  });
 
   behavesLikeOToken({
     oTokenName: "ETH PUT ITM",
@@ -104,7 +104,7 @@ describe("OpynV1Adapter", () => {
     premium: new BN("106920070230577145"),
     purchaseAmount: ether("1"),
     scaledPurchaseAmount: new BN("10000000"),
-    exerciseProfit: new BN("86112058075270874"),
+    exerciseProfit: new BN("85896058075270874"),
     vaults: [
       "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
       "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",
@@ -113,7 +113,6 @@ describe("OpynV1Adapter", () => {
 });
 
 function behavesLikeOToken(args) {
-  let initSnapshotId;
   const gasPrice = web3.utils.toWei("10", "gwei");
 
   describe(`oToken ${args.oTokenName}`, () => {

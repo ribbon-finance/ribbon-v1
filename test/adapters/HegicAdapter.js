@@ -18,7 +18,7 @@ const IHegicBTCOptions = contract.fromArtifact("IHegicBTCOptions");
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
-const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+const ETH_ADDRESS = constants.ZERO_ADDRESS;
 const [admin, owner, user] = accounts;
 
 const PUT_OPTION_TYPE = 1;
@@ -44,9 +44,6 @@ describe("HegicAdapter", () => {
     );
     await this.adapter.initialize(owner, this.factory.address);
 
-    this.hegicETHOptions = await IHegicETHOptions.at(HEGIC_ETH_OPTIONS);
-    this.hegicWBTCOptions = await IHegicBTCOptions.at(HEGIC_WBTC_OPTIONS);
-
     const snapShot = await helper.takeSnapshot();
     initSnapshotId = snapShot["result"];
   });
@@ -67,6 +64,10 @@ describe("HegicAdapter", () => {
     });
   });
 
+  /**
+   * Current price is ETH-USD = $545
+   */
+
   behavesLikeHegicOptions({
     optionName: "ETH CALL ITM",
     underlying: ETH_ADDRESS,
@@ -76,24 +77,44 @@ describe("HegicAdapter", () => {
     purchaseAmount: ether("1"),
     optionType: CALL_OPTION_TYPE,
     expectedOptionID: "1685",
-    itmStrikePrice: ether("500"),
-    otmStrikePrice: ether("600"),
     exerciseProfit: new BN("86680823070678630"),
   });
 
-  behavesLikeHegicOptions({
-    optionName: "ETH PUT ITM",
-    underlying: ETH_ADDRESS,
-    strikeAsset: ETH_ADDRESS,
-    strikePrice: ether("600"),
-    premium: new BN("140095483573495796"),
-    purchaseAmount: ether("1"),
-    optionType: PUT_OPTION_TYPE,
-    expectedOptionID: "1685",
-    itmStrikePrice: ether("600"),
-    otmStrikePrice: ether("500"),
-    exerciseProfit: new BN("95983012315185643"),
-  });
+  // behavesLikeHegicOptions({
+  //   optionName: "ETH CALL OTM",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: ETH_ADDRESS,
+  //   strikePrice: ether("600"),
+  //   premium: new BN("38399162806593750"),
+  //   purchaseAmount: ether("1"),
+  //   optionType: CALL_OPTION_TYPE,
+  //   expectedOptionID: "1685",
+  //   exerciseProfit: new BN("0"),
+  // });
+
+  // behavesLikeHegicOptions({
+  //   optionName: "ETH PUT ITM",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: ETH_ADDRESS,
+  //   strikePrice: ether("600"),
+  //   premium: new BN("140095483573495796"),
+  //   purchaseAmount: ether("1"),
+  //   optionType: PUT_OPTION_TYPE,
+  //   expectedOptionID: "1685",
+  //   exerciseProfit: new BN("95983012315185643"),
+  // });
+
+  // behavesLikeHegicOptions({
+  //   optionName: "ETH PUT OTM",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: ETH_ADDRESS,
+  //   strikePrice: ether("500"),
+  //   premium: new BN("38427059381925127"),
+  //   purchaseAmount: ether("1"),
+  //   optionType: PUT_OPTION_TYPE,
+  //   expectedOptionID: "1685",
+  //   exerciseProfit: new BN("0"),
+  // });
 
   function behavesLikeHegicOptions(params) {
     describe(`${params.optionName}`, () => {
@@ -107,8 +128,6 @@ describe("HegicAdapter", () => {
           purchaseAmount,
           optionType,
           expectedOptionID,
-          itmStrikePrice,
-          otmStrikePrice,
           exerciseProfit,
         } = params;
         this.underlying = underlying;
@@ -120,9 +139,8 @@ describe("HegicAdapter", () => {
         this.purchaseAmount = purchaseAmount;
         this.optionType = optionType;
         this.expectedOptionID = expectedOptionID;
-        this.itmStrikePrice = itmStrikePrice;
-        this.otmStrikePrice = otmStrikePrice;
         this.exerciseProfit = exerciseProfit;
+        this.hegicOptions = await getOptionsContract(this.underlying);
       });
 
       describe("#premium", () => {
@@ -135,7 +153,7 @@ describe("HegicAdapter", () => {
             this.optionType,
             this.purchaseAmount
           );
-          assert.equal(premium.toString(), this.premium);
+          assert.equal(premium.toString(), this.premium.toString());
         });
       });
 
@@ -190,15 +208,15 @@ describe("HegicAdapter", () => {
         it("reverts when passing unknown underlying", async function () {
           await expectRevert(
             this.adapter.purchase(
-              constants.ZERO_ADDRESS,
+              "0x0000000000000000000000000000000000000001",
               this.strikeAsset,
               this.expiry,
               this.strikePrice,
-              CALL_OPTION_TYPE,
-              ether("1"),
+              this.optionType,
+              this.purchaseAmount,
               {
                 from: user,
-                value: ether("0.028675"),
+                value: this.purchaseAmount,
               }
             ),
             "No matching underlying"
@@ -231,17 +249,6 @@ describe("HegicAdapter", () => {
             optionID: this.expectedOptionID,
           });
 
-          let hegicOptionsInstance;
-          if (this.underlying == ETH_ADDRESS) {
-            hegicOptionsInstance = this.hegicETHOptions;
-          } else if (this.underlying == WBTC_ADDRESS) {
-            hegicOptionsInstance = this.hegicWBTCOptions;
-          } else {
-            throw new Error(
-              `Unsupported underlying asset found: ${underlying}`
-            );
-          }
-
           const {
             holder,
             strike,
@@ -250,9 +257,9 @@ describe("HegicAdapter", () => {
             premium,
             expiration,
             optionType,
-          } = await hegicOptionsInstance.options(this.expectedOptionID);
+          } = await this.hegicOptions.options(this.expectedOptionID);
 
-          const { settlementFee } = await hegicOptionsInstance.fees(
+          const { settlementFee } = await this.hegicOptions.fees(
             this.expiry - this.startTime,
             this.purchaseAmount,
             this.strikePrice,
@@ -261,7 +268,7 @@ describe("HegicAdapter", () => {
           assert.equal(holder, this.adapter.address);
           assert.equal(
             strike.toString(),
-            this.strikePrice.div(new BN("10000000000"))
+            this.strikePrice.div(new BN("10000000000")) // strike price is scaled down to 10**8 from 10**18
           );
           assert.equal(amount.toString(), this.purchaseAmount);
           assert.equal(lockedAmount.toString(), this.purchaseAmount);
@@ -288,36 +295,12 @@ describe("HegicAdapter", () => {
           );
         });
 
-        it("gets 0 profit for an out-the-money option", async function () {
-          const otmPurchaseRes = await this.adapter.purchase(
+        it("gets correct exercise profit for an option", async function () {
+          const purchaseRes = await this.adapter.purchase(
             this.underlying,
             this.strikeAsset,
             this.expiry,
-            this.otmStrikePrice,
-            this.optionType,
-            this.purchaseAmount,
-            {
-              from: user,
-              value: this.premium,
-            }
-          );
-
-          assert.equal(
-            await this.adapter.exerciseProfit(
-              this.hegicETHOptions.address,
-              otmPurchaseRes.receipt.logs[0].args.optionID,
-              0
-            ),
-            "0"
-          );
-        });
-
-        it("gets profit for an in-the-money option", async function () {
-          const itmPurchaseRes = await this.adapter.purchase(
-            this.underlying,
-            this.strikeAsset,
-            this.expiry,
-            this.itmStrikePrice,
+            this.strikePrice,
             this.optionType,
             this.purchaseAmount,
             {
@@ -329,8 +312,8 @@ describe("HegicAdapter", () => {
           assert.equal(
             (
               await this.adapter.exerciseProfit(
-                this.hegicETHOptions.address,
-                itmPurchaseRes.receipt.logs[0].args.optionID,
+                this.hegicOptions.address,
+                purchaseRes.receipt.logs[0].args.optionID,
                 0
               )
             ).toString(),
@@ -340,78 +323,74 @@ describe("HegicAdapter", () => {
       });
 
       describe("#exercise", () => {
-        let callOptionID, putOptionID;
-
         beforeEach(async function () {
           const snapShot = await helper.takeSnapshot();
           snapshotId = snapShot["result"];
 
-          const callRes = await this.adapter.purchase(
+          const purchaseRes = await this.adapter.purchase(
             this.underlying,
             this.strikeAsset,
             this.expiry,
             this.strikePrice,
-            CALL_OPTION_TYPE,
-            ether("1"),
+            this.optionType,
+            this.purchaseAmount,
             {
               from: user,
-              value: ether("0.028675"),
+              value: this.premium,
             }
           );
-          callOptionID = callRes.receipt.logs[0].args.optionID;
-
-          const putRes = await this.adapter.purchase(
-            this.underlying,
-            this.strikeAsset,
-            this.expiry,
-            this.strikePrice,
-            PUT_OPTION_TYPE,
-            ether("1"),
-            {
-              from: user,
-              value: ether("0.028675"),
-            }
-          );
-          putOptionID = putRes.receipt.logs[0].args.optionID;
-
-          // Load some ETH into the contract for payouts
-          await web3.eth.sendTransaction({
-            from: admin,
-            to: this.ethOptions.address,
-            value: ether("10"),
-          });
+          this.optionID = purchaseRes.receipt.logs[0].args.optionID;
         });
 
         afterEach(async () => {
           await helper.revertToSnapShot(snapshotId);
         });
 
-        it("exercises options with 0 profit", async function () {
+        it("exercises options with profit", async function () {
+          const hegicTracker = await balance.tracker(this.hegicOptions.address);
+          const adapterTracker = await balance.tracker(this.adapter.address);
+          const userTracker = await balance.tracker(user);
+
           const res = await this.adapter.exercise(
-            this.ethOptions.address,
-            callOptionID,
+            this.hegicOptions.address,
+            this.optionID,
             0,
             { from: user }
           );
           expectEvent(res, "Exercised", {
             caller: user,
-            optionID: "0",
+            optionID: this.expectedOptionID,
             amount: "0",
-            exerciseProfit: "0",
+            exerciseProfit: this.exerciseProfit,
           });
+
+          const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+          const profit = this.exerciseProfit.sub(gasFee);
+
+          assert.equal(
+            (await userTracker.delta()).toString(),
+            profit.toString()
+          );
+          assert.equal(
+            (await hegicTracker.delta()).toString(),
+            "-" + this.exerciseProfit.toString()
+          );
+
+          // make sure doji doesn't accidentally retain any ether
+          assert.equal((await adapterTracker.delta()).toString(), "0");
         });
 
         it("reverts when exercising twice", async function () {
           await this.adapter.exercise(
-            this.ethOptions.address,
-            callOptionID,
+            this.hegicOptions.address,
+            this.optionID,
             0,
             {
               from: user,
             }
           );
           await expectRevert(
-            this.adapter.exercise(this.ethOptions.address, callOptionID, 0, {
+            this.adapter.exercise(this.hegicOptions.address, this.optionID, 0, {
               from: user,
             }),
             "Wrong state"
@@ -422,82 +401,22 @@ describe("HegicAdapter", () => {
           await time.increaseTo(this.expiry + 1);
 
           await expectRevert(
-            this.adapter.exercise(this.ethOptions.address, callOptionID, 0, {
+            this.adapter.exercise(this.hegicOptions.address, this.optionID, 0, {
               from: user,
             }),
             "Option has expired"
           );
         });
-
-        it("exercises the call option", async function () {
-          await this.ethOptions.setCurrentPrice(ether("550"));
-
-          const revenue = ether("0.090909090909090909");
-
-          const hegicTracker = await balance.tracker(this.ethOptions.address);
-          const adapterTracker = await balance.tracker(this.adapter.address);
-          const userTracker = await balance.tracker(user);
-
-          const res = await this.adapter.exercise(
-            this.ethOptions.address,
-            callOptionID,
-            0,
-            {
-              from: user,
-              gasPrice,
-            }
-          );
-
-          const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
-          const profit = revenue.sub(gasFee);
-
-          assert.equal(
-            (await userTracker.delta()).toString(),
-            profit.toString()
-          );
-          assert.equal(
-            (await hegicTracker.delta()).toString(),
-            "-" + revenue.toString()
-          );
-
-          // make sure doji doesn't accidentally retain any ether
-          assert.equal((await adapterTracker.delta()).toString(), "0");
-        });
-
-        it("exercises the put option", async function () {
-          await this.ethOptions.setCurrentPrice(ether("450"));
-
-          const revenue = new BN("111111111111111111");
-
-          const hegicTracker = await balance.tracker(this.ethOptions.address);
-          const adapterTracker = await balance.tracker(this.adapter.address);
-          const userTracker = await balance.tracker(user);
-
-          const res = await this.adapter.exercise(
-            this.ethOptions.address,
-            putOptionID,
-            0,
-            {
-              from: user,
-              gasPrice,
-            }
-          );
-          const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
-          const profit = revenue.sub(gasFee);
-
-          assert.equal(
-            (await userTracker.delta()).toString(),
-            profit.toString()
-          );
-          assert.equal(
-            (await hegicTracker.delta()).toString(),
-            "-" + revenue.toString()
-          );
-
-          // make sure doji doesn't accidentally retain any ether
-          assert.equal((await adapterTracker.delta()).toString(), "0");
-        });
       });
     });
+  }
+
+  async function getOptionsContract(underlying) {
+    if (underlying === ETH_ADDRESS) {
+      return await IHegicETHOptions.at(HEGIC_ETH_OPTIONS);
+    } else if (underlying === WBTC_ADDRESS) {
+      return await IHegicBTCOptions.at(HEGIC_WBTC_OPTIONS);
+    }
+    throw new Error(`No underlying found ${underlying}`);
   }
 });

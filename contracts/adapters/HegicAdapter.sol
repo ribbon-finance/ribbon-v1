@@ -223,7 +223,7 @@ contract HegicAdapter is
         options.exercise(optionID);
         (bool success, ) = msg.sender.call{value: profit}("");
         require(success, "Failed transfer");
-        emit Exercised(msg.sender, optionsAddress, optionID, amount, 0);
+        emit Exercised(msg.sender, optionsAddress, optionID, amount, profit);
     }
 
     function getHegicOptions(address underlying)

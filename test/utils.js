@@ -12,7 +12,6 @@ module.exports = {
   deployProxy,
   wmul,
   wdiv,
-  deployDefaultUniswap,
 };
 
 async function deployProxy(

@@ -34,7 +34,7 @@
     "migrate": "npx truffle migrate --network kovan",
     "faucet": "node ./scripts/dripFaucet.js",
     "deploy-kovan": "npm run compile && npm run migrate && npm run verify && npm run export-artefacts && node ./scripts/addAssetFeed.js",
-    "test": "mocha --timeout 10000 --exit --recursive test",
+    "test": "mocha --timeout 20000 --exit --recursive test",
     "verify": " npx truffle run verify DataProvider LiquidatorProxy DojimaFactory AdminUpgradeabilityProxy TwinYield --network kovan --license MIT",
     "merge-contracts": "sol-merger  --export-plugin SPDXLicenseRemovePlugin \"./contracts/**/*.sol\" ./build/compiled",
     "export-artefacts": "node ./scripts/exportArtefacts.js",

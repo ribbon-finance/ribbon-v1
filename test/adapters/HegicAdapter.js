@@ -14,6 +14,7 @@ const HegicAdapter = contract.fromArtifact("HegicAdapter");
 const MockDojiFactory = contract.fromArtifact("MockDojiFactory");
 const IHegicETHOptions = contract.fromArtifact("IHegicETHOptions");
 const IHegicBTCOptions = contract.fromArtifact("IHegicBTCOptions");
+const IERC20 = contract.fromArtifact("IERC20");
 
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
@@ -65,9 +66,11 @@ describe("HegicAdapter", () => {
   });
 
   /**
-   * Current price is ETH-USD = $545
+   * Current price for ETH-USD = ~$545
+   * Current price for BTC-USD = ~$18,000
    */
 
+  // ETH Options
   behavesLikeHegicOptions({
     optionName: "ETH CALL ITM",
     underlying: ETH_ADDRESS,
@@ -113,6 +116,55 @@ describe("HegicAdapter", () => {
     purchaseAmount: ether("1"),
     optionType: PUT_OPTION_TYPE,
     expectedOptionID: "1685",
+    exerciseProfit: new BN("0"),
+  });
+
+  // WBTC Options
+  behavesLikeHegicOptions({
+    optionName: "WBTC CALL ITM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: WBTC_ADDRESS,
+    strikePrice: ether("17000"),
+    premium: new BN("3245932593862604696"),
+    purchaseAmount: new BN("100000000"),
+    optionType: CALL_OPTION_TYPE,
+    expectedOptionID: "804",
+    exerciseProfit: new BN("6541306"),
+  });
+
+  behavesLikeHegicOptions({
+    optionName: "WBTC CALL OTM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: WBTC_ADDRESS,
+    strikePrice: ether("19000"),
+    premium: new BN("993071208326308189"),
+    purchaseAmount: new BN("100000000"),
+    optionType: CALL_OPTION_TYPE,
+    expectedOptionID: "804",
+    exerciseProfit: new BN("0"),
+  });
+
+  behavesLikeHegicOptions({
+    optionName: "WBTC PUT ITM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: WBTC_ADDRESS,
+    strikePrice: ether("19000"),
+    premium: new BN("2534225943323958120"),
+    purchaseAmount: new BN("100000000"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "804",
+    exerciseProfit: new BN("4453833"),
+  });
+
+  behavesLikeHegicOptions({
+    optionName: "WBTC PUT OTM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: WBTC_ADDRESS,
+    strikePrice: ether("17000"),
+    premium: new BN("977357655115998008"),
+    purchaseAmount: new BN("100000000"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "804",
     exerciseProfit: new BN("0"),
   });
 
@@ -259,22 +311,30 @@ describe("HegicAdapter", () => {
             optionType,
           } = await this.hegicOptions.options(this.expectedOptionID);
 
+          // strike price is scaled down to 10**8 from 10**18
+          const scaledStrikePrice = this.strikePrice.div(new BN("10000000000"));
+
           const { settlementFee } = await this.hegicOptions.fees(
             this.expiry - this.startTime,
             this.purchaseAmount,
-            this.strikePrice,
+            scaledStrikePrice,
             this.optionType
           );
           assert.equal(holder, this.adapter.address);
-          assert.equal(
-            strike.toString(),
-            this.strikePrice.div(new BN("10000000000")) // strike price is scaled down to 10**8 from 10**18
-          );
+          assert.equal(strike.toString(), scaledStrikePrice);
           assert.equal(amount.toString(), this.purchaseAmount);
           assert.equal(lockedAmount.toString(), this.purchaseAmount);
-          assert.equal(premium.toString(), this.premium.sub(settlementFee));
           assert.equal(expiration, this.expiry);
           assert.equal(optionType, this.optionType);
+
+          // premiums for token options are denominated in the underlying token
+          // we only check for this case when underlying is ETH
+          if (this.underlying == ETH_ADDRESS) {
+            assert.equal(
+              premium.toString(),
+              this.premium.sub(settlementFee).toString()
+            );
+          }
         });
       });
 
@@ -360,8 +420,12 @@ describe("HegicAdapter", () => {
           });
         } else {
           it("exercises options with profit", async function () {
-            const adapterTracker = await balance.tracker(this.adapter.address);
             const userTracker = await balance.tracker(user);
+            let token, startUserBalance;
+            if (this.underlying !== ETH_ADDRESS) {
+              token = await IERC20.at(this.underlying);
+              startUserBalance = await token.balanceOf(user);
+            }
 
             const res = await this.adapter.exercise(
               this.hegicOptions.address,
@@ -376,15 +440,29 @@ describe("HegicAdapter", () => {
               exerciseProfit: this.exerciseProfit,
             });
 
-            const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
-            const profit = this.exerciseProfit.sub(gasFee);
-            assert.equal(
-              (await userTracker.delta()).toString(),
-              profit.toString()
-            );
+            if (this.underlying === ETH_ADDRESS) {
+              const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+              const profit = this.exerciseProfit.sub(gasFee);
+              assert.equal(
+                (await userTracker.delta()).toString(),
+                profit.toString()
+              );
 
-            // make sure the adapter doesn't accidentally retain any ether
-            assert.equal((await adapterTracker.delta()).toString(), "0");
+              // make sure the adapter doesn't accidentally retain any ether
+              assert.equal(
+                (await balance.current(this.adapter.address)).toString(),
+                "0"
+              );
+            } else {
+              assert.equal(
+                (await token.balanceOf(user)).sub(startUserBalance).toString(),
+                this.exerciseProfit
+              );
+              assert.equal(
+                (await token.balanceOf(this.adapter.address)).toString(),
+                "0"
+              );
+            }
           });
 
           it("reverts when exercising twice", async function () {

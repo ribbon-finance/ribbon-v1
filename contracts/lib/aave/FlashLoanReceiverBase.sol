@@ -4,9 +4,9 @@ pragma solidity >=0.6.0;
 import {
     IFlashLoanReceiver,
     ILendingPoolAddressesProvider,
-    ILendingPool,
-    IERC20
+    ILendingPool
 } from "./Interfaces.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
     SafeERC20,
     SafeMath

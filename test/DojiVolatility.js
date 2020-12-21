@@ -27,9 +27,8 @@ describe("DojiVolatility", () => {
     self = this;
     this.name = "VOL 500 25/12/2020";
     this.symbol = "VOL-500-251220";
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 2);
-    this.expiry = Math.floor(expiryDate.getTime() / 1000);
+    const startTime = (await web3.eth.getBlock("latest")).timestamp;
+    this.expiry = startTime + 60 * 60 * 24 * 2; // 2 days from now
 
     this.strikePrice = ether("500");
 
@@ -77,9 +76,6 @@ describe("DojiVolatility", () => {
     this.contract = await DojimaVolatility.at(
       res.logs[1].args.instrumentAddress
     );
-
-    const now = Math.floor(Date.now() / 1000) + 60;
-    await time.increaseTo(now);
 
     const snapShot = await helper.takeSnapshot();
     initSnapshotId = snapShot["result"];

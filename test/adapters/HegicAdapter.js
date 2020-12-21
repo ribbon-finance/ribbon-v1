@@ -9,15 +9,18 @@ const {
   balance,
 } = require("@openzeppelin/test-helpers");
 const { assert } = require("chai");
-const { shouldBehaveLikeProtocolAdapter } = require("./ProtocolAdapter");
 const helper = require("../helper.js");
-const MockERC20 = contract.fromArtifact("MockERC20");
 const HegicAdapter = contract.fromArtifact("HegicAdapter");
-const MockHegicETHOptions = contract.fromArtifact("MockHegicETHOptions");
-const MockHegicWBTCOptions = contract.fromArtifact("MockHegicWBTCOptions");
 const MockDojiFactory = contract.fromArtifact("MockDojiFactory");
-const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
-const [admin, owner, user, pool, settlementFeeRecipient] = accounts;
+const IHegicETHOptions = contract.fromArtifact("IHegicETHOptions");
+const IHegicBTCOptions = contract.fromArtifact("IHegicBTCOptions");
+const IERC20 = contract.fromArtifact("IERC20");
+
+const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
+const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
+const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
+const ETH_ADDRESS = constants.ZERO_ADDRESS;
+const [admin, owner, user] = accounts;
 
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
@@ -27,53 +30,20 @@ describe("HegicAdapter", () => {
   const gasPrice = web3.utils.toWei("10", "gwei");
 
   before(async function () {
-    const mintAmount = ether("1000");
-    const WBTC = await MockERC20.new("Wrapped Bitcoin", "WBTC", mintAmount, {
-      from: owner,
-    });
-    this.ethOptions = await MockHegicETHOptions.new(
-      pool,
-      settlementFeeRecipient,
-      { from: admin }
-    );
-    this.wbtcOptions = await MockHegicWBTCOptions.new(
-      pool,
-      settlementFeeRecipient,
-      { from: admin }
-    );
+    this.protocolName = "HEGIC";
+    this.nonFungible = true;
 
     // we assume the user account is the calling instrument
     this.factory = await MockDojiFactory.new({ from: owner });
     await this.factory.setInstrument(user, { from: user });
 
     this.adapter = await HegicAdapter.new(
-      this.ethOptions.address,
-      this.wbtcOptions.address,
+      HEGIC_ETH_OPTIONS,
+      HEGIC_WBTC_OPTIONS,
       ETH_ADDRESS,
-      WBTC.address
+      WBTC_ADDRESS
     );
-
     await this.adapter.initialize(owner, this.factory.address);
-
-    this.underlying = ETH_ADDRESS;
-    this.strikeAsset = constants.ZERO_ADDRESS;
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 2);
-    this.expiry = Math.floor(expiryDate.getTime() / 1000);
-    this.startTime = Math.floor(Date.now() / 1000) + 100; // +60 seconds so we don't get flaky tests
-    this.strikePrice = ether("500");
-
-    // test cases
-    this.protocolName = "HEGIC";
-    this.nonFungible = true;
-
-    // premium
-    this.callPremium = ether("0.028675");
-    this.putPremium = ether("0.028675");
-
-    await this.ethOptions.setCurrentPrice(ether("500"));
-    await this.wbtcOptions.setCurrentPrice(ether("18000"));
-    await time.increaseTo(this.startTime);
 
     const snapShot = await helper.takeSnapshot();
     initSnapshotId = snapShot["result"];
@@ -83,431 +53,461 @@ describe("HegicAdapter", () => {
     await helper.revertToSnapShot(initSnapshotId);
   });
 
-  shouldBehaveLikeProtocolAdapter();
-
-  describe("#purchase", () => {
-    beforeEach(async () => {
-      const snapShot = await helper.takeSnapshot();
-      snapshotId = snapShot["result"];
-    });
-
-    afterEach(async () => {
-      await helper.revertToSnapShot(snapshotId);
-    });
-
-    it("reverts when not enough value is passed", async function () {
-      await expectRevert(
-        this.adapter.purchase(
-          this.underlying,
-          this.strikeAsset,
-          this.expiry,
-          this.strikePrice,
-          CALL_OPTION_TYPE,
-          ether("1"),
-          {
-            from: user,
-            value: ether("0.01"),
-          }
-        ),
-        "Value does not cover cost"
-      );
-    });
-
-    it("reverts when buying after expiry", async function () {
-      await time.increaseTo(this.expiry + 1);
-
-      await expectRevert(
-        this.adapter.purchase(
-          this.underlying,
-          this.strikeAsset,
-          this.expiry,
-          this.strikePrice,
-          CALL_OPTION_TYPE,
-          ether("1"),
-          {
-            from: user,
-            value: ether("0.01"),
-          }
-        ),
-        "Cannot purchase after expiry"
-      );
-    });
-
-    it("reverts when passing unknown underlying", async function () {
-      await expectRevert(
-        this.adapter.purchase(
-          constants.ZERO_ADDRESS,
-          this.strikeAsset,
-          this.expiry,
-          this.strikePrice,
-          CALL_OPTION_TYPE,
-          ether("1"),
-          {
-            from: user,
-            value: ether("0.028675"),
-          }
-        ),
-        "No matching options contract"
-      );
-    });
-
-    it("buys call options on hegic", async function () {
-      const res = await this.adapter.purchase(
-        this.underlying,
-        this.strikeAsset,
-        this.expiry,
-        this.strikePrice,
-        CALL_OPTION_TYPE,
-        ether("1"),
-        {
-          from: user,
-          value: ether("0.028675"),
-        }
-      );
-
-      expectEvent(res, "Purchased", {
-        protocolName: web3.utils.sha3("HEGIC"),
-        underlying: ETH_ADDRESS,
-        strikeAsset: this.strikeAsset,
-        expiry: this.expiry.toString(),
-        strikePrice: ether("500"),
-        optionType: CALL_OPTION_TYPE.toString(),
-        amount: ether("1"),
-        premium: ether("0.028675"),
-        optionID: "0",
-      });
-
-      const {
-        holder,
-        strike,
-        amount,
-        lockedAmount,
-        premium,
-        expiration,
-        optionType,
-      } = await this.ethOptions.options(0);
-
-      assert.equal(holder, this.adapter.address);
-      assert.equal(strike.toString(), ether("500"));
-      assert.equal(amount.toString(), ether("1"));
-      assert.equal(lockedAmount.toString(), ether("1"));
-      assert.equal(premium.toString(), ether("0.018675"));
-      assert.equal(expiration, this.expiry);
-      assert.equal(optionType, CALL_OPTION_TYPE);
-    });
-
-    it("buys put options on hegic", async function () {
-      const res = await this.adapter.purchase(
-        this.underlying,
-        this.strikeAsset,
-        this.expiry,
-        this.strikePrice,
-        PUT_OPTION_TYPE,
-        ether("1"),
-        {
-          from: user,
-          value: ether("0.028675"),
-        }
-      );
-
-      expectEvent(res, "Purchased", {
-        protocolName: web3.utils.sha3("HEGIC"),
-        underlying: ETH_ADDRESS,
-        strikeAsset: this.strikeAsset,
-        expiry: this.expiry.toString(),
-        strikePrice: ether("500"),
-        optionType: PUT_OPTION_TYPE.toString(),
-        amount: ether("1"),
-        premium: ether("0.028675"),
-        optionID: "0",
-      });
-
-      const {
-        holder,
-        strike,
-        amount,
-        lockedAmount,
-        premium,
-        expiration,
-        optionType,
-      } = await this.ethOptions.options(0);
-
-      assert.equal(holder, this.adapter.address);
-      assert.equal(strike.toString(), ether("500"));
-      assert.equal(amount.toString(), ether("1"));
-      assert.equal(lockedAmount.toString(), ether("1"));
-      assert.equal(premium.toString(), ether("0.018675"));
-      assert.equal(expiration, this.expiry);
-      assert.equal(optionType, PUT_OPTION_TYPE);
+  describe("#protocolName", () => {
+    it("matches the protocol name", async function () {
+      assert.equal(await this.adapter.protocolName(), this.protocolName);
     });
   });
 
-  describe("#exerciseProfit", () => {
-    let callOptionID, putOptionID;
-
-    beforeEach(async function () {
-      const snapShot = await helper.takeSnapshot();
-      snapshotId = snapShot["result"];
-
-      const callRes = await this.adapter.purchase(
-        this.underlying,
-        this.strikeAsset,
-        this.expiry,
-        this.strikePrice,
-        CALL_OPTION_TYPE,
-        ether("1"),
-        {
-          from: user,
-          value: ether("0.028675"),
-        }
-      );
-      callOptionID = callRes.receipt.logs[0].args.optionID;
-
-      const putRes = await this.adapter.purchase(
-        this.underlying,
-        this.strikeAsset,
-        this.expiry,
-        this.strikePrice,
-        PUT_OPTION_TYPE,
-        ether("1"),
-        {
-          from: user,
-          value: ether("0.028675"),
-        }
-      );
-      putOptionID = putRes.receipt.logs[0].args.optionID;
-    });
-
-    afterEach(async () => {
-      await helper.revertToSnapShot(snapshotId);
-    });
-
-    it("reverts when unknown options address passed", async function () {
-      await expectRevert(
-        this.adapter.exerciseProfit(constants.ZERO_ADDRESS, callOptionID, 0),
-        "optionsAddress must match either ETH or WBTC options"
-      );
-    });
-
-    it("calculates the profit for exercising a call option", async function () {
-      // should be zero if price == strike
-      assert.equal(
-        await this.adapter.exerciseProfit(
-          this.ethOptions.address,
-          callOptionID,
-          0
-        ),
-        "0"
-      );
-
-      // should be zero if price < strike
-      await this.ethOptions.setCurrentPrice(ether("490"));
-      assert.equal(
-        await this.adapter.exerciseProfit(
-          this.ethOptions.address,
-          callOptionID,
-          0
-        ),
-        "0"
-      );
-
-      // should be positive if price > strike
-      await this.ethOptions.setCurrentPrice(ether("550"));
-      assert.equal(
-        (
-          await this.adapter.exerciseProfit(
-            this.ethOptions.address,
-            callOptionID,
-            0
-          )
-        ).toString(),
-        ether("0.090909090909090909")
-      );
-    });
-
-    it("calculates the profit for exercising a put option", async function () {
-      // should be zero if price == strike
-      assert.equal(
-        await this.adapter.exerciseProfit(
-          this.ethOptions.address,
-          putOptionID,
-          0
-        ),
-        "0"
-      );
-
-      // should be zero if price > strike
-      await this.ethOptions.setCurrentPrice(ether("550"));
-      assert.equal(
-        await this.adapter.exerciseProfit(
-          this.ethOptions.address,
-          putOptionID,
-          0
-        ),
-        "0"
-      );
-
-      // should be zero if price < strike
-      await this.ethOptions.setCurrentPrice(ether("450"));
-      assert.equal(
-        (
-          await this.adapter.exerciseProfit(
-            this.ethOptions.address,
-            putOptionID,
-            0
-          )
-        ).toString(),
-        "111111111111111111"
-      );
+  describe("#nonFungible", () => {
+    it("matches the nonFungible bool", async function () {
+      assert.equal(await this.adapter.nonFungible(), this.nonFungible);
     });
   });
 
-  describe("#exercise", () => {
-    let callOptionID, putOptionID;
+  /**
+   * Current price for ETH-USD = ~$545
+   * Current price for BTC-USD = ~$18,000
+   */
 
-    beforeEach(async function () {
-      const snapShot = await helper.takeSnapshot();
-      snapshotId = snapShot["result"];
-
-      const callRes = await this.adapter.purchase(
-        this.underlying,
-        this.strikeAsset,
-        this.expiry,
-        this.strikePrice,
-        CALL_OPTION_TYPE,
-        ether("1"),
-        {
-          from: user,
-          value: ether("0.028675"),
-        }
-      );
-      callOptionID = callRes.receipt.logs[0].args.optionID;
-
-      const putRes = await this.adapter.purchase(
-        this.underlying,
-        this.strikeAsset,
-        this.expiry,
-        this.strikePrice,
-        PUT_OPTION_TYPE,
-        ether("1"),
-        {
-          from: user,
-          value: ether("0.028675"),
-        }
-      );
-      putOptionID = putRes.receipt.logs[0].args.optionID;
-
-      // Load some ETH into the contract for payouts
-      await web3.eth.sendTransaction({
-        from: admin,
-        to: this.ethOptions.address,
-        value: ether("10"),
-      });
-    });
-
-    afterEach(async () => {
-      await helper.revertToSnapShot(snapshotId);
-    });
-
-    it("exercises options with 0 profit", async function () {
-      const res = await this.adapter.exercise(
-        this.ethOptions.address,
-        callOptionID,
-        0,
-        { from: user }
-      );
-      expectEvent(res, "Exercised", {
-        caller: user,
-        optionID: "0",
-        amount: "0",
-        exerciseProfit: "0",
-      });
-    });
-
-    it("reverts when exercising twice", async function () {
-      await this.adapter.exercise(this.ethOptions.address, callOptionID, 0, {
-        from: user,
-      });
-      await expectRevert(
-        this.adapter.exercise(this.ethOptions.address, callOptionID, 0, {
-          from: user,
-        }),
-        "Wrong state"
-      );
-    });
-
-    it("reverts when past expiry", async function () {
-      await time.increaseTo(this.expiry + 1);
-
-      await expectRevert(
-        this.adapter.exercise(this.ethOptions.address, callOptionID, 0, {
-          from: user,
-        }),
-        "Option has expired"
-      );
-    });
-
-    it("exercises the call option", async function () {
-      await this.ethOptions.setCurrentPrice(ether("550"));
-
-      const revenue = ether("0.090909090909090909");
-
-      const hegicTracker = await balance.tracker(this.ethOptions.address);
-      const adapterTracker = await balance.tracker(this.adapter.address);
-      const userTracker = await balance.tracker(user);
-
-      const res = await this.adapter.exercise(
-        this.ethOptions.address,
-        callOptionID,
-        0,
-        {
-          from: user,
-          gasPrice,
-        }
-      );
-
-      const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
-      const profit = revenue.sub(gasFee);
-
-      assert.equal((await userTracker.delta()).toString(), profit.toString());
-      assert.equal(
-        (await hegicTracker.delta()).toString(),
-        "-" + revenue.toString()
-      );
-
-      // make sure doji doesn't accidentally retain any ether
-      assert.equal((await adapterTracker.delta()).toString(), "0");
-    });
-
-    it("exercises the put option", async function () {
-      await this.ethOptions.setCurrentPrice(ether("450"));
-
-      const revenue = new BN("111111111111111111");
-
-      const hegicTracker = await balance.tracker(this.ethOptions.address);
-      const adapterTracker = await balance.tracker(this.adapter.address);
-      const userTracker = await balance.tracker(user);
-
-      const res = await this.adapter.exercise(
-        this.ethOptions.address,
-        putOptionID,
-        0,
-        {
-          from: user,
-          gasPrice,
-        }
-      );
-      const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
-      const profit = revenue.sub(gasFee);
-
-      assert.equal((await userTracker.delta()).toString(), profit.toString());
-      assert.equal(
-        (await hegicTracker.delta()).toString(),
-        "-" + revenue.toString()
-      );
-
-      // make sure doji doesn't accidentally retain any ether
-      assert.equal((await adapterTracker.delta()).toString(), "0");
-    });
+  // ETH Options
+  behavesLikeHegicOptions({
+    optionName: "ETH CALL ITM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: ETH_ADDRESS,
+    strikePrice: ether("500"),
+    premium: new BN("130759818438591130"),
+    purchaseAmount: ether("1"),
+    optionType: CALL_OPTION_TYPE,
+    expectedOptionID: "1685",
+    exerciseProfit: new BN("86680823070678630"),
   });
+
+  behavesLikeHegicOptions({
+    optionName: "ETH CALL OTM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: ETH_ADDRESS,
+    strikePrice: ether("600"),
+    premium: new BN("38399162806593750"),
+    purchaseAmount: ether("1"),
+    optionType: CALL_OPTION_TYPE,
+    expectedOptionID: "1685",
+    exerciseProfit: new BN("0"),
+  });
+
+  behavesLikeHegicOptions({
+    optionName: "ETH PUT ITM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: ETH_ADDRESS,
+    strikePrice: ether("600"),
+    premium: new BN("140095483573495796"),
+    purchaseAmount: ether("1"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "1685",
+    exerciseProfit: new BN("95983012315185643"),
+  });
+
+  behavesLikeHegicOptions({
+    optionName: "ETH PUT OTM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: ETH_ADDRESS,
+    strikePrice: ether("500"),
+    premium: new BN("38427059381925127"),
+    purchaseAmount: ether("1"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "1685",
+    exerciseProfit: new BN("0"),
+  });
+
+  // WBTC Options
+  behavesLikeHegicOptions({
+    optionName: "WBTC CALL ITM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: WBTC_ADDRESS,
+    strikePrice: ether("17000"),
+    premium: new BN("3245932593862604696"),
+    purchaseAmount: new BN("100000000"),
+    optionType: CALL_OPTION_TYPE,
+    expectedOptionID: "804",
+    exerciseProfit: new BN("6541306"),
+  });
+
+  behavesLikeHegicOptions({
+    optionName: "WBTC CALL OTM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: WBTC_ADDRESS,
+    strikePrice: ether("19000"),
+    premium: new BN("993071208326308189"),
+    purchaseAmount: new BN("100000000"),
+    optionType: CALL_OPTION_TYPE,
+    expectedOptionID: "804",
+    exerciseProfit: new BN("0"),
+  });
+
+  behavesLikeHegicOptions({
+    optionName: "WBTC PUT ITM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: WBTC_ADDRESS,
+    strikePrice: ether("19000"),
+    premium: new BN("2534225943323958120"),
+    purchaseAmount: new BN("100000000"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "804",
+    exerciseProfit: new BN("4453833"),
+  });
+
+  behavesLikeHegicOptions({
+    optionName: "WBTC PUT OTM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: WBTC_ADDRESS,
+    strikePrice: ether("17000"),
+    premium: new BN("977357655115998008"),
+    purchaseAmount: new BN("100000000"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "804",
+    exerciseProfit: new BN("0"),
+  });
+
+  function behavesLikeHegicOptions(params) {
+    describe(`${params.optionName}`, () => {
+      before(async function () {
+        const {
+          underlying,
+          strikeAsset,
+          expiry,
+          strikePrice,
+          premium,
+          purchaseAmount,
+          optionType,
+          expectedOptionID,
+          exerciseProfit,
+        } = params;
+        this.underlying = underlying;
+        this.strikeAsset = strikeAsset;
+        this.startTime = (await web3.eth.getBlock("latest")).timestamp;
+        this.expiry = expiry || this.startTime + 60 * 60 * 24 * 2; // 2 days from now
+        this.strikePrice = strikePrice;
+        this.premium = premium;
+        this.purchaseAmount = purchaseAmount;
+        this.optionType = optionType;
+        this.expectedOptionID = expectedOptionID;
+        this.exerciseProfit = exerciseProfit;
+        this.hegicOptions = await getOptionsContract(this.underlying);
+      });
+
+      describe("#premium", () => {
+        it("gets premium of option", async function () {
+          const premium = await this.adapter.premium(
+            this.underlying,
+            this.strikeAsset,
+            this.expiry,
+            this.strikePrice,
+            this.optionType,
+            this.purchaseAmount
+          );
+          assert.equal(premium.toString(), this.premium.toString());
+        });
+      });
+
+      describe("#purchase", () => {
+        beforeEach(async () => {
+          const snapShot = await helper.takeSnapshot();
+          snapshotId = snapShot["result"];
+        });
+
+        afterEach(async () => {
+          await helper.revertToSnapShot(snapshotId);
+        });
+
+        it("reverts when not enough value is passed", async function () {
+          await expectRevert(
+            this.adapter.purchase(
+              this.underlying,
+              this.strikeAsset,
+              this.expiry,
+              this.strikePrice,
+              this.optionType,
+              this.purchaseAmount,
+              {
+                from: user,
+                value: this.premium.sub(new BN("1")),
+              }
+            ),
+            "Value does not cover cost"
+          );
+        });
+
+        it("reverts when buying after expiry", async function () {
+          await time.increaseTo(this.expiry + 1);
+
+          await expectRevert(
+            this.adapter.purchase(
+              this.underlying,
+              this.strikeAsset,
+              this.expiry,
+              this.strikePrice,
+              this.optionType,
+              this.purchaseAmount,
+              {
+                from: user,
+                value: this.premium,
+              }
+            ),
+            "Cannot purchase after expiry"
+          );
+        });
+
+        it("reverts when passing unknown underlying", async function () {
+          await expectRevert(
+            this.adapter.purchase(
+              "0x0000000000000000000000000000000000000001",
+              this.strikeAsset,
+              this.expiry,
+              this.strikePrice,
+              this.optionType,
+              this.purchaseAmount,
+              {
+                from: user,
+                value: this.purchaseAmount,
+              }
+            ),
+            "No matching underlying"
+          );
+        });
+
+        it("creates options on hegic", async function () {
+          const res = await this.adapter.purchase(
+            this.underlying,
+            this.strikeAsset,
+            this.expiry,
+            this.strikePrice,
+            this.optionType,
+            this.purchaseAmount,
+            {
+              from: user,
+              value: this.premium,
+            }
+          );
+
+          expectEvent(res, "Purchased", {
+            protocolName: web3.utils.sha3("HEGIC"),
+            underlying: this.underlying,
+            strikeAsset: this.strikeAsset,
+            expiry: this.expiry.toString(),
+            strikePrice: this.strikePrice,
+            optionType: this.optionType.toString(),
+            amount: this.purchaseAmount,
+            premium: this.premium,
+            optionID: this.expectedOptionID,
+          });
+
+          const {
+            holder,
+            strike,
+            amount,
+            lockedAmount,
+            premium,
+            expiration,
+            optionType,
+          } = await this.hegicOptions.options(this.expectedOptionID);
+
+          // strike price is scaled down to 10**8 from 10**18
+          const scaledStrikePrice = this.strikePrice.div(new BN("10000000000"));
+
+          const { settlementFee } = await this.hegicOptions.fees(
+            this.expiry - this.startTime,
+            this.purchaseAmount,
+            scaledStrikePrice,
+            this.optionType
+          );
+          assert.equal(holder, this.adapter.address);
+          assert.equal(strike.toString(), scaledStrikePrice);
+          assert.equal(amount.toString(), this.purchaseAmount);
+          assert.equal(lockedAmount.toString(), this.purchaseAmount);
+          assert.equal(expiration, this.expiry);
+          assert.equal(optionType, this.optionType);
+
+          // premiums for token options are denominated in the underlying token
+          // we only check for this case when underlying is ETH
+          if (this.underlying == ETH_ADDRESS) {
+            assert.equal(
+              premium.toString(),
+              this.premium.sub(settlementFee).toString()
+            );
+          }
+        });
+      });
+
+      describe("#exerciseProfit", () => {
+        beforeEach(async function () {
+          const snapShot = await helper.takeSnapshot();
+          snapshotId = snapShot["result"];
+        });
+
+        afterEach(async () => {
+          await helper.revertToSnapShot(snapshotId);
+        });
+
+        it("reverts when unknown options address passed", async function () {
+          await expectRevert(
+            this.adapter.exerciseProfit(constants.ZERO_ADDRESS, 0, 0),
+            "optionsAddress must match either ETH or WBTC options"
+          );
+        });
+
+        it("gets correct exercise profit for an option", async function () {
+          const purchaseRes = await this.adapter.purchase(
+            this.underlying,
+            this.strikeAsset,
+            this.expiry,
+            this.strikePrice,
+            this.optionType,
+            this.purchaseAmount,
+            {
+              from: user,
+              value: this.premium,
+            }
+          );
+
+          assert.equal(
+            (
+              await this.adapter.exerciseProfit(
+                this.hegicOptions.address,
+                purchaseRes.receipt.logs[0].args.optionID,
+                0
+              )
+            ).toString(),
+            this.exerciseProfit
+          );
+        });
+      });
+
+      describe("#exercise", () => {
+        beforeEach(async function () {
+          const snapShot = await helper.takeSnapshot();
+          snapshotId = snapShot["result"];
+
+          const purchaseRes = await this.adapter.purchase(
+            this.underlying,
+            this.strikeAsset,
+            this.expiry,
+            this.strikePrice,
+            this.optionType,
+            this.purchaseAmount,
+            {
+              from: user,
+              value: this.premium,
+            }
+          );
+          this.optionID = purchaseRes.receipt.logs[0].args.optionID;
+        });
+
+        afterEach(async () => {
+          await helper.revertToSnapShot(snapshotId);
+        });
+
+        if (params.exerciseProfit.isZero()) {
+          it("reverts when not ITM", async function () {
+            await expectRevert(
+              this.adapter.exercise(
+                this.hegicOptions.address,
+                this.optionID,
+                0,
+                { from: user, gasPrice }
+              ),
+              `Current price is too ${this.optionType === 1 ? "high" : "low"}`
+            );
+          });
+        } else {
+          it("exercises options with profit", async function () {
+            const userTracker = await balance.tracker(user);
+            let token, startUserBalance;
+            if (this.underlying !== ETH_ADDRESS) {
+              token = await IERC20.at(this.underlying);
+              startUserBalance = await token.balanceOf(user);
+            }
+
+            const res = await this.adapter.exercise(
+              this.hegicOptions.address,
+              this.optionID,
+              0,
+              { from: user, gasPrice }
+            );
+            expectEvent(res, "Exercised", {
+              caller: user,
+              optionID: this.expectedOptionID,
+              amount: "0",
+              exerciseProfit: this.exerciseProfit,
+            });
+
+            if (this.underlying === ETH_ADDRESS) {
+              const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+              const profit = this.exerciseProfit.sub(gasFee);
+              assert.equal(
+                (await userTracker.delta()).toString(),
+                profit.toString()
+              );
+
+              // make sure the adapter doesn't accidentally retain any ether
+              assert.equal(
+                (await balance.current(this.adapter.address)).toString(),
+                "0"
+              );
+            } else {
+              assert.equal(
+                (await token.balanceOf(user)).sub(startUserBalance).toString(),
+                this.exerciseProfit
+              );
+              assert.equal(
+                (await token.balanceOf(this.adapter.address)).toString(),
+                "0"
+              );
+            }
+          });
+
+          it("reverts when exercising twice", async function () {
+            await this.adapter.exercise(
+              this.hegicOptions.address,
+              this.optionID,
+              0,
+              {
+                from: user,
+              }
+            );
+            await expectRevert(
+              this.adapter.exercise(
+                this.hegicOptions.address,
+                this.optionID,
+                0,
+                {
+                  from: user,
+                }
+              ),
+              "Wrong state"
+            );
+          });
+        }
+
+        it("reverts when past expiry", async function () {
+          await time.increaseTo(this.expiry + 1);
+
+          await expectRevert(
+            this.adapter.exercise(this.hegicOptions.address, this.optionID, 0, {
+              from: user,
+            }),
+            "Option has expired"
+          );
+        });
+      });
+    });
+  }
+
+  async function getOptionsContract(underlying) {
+    if (underlying === ETH_ADDRESS) {
+      return await IHegicETHOptions.at(HEGIC_ETH_OPTIONS);
+    } else if (underlying === WBTC_ADDRESS) {
+      return await IHegicBTCOptions.at(HEGIC_WBTC_OPTIONS);
+    }
+    throw new Error(`No underlying found ${underlying}`);
+  }
 });

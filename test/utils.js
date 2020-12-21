@@ -1,4 +1,4 @@
-const { contract, accounts } = require("@openzeppelin/test-environment");
+const { contract } = require("@openzeppelin/test-environment");
 const { ether, BN } = require("@openzeppelin/test-helpers");
 const { encodeCall } = require("@openzeppelin/upgrades");
 
@@ -6,18 +6,12 @@ const AdminUpgradeabilityProxy = contract.fromArtifact(
   "AdminUpgradeabilityProxy"
 );
 const Factory = contract.fromArtifact("DojiFactory");
-const MockOToken = contract.fromArtifact("MockOToken");
-const MockOptionsExchange = contract.fromArtifact("MockOptionsExchange");
-const MockUniswapFactory = contract.fromArtifact("MockUniswapFactory");
-const MockUniswapExchange = contract.fromArtifact("MockUniswapExchange");
-const [admin, owner] = accounts;
 
 module.exports = {
   getDefaultArgs,
   deployProxy,
   wmul,
   wdiv,
-  deployDefaultUniswap,
 };
 
 async function deployProxy(
@@ -50,35 +44,6 @@ async function getDefaultArgs(admin, owner, user) {
 
   return {
     factory,
-  };
-}
-
-async function deployDefaultUniswap() {
-  const uniswapExchange = await MockUniswapExchange.new({ from: owner });
-  const uniswapFactory = await MockUniswapFactory.new({ from: owner });
-  const optionsExchange = await MockOptionsExchange.new({ from: owner });
-  const oToken = await MockOToken.new(
-    "ETH/USD CALL",
-    "ETH/USD-CALL",
-    ether("1000"),
-    {
-      from: owner,
-    }
-  );
-
-  // setup the pool to be ready to transfer
-  await oToken.transfer(uniswapExchange.address, ether("100"), { from: owner });
-  await uniswapExchange.setToken(oToken.address);
-
-  await uniswapFactory.setExchange(oToken.address, uniswapExchange.address);
-  await optionsExchange.setFactory(uniswapFactory.address);
-  await oToken.setOptionsExchange(optionsExchange.address);
-
-  return {
-    uniswapFactory,
-    optionsExchange,
-    oToken,
-    uniswapExchange,
   };
 }
 

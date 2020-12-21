@@ -4,7 +4,9 @@ pragma solidity >=0.6.0;
 import {
     AggregatorV3Interface
 } from "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IProtocolAdapter, OptionType} from "./IProtocolAdapter.sol";
 import {
     IHegicOptions,
@@ -16,13 +18,16 @@ import {
     ReentrancyGuard
 } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
+import "../tests/DebugLib.sol";
 
 contract HegicAdapter is
     IProtocolAdapter,
     ReentrancyGuard,
-    BaseProtocolAdapter
+    BaseProtocolAdapter,
+    DebugLib
 {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
     string private constant _name = "HEGIC";
     bool private constant _nonFungible = true;
@@ -70,20 +75,21 @@ contract HegicAdapter is
         uint256 purchaseAmount
     ) public override view returns (uint256 cost) {
         require(block.timestamp < expiry, "Cannot purchase after expiry");
-        uint256 period = expiry - block.timestamp;
+        uint256 period = expiry.sub(block.timestamp);
+        uint256 scaledStrikePrice = scaleDownStrikePrice(strikePrice);
 
         if (underlying == ethAddress) {
             (cost, , , ) = ethOptions.fees(
                 period,
                 purchaseAmount,
-                strikePrice,
+                scaledStrikePrice,
                 HegicOptionType(uint8(optionType))
             );
         } else if (underlying == wbtcAddress) {
             (, cost, , , ) = wbtcOptions.fees(
                 period,
                 purchaseAmount,
-                strikePrice,
+                scaledStrikePrice,
                 HegicOptionType(uint8(optionType))
             );
         } else {
@@ -151,10 +157,7 @@ contract HegicAdapter is
         onlyInstrument
         returns (uint256 optionID)
     {
-        IHegicOptions options = getHegicOptions(underlying);
         require(block.timestamp < expiry, "Cannot purchase after expiry");
-
-        uint256 period = expiry - block.timestamp;
         uint256 cost = premium(
             underlying,
             strikeAsset,
@@ -163,13 +166,13 @@ contract HegicAdapter is
             optionType,
             amount
         );
-        require(msg.value >= cost, "Value does not cover cost");
-
-        optionID = options.create{value: cost}(
-            period,
+        optionID = _purchase(
+            underlying,
+            cost,
+            expiry,
             amount,
             strikePrice,
-            HegicOptionType(uint8(optionType))
+            optionType
         );
 
         emit Purchased(
@@ -183,6 +186,27 @@ contract HegicAdapter is
             amount,
             cost,
             optionID
+        );
+    }
+
+    function _purchase(
+        address underlying,
+        uint256 cost,
+        uint256 expiry,
+        uint256 amount,
+        uint256 strikePrice,
+        OptionType optionType
+    ) private returns (uint256 optionID) {
+        uint256 scaledStrikePrice = scaleDownStrikePrice(strikePrice);
+        uint256 period = expiry.sub(block.timestamp);
+        IHegicOptions options = getHegicOptions(underlying);
+        require(msg.value >= cost, "Value does not cover cost");
+
+        optionID = options.create{value: cost}(
+            period,
+            amount,
+            scaledStrikePrice,
+            HegicOptionType(uint8(optionType))
         );
     }
 
@@ -200,9 +224,16 @@ contract HegicAdapter is
         uint256 profit = exerciseProfit(optionsAddress, optionID, amount);
         IHegicOptions options = IHegicOptions(optionsAddress);
         options.exercise(optionID);
-        (bool success, ) = msg.sender.call{value: profit}("");
-        require(success, "Failed transfer");
-        emit Exercised(msg.sender, optionsAddress, optionID, amount, 0);
+
+        if (optionsAddress == address(ethOptions)) {
+            (bool success, ) = msg.sender.call{value: profit}("");
+            require(success, "Failed transfer");
+        } else {
+            IERC20 wbtc = IERC20(wbtcAddress);
+            wbtc.safeTransfer(msg.sender, profit);
+        }
+
+        emit Exercised(msg.sender, optionsAddress, optionID, amount, profit);
     }
 
     function getHegicOptions(address underlying)
@@ -216,5 +247,14 @@ contract HegicAdapter is
             return wbtcOptions;
         }
         require(false, "No matching options contract");
+    }
+
+    function scaleDownStrikePrice(uint256 strikePrice)
+        private
+        pure
+        returns (uint256)
+    {
+        // converts strike price in 10**18 to 10**8
+        return strikePrice.div(10**10);
     }
 }

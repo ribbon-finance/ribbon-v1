@@ -80,41 +80,41 @@ describe("HegicAdapter", () => {
     exerciseProfit: new BN("86680823070678630"),
   });
 
-  // behavesLikeHegicOptions({
-  //   optionName: "ETH CALL OTM",
-  //   underlying: ETH_ADDRESS,
-  //   strikeAsset: ETH_ADDRESS,
-  //   strikePrice: ether("600"),
-  //   premium: new BN("38399162806593750"),
-  //   purchaseAmount: ether("1"),
-  //   optionType: CALL_OPTION_TYPE,
-  //   expectedOptionID: "1685",
-  //   exerciseProfit: new BN("0"),
-  // });
+  behavesLikeHegicOptions({
+    optionName: "ETH CALL OTM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: ETH_ADDRESS,
+    strikePrice: ether("600"),
+    premium: new BN("38399162806593750"),
+    purchaseAmount: ether("1"),
+    optionType: CALL_OPTION_TYPE,
+    expectedOptionID: "1685",
+    exerciseProfit: new BN("0"),
+  });
 
-  // behavesLikeHegicOptions({
-  //   optionName: "ETH PUT ITM",
-  //   underlying: ETH_ADDRESS,
-  //   strikeAsset: ETH_ADDRESS,
-  //   strikePrice: ether("600"),
-  //   premium: new BN("140095483573495796"),
-  //   purchaseAmount: ether("1"),
-  //   optionType: PUT_OPTION_TYPE,
-  //   expectedOptionID: "1685",
-  //   exerciseProfit: new BN("95983012315185643"),
-  // });
+  behavesLikeHegicOptions({
+    optionName: "ETH PUT ITM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: ETH_ADDRESS,
+    strikePrice: ether("600"),
+    premium: new BN("140095483573495796"),
+    purchaseAmount: ether("1"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "1685",
+    exerciseProfit: new BN("95983012315185643"),
+  });
 
-  // behavesLikeHegicOptions({
-  //   optionName: "ETH PUT OTM",
-  //   underlying: ETH_ADDRESS,
-  //   strikeAsset: ETH_ADDRESS,
-  //   strikePrice: ether("500"),
-  //   premium: new BN("38427059381925127"),
-  //   purchaseAmount: ether("1"),
-  //   optionType: PUT_OPTION_TYPE,
-  //   expectedOptionID: "1685",
-  //   exerciseProfit: new BN("0"),
-  // });
+  behavesLikeHegicOptions({
+    optionName: "ETH PUT OTM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: ETH_ADDRESS,
+    strikePrice: ether("500"),
+    premium: new BN("38427059381925127"),
+    purchaseAmount: ether("1"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "1685",
+    exerciseProfit: new BN("0"),
+  });
 
   function behavesLikeHegicOptions(params) {
     describe(`${params.optionName}`, () => {
@@ -346,56 +346,69 @@ describe("HegicAdapter", () => {
           await helper.revertToSnapShot(snapshotId);
         });
 
-        it("exercises options with profit", async function () {
-          const hegicTracker = await balance.tracker(this.hegicOptions.address);
-          const adapterTracker = await balance.tracker(this.adapter.address);
-          const userTracker = await balance.tracker(user);
+        if (params.exerciseProfit.isZero()) {
+          it("reverts when not ITM", async function () {
+            await expectRevert(
+              this.adapter.exercise(
+                this.hegicOptions.address,
+                this.optionID,
+                0,
+                { from: user, gasPrice }
+              ),
+              `Current price is too ${this.optionType === 1 ? "high" : "low"}`
+            );
+          });
+        } else {
+          it("exercises options with profit", async function () {
+            const adapterTracker = await balance.tracker(this.adapter.address);
+            const userTracker = await balance.tracker(user);
 
-          const res = await this.adapter.exercise(
-            this.hegicOptions.address,
-            this.optionID,
-            0,
-            { from: user }
-          );
-          expectEvent(res, "Exercised", {
-            caller: user,
-            optionID: this.expectedOptionID,
-            amount: "0",
-            exerciseProfit: this.exerciseProfit,
+            const res = await this.adapter.exercise(
+              this.hegicOptions.address,
+              this.optionID,
+              0,
+              { from: user, gasPrice }
+            );
+            expectEvent(res, "Exercised", {
+              caller: user,
+              optionID: this.expectedOptionID,
+              amount: "0",
+              exerciseProfit: this.exerciseProfit,
+            });
+
+            const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+            const profit = this.exerciseProfit.sub(gasFee);
+            assert.equal(
+              (await userTracker.delta()).toString(),
+              profit.toString()
+            );
+
+            // make sure the adapter doesn't accidentally retain any ether
+            assert.equal((await adapterTracker.delta()).toString(), "0");
           });
 
-          const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
-          const profit = this.exerciseProfit.sub(gasFee);
-
-          assert.equal(
-            (await userTracker.delta()).toString(),
-            profit.toString()
-          );
-          assert.equal(
-            (await hegicTracker.delta()).toString(),
-            "-" + this.exerciseProfit.toString()
-          );
-
-          // make sure doji doesn't accidentally retain any ether
-          assert.equal((await adapterTracker.delta()).toString(), "0");
-        });
-
-        it("reverts when exercising twice", async function () {
-          await this.adapter.exercise(
-            this.hegicOptions.address,
-            this.optionID,
-            0,
-            {
-              from: user,
-            }
-          );
-          await expectRevert(
-            this.adapter.exercise(this.hegicOptions.address, this.optionID, 0, {
-              from: user,
-            }),
-            "Wrong state"
-          );
-        });
+          it("reverts when exercising twice", async function () {
+            await this.adapter.exercise(
+              this.hegicOptions.address,
+              this.optionID,
+              0,
+              {
+                from: user,
+              }
+            );
+            await expectRevert(
+              this.adapter.exercise(
+                this.hegicOptions.address,
+                this.optionID,
+                0,
+                {
+                  from: user,
+                }
+              ),
+              "Wrong state"
+            );
+          });
+        }
 
         it("reverts when past expiry", async function () {
           await time.increaseTo(this.expiry + 1);

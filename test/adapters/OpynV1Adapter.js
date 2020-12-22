@@ -192,7 +192,7 @@ describe("OpynV1Adapter", () => {
     purchaseAmount: ether("100"),
     scaledPurchaseAmount: new BN("1000000000"),
     exerciseProfitWithoutFees: new BN("105167250869224019654"),
-    exerciseProfit: new BN("41483526531431424"),
+    exerciseProfit: new BN("6895291786998639829"),
     vaults: [
       "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
       "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
@@ -458,11 +458,17 @@ function behavesLikeOToken(args) {
         );
 
         const userTracker = await balance.tracker(user);
+        let token, startUserBalance;
+        if (this.underlying !== ETH_ADDRESS) {
+          token = await IERC20.at(this.underlying);
+          startUserBalance = await token.balanceOf(user);
+        }
 
         const promise = this.adapter.exercise(
           this.oToken.address,
           0,
           this.purchaseAmount,
+          this.underlying,
           {
             from: user,
             gasPrice,
@@ -474,14 +480,25 @@ function behavesLikeOToken(args) {
           return;
         }
 
-        const res = await promise;
-        const gasUsed = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
-        const balanceChange = await userTracker.delta();
+        if (this.underlying === ETH_ADDRESS) {
+          const res = await promise;
+          const gasUsed = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+          const balanceChange = await userTracker.delta();
 
-        assert.equal(
-          balanceChange.toString(),
-          this.exerciseProfit.sub(gasUsed).toString()
-        );
+          assert.equal(
+            balanceChange.toString(),
+            this.exerciseProfit.sub(gasUsed).toString()
+          );
+        } else {
+          assert.equal(
+            (await token.balanceOf(user)).sub(startUserBalance).toString(),
+            this.exerciseProfit
+          );
+          assert.equal(
+            (await token.balanceOf(this.adapter.address)).toString(),
+            "0"
+          );
+        }
 
         // adapter should not hold anything at the end
         const strikeERC20 = await IERC20.at(this.strikeAsset);

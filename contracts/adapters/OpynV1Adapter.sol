@@ -176,7 +176,7 @@ contract OpynV1Adapter is
             strikeToEthPrice = compoundOracle.getPrice(strike);
         }
 
-        collateralToPay = getAmtCollateralToPay(
+        collateralToPay = _calculateCollateralToPay(
             oTokens,
             strikeToEthPrice,
             collateralToEthPrice,
@@ -185,7 +185,7 @@ contract OpynV1Adapter is
         );
     }
 
-    function getAmtCollateralToPay(
+    function _calculateCollateralToPay(
         uint256 oTokens,
         uint256 strikeToEthPrice,
         uint256 collateralToEthPrice,

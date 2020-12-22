@@ -86,7 +86,8 @@ describe("OpynV1Adapter", () => {
     premium: new BN("106656198359758724"),
     purchaseAmount: ether("500"),
     scaledPurchaseAmount: new BN("500000000"),
-    exerciseProfit: new BN("1000000000000000000"),
+    exerciseProfitWithoutFees: new BN("1000000000000000000"),
+    exerciseProfit: new BN("83090832707945605"),
     vaults: [
       "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
       "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
@@ -104,7 +105,8 @@ describe("OpynV1Adapter", () => {
     premium: new BN("106920070230577145"),
     purchaseAmount: ether("1"),
     scaledPurchaseAmount: new BN("10000000"),
-    exerciseProfit: new BN("1092696150697474033"),
+    exerciseProfitWithoutFees: new BN("1092696150697474033"),
+    exerciseProfit: new BN("91796148075270874"),
     vaults: [
       "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
       "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",
@@ -129,6 +131,7 @@ function behavesLikeOToken(args) {
         scaledPurchaseAmount,
         exerciseProfit,
         vaults,
+        exerciseProfitWithoutFees,
       } = args;
       this.underlying = underlying;
       this.strikeAsset = strikeAsset;
@@ -140,6 +143,7 @@ function behavesLikeOToken(args) {
       this.purchaseAmount = purchaseAmount;
       this.scaledPurchaseAmount = scaledPurchaseAmount;
       this.exerciseProfit = exerciseProfit;
+      this.exerciseProfitWithoutFees = exerciseProfitWithoutFees;
       this.vaults = vaults;
 
       this.oToken = await IERC20.at(this.oTokenAddress);
@@ -199,7 +203,12 @@ function behavesLikeOToken(args) {
     });
 
     describe("#exerciseProfit", () => {
+      let initSnapshotId;
+
       before(async function () {
+        const snapshot = await helper.takeSnapshot();
+        initSnapshotId = snapshot["result"];
+
         await this.adapter.purchase(
           this.underlying,
           this.strikeAsset,
@@ -214,6 +223,10 @@ function behavesLikeOToken(args) {
         );
       });
 
+      after(async () => {
+        await helper.revertToSnapShot(initSnapshotId);
+      });
+
       it("gets the exercise profit", async function () {
         assert.equal(
           (
@@ -224,7 +237,7 @@ function behavesLikeOToken(args) {
               this.underlying
             )
           ).toString(),
-          this.exerciseProfit
+          this.exerciseProfitWithoutFees
         );
       });
     });
@@ -350,8 +363,6 @@ function behavesLikeOToken(args) {
       });
 
       it("exercises tokens", async function () {
-        const userTracker = await balance.tracker(user);
-
         await this.oToken.approve(
           this.adapter.address,
           this.scaledPurchaseAmount,
@@ -359,6 +370,8 @@ function behavesLikeOToken(args) {
             from: user,
           }
         );
+
+        const userTracker = await balance.tracker(user);
 
         const res = await this.adapter.exercise(
           this.oToken.address,

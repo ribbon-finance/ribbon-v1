@@ -258,34 +258,37 @@ contract OpynV1FlashLoaner is
         uint256 soldAmount,
         address sender
     ) private {
+        uint256 collateralReturned = calculateCollateralToPay(
+            oToken,
+            exerciseAmount
+        );
+        uint256 settledProfit = collateralReturned.sub(soldAmount);
+
         if (collateral == address(0)) {
-            uint256 settledProfit = address(this).balance;
+            // uint256 settledProfit = address(this).balance;
             (bool returnExercise, ) = sender.call{value: settledProfit}("");
             require(returnExercise, "Transfer exercised profit failed");
         } else if (collateral == _weth) {
-            uint256 balance = address(this).balance;
+            // uint256 balance = address(this).balance;
             IWETH wethContract = IWETH(_weth);
-            wethContract.withdraw(balance);
-            (bool returnExercise, ) = sender.call{value: balance}("");
+            wethContract.withdraw(settledProfit);
+            (bool returnExercise, ) = sender.call{value: settledProfit}("");
             require(returnExercise, "Transfer exercised profit failed");
         } else {
             IUniswapV2Router02 router = IUniswapV2Router02(_uniswapRouter);
             IERC20 collateralToken = IERC20(collateral);
-            uint256 collateralBalance = collateralToken.balanceOf(
-                address(this)
-            );
             address[] memory path = new address[](2);
             path[0] = collateral;
             path[1] = _weth;
             uint256[] memory amountsOut = router.getAmountsOut(
-                collateralBalance,
+                settledProfit,
                 path
             );
 
-            collateralToken.approve(address(router), collateralBalance);
+            collateralToken.approve(address(router), settledProfit);
 
             router.swapExactTokensForETH(
-                collateralBalance,
+                settledProfit,
                 amountsOut[1],
                 path,
                 sender,

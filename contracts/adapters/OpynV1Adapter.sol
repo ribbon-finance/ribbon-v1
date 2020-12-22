@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
+pragma experimental ABIEncoderV2;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
@@ -22,6 +23,7 @@ import {
     ILendingPoolAddressesProvider
 } from "../lib/aave/Interfaces.sol";
 import {OpynV1FlashLoaner} from "./OpynV1FlashLoaner.sol";
+import "../tests/DebugLib.sol";
 
 contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
     mapping(bytes => address) public optionTermsToOToken;
@@ -31,7 +33,8 @@ contract OpynV1Adapter is
     IProtocolAdapter,
     ReentrancyGuard,
     OpynV1FlashLoaner,
-    OpynV1AdapterStorageV1
+    OpynV1AdapterStorageV1,
+    DebugLib
 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -39,6 +42,11 @@ contract OpynV1Adapter is
     string private constant _name = "OPYN_V1";
     bool private constant _nonFungible = false;
     uint256 private constant _swapDeadline = 900; // 15 minutes
+
+    struct Number {
+        uint256 value;
+        int32 exponent;
+    }
 
     constructor(ILendingPoolAddressesProvider _addressProvider)
         public
@@ -93,43 +101,121 @@ contract OpynV1Adapter is
         );
     }
 
+    // function exerciseProfit(
+    //     address oToken,
+    //     uint256 optionID,
+    //     uint256 exerciseAmount
+    // ) public override view returns (uint256 profit) {
+    //     IOToken oTokenContract = IOToken(oToken);
+
+    //     CompoundOracleInterface compoundOracle = CompoundOracleInterface(
+    //         oTokenContract.COMPOUND_ORACLE()
+    //     );
+    //     uint256 strikeAssetPrice = compoundOracle.getPrice(
+    //         oTokenContract.strike()
+    //     );
+    //     address underlying = oTokenContract.underlying();
+    //     uint256 underlyingPrice = compoundOracle.getPrice(
+    //         underlying == _weth ? address(0) : underlying
+    //     );
+    //     uint256 strikePriceInUnderlying = wdiv(
+    //         strikeAssetPrice,
+    //         underlyingPrice
+    //     );
+
+    //     (uint256 strikePriceNum, int32 strikePriceExp) = oTokenContract
+    //         .strikePrice();
+    //     uint256 strikePriceWAD = strikePriceNum *
+    //         (10**uint256(18 - strikePriceExp));
+
+    //     bool isProfitable = strikePriceInUnderlying >= strikePriceWAD;
+
+    //     if (isProfitable) {
+    //         // TBD about returning profit in underlying or ETH
+    //         profit = sub(
+    //             wmul(strikePriceInUnderlying, exerciseAmount),
+    //             wmul(strikePriceWAD, exerciseAmount)
+    //         );
+    //     } else {
+    //         profit = 0;
+    //     }
+    // }
+
     function exerciseProfit(
         address oToken,
         uint256 optionID,
         uint256 exerciseAmount
     ) public override view returns (uint256 profit) {
         IOToken oTokenContract = IOToken(oToken);
+        return calculateCollateralToPay(oTokenContract, exerciseAmount);
+    }
 
+    function calculateCollateralToPay(IOToken oTokenContract, uint256 oTokens)
+        internal
+        view
+        returns (uint256 collateralToPay)
+    {
         CompoundOracleInterface compoundOracle = CompoundOracleInterface(
             oTokenContract.COMPOUND_ORACLE()
         );
-        uint256 strikeAssetPrice = compoundOracle.getPrice(
-            oTokenContract.strike()
-        );
-        uint256 underlyingPrice = compoundOracle.getPrice(
-            oTokenContract.underlying()
-        );
-        uint256 strikePriceInUnderlying = wdiv(
-            strikeAssetPrice,
-            underlyingPrice
-        );
-
         (uint256 strikePriceNum, int32 strikePriceExp) = oTokenContract
             .strikePrice();
-        uint256 strikePriceWAD = strikePriceNum *
-            (10**uint256(18 - strikePriceExp));
+        Number memory strikePriceNumber = Number(
+            strikePriceNum,
+            strikePriceExp
+        );
 
-        bool isProfitable = strikePriceInUnderlying >= strikePriceWAD;
+        // Get price from oracle
+        uint256 collateralToEthPrice = 1;
+        uint256 strikeToEthPrice = 1;
+        address collateral = oTokenContract.collateral();
+        address strike = oTokenContract.strike();
 
-        if (isProfitable) {
-            // TBD about returning profit in underlying or ETH
-            profit = sub(
-                wmul(strikePriceInUnderlying, exerciseAmount),
-                wmul(strikePriceWAD, exerciseAmount)
+        if (collateral != strike) {
+            collateralToEthPrice = compoundOracle.getPrice(collateral);
+            strikeToEthPrice = compoundOracle.getPrice(strike);
+        }
+
+        collateralToPay = getAmtCollateralToPay(
+            oTokens,
+            strikeToEthPrice,
+            collateralToEthPrice,
+            oTokenContract.collateralExp(),
+            strikePriceNumber
+        );
+    }
+
+    function getAmtCollateralToPay(
+        uint256 oTokens,
+        uint256 strikeToEthPrice,
+        uint256 collateralToEthPrice,
+        int32 collateralExp,
+        Number memory strikePrice
+    ) private pure returns (uint256 amtCollateralToPay) {
+        Number memory proportion = Number(1, 0);
+        // calculate how much should be paid out
+        uint256 amtCollateralToPayInEthNum = oTokens
+            .mul(strikePrice.value)
+            .mul(proportion.value)
+            .mul(strikeToEthPrice);
+        int32 amtCollateralToPayExp = strikePrice.exponent +
+            proportion.exponent -
+            collateralExp;
+
+        amtCollateralToPay = 0;
+        uint256 exp;
+        if (amtCollateralToPayExp > 0) {
+            exp = uint256(amtCollateralToPayExp);
+            amtCollateralToPay = amtCollateralToPayInEthNum.mul(10**exp).div(
+                collateralToEthPrice
             );
         } else {
-            profit = 0;
+            exp = uint256(-1 * amtCollateralToPayExp);
+            amtCollateralToPay = amtCollateralToPayInEthNum.div(10**exp).div(
+                collateralToEthPrice
+            );
         }
+        require(exp <= 77, "Options Contract: Exponentiation overflowed");
     }
 
     function purchase(

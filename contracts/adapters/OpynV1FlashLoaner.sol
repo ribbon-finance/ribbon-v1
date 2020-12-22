@@ -215,9 +215,6 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
             );
             soldCollateralAmount = amountsIn[0];
 
-            IUniswapV2Factory factory = IUniswapV2Factory(router.factory());
-            address uniswapPair = factory.getPair(path[0], path[1]);
-
             require(
                 collateralToken.balanceOf(address(this)) >=
                     soldCollateralAmount,

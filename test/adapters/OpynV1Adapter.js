@@ -198,6 +198,36 @@ function behavesLikeOToken(args) {
       });
     });
 
+    describe("#exerciseProfit", () => {
+      before(async function () {
+        await this.adapter.purchase(
+          this.underlying,
+          this.strikeAsset,
+          this.expiry,
+          this.strikePrice,
+          this.optionType,
+          this.purchaseAmount,
+          {
+            from: user,
+            value: new BN(this.premium).add(new BN("1")),
+          }
+        );
+      });
+
+      it("gets the exercise profit", async function () {
+        assert.equal(
+          (
+            await this.adapter.exerciseProfit(
+              this.oToken.address,
+              0,
+              this.purchaseAmount
+            )
+          ).toString(),
+          "0"
+        );
+      });
+    });
+
     describe("#purchase", () => {
       let snapshotId;
 

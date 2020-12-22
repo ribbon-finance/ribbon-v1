@@ -21,8 +21,19 @@ import {
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {IUniswapV2Factory} from "../interfaces/IUniswapV2Factory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
+import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
 
-contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
+contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
+    mapping(address => address payable[]) internal vaults;
+
+    mapping(bytes => address) public optionTermsToOToken;
+}
+
+contract OpynV1FlashLoaner is
+    DSMath,
+    FlashLoanReceiverBase,
+    OpynV1AdapterStorageV1
+{
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -31,7 +42,6 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
     uint256 private constant _swapWindow = 900;
     address internal _uniswapRouter;
     address internal _weth;
-    mapping(address => address payable[]) internal vaults;
 
     constructor(ILendingPoolAddressesProvider _addressProvider)
         public

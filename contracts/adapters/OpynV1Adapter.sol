@@ -17,7 +17,6 @@ import {
     CompoundOracleInterface
 } from "../interfaces/OpynV1Interface.sol";
 import {IProtocolAdapter, OptionType} from "./IProtocolAdapter.sol";
-import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
 import {
     ILendingPool,
     ILendingPoolAddressesProvider
@@ -25,15 +24,10 @@ import {
 import {OpynV1FlashLoaner} from "./OpynV1FlashLoaner.sol";
 import "../tests/DebugLib.sol";
 
-contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
-    mapping(bytes => address) public optionTermsToOToken;
-}
-
 contract OpynV1Adapter is
     IProtocolAdapter,
     ReentrancyGuard,
     OpynV1FlashLoaner,
-    OpynV1AdapterStorageV1,
     DebugLib
 {
     using SafeMath for uint256;
@@ -101,53 +95,23 @@ contract OpynV1Adapter is
         );
     }
 
-    // function exerciseProfit(
-    //     address oToken,
-    //     uint256 optionID,
-    //     uint256 exerciseAmount
-    // ) public override view returns (uint256 profit) {
-    //     IOToken oTokenContract = IOToken(oToken);
-
-    //     CompoundOracleInterface compoundOracle = CompoundOracleInterface(
-    //         oTokenContract.COMPOUND_ORACLE()
-    //     );
-    //     uint256 strikeAssetPrice = compoundOracle.getPrice(
-    //         oTokenContract.strike()
-    //     );
-    //     address underlying = oTokenContract.underlying();
-    //     uint256 underlyingPrice = compoundOracle.getPrice(
-    //         underlying == _weth ? address(0) : underlying
-    //     );
-    //     uint256 strikePriceInUnderlying = wdiv(
-    //         strikeAssetPrice,
-    //         underlyingPrice
-    //     );
-
-    //     (uint256 strikePriceNum, int32 strikePriceExp) = oTokenContract
-    //         .strikePrice();
-    //     uint256 strikePriceWAD = strikePriceNum *
-    //         (10**uint256(18 - strikePriceExp));
-
-    //     bool isProfitable = strikePriceInUnderlying >= strikePriceWAD;
-
-    //     if (isProfitable) {
-    //         // TBD about returning profit in underlying or ETH
-    //         profit = sub(
-    //             wmul(strikePriceInUnderlying, exerciseAmount),
-    //             wmul(strikePriceWAD, exerciseAmount)
-    //         );
-    //     } else {
-    //         profit = 0;
-    //     }
-    // }
-
     function exerciseProfit(
         address oToken,
         uint256 optionID,
         uint256 exerciseAmount
     ) public override view returns (uint256 profit) {
         IOToken oTokenContract = IOToken(oToken);
-        return calculateCollateralToPay(oTokenContract, exerciseAmount);
+        uint256 collateralToPay = calculateCollateralToPay(
+            oTokenContract,
+            exerciseAmount
+        );
+
+        return collateralToPay;
+
+        // uint256[] memory amountsOut = router.getAmountsOut(
+        //     collateralBalance,
+        //     path
+        // );
     }
 
     function calculateCollateralToPay(IOToken oTokenContract, uint256 oTokens)

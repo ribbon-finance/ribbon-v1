@@ -9,6 +9,7 @@ import {
     ReentrancyGuard
 } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {
     IOToken,
     IOptionsExchange,
@@ -36,11 +37,6 @@ contract OpynV1Adapter is
     string private constant _name = "OPYN_V1";
     bool private constant _nonFungible = false;
     uint256 private constant _swapDeadline = 900; // 15 minutes
-
-    struct Number {
-        uint256 value;
-        int32 exponent;
-    }
 
     constructor(ILendingPoolAddressesProvider _addressProvider)
         public
@@ -98,88 +94,29 @@ contract OpynV1Adapter is
     function exerciseProfit(
         address oToken,
         uint256 optionID,
-        uint256 exerciseAmount
+        uint256 exerciseAmount,
+        address underlying
     ) public override view returns (uint256 profit) {
         IOToken oTokenContract = IOToken(oToken);
-        uint256 collateralToPay = calculateCollateralToPay(
+        address oTokenCollateral = oTokenContract.collateral();
+        uint256 collateralToPay = OpynV1FlashLoaner.calculateCollateralToPay(
             oTokenContract,
             exerciseAmount
         );
 
+        if (underlying != oTokenCollateral) {
+            IUniswapV2Router02 router = IUniswapV2Router02(_uniswapRouter);
+            address[] memory path = new address[](2);
+            path[0] = oTokenCollateral;
+            path[1] = underlying;
+
+            uint256[] memory amountsOut = router.getAmountsOut(
+                collateralToPay,
+                path
+            );
+            return amountsOut[1];
+        }
         return collateralToPay;
-
-        // uint256[] memory amountsOut = router.getAmountsOut(
-        //     collateralBalance,
-        //     path
-        // );
-    }
-
-    function calculateCollateralToPay(IOToken oTokenContract, uint256 oTokens)
-        internal
-        view
-        returns (uint256 collateralToPay)
-    {
-        CompoundOracleInterface compoundOracle = CompoundOracleInterface(
-            oTokenContract.COMPOUND_ORACLE()
-        );
-        (uint256 strikePriceNum, int32 strikePriceExp) = oTokenContract
-            .strikePrice();
-        Number memory strikePriceNumber = Number(
-            strikePriceNum,
-            strikePriceExp
-        );
-
-        // Get price from oracle
-        uint256 collateralToEthPrice = 1;
-        uint256 strikeToEthPrice = 1;
-        address collateral = oTokenContract.collateral();
-        address strike = oTokenContract.strike();
-
-        if (collateral != strike) {
-            collateralToEthPrice = compoundOracle.getPrice(collateral);
-            strikeToEthPrice = compoundOracle.getPrice(strike);
-        }
-
-        collateralToPay = _calculateCollateralToPay(
-            oTokens,
-            strikeToEthPrice,
-            collateralToEthPrice,
-            oTokenContract.collateralExp(),
-            strikePriceNumber
-        );
-    }
-
-    function _calculateCollateralToPay(
-        uint256 oTokens,
-        uint256 strikeToEthPrice,
-        uint256 collateralToEthPrice,
-        int32 collateralExp,
-        Number memory strikePrice
-    ) private pure returns (uint256 amtCollateralToPay) {
-        Number memory proportion = Number(1, 0);
-        // calculate how much should be paid out
-        uint256 amtCollateralToPayInEthNum = oTokens
-            .mul(strikePrice.value)
-            .mul(proportion.value)
-            .mul(strikeToEthPrice);
-        int32 amtCollateralToPayExp = strikePrice.exponent +
-            proportion.exponent -
-            collateralExp;
-
-        amtCollateralToPay = 0;
-        uint256 exp;
-        if (amtCollateralToPayExp > 0) {
-            exp = uint256(amtCollateralToPayExp);
-            amtCollateralToPay = amtCollateralToPayInEthNum.mul(10**exp).div(
-                collateralToEthPrice
-            );
-        } else {
-            exp = uint256(-1 * amtCollateralToPayExp);
-            amtCollateralToPay = amtCollateralToPayInEthNum.div(10**exp).div(
-                collateralToEthPrice
-            );
-        }
-        require(exp <= 77, "Options Contract: Exponentiation overflowed");
     }
 
     function purchase(

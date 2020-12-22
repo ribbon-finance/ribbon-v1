@@ -24,6 +24,10 @@ import {IWETH} from "../interfaces/IWETH.sol";
 import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
 
 contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
+    address internal _uniswapRouter;
+
+    address internal _weth;
+
     mapping(address => address payable[]) internal vaults;
 
     mapping(bytes => address) public optionTermsToOToken;
@@ -37,11 +41,14 @@ contract OpynV1FlashLoaner is
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
+    struct Number {
+        uint256 value;
+        int32 exponent;
+    }
+
     uint256 private constant _vaultStartIteration = 0;
     uint256 private constant _maxVaultIterations = 5;
     uint256 private constant _swapWindow = 900;
-    address internal _uniswapRouter;
-    address internal _weth;
 
     constructor(ILendingPoolAddressesProvider _addressProvider)
         public
@@ -285,6 +292,74 @@ contract OpynV1FlashLoaner is
                 block.timestamp + _swapWindow
             );
         }
+    }
+
+    function calculateCollateralToPay(IOToken oTokenContract, uint256 oTokens)
+        internal
+        view
+        returns (uint256 collateralToPay)
+    {
+        CompoundOracleInterface compoundOracle = CompoundOracleInterface(
+            oTokenContract.COMPOUND_ORACLE()
+        );
+        (uint256 strikePriceNum, int32 strikePriceExp) = oTokenContract
+            .strikePrice();
+        Number memory strikePriceNumber = Number(
+            strikePriceNum,
+            strikePriceExp
+        );
+
+        // Get price from oracle
+        uint256 collateralToEthPrice = 1;
+        uint256 strikeToEthPrice = 1;
+        address collateral = oTokenContract.collateral();
+        address strike = oTokenContract.strike();
+
+        if (collateral != strike) {
+            collateralToEthPrice = compoundOracle.getPrice(collateral);
+            strikeToEthPrice = compoundOracle.getPrice(strike);
+        }
+
+        collateralToPay = _calculateCollateralToPay(
+            oTokens,
+            strikeToEthPrice,
+            collateralToEthPrice,
+            oTokenContract.collateralExp(),
+            strikePriceNumber
+        );
+    }
+
+    function _calculateCollateralToPay(
+        uint256 oTokens,
+        uint256 strikeToEthPrice,
+        uint256 collateralToEthPrice,
+        int32 collateralExp,
+        Number memory strikePrice
+    ) private pure returns (uint256 amtCollateralToPay) {
+        Number memory proportion = Number(1, 0);
+        // calculate how much should be paid out
+        uint256 amtCollateralToPayInEthNum = oTokens
+            .mul(strikePrice.value)
+            .mul(proportion.value)
+            .mul(strikeToEthPrice);
+        int32 amtCollateralToPayExp = strikePrice.exponent +
+            proportion.exponent -
+            collateralExp;
+
+        amtCollateralToPay = 0;
+        uint256 exp;
+        if (amtCollateralToPayExp > 0) {
+            exp = uint256(amtCollateralToPayExp);
+            amtCollateralToPay = amtCollateralToPayInEthNum.mul(10**exp).div(
+                collateralToEthPrice
+            );
+        } else {
+            exp = uint256(-1 * amtCollateralToPayExp);
+            amtCollateralToPay = amtCollateralToPayInEthNum.div(10**exp).div(
+                collateralToEthPrice
+            );
+        }
+        require(exp <= 77, "Options Contract: Exponentiation overflowed");
     }
 
     function scaleDownDecimals(IOToken oToken, uint256 amount)

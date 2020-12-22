@@ -86,7 +86,7 @@ describe("OpynV1Adapter", () => {
     premium: new BN("106656198359758724"),
     purchaseAmount: ether("500"),
     scaledPurchaseAmount: new BN("500000000"),
-    exerciseProfit: new BN("82509212707945605"),
+    exerciseProfit: new BN("1000000000000000000"),
     vaults: [
       "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
       "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
@@ -104,7 +104,7 @@ describe("OpynV1Adapter", () => {
     premium: new BN("106920070230577145"),
     purchaseAmount: ether("1"),
     scaledPurchaseAmount: new BN("10000000"),
-    exerciseProfit: new BN("91214528075270874"),
+    exerciseProfit: new BN("1092696150697474033"),
     vaults: [
       "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
       "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",
@@ -209,7 +209,7 @@ function behavesLikeOToken(args) {
           this.purchaseAmount,
           {
             from: user,
-            value: new BN(this.premium).add(new BN("1")),
+            value: new BN(this.premium),
           }
         );
       });
@@ -220,10 +220,11 @@ function behavesLikeOToken(args) {
             await this.adapter.exerciseProfit(
               this.oToken.address,
               0,
-              this.scaledPurchaseAmount
+              this.scaledPurchaseAmount,
+              this.underlying
             )
           ).toString(),
-          "0"
+          this.exerciseProfit
         );
       });
     });

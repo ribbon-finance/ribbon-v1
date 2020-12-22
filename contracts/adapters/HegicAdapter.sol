@@ -100,7 +100,8 @@ contract HegicAdapter is
     function exerciseProfit(
         address optionsAddress,
         uint256 optionID,
-        uint256 exerciseAmount
+        uint256 exerciseAmount,
+        address underlying
     ) public override view returns (uint256 profit) {
         require(
             optionsAddress == address(ethOptions) ||
@@ -221,7 +222,16 @@ contract HegicAdapter is
             "optionsAddress must match either ETH or WBTC options"
         );
 
-        uint256 profit = exerciseProfit(optionsAddress, optionID, amount);
+        address underlying = optionsAddress == address(ethOptions)
+            ? ethAddress
+            : wbtcAddress;
+
+        uint256 profit = exerciseProfit(
+            optionsAddress,
+            optionID,
+            amount,
+            underlying
+        );
         IHegicOptions options = IHegicOptions(optionsAddress);
         options.exercise(optionID);
 

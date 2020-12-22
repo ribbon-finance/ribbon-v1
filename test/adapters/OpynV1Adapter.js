@@ -75,6 +75,14 @@ describe("OpynV1Adapter", () => {
     });
   });
 
+  /**
+   * Current price for ETH-USD = ~$545
+   * Current price for BTC-USD = ~$18,000
+   * Date is 9 December 2020
+   */
+
+  // ETH Options
+
   behavesLikeOToken({
     oTokenName: "ETH CALL ITM",
     underlying: ETH_ADDRESS,
@@ -95,6 +103,25 @@ describe("OpynV1Adapter", () => {
   });
 
   behavesLikeOToken({
+    oTokenName: "ETH CALL OTM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    expiry: "1608883200",
+    oTokenAddress: "0x7EB6Dd0Cc2DF2EAe901f76A151cA82BB7be10d68",
+    optionType: CALL_OPTION_TYPE,
+    strikePrice: ether("640"),
+    premium: new BN("22636934749846005"),
+    purchaseAmount: ether("640"),
+    scaledPurchaseAmount: new BN("640000000"),
+    exerciseProfitWithoutFees: new BN("1000000000000000000"),
+    exerciseProfit: new BN("0"),
+    vaults: [
+      "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
+      "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
+    ],
+  });
+
+  behavesLikeOToken({
     oTokenName: "ETH PUT ITM",
     underlying: wethAddress,
     strikeAsset: usdcAddress,
@@ -107,6 +134,25 @@ describe("OpynV1Adapter", () => {
     scaledPurchaseAmount: new BN("10000000"),
     exerciseProfitWithoutFees: new BN("1092696150697474033"),
     exerciseProfit: new BN("91796148075270874"),
+    vaults: [
+      "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
+      "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",
+    ],
+  });
+
+  behavesLikeOToken({
+    oTokenName: "ETH PUT OTM",
+    underlying: wethAddress,
+    strikeAsset: usdcAddress,
+    expiry: "1608883200",
+    oTokenAddress: "0x77fe93a60A579E4eD52159aE711794C6fb7CdeA7",
+    optionType: PUT_OPTION_TYPE,
+    strikePrice: ether("520"),
+    premium: new BN("38993035115930594"),
+    purchaseAmount: ether("1"),
+    scaledPurchaseAmount: new BN("10000000"),
+    exerciseProfitWithoutFees: new BN("947004561427442862"),
+    exerciseProfit: new BN("0"),
     vaults: [
       "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
       "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",
@@ -373,7 +419,7 @@ function behavesLikeOToken(args) {
 
         const userTracker = await balance.tracker(user);
 
-        const res = await this.adapter.exercise(
+        const promise = this.adapter.exercise(
           this.oToken.address,
           0,
           this.purchaseAmount,
@@ -382,6 +428,13 @@ function behavesLikeOToken(args) {
             gasPrice,
           }
         );
+
+        if (this.exerciseProfit.isZero()) {
+          await expectRevert(promise, "Not enough collateral to swap");
+          return;
+        }
+
+        const res = await promise;
         const gasUsed = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
         const balanceChange = await userTracker.delta();
 

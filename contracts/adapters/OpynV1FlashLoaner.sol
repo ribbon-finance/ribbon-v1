@@ -122,8 +122,6 @@ contract OpynV1FlashLoaner is
         // Get ETH back in return
         exercisePostLoan(underlying, oToken, exerciseAmount, underlyingAmount);
 
-        // Get 1 Ether
-
         // Sell ETH for USDC
         (uint256 soldCollateralAmount, ) = swapForUnderlying(
             underlying,
@@ -199,6 +197,10 @@ contract OpynV1FlashLoaner is
                 path
             );
             soldCollateralAmount = amountsIn[0];
+            require(
+                address(this).balance >= soldCollateralAmount,
+                "Not enough collateral to swap"
+            );
 
             uint256[] memory amounts = router.swapETHForExactTokens{
                 value: soldCollateralAmount
@@ -372,26 +374,5 @@ contract OpynV1FlashLoaner is
     {
         uint256 decimals = oToken.decimals();
         normalized = amount / 10**(18 - decimals);
-    }
-
-    function getStrikePrice(IOToken oTokenContract)
-        internal
-        view
-        returns (uint256 strikePrice)
-    {
-        (uint256 strikePriceNum, int32 strikePriceExp) = oTokenContract
-            .strikePrice();
-
-        uint256 strikePriceInStrikeAsset = mul(
-            strikePriceNum,
-            10**uint256(18 + strikePriceExp)
-        );
-        CompoundOracleInterface compoundOracle = CompoundOracleInterface(
-            oTokenContract.COMPOUND_ORACLE()
-        );
-        uint256 strikeAssetPrice = compoundOracle.getPrice(
-            oTokenContract.strike()
-        );
-        strikePrice = wdiv(strikeAssetPrice, strikePriceInStrikeAsset);
     }
 }

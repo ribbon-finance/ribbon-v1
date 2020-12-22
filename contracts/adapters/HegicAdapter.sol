@@ -214,17 +214,14 @@ contract HegicAdapter is
     function exercise(
         address optionsAddress,
         uint256 optionID,
-        uint256 amount
+        uint256 amount,
+        address underlying
     ) external override payable onlyInstrument nonReentrant {
         require(
             optionsAddress == address(ethOptions) ||
                 optionsAddress == address(wbtcOptions),
             "optionsAddress must match either ETH or WBTC options"
         );
-
-        address underlying = optionsAddress == address(ethOptions)
-            ? ethAddress
-            : wbtcAddress;
 
         uint256 profit = exerciseProfit(
             optionsAddress,

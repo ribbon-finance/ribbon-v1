@@ -419,6 +419,7 @@ describe("HegicAdapter", () => {
                 this.hegicOptions.address,
                 this.optionID,
                 0,
+                this.underlying,
                 { from: user, gasPrice }
               ),
               `Current price is too ${this.optionType === 1 ? "high" : "low"}`
@@ -476,6 +477,7 @@ describe("HegicAdapter", () => {
               this.hegicOptions.address,
               this.optionID,
               0,
+              this.underlying,
               {
                 from: user,
               }
@@ -485,6 +487,7 @@ describe("HegicAdapter", () => {
                 this.hegicOptions.address,
                 this.optionID,
                 0,
+                this.underlying,
                 {
                   from: user,
                 }
@@ -498,9 +501,15 @@ describe("HegicAdapter", () => {
           await time.increaseTo(this.expiry + 1);
 
           await expectRevert(
-            this.adapter.exercise(this.hegicOptions.address, this.optionID, 0, {
-              from: user,
-            }),
+            this.adapter.exercise(
+              this.hegicOptions.address,
+              this.optionID,
+              0,
+              this.underlying,
+              {
+                from: user,
+              }
+            ),
             "Option has expired"
           );
         });

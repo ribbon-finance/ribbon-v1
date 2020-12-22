@@ -57,7 +57,11 @@ contract OpynV1FlashLoaner is
         FlashLoanReceiverBase(_addressProvider)
     {}
 
-    function exerciseOTokens(address oToken, uint256 exerciseAmount) public {
+    function exerciseOTokens(
+        address oToken,
+        uint256 exerciseAmount,
+        address underlying
+    ) public {
         address receiverAddress = address(this);
 
         IOToken oTokenContract = IOToken(oToken);
@@ -66,8 +70,8 @@ contract OpynV1FlashLoaner is
         );
 
         address[] memory assets = new address[](1);
-        address underlying = oTokenContract.underlying();
-        assets[0] = underlying == address(0) ? _weth : underlying;
+        address oTokenUnderlying = oTokenContract.underlying();
+        assets[0] = oTokenUnderlying == address(0) ? _weth : oTokenUnderlying;
 
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = underlyingAmount;
@@ -77,7 +81,12 @@ contract OpynV1FlashLoaner is
         modes[0] = 0;
 
         address onBehalfOf = address(this);
-        bytes memory params = abi.encode(oToken, exerciseAmount, msg.sender);
+        bytes memory params = abi.encode(
+            oToken,
+            exerciseAmount,
+            underlying,
+            msg.sender
+        );
         uint16 referralCode = 0;
 
         _lendingPool.flashLoan(
@@ -111,46 +120,75 @@ contract OpynV1FlashLoaner is
         // 4. Verify that we have received the collateral
         // 5. Swap the fee amount to underlying using the collateral
         // 6. Leftover collateral (collateral - underlying) used as profit
-
-        address underlying = assets[0];
+        address oTokenUnderlying = assets[0];
         uint256 underlyingAmount = amounts[0];
+        uint256 loanFee = premiums[0];
 
-        (address oToken, uint256 exerciseAmount, address sender) = abi.decode(
-            params,
-            (address, uint256, address)
-        );
-        address collateral = IOToken(oToken).collateral();
+        {
+            (
+                address oToken,
+                uint256 exerciseAmount,
+                address underlying,
+                address sender
+            ) = abi.decode(params, (address, uint256, address, address));
 
-        // Get ETH back in return
-        exercisePostLoan(underlying, oToken, exerciseAmount, underlyingAmount);
-
-        // Sell ETH for USDC
-        (uint256 soldCollateralAmount, ) = swapForUnderlying(
-            underlying,
-            collateral,
-            underlyingAmount + premiums[0]
-        );
-
-        returnExercisedProfit(
-            IOToken(oToken),
-            underlying,
-            collateral,
-            exerciseAmount,
-            soldCollateralAmount,
-            sender
-        );
+            _executeOperation(
+                oToken,
+                exerciseAmount,
+                underlying,
+                oTokenUnderlying,
+                underlyingAmount,
+                loanFee,
+                sender
+            );
+        }
 
         // At the end of your logic above, this contract owes
         // the flashloaned amounts + premiums.
         // Therefore ensure your contract has enough to repay
         // these amounts.
         // Approve the LendingPool contract allowance to *pull* the owed amount
-        IERC20(underlying).safeApprove(
+        IERC20(oTokenUnderlying).safeApprove(
             address(_lendingPool),
-            underlyingAmount + premiums[0]
+            underlyingAmount + loanFee
         );
 
         return true;
+    }
+
+    function _executeOperation(
+        address oToken,
+        uint256 exerciseAmount,
+        address underlyingAsset,
+        address oTokenUnderlying,
+        uint256 underlyingAmount,
+        uint256 loanFee,
+        address sender
+    ) private {
+        address collateral = IOToken(oToken).collateral();
+
+        // Get ETH back in return
+        exercisePostLoan(
+            oTokenUnderlying,
+            oToken,
+            exerciseAmount,
+            underlyingAmount
+        );
+
+        (uint256 soldCollateralAmount, ) = swapForUnderlying(
+            oTokenUnderlying,
+            collateral,
+            underlyingAmount + loanFee
+        );
+
+        returnExercisedProfit(
+            IOToken(oToken),
+            underlyingAsset,
+            collateral,
+            exerciseAmount,
+            soldCollateralAmount,
+            sender
+        );
     }
 
     function exercisePostLoan(
@@ -278,31 +316,28 @@ contract OpynV1FlashLoaner is
             wethContract.withdraw(settledProfit);
             (bool returnExercise, ) = sender.call{value: settledProfit}("");
             require(returnExercise, "Transfer exercised profit failed");
+        } else if (collateral == underlying) {
+            IERC20 collateralToken = IERC20(collateral);
+            collateralToken.safeTransfer(sender, settledProfit);
         } else {
             IUniswapV2Router02 router = IUniswapV2Router02(_uniswapRouter);
             IERC20 collateralToken = IERC20(collateral);
             address[] memory path = new address[](2);
             path[0] = collateral;
-            path[1] = _weth;
+            path[1] = underlying;
             uint256[] memory amountsOut = router.getAmountsOut(
                 settledProfit,
                 path
             );
+            collateralToken.safeApprove(address(router), settledProfit);
 
-            collateralToken.approve(address(router), settledProfit);
-
-            uint256[] memory actualAmountsOut = router.swapExactTokensForETH(
+            router.swapExactTokensForTokens(
                 settledProfit,
                 amountsOut[1],
                 path,
                 sender,
                 block.timestamp + _swapWindow
             );
-            // require(false, uint2str(address(this).balance));
-            // (bool returnExercise, ) = sender.call{value: actualAmountsOut[1]}(
-            //     ""
-            // );
-            // require(returnExercise, "Transfer exercised profit failed");
         }
     }
 

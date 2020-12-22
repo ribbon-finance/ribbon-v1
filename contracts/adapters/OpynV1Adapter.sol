@@ -187,7 +187,8 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
     function exercise(
         address oToken,
         uint256 optionID,
-        uint256 amount
+        uint256 amount,
+        address underlying
     ) external override payable onlyInstrument nonReentrant {
         uint256 scaledAmount = scaleDownDecimals(IOToken(oToken), amount);
         IERC20(oToken).safeTransferFrom(
@@ -195,7 +196,7 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             address(this),
             scaledAmount
         );
-        OpynV1FlashLoaner.exerciseOTokens(oToken, scaledAmount);
+        OpynV1FlashLoaner.exerciseOTokens(oToken, scaledAmount, underlying);
     }
 
     function setOTokenWithTerms(

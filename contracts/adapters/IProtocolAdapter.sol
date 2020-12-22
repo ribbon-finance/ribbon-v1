@@ -57,6 +57,7 @@ interface IProtocolAdapter {
     function exercise(
         address options,
         uint256 optionID,
-        uint256 amount
+        uint256 amount,
+        address underlying
     ) external payable;
 }

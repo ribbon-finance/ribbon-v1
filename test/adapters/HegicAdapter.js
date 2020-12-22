@@ -350,7 +350,12 @@ describe("HegicAdapter", () => {
 
         it("reverts when unknown options address passed", async function () {
           await expectRevert(
-            this.adapter.exerciseProfit(constants.ZERO_ADDRESS, 0, 0),
+            this.adapter.exerciseProfit(
+              constants.ZERO_ADDRESS,
+              0,
+              0,
+              constants.ZERO_ADDRESS
+            ),
             "optionsAddress must match either ETH or WBTC options"
           );
         });
@@ -374,7 +379,8 @@ describe("HegicAdapter", () => {
               await this.adapter.exerciseProfit(
                 this.hegicOptions.address,
                 purchaseRes.receipt.logs[0].args.optionID,
-                0
+                0,
+                this.underlying
               )
             ).toString(),
             this.exerciseProfit

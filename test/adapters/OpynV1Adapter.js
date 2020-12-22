@@ -20,10 +20,12 @@ const UniswapExchangeInterface = contract.fromArtifact(
 );
 const helper = require("../helper.js");
 
-const aaveAddressProvider = "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5";
-const uniswapRouter = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
-const wethAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
-const usdcAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+const AAVE_ADDRESS_PROVIDER = "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5";
+const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
+const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
+const UNI_ADDRESS = "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984";
 
 const [admin, owner, user] = accounts;
 const PUT_OPTION_TYPE = 1;
@@ -39,15 +41,15 @@ describe("OpynV1Adapter", () => {
     await this.factory.initialize(owner, admin, { from: owner });
     await this.factory.setInstrument(user, { from: user });
 
-    this.adapter = await OpynV1Adapter.new(aaveAddressProvider, {
+    this.adapter = await OpynV1Adapter.new(AAVE_ADDRESS_PROVIDER, {
       from: owner,
     });
     await this.adapter.initialize(
       owner,
       this.factory.address,
-      aaveAddressProvider,
-      uniswapRouter,
-      wethAddress,
+      AAVE_ADDRESS_PROVIDER,
+      UNISWAP_ROUTER,
+      WETH_ADDRESS,
       { from: owner }
     );
 
@@ -82,38 +84,95 @@ describe("OpynV1Adapter", () => {
    */
 
   // ETH Options
+  // behavesLikeOToken({
+  //   oTokenName: "ETH CALL ITM",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   expiry: "1608883200",
+  //   oTokenAddress: "0xb759e6731df19abD72e0456184890f87dCb6C518",
+  //   optionType: CALL_OPTION_TYPE,
+  //   strikePrice: ether("500"),
+  //   premium: new BN("106656198359758724"),
+  //   purchaseAmount: ether("500"),
+  //   scaledPurchaseAmount: new BN("500000000"),
+  //   exerciseProfitWithoutFees: new BN("1000000000000000000"),
+  //   exerciseProfit: new BN("83090832707945605"),
+  //   vaults: [
+  //     "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
+  //     "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
+  //   ],
+  // });
 
-  behavesLikeOToken({
-    oTokenName: "ETH CALL ITM",
-    underlying: ETH_ADDRESS,
-    strikeAsset: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-    expiry: "1608883200",
-    oTokenAddress: "0xb759e6731df19abD72e0456184890f87dCb6C518",
-    optionType: CALL_OPTION_TYPE,
-    strikePrice: ether("500"),
-    premium: new BN("106656198359758724"),
-    purchaseAmount: ether("500"),
-    scaledPurchaseAmount: new BN("500000000"),
-    exerciseProfitWithoutFees: new BN("1000000000000000000"),
-    exerciseProfit: new BN("83090832707945605"),
-    vaults: [
-      "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
-      "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
-    ],
-  });
+  // behavesLikeOToken({
+  //   oTokenName: "ETH CALL OTM",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   expiry: "1608883200",
+  //   oTokenAddress: "0x7EB6Dd0Cc2DF2EAe901f76A151cA82BB7be10d68",
+  //   optionType: CALL_OPTION_TYPE,
+  //   strikePrice: ether("640"),
+  //   premium: new BN("22636934749846005"),
+  //   purchaseAmount: ether("640"),
+  //   scaledPurchaseAmount: new BN("640000000"),
+  //   exerciseProfitWithoutFees: new BN("1000000000000000000"),
+  //   exerciseProfit: new BN("0"),
+  //   vaults: [
+  //     "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
+  //     "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
+  //   ],
+  // });
 
+  // behavesLikeOToken({
+  //   oTokenName: "ETH PUT ITM",
+  //   underlying: WETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   expiry: "1608278400",
+  //   oTokenAddress: "0xef99E80D6963D801B1f2b4c61F780082D2642152",
+  //   optionType: PUT_OPTION_TYPE,
+  //   strikePrice: ether("600"),
+  //   premium: new BN("106920070230577145"),
+  //   purchaseAmount: ether("1"),
+  //   scaledPurchaseAmount: new BN("10000000"),
+  //   exerciseProfitWithoutFees: new BN("1092696150697474033"),
+  //   exerciseProfit: new BN("91796148075270874"),
+  //   vaults: [
+  //     "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
+  //     "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",
+  //   ],
+  // });
+
+  // behavesLikeOToken({
+  //   oTokenName: "ETH PUT OTM",
+  //   underlying: WETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   expiry: "1608883200",
+  //   oTokenAddress: "0x77fe93a60A579E4eD52159aE711794C6fb7CdeA7",
+  //   optionType: PUT_OPTION_TYPE,
+  //   strikePrice: ether("520"),
+  //   premium: new BN("38993035115930594"),
+  //   purchaseAmount: ether("1"),
+  //   scaledPurchaseAmount: new BN("10000000"),
+  //   exerciseProfitWithoutFees: new BN("947004561427442862"),
+  //   exerciseProfit: new BN("0"),
+  //   vaults: [
+  //     "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
+  //     "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",
+  //   ],
+  // });
+
+  // WBTC Options
   behavesLikeOToken({
-    oTokenName: "ETH CALL OTM",
-    underlying: ETH_ADDRESS,
-    strikeAsset: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    oTokenName: "WBTC CALL OTM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
     expiry: "1608883200",
-    oTokenAddress: "0x7EB6Dd0Cc2DF2EAe901f76A151cA82BB7be10d68",
+    oTokenAddress: "0xDA4c285Ce9796Fb4c35f99d6066ce11ec18Ec4Cc",
     optionType: CALL_OPTION_TYPE,
-    strikePrice: ether("640"),
-    premium: new BN("22636934749846005"),
-    purchaseAmount: ether("640"),
-    scaledPurchaseAmount: new BN("640000000"),
-    exerciseProfitWithoutFees: new BN("1000000000000000000"),
+    strikePrice: ether("20000"),
+    premium: new BN("2406141839973257206"),
+    purchaseAmount: ether("20000"),
+    scaledPurchaseAmount: new BN("20000000"),
+    exerciseProfitWithoutFees: new BN("100000000"),
     exerciseProfit: new BN("0"),
     vaults: [
       "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
@@ -122,40 +181,21 @@ describe("OpynV1Adapter", () => {
   });
 
   behavesLikeOToken({
-    oTokenName: "ETH PUT ITM",
-    underlying: wethAddress,
-    strikeAsset: usdcAddress,
-    expiry: "1608278400",
-    oTokenAddress: "0xef99E80D6963D801B1f2b4c61F780082D2642152",
-    optionType: PUT_OPTION_TYPE,
-    strikePrice: ether("600"),
-    premium: new BN("106920070230577145"),
-    purchaseAmount: ether("1"),
-    scaledPurchaseAmount: new BN("10000000"),
-    exerciseProfitWithoutFees: new BN("1092696150697474033"),
-    exerciseProfit: new BN("91796148075270874"),
-    vaults: [
-      "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
-      "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",
-    ],
-  });
-
-  behavesLikeOToken({
-    oTokenName: "ETH PUT OTM",
-    underlying: wethAddress,
-    strikeAsset: usdcAddress,
+    oTokenName: "UNI PUT ITM",
+    underlying: UNI_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
     expiry: "1608883200",
-    oTokenAddress: "0x77fe93a60A579E4eD52159aE711794C6fb7CdeA7",
+    oTokenAddress: "0x9E22B1c5804F7aC179b77De79a32e458A0ECb651",
     optionType: PUT_OPTION_TYPE,
-    strikePrice: ether("520"),
-    premium: new BN("38993035115930594"),
-    purchaseAmount: ether("1"),
-    scaledPurchaseAmount: new BN("10000000"),
-    exerciseProfitWithoutFees: new BN("947004561427442862"),
-    exerciseProfit: new BN("0"),
+    strikePrice: ether("3.5"),
+    premium: new BN("60713311014396049"),
+    purchaseAmount: ether("100"),
+    scaledPurchaseAmount: new BN("1000000000"),
+    exerciseProfitWithoutFees: new BN("105167250869224019654"),
+    exerciseProfit: new BN("41483526531431424"),
     vaults: [
-      "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
-      "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",
+      "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
+      "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
     ],
   });
 });
@@ -231,7 +271,7 @@ function behavesLikeOToken(args) {
     });
 
     describe("#premium", () => {
-      it("gets the premium for a call option", async function () {
+      it("gets the premium for the option", async function () {
         assert.equal(
           (
             await this.adapter.premium(

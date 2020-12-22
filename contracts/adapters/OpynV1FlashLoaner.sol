@@ -22,6 +22,7 @@ import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {IUniswapV2Factory} from "../interfaces/IUniswapV2Factory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
+import "../tests/DebugLib.sol";
 
 contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
     address internal _uniswapRouter;
@@ -36,7 +37,8 @@ contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
 contract OpynV1FlashLoaner is
     DSMath,
     FlashLoanReceiverBase,
-    OpynV1AdapterStorageV1
+    OpynV1AdapterStorageV1,
+    DebugLib
 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -289,13 +291,18 @@ contract OpynV1FlashLoaner is
 
             collateralToken.approve(address(router), settledProfit);
 
-            router.swapExactTokensForETH(
+            uint256[] memory actualAmountsOut = router.swapExactTokensForETH(
                 settledProfit,
                 amountsOut[1],
                 path,
                 sender,
                 block.timestamp + _swapWindow
             );
+            // require(false, uint2str(address(this).balance));
+            // (bool returnExercise, ) = sender.call{value: actualAmountsOut[1]}(
+            //     ""
+            // );
+            // require(returnExercise, "Transfer exercised profit failed");
         }
     }
 

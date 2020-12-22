@@ -23,14 +23,8 @@ import {
     ILendingPoolAddressesProvider
 } from "../lib/aave/Interfaces.sol";
 import {OpynV1FlashLoaner} from "./OpynV1FlashLoaner.sol";
-import "../tests/DebugLib.sol";
 
-contract OpynV1Adapter is
-    IProtocolAdapter,
-    ReentrancyGuard,
-    OpynV1FlashLoaner,
-    DebugLib
-{
+contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 

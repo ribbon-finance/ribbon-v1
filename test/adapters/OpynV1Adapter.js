@@ -26,6 +26,7 @@ const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const UNI_ADDRESS = "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984";
+const YFI_ADDRESS = "0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e";
 
 const [admin, owner, user] = accounts;
 const PUT_OPTION_TYPE = 1;
@@ -79,7 +80,9 @@ describe("OpynV1Adapter", () => {
 
   /**
    * Current price for ETH-USD = ~$545
+   * Current price for UNI-USD = $3.35
    * Current price for BTC-USD = ~$18,000
+   * Current price for YFI-USD = ~$25,500
    * Date is 9 December 2020
    */
 
@@ -193,6 +196,25 @@ describe("OpynV1Adapter", () => {
     scaledPurchaseAmount: new BN("1000000000"),
     exerciseProfitWithoutFees: new BN("105167250869224019654"),
     exerciseProfit: new BN("6895291786998639829"),
+    vaults: [
+      "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
+      "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
+    ],
+  });
+
+  behavesLikeOToken({
+    oTokenName: "YFI PUT OTM",
+    underlying: YFI_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    expiry: "1609488000",
+    oTokenAddress: "0xe17900D324FB41821Cc38499063B2E3bbae6C27e",
+    optionType: PUT_OPTION_TYPE,
+    strikePrice: ether("25000"),
+    premium: new BN("5179849204290059875"),
+    purchaseAmount: ether("1"),
+    scaledPurchaseAmount: new BN("10000000"),
+    exerciseProfitWithoutFees: new BN("310541472583556376"),
+    exerciseProfit: new BN("0"),
     vaults: [
       "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
       "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",

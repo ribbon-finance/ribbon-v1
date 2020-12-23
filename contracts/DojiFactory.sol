@@ -48,6 +48,11 @@ contract DojiFactory is Initializable, DojiFactoryStorageV1 {
         bytes initData
     );
 
+    event AdapterSet(
+        string indexed protocolName,
+        address indexed adapterAddress
+    );
+
     /**
      * @notice Constructor takes a DataProvider contract address
      */
@@ -105,6 +110,7 @@ contract DojiFactory is Initializable, DojiFactoryStorageV1 {
         onlyOwner
     {
         adapters[protocolName] = adapter;
+        emit AdapterSet(protocolName, adapter);
     }
 
     modifier onlyOwner {

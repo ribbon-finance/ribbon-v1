@@ -9,8 +9,6 @@ const {
 const { getDefaultArgs } = require("./utils.js");
 const { encodeCall } = require("@openzeppelin/upgrades");
 
-const Instrument = contract.fromArtifact("DojiVolatility");
-
 const newInstrumentTypes = [
   "address",
   "address",
@@ -30,7 +28,7 @@ const ADMIN_SLOT =
 const IMPL_SLOT =
   "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
-describe("DojimaFactory", function () {
+describe("DojiFactory", function () {
   const [admin, owner, user] = accounts;
 
   before(async function () {
@@ -73,5 +71,36 @@ describe("DojimaFactory", function () {
       { from: user }
     );
     await expectRevert(tx, "Only owner");
+  });
+
+  describe("#setAdapter", () => {
+    it("sets the adapter", async function () {
+      const res = await this.factory.setAdapter(
+        "HEGIC",
+        "0x0000000000000000000000000000000000000001",
+        { from: owner }
+      );
+
+      expectEvent(res, "AdapterSet", {
+        protocolName: web3.utils.sha3("HEGIC"),
+        adapterAddress: "0x0000000000000000000000000000000000000001",
+      });
+
+      assert.equal(
+        await this.factory.adapters("HEGIC"),
+        "0x0000000000000000000000000000000000000001"
+      );
+    });
+
+    it("reverts when not owner", async function () {
+      await expectRevert(
+        this.factory.setAdapter(
+          "HEGIC",
+          "0x0000000000000000000000000000000000000001",
+          { from: user }
+        ),
+        "Only owner"
+      );
+    });
   });
 });

@@ -68,31 +68,67 @@ contract DojiVolatility is
      * @param amounts array of option purchase amounts
      */
     function buyInstrument(
-        string[] calldata venues,
-        uint8[] calldata optionTypes,
-        uint256[] calldata amounts
-    ) external payable nonReentrant {
+        string[] memory venues,
+        OptionType[] memory optionTypes,
+        uint256[] memory amounts
+    ) public payable nonReentrant {
+        require(venues.length >= 2, "Must have at least 2 venues");
+        uint32[] memory optionIDs = new uint32[](venues.length);
+        bool seenCall = false;
+        bool seenPut = false;
+
         for (uint256 i = 0; i < venues.length; i++) {
-            string memory venue = venues[i];
-            address adapterAddress = factory.adapters(venue);
-            require(adapterAddress != address(0), "Adapter does not exist");
-            IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
-            OptionType optionType = OptionType(optionTypes[i]);
-
-            require(optionType != OptionType.Invalid, "Invalid option type");
-            uint256 strikePrice = optionType == OptionType.Put
-                ? putStrikePrice
-                : callStrikePrice;
-
-            adapter.purchase(
-                underlying,
-                strikeAsset,
-                expiry,
-                strikePrice,
-                optionType,
+            uint32 optionID = purchaseOptionAtVenue(
+                venues[i],
+                optionTypes[i],
                 amounts[i]
             );
+
+            if (!seenPut && optionTypes[i] == OptionType.Put) {
+                seenPut = true;
+            } else if (!seenCall && optionTypes[i] == OptionType.Call) {
+                seenCall = true;
+            }
+            optionIDs[i] = optionID;
         }
+
+        require(
+            seenCall && seenPut,
+            "Must have combination of put and call options"
+        );
+
+        InstrumentPosition memory position = InstrumentPosition(
+            false,
+            venues,
+            optionTypes,
+            amounts,
+            optionIDs
+        );
+        instrumentPositions[msg.sender].push(position);
+    }
+
+    function purchaseOptionAtVenue(
+        string memory venue,
+        OptionType optionType,
+        uint256 amount
+    ) private returns (uint32 optionID) {
+        address adapterAddress = factory.adapters(venue);
+        require(adapterAddress != address(0), "Adapter does not exist");
+        IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
+
+        require(optionType != OptionType.Invalid, "Invalid option type");
+        bool isPutOption = optionType == OptionType.Put;
+        uint256 strikePrice = isPutOption ? putStrikePrice : callStrikePrice;
+
+        uint256 optionID256 = adapter.purchase(
+            underlying,
+            strikeAsset,
+            expiry,
+            strikePrice,
+            optionType,
+            amount
+        );
+        optionID = adapter.nonFungible() ? uint32(optionID256) : 0;
     }
 
     // function buyInstrument(uint256 _amount) public payable nonReentrant {

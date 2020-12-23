@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import "../interfaces/InstrumentInterface.sol";
 import {IDojiFactory} from "../interfaces/IDojiFactory.sol";
+import {OptionType} from "../adapters/IProtocolAdapter.sol";
 
 contract DojiVolatilityStorageV1 is InstrumentStorageInterface {
     address public owner;
@@ -18,12 +19,10 @@ contract DojiVolatilityStorageV1 is InstrumentStorageInterface {
 
     struct InstrumentPosition {
         bool exercised;
-        uint8 callProtocol;
-        uint8 putProtocol;
-        uint32 callOptionID;
-        uint32 putOptionID;
-        uint256 callAmount;
-        uint256 putAmount;
+        string[] venues;
+        OptionType[] optionTypes;
+        uint256[] amounts;
+        uint32[] optionIDs;
     }
 
     mapping(address => InstrumentPosition[]) public instrumentPositions;

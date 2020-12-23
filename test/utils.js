@@ -52,30 +52,30 @@ async function getDefaultArgs(admin, owner, user) {
     [owner, admin]
   );
 
-  const hegicAdapter = HegicAdapter.new(
+  const hegicAdapter = await HegicAdapter.new(
     HEGIC_ETH_OPTIONS,
     HEGIC_WBTC_OPTIONS,
     ETH_ADDRESS,
     WBTC_ADDRESS,
     { from: owner }
   );
-  await hegicAdapter.initialize(owner, this.factory.address);
+  await hegicAdapter.initialize(owner, factory.address, { from: owner });
 
-  const opynV1Adapter = OpynV1Adapter.new(AAVE_ADDRESS_PROVIDER, {
+  const opynV1Adapter = await OpynV1Adapter.new(AAVE_ADDRESS_PROVIDER, {
     from: owner,
   });
 
   await opynV1Adapter.initialize(
     owner,
-    this.factory.address,
+    factory.address,
     AAVE_ADDRESS_PROVIDER,
     UNISWAP_ROUTER,
     WETH_ADDRESS,
     { from: owner }
   );
 
-  await factory.setAdapter("HEGIC", hegicAdapter.address);
-  await factory.setAdapter("OPYN_V1", opynV1Adapter.address);
+  await factory.setAdapter("HEGIC", hegicAdapter.address, { from: owner });
+  await factory.setAdapter("OPYN_V1", opynV1Adapter.address, { from: owner });
 
   return {
     factory,

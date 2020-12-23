@@ -25,15 +25,19 @@ const newInstrumentTypes = [
 ];
 const ADMIN_SLOT =
   "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
-const IMPL_SLOT =
-  "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
 describe("DojiFactory", function () {
   const [admin, owner, user] = accounts;
 
   before(async function () {
-    const { factory } = await getDefaultArgs(admin, owner, user);
+    const { factory, hegicAdapter, opynV1Adapter } = await getDefaultArgs(
+      admin,
+      owner,
+      user
+    );
     this.factory = factory;
+    this.hegicAdapter = hegicAdapter;
+    this.opynV1Adapter = opynV1Adapter;
   });
 
   it("initializes factory correctly", async function () {
@@ -76,18 +80,18 @@ describe("DojiFactory", function () {
   describe("#setAdapter", () => {
     it("sets the adapter", async function () {
       const res = await this.factory.setAdapter(
-        "HEGIC",
+        "TEST",
         "0x0000000000000000000000000000000000000001",
         { from: owner }
       );
 
       expectEvent(res, "AdapterSet", {
-        protocolName: web3.utils.sha3("HEGIC"),
+        protocolName: web3.utils.sha3("TEST"),
         adapterAddress: "0x0000000000000000000000000000000000000001",
       });
 
       assert.equal(
-        await this.factory.adapters("HEGIC"),
+        await this.factory.adapters("TEST"),
         "0x0000000000000000000000000000000000000001"
       );
     });
@@ -95,11 +99,27 @@ describe("DojiFactory", function () {
     it("reverts when not owner", async function () {
       await expectRevert(
         this.factory.setAdapter(
-          "HEGIC",
+          "TEST",
           "0x0000000000000000000000000000000000000001",
           { from: user }
         ),
         "Only owner"
+      );
+    });
+  });
+
+  describe("#adapters", () => {
+    it("gets the hegic adapter", async function () {
+      assert.equal(
+        await this.factory.adapters("HEGIC"),
+        this.hegicAdapter.address
+      );
+    });
+
+    it("gets the opyn v1 adapter", async function () {
+      assert.equal(
+        await this.factory.adapters("OPYN_V1"),
+        this.opynV1Adapter.address
       );
     });
   });

@@ -9,7 +9,7 @@ const {
   expectRevert, // Assertions for transactions that should fail
 } = require("@openzeppelin/test-helpers");
 const helper = require("./helper.js");
-const { deployProxy } = require("./utils");
+const { getDefaultArgs } = require("./utils");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const balance = require("@openzeppelin/test-helpers/src/balance");
 const DojimaVolatility = contract.fromArtifact("DojiVolatility");
@@ -28,17 +28,11 @@ describe("DojiVolatility", () => {
     this.symbol = "VOL-500-251220";
     const startTime = (await web3.eth.getBlock("latest")).timestamp;
     this.expiry = startTime + 60 * 60 * 24 * 2; // 2 days from now
-
     this.callStrikePrice = ether("500");
     this.putStrikePrice = ether("500");
 
-    this.factory = await deployProxy(
-      Factory,
-      admin,
-      ["address", "address"],
-      [owner, admin]
-    );
-
+    const { factory } = await getDefaultArgs(admin, owner, user);
+    this.factory = factory;
     this.instrumentLogic = await DojimaVolatility.new({ from: admin });
 
     const initTypes = [

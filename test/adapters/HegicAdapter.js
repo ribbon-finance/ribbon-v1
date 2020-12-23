@@ -438,6 +438,7 @@ describe("HegicAdapter", () => {
               this.hegicOptions.address,
               this.optionID,
               0,
+              this.underlying,
               { from: user, gasPrice }
             );
             expectEvent(res, "Exercised", {

@@ -22,7 +22,6 @@ import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {IUniswapV2Factory} from "../interfaces/IUniswapV2Factory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
-import "../tests/DebugLib.sol";
 
 contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
     address internal _uniswapRouter;
@@ -37,8 +36,7 @@ contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
 contract OpynV1FlashLoaner is
     DSMath,
     FlashLoanReceiverBase,
-    OpynV1AdapterStorageV1,
-    DebugLib
+    OpynV1AdapterStorageV1
 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;

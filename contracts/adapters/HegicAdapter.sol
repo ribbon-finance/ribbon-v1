@@ -18,13 +18,11 @@ import {
     ReentrancyGuard
 } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
-import "../tests/DebugLib.sol";
 
 contract HegicAdapter is
     IProtocolAdapter,
     ReentrancyGuard,
-    BaseProtocolAdapter,
-    DebugLib
+    BaseProtocolAdapter
 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;

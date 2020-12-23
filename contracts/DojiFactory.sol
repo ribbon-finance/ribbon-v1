@@ -25,6 +25,8 @@ contract DojiFactoryStorageV1 {
      * @notice Boolean check for if an address is an instrument
      */
     mapping(address => bool) public isInstrument;
+
+    mapping(string => address) public adapters;
 }
 
 contract DojiFactory is Initializable, DojiFactoryStorageV1 {
@@ -96,5 +98,10 @@ contract DojiFactory is Initializable, DojiFactoryStorageV1 {
         );
         emit ProxyCreated(_logic, address(proxy), _initData);
         return address(proxy);
+    }
+
+    function setAdapter(string memory protocolName, address adapter) onlyOwner {
+        require(msg.sender == owner, "Only owner");
+        adapters[protocolName] = adapter;
     }
 }

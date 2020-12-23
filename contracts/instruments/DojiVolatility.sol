@@ -92,10 +92,7 @@ contract DojiVolatility is
             optionIDs[i] = optionID;
         }
 
-        require(
-            seenCall && seenPut,
-            "Must have combination of put and call options"
-        );
+        require(seenCall && seenPut, "Must have both put and call options");
 
         InstrumentPosition memory position = InstrumentPosition(
             false,
@@ -117,8 +114,9 @@ contract DojiVolatility is
         IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
 
         require(optionType != OptionType.Invalid, "Invalid option type");
-        bool isPutOption = optionType == OptionType.Put;
-        uint256 strikePrice = isPutOption ? putStrikePrice : callStrikePrice;
+        uint256 strikePrice = optionType == OptionType.Put
+            ? putStrikePrice
+            : callStrikePrice;
 
         uint256 optionID256 = adapter.purchase(
             underlying,

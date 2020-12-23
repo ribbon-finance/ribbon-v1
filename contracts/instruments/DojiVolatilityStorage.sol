@@ -3,11 +3,15 @@ pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 
 import "../interfaces/InstrumentInterface.sol";
+import {IDojiFactory} from "../interfaces/IDojiFactory.sol";
 
 contract DojiVolatilityStorageV1 is InstrumentStorageInterface {
     address public owner;
-    address public hegicOptions;
-    uint256 public strikePrice;
+    IDojiFactory public factory;
+    address public underlying;
+    address public strikeAsset;
+    uint256 public callStrikePrice;
+    uint256 public putStrikePrice;
     uint256 public expiry;
     string public _name;
     string public _symbol;

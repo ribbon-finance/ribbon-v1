@@ -72,9 +72,9 @@ contract DojiFactory is Initializable, DojiFactoryStorageV1 {
 
     function newInstrument(address _logic, bytes memory _initData)
         public
+        onlyOwner
         returns (address instrumentAddress)
     {
-        require(msg.sender == owner, "Only owner");
         instrumentAddress = createProxy(_logic, _initData);
         InstrumentStorageInterface instrument = InstrumentStorageInterface(
             instrumentAddress
@@ -100,8 +100,15 @@ contract DojiFactory is Initializable, DojiFactoryStorageV1 {
         return address(proxy);
     }
 
-    function setAdapter(string memory protocolName, address adapter) onlyOwner {
-        require(msg.sender == owner, "Only owner");
+    function setAdapter(string memory protocolName, address adapter)
+        public
+        onlyOwner
+    {
         adapters[protocolName] = adapter;
+    }
+
+    modifier onlyOwner {
+        require(msg.sender == owner, "Only owner");
+        _;
     }
 }

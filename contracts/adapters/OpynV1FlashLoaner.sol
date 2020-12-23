@@ -21,24 +21,45 @@ import {
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {IUniswapV2Factory} from "../interfaces/IUniswapV2Factory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
+import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
 
-contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
+contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
+    address internal _uniswapRouter;
+
+    address internal _weth;
+
+    mapping(address => address payable[]) internal vaults;
+
+    mapping(bytes => address) public optionTermsToOToken;
+}
+
+contract OpynV1FlashLoaner is
+    DSMath,
+    FlashLoanReceiverBase,
+    OpynV1AdapterStorageV1
+{
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
+
+    struct Number {
+        uint256 value;
+        int32 exponent;
+    }
 
     uint256 private constant _vaultStartIteration = 0;
     uint256 private constant _maxVaultIterations = 5;
     uint256 private constant _swapWindow = 900;
-    address internal _uniswapRouter;
-    address internal _weth;
-    mapping(address => address payable[]) internal vaults;
 
     constructor(ILendingPoolAddressesProvider _addressProvider)
         public
         FlashLoanReceiverBase(_addressProvider)
     {}
 
-    function exerciseOTokens(address oToken, uint256 exerciseAmount) public {
+    function exerciseOTokens(
+        address oToken,
+        uint256 exerciseAmount,
+        address underlying
+    ) public {
         address receiverAddress = address(this);
 
         IOToken oTokenContract = IOToken(oToken);
@@ -47,8 +68,8 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
         );
 
         address[] memory assets = new address[](1);
-        address underlying = oTokenContract.underlying();
-        assets[0] = underlying == address(0) ? _weth : underlying;
+        address oTokenUnderlying = oTokenContract.underlying();
+        assets[0] = oTokenUnderlying == address(0) ? _weth : oTokenUnderlying;
 
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = underlyingAmount;
@@ -58,7 +79,12 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
         modes[0] = 0;
 
         address onBehalfOf = address(this);
-        bytes memory params = abi.encode(oToken, exerciseAmount, msg.sender);
+        bytes memory params = abi.encode(
+            oToken,
+            exerciseAmount,
+            underlying,
+            msg.sender
+        );
         uint16 referralCode = 0;
 
         _lendingPool.flashLoan(
@@ -92,48 +118,75 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
         // 4. Verify that we have received the collateral
         // 5. Swap the fee amount to underlying using the collateral
         // 6. Leftover collateral (collateral - underlying) used as profit
-
-        address underlying = assets[0];
+        address oTokenUnderlying = assets[0];
         uint256 underlyingAmount = amounts[0];
+        uint256 loanFee = premiums[0];
 
-        (address oToken, uint256 exerciseAmount, address sender) = abi.decode(
-            params,
-            (address, uint256, address)
-        );
-        address collateral = IOToken(oToken).collateral();
+        {
+            (
+                address oToken,
+                uint256 exerciseAmount,
+                address underlying,
+                address sender
+            ) = abi.decode(params, (address, uint256, address, address));
 
-        // Get ETH back in return
-        exercisePostLoan(underlying, oToken, exerciseAmount, underlyingAmount);
-
-        // Get 1 Ether
-
-        // Sell ETH for USDC
-        (uint256 soldCollateralAmount, ) = swapForUnderlying(
-            underlying,
-            collateral,
-            underlyingAmount + premiums[0]
-        );
-
-        returnExercisedProfit(
-            IOToken(oToken),
-            underlying,
-            collateral,
-            exerciseAmount,
-            soldCollateralAmount,
-            sender
-        );
+            _executeOperation(
+                oToken,
+                exerciseAmount,
+                underlying,
+                oTokenUnderlying,
+                underlyingAmount,
+                loanFee,
+                sender
+            );
+        }
 
         // At the end of your logic above, this contract owes
         // the flashloaned amounts + premiums.
         // Therefore ensure your contract has enough to repay
         // these amounts.
         // Approve the LendingPool contract allowance to *pull* the owed amount
-        IERC20(underlying).safeApprove(
+        IERC20(oTokenUnderlying).safeApprove(
             address(_lendingPool),
-            underlyingAmount + premiums[0]
+            underlyingAmount + loanFee
         );
 
         return true;
+    }
+
+    function _executeOperation(
+        address oToken,
+        uint256 exerciseAmount,
+        address underlyingAsset,
+        address oTokenUnderlying,
+        uint256 underlyingAmount,
+        uint256 loanFee,
+        address sender
+    ) private {
+        address collateral = IOToken(oToken).collateral();
+
+        // Get ETH back in return
+        exercisePostLoan(
+            oTokenUnderlying,
+            oToken,
+            exerciseAmount,
+            underlyingAmount
+        );
+
+        (uint256 soldCollateralAmount, ) = swapForUnderlying(
+            oTokenUnderlying,
+            collateral,
+            underlyingAmount + loanFee
+        );
+
+        returnExercisedProfit(
+            IOToken(oToken),
+            underlyingAsset,
+            collateral,
+            exerciseAmount,
+            soldCollateralAmount,
+            sender
+        );
     }
 
     function exercisePostLoan(
@@ -182,6 +235,10 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
                 path
             );
             soldCollateralAmount = amountsIn[0];
+            require(
+                address(this).balance >= soldCollateralAmount,
+                "Not enough collateral to swap"
+            );
 
             uint256[] memory amounts = router.swapETHForExactTokens{
                 value: soldCollateralAmount
@@ -215,9 +272,6 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
             );
             soldCollateralAmount = amountsIn[0];
 
-            IUniswapV2Factory factory = IUniswapV2Factory(router.factory());
-            address uniswapPair = factory.getPair(path[0], path[1]);
-
             require(
                 collateralToken.balanceOf(address(this)) >=
                     soldCollateralAmount,
@@ -244,40 +298,113 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
         uint256 soldAmount,
         address sender
     ) private {
+        uint256 collateralReturned = calculateCollateralToPay(
+            oToken,
+            exerciseAmount
+        );
+        uint256 settledProfit = collateralReturned.sub(soldAmount);
+
         if (collateral == address(0)) {
-            uint256 settledProfit = address(this).balance;
+            // uint256 settledProfit = address(this).balance;
             (bool returnExercise, ) = sender.call{value: settledProfit}("");
             require(returnExercise, "Transfer exercised profit failed");
         } else if (collateral == _weth) {
-            uint256 balance = address(this).balance;
+            // uint256 balance = address(this).balance;
             IWETH wethContract = IWETH(_weth);
-            wethContract.withdraw(balance);
-            (bool returnExercise, ) = sender.call{value: balance}("");
+            wethContract.withdraw(settledProfit);
+            (bool returnExercise, ) = sender.call{value: settledProfit}("");
             require(returnExercise, "Transfer exercised profit failed");
+        } else if (collateral == underlying) {
+            IERC20 collateralToken = IERC20(collateral);
+            collateralToken.safeTransfer(sender, settledProfit);
         } else {
             IUniswapV2Router02 router = IUniswapV2Router02(_uniswapRouter);
             IERC20 collateralToken = IERC20(collateral);
-            uint256 collateralBalance = collateralToken.balanceOf(
-                address(this)
-            );
             address[] memory path = new address[](2);
             path[0] = collateral;
-            path[1] = _weth;
+            path[1] = underlying;
             uint256[] memory amountsOut = router.getAmountsOut(
-                collateralBalance,
+                settledProfit,
                 path
             );
+            collateralToken.safeApprove(address(router), settledProfit);
 
-            collateralToken.approve(address(router), collateralBalance);
-
-            router.swapExactTokensForETH(
-                collateralBalance,
+            router.swapExactTokensForTokens(
+                settledProfit,
                 amountsOut[1],
                 path,
                 sender,
                 block.timestamp + _swapWindow
             );
         }
+    }
+
+    function calculateCollateralToPay(IOToken oTokenContract, uint256 oTokens)
+        internal
+        view
+        returns (uint256 collateralToPay)
+    {
+        CompoundOracleInterface compoundOracle = CompoundOracleInterface(
+            oTokenContract.COMPOUND_ORACLE()
+        );
+        (uint256 strikePriceNum, int32 strikePriceExp) = oTokenContract
+            .strikePrice();
+        Number memory strikePriceNumber = Number(
+            strikePriceNum,
+            strikePriceExp
+        );
+
+        // Get price from oracle
+        uint256 collateralToEthPrice = 1;
+        uint256 strikeToEthPrice = 1;
+        address collateral = oTokenContract.collateral();
+        address strike = oTokenContract.strike();
+
+        if (collateral != strike) {
+            collateralToEthPrice = compoundOracle.getPrice(collateral);
+            strikeToEthPrice = compoundOracle.getPrice(strike);
+        }
+
+        collateralToPay = _calculateCollateralToPay(
+            oTokens,
+            strikeToEthPrice,
+            collateralToEthPrice,
+            oTokenContract.collateralExp(),
+            strikePriceNumber
+        );
+    }
+
+    function _calculateCollateralToPay(
+        uint256 oTokens,
+        uint256 strikeToEthPrice,
+        uint256 collateralToEthPrice,
+        int32 collateralExp,
+        Number memory strikePrice
+    ) private pure returns (uint256 amtCollateralToPay) {
+        Number memory proportion = Number(1, 0);
+        // calculate how much should be paid out
+        uint256 amtCollateralToPayInEthNum = oTokens
+            .mul(strikePrice.value)
+            .mul(proportion.value)
+            .mul(strikeToEthPrice);
+        int32 amtCollateralToPayExp = strikePrice.exponent +
+            proportion.exponent -
+            collateralExp;
+
+        amtCollateralToPay = 0;
+        uint256 exp;
+        if (amtCollateralToPayExp > 0) {
+            exp = uint256(amtCollateralToPayExp);
+            amtCollateralToPay = amtCollateralToPayInEthNum.mul(10**exp).div(
+                collateralToEthPrice
+            );
+        } else {
+            exp = uint256(-1 * amtCollateralToPayExp);
+            amtCollateralToPay = amtCollateralToPayInEthNum.div(10**exp).div(
+                collateralToEthPrice
+            );
+        }
+        require(exp <= 77, "Options Contract: Exponentiation overflowed");
     }
 
     function scaleDownDecimals(IOToken oToken, uint256 amount)
@@ -287,26 +414,5 @@ contract OpynV1FlashLoaner is DSMath, FlashLoanReceiverBase {
     {
         uint256 decimals = oToken.decimals();
         normalized = amount / 10**(18 - decimals);
-    }
-
-    function getStrikePrice(IOToken oTokenContract)
-        internal
-        view
-        returns (uint256 strikePrice)
-    {
-        (uint256 strikePriceNum, int32 strikePriceExp) = oTokenContract
-            .strikePrice();
-
-        uint256 strikePriceInStrikeAsset = mul(
-            strikePriceNum,
-            10**uint256(18 + strikePriceExp)
-        );
-        CompoundOracleInterface compoundOracle = CompoundOracleInterface(
-            oTokenContract.COMPOUND_ORACLE()
-        );
-        uint256 strikeAssetPrice = compoundOracle.getPrice(
-            oTokenContract.strike()
-        );
-        strikePrice = wdiv(strikeAssetPrice, strikePriceInStrikeAsset);
     }
 }

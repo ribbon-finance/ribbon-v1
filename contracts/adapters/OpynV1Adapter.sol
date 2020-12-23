@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
+pragma experimental ABIEncoderV2;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
@@ -8,6 +9,7 @@ import {
     ReentrancyGuard
 } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {
     IOToken,
     IOptionsExchange,
@@ -16,23 +18,13 @@ import {
     CompoundOracleInterface
 } from "../interfaces/OpynV1Interface.sol";
 import {IProtocolAdapter, OptionType} from "./IProtocolAdapter.sol";
-import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
 import {
     ILendingPool,
     ILendingPoolAddressesProvider
 } from "../lib/aave/Interfaces.sol";
 import {OpynV1FlashLoaner} from "./OpynV1FlashLoaner.sol";
 
-contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
-    mapping(bytes => address) public optionTermsToOToken;
-}
-
-contract OpynV1Adapter is
-    IProtocolAdapter,
-    ReentrancyGuard,
-    OpynV1FlashLoaner,
-    OpynV1AdapterStorageV1
-{
+contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -96,40 +88,29 @@ contract OpynV1Adapter is
     function exerciseProfit(
         address oToken,
         uint256 optionID,
-        uint256 exerciseAmount
+        uint256 exerciseAmount,
+        address underlying
     ) public override view returns (uint256 profit) {
         IOToken oTokenContract = IOToken(oToken);
-
-        CompoundOracleInterface compoundOracle = CompoundOracleInterface(
-            oTokenContract.COMPOUND_ORACLE()
-        );
-        uint256 strikeAssetPrice = compoundOracle.getPrice(
-            oTokenContract.strike()
-        );
-        uint256 underlyingPrice = compoundOracle.getPrice(
-            oTokenContract.underlying()
-        );
-        uint256 strikePriceInUnderlying = wdiv(
-            strikeAssetPrice,
-            underlyingPrice
+        address oTokenCollateral = oTokenContract.collateral();
+        uint256 collateralToPay = OpynV1FlashLoaner.calculateCollateralToPay(
+            oTokenContract,
+            exerciseAmount
         );
 
-        (uint256 strikePriceNum, int32 strikePriceExp) = oTokenContract
-            .strikePrice();
-        uint256 strikePriceWAD = strikePriceNum *
-            (10**uint256(18 - strikePriceExp));
+        if (underlying != oTokenCollateral) {
+            IUniswapV2Router02 router = IUniswapV2Router02(_uniswapRouter);
+            address[] memory path = new address[](2);
+            path[0] = oTokenCollateral;
+            path[1] = underlying;
 
-        bool isProfitable = strikePriceInUnderlying >= strikePriceWAD;
-
-        if (isProfitable) {
-            // TBD about returning profit in underlying or ETH
-            profit = sub(
-                wmul(strikePriceInUnderlying, exerciseAmount),
-                wmul(strikePriceWAD, exerciseAmount)
+            uint256[] memory amountsOut = router.getAmountsOut(
+                collateralToPay,
+                path
             );
-        } else {
-            profit = 0;
+            return amountsOut[1];
         }
+        return collateralToPay;
     }
 
     function purchase(
@@ -206,7 +187,8 @@ contract OpynV1Adapter is
     function exercise(
         address oToken,
         uint256 optionID,
-        uint256 amount
+        uint256 amount,
+        address underlying
     ) external override payable onlyInstrument nonReentrant {
         uint256 scaledAmount = scaleDownDecimals(IOToken(oToken), amount);
         IERC20(oToken).safeTransferFrom(
@@ -214,7 +196,7 @@ contract OpynV1Adapter is
             address(this),
             scaledAmount
         );
-        OpynV1FlashLoaner.exerciseOTokens(oToken, scaledAmount);
+        OpynV1FlashLoaner.exerciseOTokens(oToken, scaledAmount, underlying);
     }
 
     function setOTokenWithTerms(

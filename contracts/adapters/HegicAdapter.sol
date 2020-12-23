@@ -18,13 +18,11 @@ import {
     ReentrancyGuard
 } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
-import "../tests/DebugLib.sol";
 
 contract HegicAdapter is
     IProtocolAdapter,
     ReentrancyGuard,
-    BaseProtocolAdapter,
-    DebugLib
+    BaseProtocolAdapter
 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -100,7 +98,8 @@ contract HegicAdapter is
     function exerciseProfit(
         address optionsAddress,
         uint256 optionID,
-        uint256 exerciseAmount
+        uint256 exerciseAmount,
+        address underlying
     ) public override view returns (uint256 profit) {
         require(
             optionsAddress == address(ethOptions) ||
@@ -213,7 +212,8 @@ contract HegicAdapter is
     function exercise(
         address optionsAddress,
         uint256 optionID,
-        uint256 amount
+        uint256 amount,
+        address underlying
     ) external override payable onlyInstrument nonReentrant {
         require(
             optionsAddress == address(ethOptions) ||
@@ -221,7 +221,12 @@ contract HegicAdapter is
             "optionsAddress must match either ETH or WBTC options"
         );
 
-        uint256 profit = exerciseProfit(optionsAddress, optionID, amount);
+        uint256 profit = exerciseProfit(
+            optionsAddress,
+            optionID,
+            amount,
+            underlying
+        );
         IHegicOptions options = IHegicOptions(optionsAddress);
         options.exercise(optionID);
 

@@ -350,7 +350,12 @@ describe("HegicAdapter", () => {
 
         it("reverts when unknown options address passed", async function () {
           await expectRevert(
-            this.adapter.exerciseProfit(constants.ZERO_ADDRESS, 0, 0),
+            this.adapter.exerciseProfit(
+              constants.ZERO_ADDRESS,
+              0,
+              0,
+              constants.ZERO_ADDRESS
+            ),
             "optionsAddress must match either ETH or WBTC options"
           );
         });
@@ -374,7 +379,8 @@ describe("HegicAdapter", () => {
               await this.adapter.exerciseProfit(
                 this.hegicOptions.address,
                 purchaseRes.receipt.logs[0].args.optionID,
-                0
+                0,
+                this.underlying
               )
             ).toString(),
             this.exerciseProfit
@@ -413,6 +419,7 @@ describe("HegicAdapter", () => {
                 this.hegicOptions.address,
                 this.optionID,
                 0,
+                this.underlying,
                 { from: user, gasPrice }
               ),
               `Current price is too ${this.optionType === 1 ? "high" : "low"}`
@@ -431,6 +438,7 @@ describe("HegicAdapter", () => {
               this.hegicOptions.address,
               this.optionID,
               0,
+              this.underlying,
               { from: user, gasPrice }
             );
             expectEvent(res, "Exercised", {
@@ -470,6 +478,7 @@ describe("HegicAdapter", () => {
               this.hegicOptions.address,
               this.optionID,
               0,
+              this.underlying,
               {
                 from: user,
               }
@@ -479,6 +488,7 @@ describe("HegicAdapter", () => {
                 this.hegicOptions.address,
                 this.optionID,
                 0,
+                this.underlying,
                 {
                   from: user,
                 }
@@ -492,9 +502,15 @@ describe("HegicAdapter", () => {
           await time.increaseTo(this.expiry + 1);
 
           await expectRevert(
-            this.adapter.exercise(this.hegicOptions.address, this.optionID, 0, {
-              from: user,
-            }),
+            this.adapter.exercise(
+              this.hegicOptions.address,
+              this.optionID,
+              0,
+              this.underlying,
+              {
+                from: user,
+              }
+            ),
             "Option has expired"
           );
         });

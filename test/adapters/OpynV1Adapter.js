@@ -20,10 +20,13 @@ const UniswapExchangeInterface = contract.fromArtifact(
 );
 const helper = require("../helper.js");
 
-const aaveAddressProvider = "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5";
-const uniswapRouter = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
-const wethAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
-const usdcAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+const AAVE_ADDRESS_PROVIDER = "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5";
+const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
+const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
+const UNI_ADDRESS = "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984";
+const YFI_ADDRESS = "0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e";
 
 const [admin, owner, user] = accounts;
 const PUT_OPTION_TYPE = 1;
@@ -39,15 +42,15 @@ describe("OpynV1Adapter", () => {
     await this.factory.initialize(owner, admin, { from: owner });
     await this.factory.setInstrument(user, { from: user });
 
-    this.adapter = await OpynV1Adapter.new(aaveAddressProvider, {
+    this.adapter = await OpynV1Adapter.new(AAVE_ADDRESS_PROVIDER, {
       from: owner,
     });
     await this.adapter.initialize(
       owner,
       this.factory.address,
-      aaveAddressProvider,
-      uniswapRouter,
-      wethAddress,
+      AAVE_ADDRESS_PROVIDER,
+      UNISWAP_ROUTER,
+      WETH_ADDRESS,
       { from: owner }
     );
 
@@ -75,10 +78,19 @@ describe("OpynV1Adapter", () => {
     });
   });
 
+  /**
+   * Current price for ETH-USD = ~$545
+   * Current price for UNI-USD = $3.35
+   * Current price for BTC-USD = ~$18,000
+   * Current price for YFI-USD = ~$25,500
+   * Date is 9 December 2020
+   */
+
+  // ETH Options
   behavesLikeOToken({
     oTokenName: "ETH CALL ITM",
     underlying: ETH_ADDRESS,
-    strikeAsset: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    strikeAsset: USDC_ADDRESS,
     expiry: "1608883200",
     oTokenAddress: "0xb759e6731df19abD72e0456184890f87dCb6C518",
     optionType: CALL_OPTION_TYPE,
@@ -86,7 +98,27 @@ describe("OpynV1Adapter", () => {
     premium: new BN("106656198359758724"),
     purchaseAmount: ether("500"),
     scaledPurchaseAmount: new BN("500000000"),
-    exerciseProfit: new BN("82509212707945605"),
+    exerciseProfitWithoutFees: new BN("1000000000000000000"),
+    exerciseProfit: new BN("83090832707945605"),
+    vaults: [
+      "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
+      "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
+    ],
+  });
+
+  behavesLikeOToken({
+    oTokenName: "ETH CALL OTM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    expiry: "1608883200",
+    oTokenAddress: "0x7EB6Dd0Cc2DF2EAe901f76A151cA82BB7be10d68",
+    optionType: CALL_OPTION_TYPE,
+    strikePrice: ether("640"),
+    premium: new BN("22636934749846005"),
+    purchaseAmount: ether("640"),
+    scaledPurchaseAmount: new BN("640000000"),
+    exerciseProfitWithoutFees: new BN("1000000000000000000"),
+    exerciseProfit: new BN("0"),
     vaults: [
       "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
       "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
@@ -95,8 +127,8 @@ describe("OpynV1Adapter", () => {
 
   behavesLikeOToken({
     oTokenName: "ETH PUT ITM",
-    underlying: wethAddress,
-    strikeAsset: usdcAddress,
+    underlying: WETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
     expiry: "1608278400",
     oTokenAddress: "0xef99E80D6963D801B1f2b4c61F780082D2642152",
     optionType: PUT_OPTION_TYPE,
@@ -104,10 +136,88 @@ describe("OpynV1Adapter", () => {
     premium: new BN("106920070230577145"),
     purchaseAmount: ether("1"),
     scaledPurchaseAmount: new BN("10000000"),
-    exerciseProfit: new BN("91214528075270874"),
+    exerciseProfitWithoutFees: new BN("1092696150697474033"),
+    exerciseProfit: new BN("91796148075270874"),
     vaults: [
       "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
       "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",
+    ],
+  });
+
+  behavesLikeOToken({
+    oTokenName: "ETH PUT OTM",
+    underlying: WETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    expiry: "1608883200",
+    oTokenAddress: "0x77fe93a60A579E4eD52159aE711794C6fb7CdeA7",
+    optionType: PUT_OPTION_TYPE,
+    strikePrice: ether("520"),
+    premium: new BN("38993035115930594"),
+    purchaseAmount: ether("1"),
+    scaledPurchaseAmount: new BN("10000000"),
+    exerciseProfitWithoutFees: new BN("947004561427442862"),
+    exerciseProfit: new BN("0"),
+    vaults: [
+      "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
+      "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",
+    ],
+  });
+
+  // WBTC Options
+  behavesLikeOToken({
+    oTokenName: "WBTC CALL OTM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    expiry: "1608883200",
+    oTokenAddress: "0xDA4c285Ce9796Fb4c35f99d6066ce11ec18Ec4Cc",
+    optionType: CALL_OPTION_TYPE,
+    strikePrice: ether("20000"),
+    premium: new BN("2406141839973257206"),
+    purchaseAmount: ether("20000"),
+    scaledPurchaseAmount: new BN("20000000"),
+    exerciseProfitWithoutFees: new BN("100000000"),
+    exerciseProfit: new BN("0"),
+    vaults: [
+      "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
+      "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
+    ],
+  });
+
+  behavesLikeOToken({
+    oTokenName: "UNI PUT ITM",
+    underlying: UNI_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    expiry: "1608883200",
+    oTokenAddress: "0x9E22B1c5804F7aC179b77De79a32e458A0ECb651",
+    optionType: PUT_OPTION_TYPE,
+    strikePrice: ether("3.5"),
+    premium: new BN("60713311014396049"),
+    purchaseAmount: ether("100"),
+    scaledPurchaseAmount: new BN("1000000000"),
+    exerciseProfitWithoutFees: new BN("105167250869224019654"),
+    exerciseProfit: new BN("6895291786998639829"),
+    vaults: [
+      "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
+      "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
+    ],
+  });
+
+  behavesLikeOToken({
+    oTokenName: "YFI PUT OTM",
+    underlying: YFI_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    expiry: "1609488000",
+    oTokenAddress: "0xe17900D324FB41821Cc38499063B2E3bbae6C27e",
+    optionType: PUT_OPTION_TYPE,
+    strikePrice: ether("25000"),
+    premium: new BN("5179849204290059875"),
+    purchaseAmount: ether("1"),
+    scaledPurchaseAmount: new BN("10000000"),
+    exerciseProfitWithoutFees: new BN("310541472583556376"),
+    exerciseProfit: new BN("0"),
+    vaults: [
+      "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
+      "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
     ],
   });
 });
@@ -129,6 +239,7 @@ function behavesLikeOToken(args) {
         scaledPurchaseAmount,
         exerciseProfit,
         vaults,
+        exerciseProfitWithoutFees,
       } = args;
       this.underlying = underlying;
       this.strikeAsset = strikeAsset;
@@ -140,6 +251,7 @@ function behavesLikeOToken(args) {
       this.purchaseAmount = purchaseAmount;
       this.scaledPurchaseAmount = scaledPurchaseAmount;
       this.exerciseProfit = exerciseProfit;
+      this.exerciseProfitWithoutFees = exerciseProfitWithoutFees;
       this.vaults = vaults;
 
       this.oToken = await IERC20.at(this.oTokenAddress);
@@ -181,7 +293,7 @@ function behavesLikeOToken(args) {
     });
 
     describe("#premium", () => {
-      it("gets the premium for a call option", async function () {
+      it("gets the premium for the option", async function () {
         assert.equal(
           (
             await this.adapter.premium(
@@ -194,6 +306,46 @@ function behavesLikeOToken(args) {
             )
           ).toString(),
           this.premium.toString()
+        );
+      });
+    });
+
+    describe("#exerciseProfit", () => {
+      let initSnapshotId;
+
+      before(async function () {
+        const snapshot = await helper.takeSnapshot();
+        initSnapshotId = snapshot["result"];
+
+        await this.adapter.purchase(
+          this.underlying,
+          this.strikeAsset,
+          this.expiry,
+          this.strikePrice,
+          this.optionType,
+          this.purchaseAmount,
+          {
+            from: user,
+            value: new BN(this.premium),
+          }
+        );
+      });
+
+      after(async () => {
+        await helper.revertToSnapShot(initSnapshotId);
+      });
+
+      it("gets the exercise profit", async function () {
+        assert.equal(
+          (
+            await this.adapter.exerciseProfit(
+              this.oToken.address,
+              0,
+              this.scaledPurchaseAmount,
+              this.underlying
+            )
+          ).toString(),
+          this.exerciseProfitWithoutFees
         );
       });
     });
@@ -319,8 +471,6 @@ function behavesLikeOToken(args) {
       });
 
       it("exercises tokens", async function () {
-        const userTracker = await balance.tracker(user);
-
         await this.oToken.approve(
           this.adapter.address,
           this.scaledPurchaseAmount,
@@ -329,22 +479,48 @@ function behavesLikeOToken(args) {
           }
         );
 
-        const res = await this.adapter.exercise(
+        const userTracker = await balance.tracker(user);
+        let token, startUserBalance;
+        if (this.underlying !== ETH_ADDRESS) {
+          token = await IERC20.at(this.underlying);
+          startUserBalance = await token.balanceOf(user);
+        }
+
+        const promise = this.adapter.exercise(
           this.oToken.address,
           0,
           this.purchaseAmount,
+          this.underlying,
           {
             from: user,
             gasPrice,
           }
         );
-        const gasUsed = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
-        const balanceChange = await userTracker.delta();
 
-        assert.equal(
-          balanceChange.toString(),
-          this.exerciseProfit.sub(gasUsed).toString()
-        );
+        if (this.exerciseProfit.isZero()) {
+          await expectRevert(promise, "Not enough collateral to swap");
+          return;
+        }
+
+        if (this.underlying === ETH_ADDRESS) {
+          const res = await promise;
+          const gasUsed = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+          const balanceChange = await userTracker.delta();
+
+          assert.equal(
+            balanceChange.toString(),
+            this.exerciseProfit.sub(gasUsed).toString()
+          );
+        } else {
+          assert.equal(
+            (await token.balanceOf(user)).sub(startUserBalance).toString(),
+            this.exerciseProfit
+          );
+          assert.equal(
+            (await token.balanceOf(this.adapter.address)).toString(),
+            "0"
+          );
+        }
 
         // adapter should not hold anything at the end
         const strikeERC20 = await IERC20.at(this.strikeAsset);

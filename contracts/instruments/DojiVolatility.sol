@@ -40,6 +40,8 @@ contract DojiVolatility is
         uint256 totalProfit
     );
 
+    receive() external payable {}
+
     function initialize(
         address _owner,
         address _factory,
@@ -60,7 +62,72 @@ contract DojiVolatility is
         putStrikePrice = _putStrikePrice;
     }
 
-    receive() external payable {}
+    function getBestTrade(uint256 optionAmount)
+        public
+        view
+        returns (
+            string[] memory venues,
+            uint8[] memory optionTypes,
+            uint256[] memory amounts
+        )
+    {
+        address[] memory adapters = factory.adapters();
+        uint256 cheapestCallPremium;
+        uint256 cheapestPutPremium;
+        string memory callVenue;
+        string memory putVenue;
+
+        for (uint256 i = 0; i < adapters.length; i++) {
+            IProtocolAdapter adapter = IProtocolAdapter(adapters[i]);
+            (uint256 callPremium, uint256 putPremium) = getPremiumsFromAdapter(
+                adapter,
+                optionAmount
+            );
+
+            if (cheapestCallPremium == 0 || callPremium < cheapestCallPremium) {
+                cheapestCallPremium = callPremium;
+                callVenue = adapter.protocolName();
+            }
+            if (cheapestPutPremium == 0 || putPremium < cheapestPutPremium) {
+                cheapestPutPremium = callPremium;
+                putVenue = adapter.protocolName();
+            }
+        }
+
+        venues = new string[](2);
+        venues[0] = callVenue;
+        venues[1] = putVenue;
+
+        optionTypes = new uint8[](2);
+        optionTypes[0] = uint8(OptionType.Call);
+        optionTypes[1] = uint8(OptionType.Put);
+
+        amounts = new uint256[](2);
+        amounts[0] = optionAmount;
+        amounts[1] = optionAmount;
+    }
+
+    function getPremiumsFromAdapter(
+        IProtocolAdapter adapter,
+        uint256 optionAmount
+    ) private view returns (uint256 callPremium, uint256 putPremium) {
+        callPremium = adapter.premium(
+            underlying,
+            strikeAsset,
+            expiry,
+            callStrikePrice,
+            OptionType.Call,
+            optionAmount
+        );
+        putPremium = adapter.premium(
+            underlying,
+            strikeAsset,
+            expiry,
+            putStrikePrice,
+            OptionType.Put,
+            optionAmount
+        );
+    }
 
     /**
      * @notice Buy instrument and create the underlying options positions
@@ -109,7 +176,7 @@ contract DojiVolatility is
         OptionType optionType,
         uint256 amount
     ) private returns (uint32 optionID) {
-        address adapterAddress = factory.adapters(venue);
+        address adapterAddress = factory.getAdapter(venue);
         require(adapterAddress != address(0), "Adapter does not exist");
         IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
 

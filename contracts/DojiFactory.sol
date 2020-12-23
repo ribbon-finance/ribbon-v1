@@ -26,7 +26,9 @@ contract DojiFactoryStorageV1 {
      */
     mapping(address => bool) public isInstrument;
 
-    mapping(string => address) public adapters;
+    mapping(string => address) public getAdapter;
+
+    address[] public adapters;
 }
 
 contract DojiFactory is Initializable, DojiFactoryStorageV1 {
@@ -109,7 +111,8 @@ contract DojiFactory is Initializable, DojiFactoryStorageV1 {
         public
         onlyOwner
     {
-        adapters[protocolName] = adapter;
+        getAdapter[protocolName] = adapter;
+        adapters.push(adapter);
         emit AdapterSet(protocolName, adapter);
     }
 

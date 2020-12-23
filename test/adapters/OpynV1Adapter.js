@@ -87,81 +87,81 @@ describe("OpynV1Adapter", () => {
    */
 
   // ETH Options
-  // behavesLikeOToken({
-  //   oTokenName: "ETH CALL ITM",
-  //   underlying: ETH_ADDRESS,
-  //   strikeAsset: USDC_ADDRESS,
-  //   expiry: "1608883200",
-  //   oTokenAddress: "0xb759e6731df19abD72e0456184890f87dCb6C518",
-  //   optionType: CALL_OPTION_TYPE,
-  //   strikePrice: ether("500"),
-  //   premium: new BN("106656198359758724"),
-  //   purchaseAmount: ether("500"),
-  //   scaledPurchaseAmount: new BN("500000000"),
-  //   exerciseProfitWithoutFees: new BN("1000000000000000000"),
-  //   exerciseProfit: new BN("83090832707945605"),
-  //   vaults: [
-  //     "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
-  //     "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
-  //   ],
-  // });
+  behavesLikeOToken({
+    oTokenName: "ETH CALL ITM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    expiry: "1608883200",
+    oTokenAddress: "0xb759e6731df19abD72e0456184890f87dCb6C518",
+    optionType: CALL_OPTION_TYPE,
+    strikePrice: ether("500"),
+    premium: new BN("106656198359758724"),
+    purchaseAmount: ether("500"),
+    scaledPurchaseAmount: new BN("500000000"),
+    exerciseProfitWithoutFees: new BN("1000000000000000000"),
+    exerciseProfit: new BN("83090832707945605"),
+    vaults: [
+      "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
+      "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
+    ],
+  });
 
-  // behavesLikeOToken({
-  //   oTokenName: "ETH CALL OTM",
-  //   underlying: ETH_ADDRESS,
-  //   strikeAsset: USDC_ADDRESS,
-  //   expiry: "1608883200",
-  //   oTokenAddress: "0x7EB6Dd0Cc2DF2EAe901f76A151cA82BB7be10d68",
-  //   optionType: CALL_OPTION_TYPE,
-  //   strikePrice: ether("640"),
-  //   premium: new BN("22636934749846005"),
-  //   purchaseAmount: ether("640"),
-  //   scaledPurchaseAmount: new BN("640000000"),
-  //   exerciseProfitWithoutFees: new BN("1000000000000000000"),
-  //   exerciseProfit: new BN("0"),
-  //   vaults: [
-  //     "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
-  //     "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
-  //   ],
-  // });
+  behavesLikeOToken({
+    oTokenName: "ETH CALL OTM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    expiry: "1608883200",
+    oTokenAddress: "0x7EB6Dd0Cc2DF2EAe901f76A151cA82BB7be10d68",
+    optionType: CALL_OPTION_TYPE,
+    strikePrice: ether("640"),
+    premium: new BN("22636934749846005"),
+    purchaseAmount: ether("640"),
+    scaledPurchaseAmount: new BN("640000000"),
+    exerciseProfitWithoutFees: new BN("1000000000000000000"),
+    exerciseProfit: new BN("0"),
+    vaults: [
+      "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
+      "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
+    ],
+  });
 
-  // behavesLikeOToken({
-  //   oTokenName: "ETH PUT ITM",
-  //   underlying: WETH_ADDRESS,
-  //   strikeAsset: USDC_ADDRESS,
-  //   expiry: "1608278400",
-  //   oTokenAddress: "0xef99E80D6963D801B1f2b4c61F780082D2642152",
-  //   optionType: PUT_OPTION_TYPE,
-  //   strikePrice: ether("600"),
-  //   premium: new BN("106920070230577145"),
-  //   purchaseAmount: ether("1"),
-  //   scaledPurchaseAmount: new BN("10000000"),
-  //   exerciseProfitWithoutFees: new BN("1092696150697474033"),
-  //   exerciseProfit: new BN("91796148075270874"),
-  //   vaults: [
-  //     "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
-  //     "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",
-  //   ],
-  // });
+  behavesLikeOToken({
+    oTokenName: "ETH PUT ITM",
+    underlying: WETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    expiry: "1608278400",
+    oTokenAddress: "0xef99E80D6963D801B1f2b4c61F780082D2642152",
+    optionType: PUT_OPTION_TYPE,
+    strikePrice: ether("600"),
+    premium: new BN("106920070230577145"),
+    purchaseAmount: ether("1"),
+    scaledPurchaseAmount: new BN("10000000"),
+    exerciseProfitWithoutFees: new BN("1092696150697474033"),
+    exerciseProfit: new BN("91796148075270874"),
+    vaults: [
+      "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
+      "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",
+    ],
+  });
 
-  // behavesLikeOToken({
-  //   oTokenName: "ETH PUT OTM",
-  //   underlying: WETH_ADDRESS,
-  //   strikeAsset: USDC_ADDRESS,
-  //   expiry: "1608883200",
-  //   oTokenAddress: "0x77fe93a60A579E4eD52159aE711794C6fb7CdeA7",
-  //   optionType: PUT_OPTION_TYPE,
-  //   strikePrice: ether("520"),
-  //   premium: new BN("38993035115930594"),
-  //   purchaseAmount: ether("1"),
-  //   scaledPurchaseAmount: new BN("10000000"),
-  //   exerciseProfitWithoutFees: new BN("947004561427442862"),
-  //   exerciseProfit: new BN("0"),
-  //   vaults: [
-  //     "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
-  //     "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",
-  //   ],
-  // });
+  behavesLikeOToken({
+    oTokenName: "ETH PUT OTM",
+    underlying: WETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    expiry: "1608883200",
+    oTokenAddress: "0x77fe93a60A579E4eD52159aE711794C6fb7CdeA7",
+    optionType: PUT_OPTION_TYPE,
+    strikePrice: ether("520"),
+    premium: new BN("38993035115930594"),
+    purchaseAmount: ether("1"),
+    scaledPurchaseAmount: new BN("10000000"),
+    exerciseProfitWithoutFees: new BN("947004561427442862"),
+    exerciseProfit: new BN("0"),
+    vaults: [
+      "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
+      "0x099ebcc539828ff4ced12c0eb3b4b2ece558fdb5",
+    ],
+  });
 
   // WBTC Options
   behavesLikeOToken({

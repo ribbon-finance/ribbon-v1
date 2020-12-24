@@ -94,7 +94,7 @@ describe("DojiFactory", function () {
         await this.factory.getAdapter("TEST"),
         "0x0000000000000000000000000000000000000001"
       );
-      assert.equal((await this.factory.adapters).length, 3);
+      assert.equal((await this.factory.getAdapters()).length, 3);
     });
 
     it("reverts when not owner", async function () {

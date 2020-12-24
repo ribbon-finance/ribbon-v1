@@ -41,8 +41,8 @@ contract DojiVolatility is
     function initialize(
         address _owner,
         address _factory,
-        string memory name,
-        string memory symbol,
+        string memory _name,
+        string memory _symbol,
         address _underlying,
         address _strikeAsset,
         uint256 _expiry,
@@ -53,8 +53,8 @@ contract DojiVolatility is
 
         factory = IDojiFactory(_factory);
         owner = _owner;
-        _name = name;
-        _symbol = symbol;
+        name = _name;
+        _symbol = _symbol;
         expiry = _expiry;
         callStrikePrice = _callStrikePrice;
         putStrikePrice = _putStrikePrice;

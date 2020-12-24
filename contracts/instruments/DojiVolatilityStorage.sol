@@ -6,7 +6,7 @@ import "../interfaces/InstrumentInterface.sol";
 import {IDojiFactory} from "../interfaces/IDojiFactory.sol";
 import {OptionType} from "../adapters/IProtocolAdapter.sol";
 
-contract DojiVolatilityStorageV1 is InstrumentStorageInterface {
+contract DojiVolatilityStorageV1 {
     address public owner;
     IDojiFactory public factory;
     address public underlying;
@@ -14,8 +14,8 @@ contract DojiVolatilityStorageV1 is InstrumentStorageInterface {
     uint256 public callStrikePrice;
     uint256 public putStrikePrice;
     uint256 public expiry;
-    string public _name;
-    string public _symbol;
+    string public name;
+    string public symbol;
 
     struct InstrumentPosition {
         bool exercised;
@@ -26,27 +26,6 @@ contract DojiVolatilityStorageV1 is InstrumentStorageInterface {
     }
 
     mapping(address => InstrumentPosition[]) public instrumentPositions;
-
-    /**
-     * @notice Returns the name of the contract
-     */
-    function name() public virtual override view returns (string memory) {
-        return _name;
-    }
-
-    /**
-     * @notice Returns the dToken of the instrument
-     */
-    function dToken() public virtual override view returns (address) {
-        return address(0);
-    }
-
-    /**
-     * @notice Returns the symbol of the instrument
-     */
-    function symbol() public virtual override view returns (string memory) {
-        return _symbol;
-    }
 
     /**
      * @notice Returns the symbol of the instrument

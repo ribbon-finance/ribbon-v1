@@ -62,6 +62,23 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         return _nonFungible;
     }
 
+    function optionsExist(
+        address underlying,
+        address strikeAsset,
+        uint256 expiry,
+        uint256 strikePrice,
+        OptionType optionType
+    ) public override view returns (bool) {
+        address oToken = lookupOToken(
+            underlying,
+            strikeAsset,
+            expiry,
+            strikePrice,
+            optionType
+        );
+        return oToken != address(0);
+    }
+
     function premium(
         address underlying,
         address strikeAsset,

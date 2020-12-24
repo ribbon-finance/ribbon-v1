@@ -116,6 +116,10 @@ contract DojiFactory is Initializable, DojiFactoryStorageV1 {
         emit AdapterSet(protocolName, adapter);
     }
 
+    function getAdapters() external returns (address[] memory _adapters) {
+        return adapters;
+    }
+
     modifier onlyOwner {
         require(msg.sender == owner, "Only owner");
         _;

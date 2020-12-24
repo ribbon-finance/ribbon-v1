@@ -18,6 +18,13 @@ const Factory = contract.fromArtifact("DojiFactory");
 const [admin, owner, user] = accounts;
 const gasPrice = web3.utils.toWei("10", "gwei");
 
+const PUT_OPTION_TYPE = 1;
+const CALL_OPTION_TYPE = 2;
+const HEGIC_PROTOCOL = "HEGIC";
+const OPYN_V1_PROTOCOL = "OPYN_V1";
+const ETH_ADDRESS = constants.ZERO_ADDRESS;
+const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+
 describe("DojiVolatility", () => {
   behavesLikeDojiVolatility({
     name: "VOL 500 25/12/2020",
@@ -25,6 +32,12 @@ describe("DojiVolatility", () => {
     expiry: "1608883200",
     callStrikePrice: ether("500"),
     putStrikePrice: ether("500"),
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    venues: [HEGIC_PROTOCOL, OPYN_V1_PROTOCOL],
+    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+    amounts: [ether("1"), ether("1")],
+    purchaseAmount: ether("1"),
   });
 });
 
@@ -33,12 +46,30 @@ function behavesLikeDojiVolatility(params) {
     let snapshotId, initSnapshotId;
 
     before(async function () {
-      const { name, symbol, expiry, callStrikePrice, putStrikePrice } = params;
+      const {
+        name,
+        symbol,
+        expiry,
+        underlying,
+        strikeAsset,
+        callStrikePrice,
+        putStrikePrice,
+        venues,
+        optionTypes,
+        amounts,
+        purchaseAmount,
+      } = params;
       this.name = name;
       this.symbol = symbol;
       this.expiry = expiry;
+      this.underlying = underlying;
+      this.strikeAsset = strikeAsset;
       this.callStrikePrice = callStrikePrice;
       this.putStrikePrice = putStrikePrice;
+      this.venues = venues;
+      this.optionTypes = optionTypes;
+      this.amounts = amounts;
+      this.purchaseAmount = purchaseAmount;
 
       const { factory } = await getDefaultArgs(admin, owner, user);
       this.factory = factory;
@@ -49,6 +80,8 @@ function behavesLikeDojiVolatility(params) {
         "address",
         "string",
         "string",
+        "address",
+        "address",
         "uint256",
         "uint256",
         "uint256",
@@ -58,6 +91,8 @@ function behavesLikeDojiVolatility(params) {
         this.factory.address,
         this.name,
         this.symbol,
+        this.underlying,
+        this.strikeAsset,
         this.expiry,
         this.callStrikePrice.toString(),
         this.putStrikePrice.toString(),
@@ -91,6 +126,24 @@ function behavesLikeDojiVolatility(params) {
 
       afterEach(async () => {
         await helper.revertToSnapShot(snapshotId);
+      });
+
+      it("gets the venues to trade", async function () {
+        const {
+          venues,
+          optionTypes,
+          amounts,
+        } = await this.contract.getBestTrade(this.purchaseAmount);
+
+        assert.deepEqual(venues, this.venues);
+        assert.deepEqual(
+          optionTypes.map((i) => i.toNumber()),
+          this.optionTypes
+        );
+        assert.deepEqual(
+          amounts.map((a) => a.toString()),
+          this.amounts.map((a) => a.toString())
+        );
       });
     });
 
@@ -126,7 +179,7 @@ function behavesLikeDojiVolatility(params) {
       //   );
       // });
 
-      it("buys options on hegic", async function () {});
+      it("buys instrument", async function () {});
 
       // it("does not exceed gas limit budget", async function () {
       //   const firstRes = await this.contract.buyInstrument(ether("1"), {

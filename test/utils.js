@@ -8,6 +8,7 @@ const AdminUpgradeabilityProxy = contract.fromArtifact(
 const Factory = contract.fromArtifact("DojiFactory");
 const HegicAdapter = contract.fromArtifact("HegicAdapter");
 const OpynV1Adapter = contract.fromArtifact("OpynV1Adapter");
+const { setupOTokenAndVaults } = require("./opyn_v1");
 
 module.exports = {
   getDefaultArgs,
@@ -44,15 +45,22 @@ const AAVE_ADDRESS_PROVIDER = "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5";
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 
+let factory, hegicAdapter, opynV1Adapter;
+
 async function getDefaultArgs(admin, owner, user) {
-  const factory = await deployProxy(
+  // ensure we just return the cached instances instead of re-initializing everything
+  if (factory && hegicAdapter && opynV1Adapter) {
+    return { factory, hegicAdapter, opynV1Adapter };
+  }
+
+  factory = await deployProxy(
     Factory,
     admin,
     ["address", "address"],
     [owner, admin]
   );
 
-  const hegicAdapter = await HegicAdapter.new(
+  hegicAdapter = await HegicAdapter.new(
     HEGIC_ETH_OPTIONS,
     HEGIC_WBTC_OPTIONS,
     ETH_ADDRESS,
@@ -61,7 +69,7 @@ async function getDefaultArgs(admin, owner, user) {
   );
   await hegicAdapter.initialize(owner, factory.address, { from: owner });
 
-  const opynV1Adapter = await OpynV1Adapter.new(AAVE_ADDRESS_PROVIDER, {
+  opynV1Adapter = await OpynV1Adapter.new(AAVE_ADDRESS_PROVIDER, {
     from: owner,
   });
 
@@ -73,6 +81,7 @@ async function getDefaultArgs(admin, owner, user) {
     WETH_ADDRESS,
     { from: owner }
   );
+  await setupOTokenAndVaults(opynV1Adapter, owner);
 
   await factory.setAdapter("HEGIC", hegicAdapter.address, { from: owner });
   await factory.setAdapter("OPYN_V1", opynV1Adapter.address, { from: owner });

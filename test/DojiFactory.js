@@ -128,11 +128,11 @@ describe("DojiFactory", function () {
   describe("#adapters", () => {
     it("gets the adapters array", async function () {
       assert.equal(
-        (await this.factory.adapters())[0],
+        (await this.factory.getAdapters())[0],
         this.hegicAdapter.address
       );
       assert.equal(
-        (await this.factory.adapters())[1],
+        (await this.factory.getAdapters())[1],
         this.opynV1Adapter.address
       );
     });

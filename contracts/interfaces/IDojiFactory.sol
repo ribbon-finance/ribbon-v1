@@ -9,5 +9,8 @@ interface IDojiFactory {
         view
         returns (address);
 
-    function adapters() external view returns (address[] memory adaptersArray);
+    function getAdapters()
+        external
+        view
+        returns (address[] memory adaptersArray);
 }

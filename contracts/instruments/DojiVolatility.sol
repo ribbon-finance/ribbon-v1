@@ -10,6 +10,7 @@ import "../interfaces/InstrumentInterface.sol";
 import "../interfaces/HegicInterface.sol";
 import "./DojiVolatilityStorage.sol";
 import {OptionType, IProtocolAdapter} from "../adapters/IProtocolAdapter.sol";
+import "../tests/DebugLib.sol";
 
 contract DojiVolatility is
     Initializable,
@@ -19,8 +20,6 @@ contract DojiVolatility is
     DojiVolatilityStorageV1
 {
     using SafeMath for uint256;
-    enum Protocols {Unknown, HegicBTC, HegicETH, OpynV1}
-    uint8 constant STATIC_PROTOCOL = uint8(Protocols.HegicETH);
 
     event PositionCreated(
         address indexed account,
@@ -47,6 +46,8 @@ contract DojiVolatility is
         address _factory,
         string memory name,
         string memory symbol,
+        address _underlying,
+        address _strikeAsset,
         uint256 _expiry,
         uint256 _callStrikePrice,
         uint256 _putStrikePrice
@@ -60,6 +61,8 @@ contract DojiVolatility is
         expiry = _expiry;
         callStrikePrice = _callStrikePrice;
         putStrikePrice = _putStrikePrice;
+        underlying = _underlying;
+        strikeAsset = _strikeAsset;
     }
 
     function getBestTrade(uint256 optionAmount)
@@ -71,7 +74,7 @@ contract DojiVolatility is
             uint256[] memory amounts
         )
     {
-        address[] memory adapters = factory.adapters();
+        address[] memory adapters = factory.getAdapters();
         uint256 cheapestCallPremium;
         uint256 cheapestPutPremium;
         string memory callVenue;
@@ -84,23 +87,36 @@ contract DojiVolatility is
                 optionAmount
             );
 
-            if (cheapestCallPremium == 0 || callPremium < cheapestCallPremium) {
-                cheapestCallPremium = callPremium;
-                callVenue = adapter.protocolName();
+            if (callPremium != 0) {
+                if (
+                    cheapestCallPremium == 0 ||
+                    callPremium < cheapestCallPremium
+                ) {
+                    cheapestCallPremium = callPremium;
+                    callVenue = adapter.protocolName();
+                }
             }
-            if (cheapestPutPremium == 0 || putPremium < cheapestPutPremium) {
-                cheapestPutPremium = callPremium;
-                putVenue = adapter.protocolName();
+            if (putPremium != 0) {
+                if (
+                    cheapestPutPremium == 0 || putPremium < cheapestPutPremium
+                ) {
+                    cheapestPutPremium = callPremium;
+                    putVenue = adapter.protocolName();
+                }
             }
         }
+        require(
+            bytes(callVenue).length >= 1 && bytes(putVenue).length >= 1,
+            "No matching venues"
+        );
 
         venues = new string[](2);
-        venues[0] = callVenue;
-        venues[1] = putVenue;
+        venues[0] = putVenue;
+        venues[1] = callVenue;
 
         optionTypes = new uint8[](2);
-        optionTypes[0] = uint8(OptionType.Call);
-        optionTypes[1] = uint8(OptionType.Put);
+        optionTypes[0] = uint8(OptionType.Put);
+        optionTypes[1] = uint8(OptionType.Call);
 
         amounts = new uint256[](2);
         amounts[0] = optionAmount;
@@ -111,22 +127,41 @@ contract DojiVolatility is
         IProtocolAdapter adapter,
         uint256 optionAmount
     ) private view returns (uint256 callPremium, uint256 putPremium) {
-        callPremium = adapter.premium(
+        bool callOptionExists = adapter.optionsExist(
             underlying,
             strikeAsset,
             expiry,
             callStrikePrice,
-            OptionType.Call,
-            optionAmount
+            OptionType.Call
         );
-        putPremium = adapter.premium(
+        bool putOptionExists = adapter.optionsExist(
             underlying,
             strikeAsset,
             expiry,
             putStrikePrice,
-            OptionType.Put,
-            optionAmount
+            OptionType.Put
         );
+
+        callPremium = callOptionExists
+            ? adapter.premium(
+                underlying,
+                strikeAsset,
+                expiry,
+                callStrikePrice,
+                OptionType.Call,
+                optionAmount
+            )
+            : 0;
+        putPremium = putOptionExists
+            ? adapter.premium(
+                underlying,
+                strikeAsset,
+                expiry,
+                putStrikePrice,
+                OptionType.Put,
+                optionAmount
+            )
+            : 0;
     }
 
     /**

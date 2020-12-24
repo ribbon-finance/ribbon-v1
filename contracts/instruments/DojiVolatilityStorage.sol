@@ -55,4 +55,20 @@ contract DojiVolatilityStorageV1 is InstrumentStorageInterface {
     function numOfPositions(address _account) public view returns (uint256) {
         return instrumentPositions[_account].length;
     }
+
+    function getInstrumentPositions(address account)
+        external
+        view
+        returns (InstrumentPosition[] memory positions)
+    {
+        return instrumentPositions[account];
+    }
+
+    function instrumentPosition(address account, uint256 positionID)
+        external
+        view
+        returns (InstrumentPosition memory position)
+    {
+        return instrumentPositions[account][positionID];
+    }
 }

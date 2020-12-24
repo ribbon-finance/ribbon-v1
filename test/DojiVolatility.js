@@ -37,7 +37,9 @@ describe("DojiVolatility", () => {
     venues: [HEGIC_PROTOCOL, OPYN_V1_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [ether("1"), ether("1")],
+    premiums: [new BN("193251662956618630"), new BN("210335735004969")],
     purchaseAmount: ether("1"),
+    optionIDs: ["1685", "0"],
   });
 });
 
@@ -58,6 +60,8 @@ function behavesLikeDojiVolatility(params) {
         optionTypes,
         amounts,
         purchaseAmount,
+        premiums,
+        optionIDs,
       } = params;
       this.name = name;
       this.symbol = symbol;
@@ -70,6 +74,10 @@ function behavesLikeDojiVolatility(params) {
       this.optionTypes = optionTypes;
       this.amounts = amounts;
       this.purchaseAmount = purchaseAmount;
+      this.premiums = premiums;
+      this.optionIDs = optionIDs;
+
+      this.totalPremium = premiums.reduce((a, b) => a.add(b), new BN("0"));
 
       const { factory } = await getDefaultArgs(admin, owner, user);
       this.factory = factory;
@@ -133,6 +141,7 @@ function behavesLikeDojiVolatility(params) {
           venues,
           optionTypes,
           amounts,
+          premiums,
         } = await this.contract.getBestTrade(this.purchaseAmount);
 
         assert.deepEqual(venues, this.venues);
@@ -143,6 +152,10 @@ function behavesLikeDojiVolatility(params) {
         assert.deepEqual(
           amounts.map((a) => a.toString()),
           this.amounts.map((a) => a.toString())
+        );
+        assert.deepEqual(
+          premiums.map((a) => a.toString()),
+          this.premiums.map((a) => a.toString())
         );
       });
     });
@@ -157,29 +170,79 @@ function behavesLikeDojiVolatility(params) {
         await helper.revertToSnapShot(snapshotId);
       });
 
-      // it("reverts when not enough value is passed", async function () {
-      //   await expectRevert(
-      //     this.contract.buyInstrument(ether("1"), {
-      //       from: user,
-      //       value: ether("0.01"),
-      //     }),
-      //     "Value does not cover total cost"
-      //   );
-      // });
+      it("reverts when passed less than 2 venues", async function () {
+        await expectRevert(
+          this.contract.buyInstrument(
+            [this.venues[0]],
+            [this.optionTypes[0]],
+            [this.amounts[0]],
+            {
+              from: user,
+              value: this.totalPremium,
+            }
+          ),
+          "Must have at least 2 venues"
+        );
+      });
 
-      // it("reverts when buying after expiry", async function () {
-      //   await time.increaseTo(this.expiry + 1);
+      it("reverts when buying after expiry", async function () {
+        await time.increaseTo(this.expiry + 1);
 
-      //   await expectRevert(
-      //     this.contract.buyInstrument(ether("1"), {
-      //       from: user,
-      //       value: ether("0.01"),
-      //     }),
-      //     "Cannot buy instrument after expiry"
-      //   );
-      // });
+        await expectRevert(
+          this.contract.buyInstrument(
+            this.venues,
+            this.optionTypes,
+            this.amounts,
+            {
+              from: user,
+              value: this.totalPremium,
+            }
+          ),
+          "Cannot purchase after expiry"
+        );
+      });
 
-      it("buys instrument", async function () {});
+      it("buys instrument", async function () {
+        const res = await this.contract.buyInstrument(
+          this.venues,
+          this.optionTypes,
+          this.amounts,
+          {
+            from: user,
+            value: this.totalPremium,
+          }
+        );
+
+        expectEvent(res, "PositionCreated", {
+          account: user,
+          positionID: "0",
+          venues: this.venues,
+        });
+
+        const { optionTypes, amounts } = res.logs[0].args;
+        assert.deepEqual(
+          optionTypes.map((o) => o.toNumber()),
+          this.optionTypes
+        );
+        assert.deepEqual(
+          amounts.map((a) => a.toString()),
+          this.amounts.map((a) => a.toString())
+        );
+
+        const position = await this.contract.instrumentPosition(user, 0);
+
+        assert.equal(position.exercised, false);
+        assert.deepEqual(position.venues, this.venues);
+        assert.deepEqual(
+          position.optionTypes.map((o) => o.toString()),
+          this.optionTypes.map((o) => o.toString())
+        );
+        assert.deepEqual(
+          position.amounts.map((a) => a.toString()),
+          this.amounts.map((a) => a.toString())
+        );
+        assert.deepEqual(position.optionIDs, this.optionIDs);
+      });
 
       // it("does not exceed gas limit budget", async function () {
       //   const firstRes = await this.contract.buyInstrument(ether("1"), {

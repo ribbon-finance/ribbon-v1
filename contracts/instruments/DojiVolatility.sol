@@ -17,6 +17,7 @@ contract DojiVolatility is
     InstrumentInterface,
     ReentrancyGuard,
     DSMath,
+    DebugLib,
     DojiVolatilityStorageV1
 {
     using SafeMath for uint256;
@@ -24,14 +25,10 @@ contract DojiVolatility is
     event PositionCreated(
         address indexed account,
         uint256 indexed positionID,
-        uint256 costOfCall,
-        uint256 costOfPut,
-        uint8 callOptionProtocol,
-        uint8 putOptionProtocol,
-        uint256 callOptionAmount,
-        uint256 putOptionAmount,
-        uint256 callOptionID,
-        uint256 putOptionID
+        string[] venues,
+        OptionType[] optionTypes,
+        uint256[] amounts,
+        uint32[] optionIDs
     );
     event Exercised(
         address indexed account,
@@ -71,7 +68,8 @@ contract DojiVolatility is
         returns (
             string[] memory venues,
             uint8[] memory optionTypes,
-            uint256[] memory amounts
+            uint256[] memory amounts,
+            uint256[] memory premiums
         )
     {
         address[] memory adapters = factory.getAdapters();
@@ -121,6 +119,10 @@ contract DojiVolatility is
         amounts = new uint256[](2);
         amounts[0] = optionAmount;
         amounts[1] = optionAmount;
+
+        premiums = new uint256[](2);
+        premiums[0] = cheapestPutPremium;
+        premiums[1] = cheapestCallPremium;
     }
 
     function getPremiumsFromAdapter(
@@ -203,7 +205,17 @@ contract DojiVolatility is
             amounts,
             optionIDs
         );
+        uint256 positionID = instrumentPositions[msg.sender].length;
         instrumentPositions[msg.sender].push(position);
+
+        emit PositionCreated(
+            msg.sender,
+            positionID,
+            venues,
+            optionTypes,
+            amounts,
+            optionIDs
+        );
     }
 
     function purchaseOptionAtVenue(
@@ -220,7 +232,16 @@ contract DojiVolatility is
             ? putStrikePrice
             : callStrikePrice;
 
-        uint256 optionID256 = adapter.purchase(
+        uint256 premium = adapter.premium(
+            underlying,
+            strikeAsset,
+            expiry,
+            strikePrice,
+            optionType,
+            amount
+        );
+
+        uint256 optionID256 = adapter.purchase{value: premium}(
             underlying,
             strikeAsset,
             expiry,

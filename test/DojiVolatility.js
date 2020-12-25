@@ -11,9 +11,9 @@ const {
 const helper = require("./helper.js");
 const { getDefaultArgs } = require("./utils");
 const { encodeCall } = require("@openzeppelin/upgrades");
-const balance = require("@openzeppelin/test-helpers/src/balance");
 const DojimaVolatility = contract.fromArtifact("DojiVolatility");
-const Factory = contract.fromArtifact("DojiFactory");
+const IHegicETHOptions = contract.fromArtifact("IHegicETHOptions");
+const IHegicBTCOptions = contract.fromArtifact("IHegicBTCOptions");
 
 const [admin, owner, user] = accounts;
 const gasPrice = web3.utils.toWei("10", "gwei");
@@ -24,6 +24,8 @@ const HEGIC_PROTOCOL = "HEGIC";
 const OPYN_V1_PROTOCOL = "OPYN_V1";
 const ETH_ADDRESS = constants.ZERO_ADDRESS;
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
+const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
 
 describe("DojiVolatility", () => {
   behavesLikeDojiVolatility({
@@ -79,9 +81,23 @@ function behavesLikeDojiVolatility(params) {
 
       this.totalPremium = premiums.reduce((a, b) => a.add(b), new BN("0"));
 
-      const { factory } = await getDefaultArgs(admin, owner, user);
+      const { factory, hegicAdapter, opynV1Adapter } = await getDefaultArgs(
+        admin,
+        owner,
+        user
+      );
       this.factory = factory;
+      this.hegicAdapter = hegicAdapter;
+      this.opynV1Adapter = opynV1Adapter;
       this.instrumentLogic = await DojimaVolatility.new({ from: admin });
+
+      if (this.underlying === ETH_ADDRESS) {
+        this.hegicOptions = await IHegicETHOptions.at(HEGIC_ETH_OPTIONS);
+      } else if (underlying === WBTC_ADDRESS) {
+        this.hegicOptions = await IHegicBTCOptions.at(HEGIC_WBTC_OPTIONS);
+      } else {
+        throw new Error(`No underlying found ${this.underlying}`);
+      }
 
       const initTypes = [
         "address",
@@ -242,6 +258,36 @@ function behavesLikeDojiVolatility(params) {
           this.amounts.map((a) => a.toString())
         );
         assert.deepEqual(position.optionIDs, this.optionIDs);
+
+        let i = 0;
+        for (const venue of this.venues) {
+          const expectedOptionType = this.optionTypes[i];
+          const strikePrice =
+            expectedOptionType === PUT_OPTION_TYPE
+              ? this.putStrikePrice
+              : this.callStrikePrice;
+          const hegicScaledStrikePrice = strikePrice.div(new BN("10000000000"));
+          const purchaseAmount = this.amounts[i];
+
+          if (venue === "HEGIC") {
+            const {
+              holder,
+              strike,
+              amount,
+              lockedAmount,
+              expiration,
+              optionType,
+            } = await this.hegicOptions.options(this.optionIDs[i]);
+
+            assert.equal(holder, this.hegicAdapter.address);
+            assert.equal(strike.toString(), hegicScaledStrikePrice);
+            assert.equal(lockedAmount.toString(), purchaseAmount);
+            assert.equal(amount.toString(), purchaseAmount);
+            assert.equal(expiration, this.expiry);
+            assert.equal(optionType, expectedOptionType);
+          }
+          i++;
+        }
       });
 
       // it("does not exceed gas limit budget", async function () {

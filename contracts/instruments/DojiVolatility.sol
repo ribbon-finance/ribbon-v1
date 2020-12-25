@@ -382,6 +382,10 @@ contract DojiVolatility is
         raiseNotImplemented();
     }
 
+    function dToken() external pure returns (address) {
+        return address(0);
+    }
+
     /**
      * @notice Raises to prevent calling
      */

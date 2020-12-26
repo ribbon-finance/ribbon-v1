@@ -371,6 +371,9 @@ function behavesLikeDojiVolatility(params) {
           "Already expired"
         );
       });
+
+      it("exercises both the options", async function () {});
+
       //   it("exercises the call option", async function () {
       //     await this.hegicOptions.setCurrentPrice(ether("550"));
       //     const revenue = ether("0.090909090909090909");

@@ -14,7 +14,7 @@ import "../tests/DebugLib.sol";
 
 contract DojiVolatility is
     Initializable,
-    InstrumentInterface,
+    IAggregatedOptionsInstrument,
     ReentrancyGuard,
     DSMath,
     DebugLib,
@@ -64,6 +64,7 @@ contract DojiVolatility is
 
     function getBestTrade(uint256 optionAmount)
         public
+        override
         view
         returns (
             string[] memory venues,
@@ -175,7 +176,7 @@ contract DojiVolatility is
         string[] memory venues,
         OptionType[] memory optionTypes,
         uint256[] memory amounts
-    ) public payable nonReentrant {
+    ) public override payable nonReentrant returns (uint256 positionID) {
         require(venues.length >= 2, "Must have at least 2 venues");
         uint32[] memory optionIDs = new uint32[](venues.length);
         bool seenCall = false;
@@ -200,12 +201,12 @@ contract DojiVolatility is
 
         InstrumentPosition memory position = InstrumentPosition(
             false,
-            venues,
             optionTypes,
+            optionIDs,
             amounts,
-            optionIDs
+            venues
         );
-        uint256 positionID = instrumentPositions[msg.sender].length;
+        positionID = instrumentPositions[msg.sender].length;
         instrumentPositions[msg.sender].push(position);
 
         emit PositionCreated(
@@ -252,144 +253,26 @@ contract DojiVolatility is
         optionID = adapter.nonFungible() ? uint32(optionID256) : 0;
     }
 
-    // function buyInstrument(uint256 _amount) public payable nonReentrant {
-    //     require(block.timestamp < expiry, "Cannot buy instrument after expiry");
-
-    //     (
-    //         InstrumentPosition memory position,
-    //         uint256 costOfCall,
-    //         uint256 costOfPut
-    //     ) = createHegicOptions(_amount);
-
-    //     uint256 positionID = instrumentPositions[msg.sender].length;
-    //     instrumentPositions[msg.sender].push(position);
-
-    //     emit PositionCreated(
-    //         msg.sender,
-    //         positionID,
-    //         costOfCall,
-    //         costOfPut,
-    //         position.callProtocol,
-    //         position.putProtocol,
-    //         _amount,
-    //         _amount,
-    //         position.callOptionID,
-    //         position.putOptionID
-    //     );
-    // }
-
     function exercise(uint256 positionID)
         public
+        override
         nonReentrant
         returns (uint256 profit)
     {
-        // InstrumentPosition[] storage positions = instrumentPositions[msg
-        //     .sender];
+        InstrumentPosition[] storage positions = instrumentPositions[msg
+            .sender];
+        InstrumentPosition storage position = positions[positionID];
         // InstrumentPosition storage position = positions[positionID];
-        // require(!position.exercised, "Already exercised");
-        // require(block.timestamp <= expiry, "Already expired");
+        require(!position.exercised, "Already exercised");
+        require(block.timestamp <= expiry, "Already expired");
         // profit = exerciseHegicOptions(msg.sender, positionID);
-        // position.exercised = true;
+        position.exercised = true;
         // (bool success, ) = msg.sender.call{value: profit}("");
         // require(success, "Transferring profit failed");
         // emit Exercised(msg.sender, positionID, profit);
     }
 
-    /**
-     * @notice Deposits collateral into the system. Calls the `depositInteral` function
-     * @param _amount is amount of collateral to deposit
-     */
-    function deposit(uint256 _amount) public override payable nonReentrant {
-        raiseNotImplemented();
-        require(_amount == 0);
-    }
-
-    /**
-     * @notice Mints dTokens. Calls the `mintInternal` function
-     * @param _amount is amount of dToken to mint
-     */
-    function mint(uint256 _amount) public override nonReentrant {
-        raiseNotImplemented();
-        require(_amount == 0);
-    }
-
-    /**
-     * @notice Deposits collateral and mints dToken atomically
-     * @param _collateral is amount of collateral to deposit
-     * @param _dToken is amount of dTokens to mint
-     */
-    function depositAndMint(uint256 _collateral, uint256 _dToken)
-        external
-        override
-        payable
-        nonReentrant
-    {
-        raiseNotImplemented();
-        require(_collateral == 0 && _dToken == 0);
-    }
-
-    /**
-     * @notice Deposits collateral, mints dToken, sells dToken atomically
-     * @param _collateral is amount of collateral to deposit
-     * @param _dToken is amount of dTokens to mint
-     * @param _maxSlippage is max % amount of slippage in WAD
-     */
-    function depositMintAndSell(
-        uint256 _collateral,
-        uint256 _dToken,
-        uint256 _maxSlippage
-    ) external override payable nonReentrant {
-        raiseNotImplemented();
-        require(_collateral == 0 && _dToken == 0 && _maxSlippage == 0);
-    }
-
-    /**
-     * @notice Repays dToken debt in a vault
-     * @param _account is the address which debt is being repaid
-     * @param _amount is amount of dToken to repay
-     */
-    function repayDebt(address _account, uint256 _amount)
-        public
-        override
-        nonReentrant
-    {
-        raiseNotImplemented();
-        require(_account == address(0) && _amount == 0);
-    }
-
-    /**
-     * @notice Changes `expired` to True if timestamp is greater than expiry
-     * It calculates the `settlePrice` with the current prices of target and
-     * collateral assets, then sets them in stone.
-     */
-    function settle() public override {
-        raiseNotImplemented();
-    }
-
-    /**
-     * @notice Redeems dToken for collateral after expiry
-     * @param _dTokenAmount is amount of dTokens to redeem
-     */
-    function redeem(uint256 _dTokenAmount) external override nonReentrant {
-        raiseNotImplemented();
-        require(_dTokenAmount == 0);
-    }
-
-    /**
-     * @notice Withdraws collateral after instrument is expired
-     */
-    function withdrawAfterExpiry() external override nonReentrant {
-        raiseNotImplemented();
-    }
-
     function dToken() external pure returns (address) {
         return address(0);
-    }
-
-    /**
-     * @notice Raises to prevent calling
-     */
-    function raiseNotImplemented() private pure {
-        require(false, "Not implemented");
     }
 }

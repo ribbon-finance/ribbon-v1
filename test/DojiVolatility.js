@@ -321,124 +321,100 @@ function behavesLikeDojiVolatility(params) {
         }
       });
 
-      // it("does not exceed gas limit budget", async function () {
-      //   const firstRes = await this.contract.buyInstrument(ether("1"), {
-      //     from: user,
-      //     value: ether("0.05735"),
-      //   });
-      //   const secondRes = await this.contract.buyInstrument(ether("1"), {
-      //     from: user,
-      //     value: ether("0.05735"),
-      //   });
-      //   assert.isAtMost(firstRes.receipt.gasUsed, 650000);
-      //   assert.isAtMost(secondRes.receipt.gasUsed, 550000);
-      // });
+      it("does not exceed gas limit budget", async function () {
+        const res = await this.contract.buyInstrument(
+          this.venues,
+          this.optionTypes,
+          this.amounts,
+          {
+            from: user,
+            value: this.totalPremium,
+          }
+        );
+        assert.isAtMost(res.receipt.gasUsed, 650000);
+      });
     });
 
-    // describe("#exercise", () => {
-    //   let positionID;
+    describe("#exercise", () => {
+      before(async function () {
+        await this.contract.buyInstrument(
+          this.venues,
+          this.optionTypes,
+          this.amounts,
+          {
+            from: user,
+            value: this.totalPremium,
+          }
+        );
+        this.positionID = 0;
 
-    //   beforeEach(async function () {
-    //     const snapShot = await helper.takeSnapshot();
-    //     snapshotId = snapShot["result"];
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+      });
 
-    //     const res = await this.contract.buyInstrument(ether("1"), {
-    //       from: user,
-    //       value: ether("0.05735"),
-    //     });
-    //     positionID = res.receipt.logs[0].args.positionID;
+      afterEach(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
 
-    //     // Load some ETH into the contract for payouts
-    //     await web3.eth.sendTransaction({
-    //       from: admin,
-    //       to: this.hegicOptions.address,
-    //       value: ether("10"),
-    //     });
-    //   });
+      it("reverts when exercising twice", async function () {
+        await this.contract.exercise(this.positionID, { from: user });
+        await expectRevert(
+          this.contract.exercise(this.positionID, { from: user }),
+          "Already exercised"
+        );
+      });
 
-    //   afterEach(async () => {
-    //     await helper.revertToSnapShot(snapshotId);
-    //   });
+      it("reverts when past expiry", async function () {
+        await time.increaseTo(this.expiry + 1);
+        await expectRevert(
+          this.contract.exercise(this.positionID, { from: user }),
+          "Already expired"
+        );
+      });
 
-    //   it("exercises options with 0 profit", async function () {
-    //     const res = await this.contract.exercise(positionID, { from: user });
-    //     expectEvent(res, "Exercised", {
-    //       account: user,
-    //       positionID: "0",
-    //       totalProfit: "0",
-    //     });
-    //   });
+      it("exercises both the options", async function () {});
 
-    //   it("reverts when exercising twice", async function () {
-    //     await this.contract.exercise(positionID, { from: user });
-
-    //     await expectRevert(
-    //       this.contract.exercise(positionID, { from: user }),
-    //       "Already exercised"
-    //     );
-    //   });
-
-    //   it("reverts when past expiry", async function () {
-    //     await time.increaseTo(this.expiry + 1);
-
-    //     await expectRevert(
-    //       this.contract.exercise(positionID, { from: user }),
-    //       "Already expired"
-    //     );
-    //   });
-
-    //   it("exercises the call option", async function () {
-    //     await this.hegicOptions.setCurrentPrice(ether("550"));
-
-    //     const revenue = ether("0.090909090909090909");
-
-    //     const hegicTracker = await balance.tracker(this.hegicOptions.address);
-    //     const dojiTracker = await balance.tracker(this.contract.address);
-    //     const userTracker = await balance.tracker(user);
-
-    //     const res = await this.contract.exercise(positionID, {
-    //       from: user,
-    //       gasPrice,
-    //     });
-    //     const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
-    //     const profit = revenue.sub(gasFee);
-
-    //     assert.equal((await userTracker.delta()).toString(), profit.toString());
-    //     assert.equal(
-    //       (await hegicTracker.delta()).toString(),
-    //       "-" + revenue.toString()
-    //     );
-
-    //     // make sure doji doesn't accidentally retain any ether
-    //     assert.equal((await dojiTracker.delta()).toString(), "0");
-    //   });
-
-    //   it("exercises the put option", async function () {
-    //     await this.hegicOptions.setCurrentPrice(ether("450"));
-
-    //     const revenue = new BN("111111111111111111");
-
-    //     const hegicTracker = await balance.tracker(this.hegicOptions.address);
-    //     const dojiTracker = await balance.tracker(this.contract.address);
-    //     const userTracker = await balance.tracker(user);
-
-    //     const res = await this.contract.exercise(positionID, {
-    //       from: user,
-    //       gasPrice,
-    //     });
-    //     const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
-    //     const profit = revenue.sub(gasFee);
-
-    //     assert.equal((await userTracker.delta()).toString(), profit.toString());
-    //     assert.equal(
-    //       (await hegicTracker.delta()).toString(),
-    //       "-" + revenue.toString()
-    //     );
-
-    //     // make sure doji doesn't accidentally retain any ether
-    //     assert.equal((await dojiTracker.delta()).toString(), "0");
-    //   });
-    // });
+      //   it("exercises the call option", async function () {
+      //     await this.hegicOptions.setCurrentPrice(ether("550"));
+      //     const revenue = ether("0.090909090909090909");
+      //     const hegicTracker = await balance.tracker(this.hegicOptions.address);
+      //     const dojiTracker = await balance.tracker(this.contract.address);
+      //     const userTracker = await balance.tracker(user);
+      //     const res = await this.contract.exercise(positionID, {
+      //       from: user,
+      //       gasPrice,
+      //     });
+      //     const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+      //     const profit = revenue.sub(gasFee);
+      //     assert.equal((await userTracker.delta()).toString(), profit.toString());
+      //     assert.equal(
+      //       (await hegicTracker.delta()).toString(),
+      //       "-" + revenue.toString()
+      //     );
+      //     // make sure doji doesn't accidentally retain any ether
+      //     assert.equal((await dojiTracker.delta()).toString(), "0");
+      //   });
+      //   it("exercises the put option", async function () {
+      //     await this.hegicOptions.setCurrentPrice(ether("450"));
+      //     const revenue = new BN("111111111111111111");
+      //     const hegicTracker = await balance.tracker(this.hegicOptions.address);
+      //     const dojiTracker = await balance.tracker(this.contract.address);
+      //     const userTracker = await balance.tracker(user);
+      //     const res = await this.contract.exercise(positionID, {
+      //       from: user,
+      //       gasPrice,
+      //     });
+      //     const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+      //     const profit = revenue.sub(gasFee);
+      //     assert.equal((await userTracker.delta()).toString(), profit.toString());
+      //     assert.equal(
+      //       (await hegicTracker.delta()).toString(),
+      //       "-" + revenue.toString()
+      //     );
+      //     // make sure doji doesn't accidentally retain any ether
+      //     assert.equal((await dojiTracker.delta()).toString(), "0");
+      //   });
+    });
 
     describe("#numOfPositions", () => {
       // it("gets the number of positions", async function () {
@@ -449,69 +425,6 @@ function behavesLikeDojiVolatility(params) {
       //   });
       //   assert.equal(await this.contract.numOfPositions(user), 1);
       // });
-    });
-
-    describe("#deposit", () => {
-      it("raises not implemented exception", async function () {
-        await expectRevert(
-          this.contract.deposit(1, { from: user }),
-          "Not implemented"
-        );
-      });
-    });
-
-    describe("#mint", () => {
-      it("raises not implemented exception", async function () {
-        await expectRevert(
-          this.contract.mint(1, { from: user }),
-          "Not implemented"
-        );
-      });
-    });
-
-    describe("#depositAndMint", () => {
-      it("raises not implemented exception", async function () {
-        await expectRevert(
-          this.contract.depositAndMint(1, 1, { from: user }),
-          "Not implemented"
-        );
-      });
-    });
-
-    describe("#depositMintAndSell", () => {
-      it("raises not implemented exception", async function () {
-        await expectRevert(
-          this.contract.depositMintAndSell(1, 1, 1, { from: user }),
-          "Not implemented"
-        );
-      });
-    });
-
-    describe("#settle", () => {
-      it("raises not implemented exception", async function () {
-        await expectRevert(
-          this.contract.settle({ from: user }),
-          "Not implemented"
-        );
-      });
-    });
-
-    describe("#repayDebt", () => {
-      it("raises not implemented exception", async function () {
-        await expectRevert(
-          this.contract.repayDebt(constants.ZERO_ADDRESS, 1, { from: user }),
-          "Not implemented"
-        );
-      });
-    });
-
-    describe("#withdrawAfterExpiry", () => {
-      it("raises not implemented exception", async function () {
-        await expectRevert(
-          this.contract.withdrawAfterExpiry({ from: user }),
-          "Not implemented"
-        );
-      });
     });
   });
 }

@@ -252,44 +252,19 @@ contract DojiVolatility is
         optionID = adapter.nonFungible() ? uint32(optionID256) : 0;
     }
 
-    // function buyInstrument(uint256 _amount) public payable nonReentrant {
-    //     require(block.timestamp < expiry, "Cannot buy instrument after expiry");
-
-    //     (
-    //         InstrumentPosition memory position,
-    //         uint256 costOfCall,
-    //         uint256 costOfPut
-    //     ) = createHegicOptions(_amount);
-
-    //     uint256 positionID = instrumentPositions[msg.sender].length;
-    //     instrumentPositions[msg.sender].push(position);
-
-    //     emit PositionCreated(
-    //         msg.sender,
-    //         positionID,
-    //         costOfCall,
-    //         costOfPut,
-    //         position.callProtocol,
-    //         position.putProtocol,
-    //         _amount,
-    //         _amount,
-    //         position.callOptionID,
-    //         position.putOptionID
-    //     );
-    // }
-
     function exercise(uint256 positionID)
         public
         nonReentrant
         returns (uint256 profit)
     {
-        // InstrumentPosition[] storage positions = instrumentPositions[msg
-        //     .sender];
+        InstrumentPosition[] storage positions = instrumentPositions[msg
+            .sender];
+        InstrumentPosition storage position = positions[positionID];
         // InstrumentPosition storage position = positions[positionID];
-        // require(!position.exercised, "Already exercised");
-        // require(block.timestamp <= expiry, "Already expired");
+        require(!position.exercised, "Already exercised");
+        require(block.timestamp <= expiry, "Already expired");
         // profit = exerciseHegicOptions(msg.sender, positionID);
-        // position.exercised = true;
+        position.exercised = true;
         // (bool success, ) = msg.sender.call{value: profit}("");
         // require(success, "Transferring profit failed");
         // emit Exercised(msg.sender, positionID, profit);

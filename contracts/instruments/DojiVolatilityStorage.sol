@@ -3,47 +3,29 @@ pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 
 import "../interfaces/InstrumentInterface.sol";
+import {IDojiFactory} from "../interfaces/IDojiFactory.sol";
+import {OptionType} from "../adapters/IProtocolAdapter.sol";
 
-contract DojiVolatilityStorageV1 is InstrumentStorageInterface {
+contract DojiVolatilityStorageV1 {
     address public owner;
-    address public hegicOptions;
-    uint256 public strikePrice;
+    IDojiFactory public factory;
+    address public underlying;
+    address public strikeAsset;
+    uint256 public callStrikePrice;
+    uint256 public putStrikePrice;
     uint256 public expiry;
-    string public _name;
-    string public _symbol;
+    string public name;
+    string public symbol;
 
     struct InstrumentPosition {
         bool exercised;
-        uint8 callProtocol;
-        uint8 putProtocol;
-        uint32 callOptionID;
-        uint32 putOptionID;
-        uint256 callAmount;
-        uint256 putAmount;
+        string[] venues;
+        OptionType[] optionTypes;
+        uint256[] amounts;
+        uint32[] optionIDs;
     }
 
     mapping(address => InstrumentPosition[]) public instrumentPositions;
-
-    /**
-     * @notice Returns the name of the contract
-     */
-    function name() public virtual override view returns (string memory) {
-        return _name;
-    }
-
-    /**
-     * @notice Returns the dToken of the instrument
-     */
-    function dToken() public virtual override view returns (address) {
-        return address(0);
-    }
-
-    /**
-     * @notice Returns the symbol of the instrument
-     */
-    function symbol() public virtual override view returns (string memory) {
-        return _symbol;
-    }
 
     /**
      * @notice Returns the symbol of the instrument
@@ -51,5 +33,21 @@ contract DojiVolatilityStorageV1 is InstrumentStorageInterface {
      */
     function numOfPositions(address _account) public view returns (uint256) {
         return instrumentPositions[_account].length;
+    }
+
+    function getInstrumentPositions(address account)
+        external
+        view
+        returns (InstrumentPosition[] memory positions)
+    {
+        return instrumentPositions[account];
+    }
+
+    function instrumentPosition(address account, uint256 positionID)
+        external
+        view
+        returns (InstrumentPosition memory position)
+    {
+        return instrumentPositions[account][positionID];
     }
 }

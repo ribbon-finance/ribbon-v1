@@ -29,6 +29,14 @@ interface IProtocolAdapter {
 
     function nonFungible() external pure returns (bool);
 
+    function optionsExist(
+        address underlying,
+        address strikeAsset,
+        uint256 expiry,
+        uint256 strikePrice,
+        OptionType optionType
+    ) external view returns (bool);
+
     function premium(
         address underlying,
         address strikeAsset,

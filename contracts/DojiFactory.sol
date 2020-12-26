@@ -25,6 +25,10 @@ contract DojiFactoryStorageV1 {
      * @notice Boolean check for if an address is an instrument
      */
     mapping(address => bool) public isInstrument;
+
+    mapping(string => address) public getAdapter;
+
+    address[] public adapters;
 }
 
 contract DojiFactory is Initializable, DojiFactoryStorageV1 {
@@ -44,6 +48,11 @@ contract DojiFactory is Initializable, DojiFactoryStorageV1 {
         address indexed logic,
         address indexed proxyAddress,
         bytes initData
+    );
+
+    event AdapterSet(
+        string indexed protocolName,
+        address indexed adapterAddress
     );
 
     /**
@@ -70,9 +79,9 @@ contract DojiFactory is Initializable, DojiFactoryStorageV1 {
 
     function newInstrument(address _logic, bytes memory _initData)
         public
+        onlyOwner
         returns (address instrumentAddress)
     {
-        require(msg.sender == owner, "Only owner");
         instrumentAddress = createProxy(_logic, _initData);
         InstrumentStorageInterface instrument = InstrumentStorageInterface(
             instrumentAddress
@@ -96,5 +105,23 @@ contract DojiFactory is Initializable, DojiFactoryStorageV1 {
         );
         emit ProxyCreated(_logic, address(proxy), _initData);
         return address(proxy);
+    }
+
+    function setAdapter(string memory protocolName, address adapter)
+        public
+        onlyOwner
+    {
+        getAdapter[protocolName] = adapter;
+        adapters.push(adapter);
+        emit AdapterSet(protocolName, adapter);
+    }
+
+    function getAdapters() external view returns (address[] memory _adapters) {
+        return adapters;
+    }
+
+    modifier onlyOwner {
+        require(msg.sender == owner, "Only owner");
+        _;
     }
 }

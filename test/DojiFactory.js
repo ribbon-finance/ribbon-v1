@@ -6,10 +6,9 @@ const {
   expectEvent,
   expectRevert,
 } = require("@openzeppelin/test-helpers");
+const helper = require("./helper.js");
 const { getDefaultArgs } = require("./utils.js");
 const { encodeCall } = require("@openzeppelin/upgrades");
-
-const Instrument = contract.fromArtifact("DojiVolatility");
 
 const newInstrumentTypes = [
   "address",
@@ -27,15 +26,19 @@ const newInstrumentTypes = [
 ];
 const ADMIN_SLOT =
   "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
-const IMPL_SLOT =
-  "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
-describe("DojimaFactory", function () {
+describe("DojiFactory", function () {
   const [admin, owner, user] = accounts;
 
   before(async function () {
-    const { factory } = await getDefaultArgs(admin, owner, user);
+    const { factory, hegicAdapter, opynV1Adapter } = await getDefaultArgs(
+      admin,
+      owner,
+      user
+    );
     this.factory = factory;
+    this.hegicAdapter = hegicAdapter;
+    this.opynV1Adapter = opynV1Adapter;
   });
 
   it("initializes factory correctly", async function () {
@@ -73,5 +76,77 @@ describe("DojimaFactory", function () {
       { from: user }
     );
     await expectRevert(tx, "Only owner");
+  });
+
+  describe("#setAdapter", () => {
+    let snapshotId;
+
+    beforeEach(async () => {
+      const snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
+    it("sets the adapter", async function () {
+      const res = await this.factory.setAdapter(
+        "TEST",
+        "0x0000000000000000000000000000000000000001",
+        { from: owner }
+      );
+
+      expectEvent(res, "AdapterSet", {
+        protocolName: web3.utils.sha3("TEST"),
+        adapterAddress: "0x0000000000000000000000000000000000000001",
+      });
+
+      assert.equal(
+        await this.factory.getAdapter("TEST"),
+        "0x0000000000000000000000000000000000000001"
+      );
+      assert.equal((await this.factory.getAdapters()).length, 3);
+    });
+
+    it("reverts when not owner", async function () {
+      await expectRevert(
+        this.factory.setAdapter(
+          "TEST",
+          "0x0000000000000000000000000000000000000001",
+          { from: user }
+        ),
+        "Only owner"
+      );
+    });
+  });
+
+  describe("#getAdapter", () => {
+    it("gets the hegic adapter", async function () {
+      assert.equal(
+        await this.factory.getAdapter("HEGIC"),
+        this.hegicAdapter.address
+      );
+    });
+
+    it("gets the opyn v1 adapter", async function () {
+      assert.equal(
+        await this.factory.getAdapter("OPYN_V1"),
+        this.opynV1Adapter.address
+      );
+    });
+  });
+
+  describe("#adapters", () => {
+    it("gets the adapters array", async function () {
+      assert.equal(
+        (await this.factory.getAdapters())[0],
+        this.hegicAdapter.address
+      );
+      assert.equal(
+        (await this.factory.getAdapters())[1],
+        this.opynV1Adapter.address
+      );
+    });
   });
 });

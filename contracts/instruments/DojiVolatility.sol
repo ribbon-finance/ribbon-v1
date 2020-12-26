@@ -9,29 +9,26 @@ import "../lib/DSMath.sol";
 import "../interfaces/InstrumentInterface.sol";
 import "../interfaces/HegicInterface.sol";
 import "./DojiVolatilityStorage.sol";
+import {OptionType, IProtocolAdapter} from "../adapters/IProtocolAdapter.sol";
+import "../tests/DebugLib.sol";
 
 contract DojiVolatility is
     Initializable,
     InstrumentInterface,
     ReentrancyGuard,
     DSMath,
+    DebugLib,
     DojiVolatilityStorageV1
 {
     using SafeMath for uint256;
-    enum Protocols {Unknown, HegicBTC, HegicETH, OpynV1}
-    uint8 constant STATIC_PROTOCOL = uint8(Protocols.HegicETH);
 
     event PositionCreated(
         address indexed account,
         uint256 indexed positionID,
-        uint256 costOfCall,
-        uint256 costOfPut,
-        uint8 callOptionProtocol,
-        uint8 putOptionProtocol,
-        uint256 callOptionAmount,
-        uint256 putOptionAmount,
-        uint256 callOptionID,
-        uint256 putOptionID
+        string[] venues,
+        OptionType[] optionTypes,
+        uint256[] amounts,
+        uint32[] optionIDs
     );
     event Exercised(
         address indexed account,
@@ -39,185 +36,263 @@ contract DojiVolatility is
         uint256 totalProfit
     );
 
+    receive() external payable {}
+
     function initialize(
         address _owner,
-        string memory name,
-        string memory symbol,
+        address _factory,
+        string memory _name,
+        string memory _symbol,
+        address _underlying,
+        address _strikeAsset,
         uint256 _expiry,
-        uint256 _strikePrice,
-        address _hegicOptions
+        uint256 _callStrikePrice,
+        uint256 _putStrikePrice
     ) public initializer {
         require(block.timestamp < _expiry, "Expiry has already passed");
 
+        factory = IDojiFactory(_factory);
         owner = _owner;
-        _name = name;
-        _symbol = symbol;
+        name = _name;
+        _symbol = _symbol;
         expiry = _expiry;
-        strikePrice = _strikePrice;
-        hegicOptions = _hegicOptions;
+        callStrikePrice = _callStrikePrice;
+        putStrikePrice = _putStrikePrice;
+        underlying = _underlying;
+        strikeAsset = _strikeAsset;
     }
 
-    receive() external payable {}
+    function getBestTrade(uint256 optionAmount)
+        public
+        view
+        returns (
+            string[] memory venues,
+            uint8[] memory optionTypes,
+            uint256[] memory amounts,
+            uint256[] memory premiums
+        )
+    {
+        address[] memory adapters = factory.getAdapters();
+        uint256 cheapestCallPremium;
+        uint256 cheapestPutPremium;
+        string memory callVenue;
+        string memory putVenue;
+
+        for (uint256 i = 0; i < adapters.length; i++) {
+            IProtocolAdapter adapter = IProtocolAdapter(adapters[i]);
+            (uint256 callPremium, uint256 putPremium) = getPremiumsFromAdapter(
+                adapter,
+                optionAmount
+            );
+
+            if (callPremium != 0) {
+                if (
+                    cheapestCallPremium == 0 ||
+                    callPremium < cheapestCallPremium
+                ) {
+                    cheapestCallPremium = callPremium;
+                    callVenue = adapter.protocolName();
+                }
+            }
+            if (putPremium != 0) {
+                if (
+                    cheapestPutPremium == 0 || putPremium < cheapestPutPremium
+                ) {
+                    cheapestPutPremium = callPremium;
+                    putVenue = adapter.protocolName();
+                }
+            }
+        }
+        require(
+            bytes(callVenue).length >= 1 && bytes(putVenue).length >= 1,
+            "No matching venues"
+        );
+
+        venues = new string[](2);
+        venues[0] = putVenue;
+        venues[1] = callVenue;
+
+        optionTypes = new uint8[](2);
+        optionTypes[0] = uint8(OptionType.Put);
+        optionTypes[1] = uint8(OptionType.Call);
+
+        amounts = new uint256[](2);
+        amounts[0] = optionAmount;
+        amounts[1] = optionAmount;
+
+        premiums = new uint256[](2);
+        premiums[0] = cheapestPutPremium;
+        premiums[1] = cheapestCallPremium;
+    }
+
+    function getPremiumsFromAdapter(
+        IProtocolAdapter adapter,
+        uint256 optionAmount
+    ) private view returns (uint256 callPremium, uint256 putPremium) {
+        bool callOptionExists = adapter.optionsExist(
+            underlying,
+            strikeAsset,
+            expiry,
+            callStrikePrice,
+            OptionType.Call
+        );
+        bool putOptionExists = adapter.optionsExist(
+            underlying,
+            strikeAsset,
+            expiry,
+            putStrikePrice,
+            OptionType.Put
+        );
+
+        callPremium = callOptionExists
+            ? adapter.premium(
+                underlying,
+                strikeAsset,
+                expiry,
+                callStrikePrice,
+                OptionType.Call,
+                optionAmount
+            )
+            : 0;
+        putPremium = putOptionExists
+            ? adapter.premium(
+                underlying,
+                strikeAsset,
+                expiry,
+                putStrikePrice,
+                OptionType.Put,
+                optionAmount
+            )
+            : 0;
+    }
 
     /**
      * @notice Buy instrument and create the underlying options positions
-     * @param _amount is amount of instruments to purchase
+     * @param venues array of venue names, e.g. "HEGIC", "OPYN_V1"
+     * @param amounts array of option purchase amounts
      */
-    function buyInstrument(uint256 _amount) public payable nonReentrant {
-        require(block.timestamp < expiry, "Cannot buy instrument after expiry");
+    function buyInstrument(
+        string[] memory venues,
+        OptionType[] memory optionTypes,
+        uint256[] memory amounts
+    ) public payable nonReentrant {
+        require(venues.length >= 2, "Must have at least 2 venues");
+        uint32[] memory optionIDs = new uint32[](venues.length);
+        bool seenCall = false;
+        bool seenPut = false;
 
-        (
-            InstrumentPosition memory position,
-            uint256 costOfCall,
-            uint256 costOfPut
-        ) = createHegicOptions(_amount);
+        for (uint256 i = 0; i < venues.length; i++) {
+            uint32 optionID = purchaseOptionAtVenue(
+                venues[i],
+                optionTypes[i],
+                amounts[i]
+            );
 
+            if (!seenPut && optionTypes[i] == OptionType.Put) {
+                seenPut = true;
+            } else if (!seenCall && optionTypes[i] == OptionType.Call) {
+                seenCall = true;
+            }
+            optionIDs[i] = optionID;
+        }
+
+        require(seenCall && seenPut, "Must have both put and call options");
+
+        InstrumentPosition memory position = InstrumentPosition(
+            false,
+            venues,
+            optionTypes,
+            amounts,
+            optionIDs
+        );
         uint256 positionID = instrumentPositions[msg.sender].length;
         instrumentPositions[msg.sender].push(position);
 
         emit PositionCreated(
             msg.sender,
             positionID,
-            costOfCall,
-            costOfPut,
-            position.callProtocol,
-            position.putProtocol,
-            _amount,
-            _amount,
-            position.callOptionID,
-            position.putOptionID
+            venues,
+            optionTypes,
+            amounts,
+            optionIDs
         );
     }
 
-    /**
-     * @notice Buy instrument and create the underlying options positions
-     * @param _amount is amount of instruments to purchase
-     */
-    function createHegicOptions(uint256 _amount)
-        internal
-        returns (
-            InstrumentPosition memory position,
-            uint256 costOfCall,
-            uint256 costOfPut
-        )
-    {
-        uint256 period = expiry - block.timestamp;
-        IHegicETHOptions options = IHegicETHOptions(hegicOptions);
+    function purchaseOptionAtVenue(
+        string memory venue,
+        OptionType optionType,
+        uint256 amount
+    ) private returns (uint32 optionID) {
+        address adapterAddress = factory.getAdapter(venue);
+        require(adapterAddress != address(0), "Adapter does not exist");
+        IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
 
-        (uint256 totalCost, uint256 callCost, uint256 putCost) = getHegicCost(
-            _amount
-        );
-        costOfCall = callCost;
-        costOfPut = putCost;
+        require(optionType != OptionType.Invalid, "Invalid option type");
+        uint256 strikePrice = optionType == OptionType.Put
+            ? putStrikePrice
+            : callStrikePrice;
 
-        require(msg.value >= totalCost, "Value does not cover total cost");
-
-        uint256 callOptionID = options.create{value: costOfCall}(
-            period,
-            _amount,
+        uint256 premium = adapter.premium(
+            underlying,
+            strikeAsset,
+            expiry,
             strikePrice,
-            HegicOptionType.Call
-        );
-        uint256 putOptionID = options.create{value: costOfPut}(
-            period,
-            _amount,
-            strikePrice,
-            HegicOptionType.Put
+            optionType,
+            amount
         );
 
-        position = InstrumentPosition(
-            false,
-            STATIC_PROTOCOL,
-            STATIC_PROTOCOL,
-            uint32(callOptionID),
-            uint32(putOptionID),
-            _amount,
-            _amount
+        uint256 optionID256 = adapter.purchase{value: premium}(
+            underlying,
+            strikeAsset,
+            expiry,
+            strikePrice,
+            optionType,
+            amount
         );
+        optionID = adapter.nonFungible() ? uint32(optionID256) : 0;
     }
+
+    // function buyInstrument(uint256 _amount) public payable nonReentrant {
+    //     require(block.timestamp < expiry, "Cannot buy instrument after expiry");
+
+    //     (
+    //         InstrumentPosition memory position,
+    //         uint256 costOfCall,
+    //         uint256 costOfPut
+    //     ) = createHegicOptions(_amount);
+
+    //     uint256 positionID = instrumentPositions[msg.sender].length;
+    //     instrumentPositions[msg.sender].push(position);
+
+    //     emit PositionCreated(
+    //         msg.sender,
+    //         positionID,
+    //         costOfCall,
+    //         costOfPut,
+    //         position.callProtocol,
+    //         position.putProtocol,
+    //         _amount,
+    //         _amount,
+    //         position.callOptionID,
+    //         position.putOptionID
+    //     );
+    // }
 
     function exercise(uint256 positionID)
         public
         nonReentrant
         returns (uint256 profit)
     {
-        InstrumentPosition[] storage positions = instrumentPositions[msg
-            .sender];
-        InstrumentPosition storage position = positions[positionID];
-
-        require(!position.exercised, "Already exercised");
-        require(block.timestamp <= expiry, "Already expired");
-
-        profit = exerciseHegicOptions(msg.sender, positionID);
-        position.exercised = true;
-        (bool success, ) = msg.sender.call{value: profit}("");
-        require(success, "Transferring profit failed");
-        emit Exercised(msg.sender, positionID, profit);
-    }
-
-    function exerciseHegicOptions(address _account, uint256 positionID)
-        private
-        returns (uint256 totalProfit)
-    {
-        InstrumentPosition[] memory positions = instrumentPositions[_account];
-        InstrumentPosition memory position = positions[positionID];
-        IHegicETHOptions options = IHegicETHOptions(hegicOptions);
-        uint256 callProfit = calculateHegicExerciseProfit(
-            position.callOptionID
-        );
-        uint256 putProfit = calculateHegicExerciseProfit(position.putOptionID);
-
-        // TODO: Do a PR to get Hegic to return the profit number from exercise
-        // Doing the profit calculation separately makes it prone for Hegic and Doji to diverge
-        // which could result in erroneously sending users more ether
-        if (callProfit > putProfit) {
-            options.exercise(position.callOptionID);
-            totalProfit = callProfit;
-        } else if (putProfit > 0) {
-            options.exercise(position.putOptionID);
-            totalProfit = putProfit;
-        } else {
-            totalProfit = 0;
-        }
-    }
-
-    function calculateHegicExerciseProfit(uint256 optionID)
-        public
-        view
-        returns (uint256 profit)
-    {
-        IHegicETHOptions options = IHegicETHOptions(hegicOptions);
-        AggregatorV3Interface priceProvider = AggregatorV3Interface(
-            options.priceProvider()
-        );
-        (, int256 latestPrice, , , ) = priceProvider.latestRoundData();
-        uint256 currentPrice = uint256(latestPrice);
-
-        (
-            ,
-            ,
-            uint256 strike,
-            uint256 amount,
-            uint256 lockedAmount,
-            ,
-            ,
-            HegicOptionType optionType
-        ) = options.options(optionID);
-
-        if (optionType == HegicOptionType.Call) {
-            if (currentPrice >= strike) {
-                profit = currentPrice.sub(strike).mul(amount).div(currentPrice);
-            } else {
-                profit = 0;
-            }
-        } else {
-            if (currentPrice <= strike) {
-                profit = strike.sub(currentPrice).mul(amount).div(currentPrice);
-            } else {
-                profit = 0;
-            }
-        }
-        if (profit > lockedAmount) profit = lockedAmount;
+        // InstrumentPosition[] storage positions = instrumentPositions[msg
+        //     .sender];
+        // InstrumentPosition storage position = positions[positionID];
+        // require(!position.exercised, "Already exercised");
+        // require(block.timestamp <= expiry, "Already expired");
+        // profit = exerciseHegicOptions(msg.sender, positionID);
+        // position.exercised = true;
+        // (bool success, ) = msg.sender.call{value: profit}("");
+        // require(success, "Transferring profit failed");
+        // emit Exercised(msg.sender, positionID, profit);
     }
 
     /**
@@ -307,42 +382,14 @@ contract DojiVolatility is
         raiseNotImplemented();
     }
 
+    function dToken() external pure returns (address) {
+        return address(0);
+    }
+
     /**
      * @notice Raises to prevent calling
      */
     function raiseNotImplemented() private pure {
         require(false, "Not implemented");
-    }
-
-    /**
-     * @notice returns the cost to purchase Hegic calls and puts
-     * @param _amount is the amount of option contracts to purchase
-     */
-    function getHegicCost(uint256 _amount)
-        public
-        view
-        returns (
-            uint256 totalCost,
-            uint256 costOfCall,
-            uint256 costOfPut
-        )
-    {
-        uint256 _strike = strikePrice;
-        uint256 period = expiry - block.timestamp;
-        IHegicETHOptions options = IHegicETHOptions(hegicOptions);
-
-        (costOfPut, , , ) = options.fees(
-            period,
-            _amount,
-            _strike,
-            HegicOptionType.Put
-        );
-        (costOfCall, , , ) = options.fees(
-            period,
-            _amount,
-            _strike,
-            HegicOptionType.Call
-        );
-        totalCost = costOfCall + costOfPut;
     }
 }

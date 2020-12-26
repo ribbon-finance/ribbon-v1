@@ -25,7 +25,7 @@ contract DebugLib {
         return string(bstr);
     }
 
-    function toAsciiString(address x) private pure returns (string memory) {
+    function toAsciiString(address x) internal pure returns (string memory) {
         bytes memory s = new bytes(40);
         for (uint256 i = 0; i < 20; i++) {
             bytes1 b = bytes1(uint8(uint256(x) / (2**(8 * (19 - i)))));

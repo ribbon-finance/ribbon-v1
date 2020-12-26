@@ -64,6 +64,16 @@ contract HegicAdapter is
         return _nonFungible;
     }
 
+    function optionsExist(
+        address underlying,
+        address strikeAsset,
+        uint256 expiry,
+        uint256 strikePrice,
+        OptionType optionType
+    ) external override view returns (bool) {
+        return underlying == ethAddress || underlying == wbtcAddress;
+    }
+
     function premium(
         address underlying,
         address strikeAsset,

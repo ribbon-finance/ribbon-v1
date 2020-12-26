@@ -38,10 +38,9 @@ async function copyToPath(srcPaths, dstPath) {
   await copyToPath(addressesPath, path.join(dstPath, "constants"));
 
   const artefactsPath = [
-    "../build/contracts/TwinYield.json",
-    "../build/contracts/DataProvider.json",
+    "../constants/abis/ChainlinkAggregator.json",
+    "../build/contracts/IAggregatedOptionsInstrument.json",
     "../build/contracts/IERC20.json",
-    "../constants/abis/BPool.json",
   ];
   await copyToPath(artefactsPath, path.join(dstPath, "constants", "abis"));
 })();

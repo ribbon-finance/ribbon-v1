@@ -12,6 +12,8 @@ const helper = require("./helper.js");
 const { getDefaultArgs } = require("./utils");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const DojimaVolatility = contract.fromArtifact("DojiVolatility");
+const IERC20 = contract.fromArtifact("IERC20");
+const IOToken = contract.fromArtifact("IOToken");
 const IHegicETHOptions = contract.fromArtifact("IHegicETHOptions");
 const IHegicBTCOptions = contract.fromArtifact("IHegicBTCOptions");
 
@@ -268,6 +270,7 @@ function behavesLikeDojiVolatility(params) {
               : this.callStrikePrice;
           const hegicScaledStrikePrice = strikePrice.div(new BN("10000000000"));
           const purchaseAmount = this.amounts[i];
+          const optionType = this.optionTypes[i];
 
           if (venue === "HEGIC") {
             const {
@@ -285,6 +288,35 @@ function behavesLikeDojiVolatility(params) {
             assert.equal(amount.toString(), purchaseAmount);
             assert.equal(expiration, this.expiry);
             assert.equal(optionType, expectedOptionType);
+          } else if (venue === "OPYN_V1") {
+            const oTokenAddress = await this.opynV1Adapter.lookupOToken(
+              this.underlying,
+              this.strikeAsset,
+              this.expiry,
+              strikePrice,
+              optionType
+            );
+            console.log(oTokenAddress);
+
+            const oTokenERC20 = await IERC20.at(oTokenAddress);
+            const decimals = await (await IOToken.at(oTokenAddress)).decimals();
+            const scaledBy = new BN("18").sub(decimals);
+            assert.equal(
+              (await oTokenERC20.balanceOf(this.contract.address)).toString(),
+              purchaseAmount.div(new BN("10").pow(scaledBy))
+            );
+
+            // check that the adapter doesnt retain any oTokens
+            // and that the user doesnt receive the oTokens
+            assert.equal(
+              (
+                await oTokenERC20.balanceOf(this.opynV1Adapter.address)
+              ).toString(),
+              "0"
+            );
+            assert.equal((await oTokenERC20.balanceOf(user)).toString(), "0");
+          } else {
+            throw new Error(`No venue found ${venue}`);
           }
           i++;
         }

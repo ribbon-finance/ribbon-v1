@@ -6,6 +6,7 @@ const {
   expectEvent,
   expectRevert,
 } = require("@openzeppelin/test-helpers");
+const helper = require("./helper.js");
 const { getDefaultArgs } = require("./utils.js");
 const { encodeCall } = require("@openzeppelin/upgrades");
 
@@ -78,6 +79,17 @@ describe("DojiFactory", function () {
   });
 
   describe("#setAdapter", () => {
+    let snapshotId;
+
+    beforeEach(async () => {
+      const snapShot = await helper.takeSnapshot();
+      snapshotId = snapShot["result"];
+    });
+
+    afterEach(async () => {
+      await helper.revertToSnapShot(snapshotId);
+    });
+
     it("sets the adapter", async function () {
       const res = await this.factory.setAdapter(
         "TEST",

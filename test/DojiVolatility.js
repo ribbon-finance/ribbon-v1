@@ -296,7 +296,6 @@ function behavesLikeDojiVolatility(params) {
               strikePrice,
               optionType
             );
-            console.log(oTokenAddress);
 
             const oTokenERC20 = await IERC20.at(oTokenAddress);
             const decimals = await (await IOToken.at(oTokenAddress)).decimals();

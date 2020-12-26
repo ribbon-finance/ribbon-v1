@@ -2,7 +2,6 @@
 pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 
-import "../interfaces/InstrumentInterface.sol";
 import {IDojiFactory} from "../interfaces/IDojiFactory.sol";
 import {OptionType} from "../adapters/IProtocolAdapter.sol";
 
@@ -19,10 +18,10 @@ contract DojiVolatilityStorageV1 {
 
     struct InstrumentPosition {
         bool exercised;
-        string[] venues;
         OptionType[] optionTypes;
-        uint256[] amounts;
         uint32[] optionIDs;
+        uint256[] amounts;
+        string[] venues;
     }
 
     mapping(address => InstrumentPosition[]) public instrumentPositions;

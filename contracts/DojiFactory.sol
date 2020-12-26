@@ -3,7 +3,7 @@ pragma solidity ^0.6.2;
 
 import "./lib/upgrades/Initializable.sol";
 import "./lib/upgrades/AdminUpgradeabilityProxy.sol";
-import "./interfaces/InstrumentInterface.sol";
+import {IInstrumentStorage} from "./interfaces/InstrumentInterface.sol";
 
 contract DojiFactoryStorageV1 {
     /**
@@ -83,9 +83,7 @@ contract DojiFactory is Initializable, DojiFactoryStorageV1 {
         returns (address instrumentAddress)
     {
         instrumentAddress = createProxy(_logic, _initData);
-        InstrumentStorageInterface instrument = InstrumentStorageInterface(
-            instrumentAddress
-        );
+        IInstrumentStorage instrument = IInstrumentStorage(instrumentAddress);
         string memory symbol = instrument.symbol();
         require(instruments[symbol] == address(0), "Instrument already exists");
 

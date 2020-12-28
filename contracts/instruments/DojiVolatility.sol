@@ -257,7 +257,7 @@ contract DojiVolatility is
         public
         override
         nonReentrant
-        returns (uint256 profit)
+        returns (uint256 totalProfit)
     {
         InstrumentPosition[] storage positions = instrumentPositions[msg
             .sender];
@@ -265,7 +265,40 @@ contract DojiVolatility is
         // InstrumentPosition storage position = positions[positionID];
         require(!position.exercised, "Already exercised");
         require(block.timestamp <= expiry, "Already expired");
-        // profit = exerciseHegicOptions(msg.sender, positionID);
+
+        for (uint256 i = 0; i < position.venues.length; i++) {
+            IProtocolAdapter adapter = IProtocolAdapter(
+                factory.getAdapter(position.venues[i])
+            );
+            OptionType optionType = position.optionTypes[i];
+            uint256 strikePrice = optionType == OptionType.Put
+                ? putStrikePrice
+                : callStrikePrice;
+            address optionsAddress = adapter.getOptionsAddress(
+                underlying,
+                strikeAsset,
+                expiry,
+                strikePrice,
+                optionType
+            );
+
+            uint256 profit = adapter.exerciseProfit(
+                optionsAddress,
+                position.optionIDs[i],
+                position.amounts[i],
+                underlying
+            );
+            if (profit > 0) {
+                adapter.exercise(
+                    optionsAddress,
+                    position.optionIDs[i],
+                    position.amounts[i],
+                    underlying
+                );
+            }
+            totalProfit += profit;
+        }
+
         position.exercised = true;
         // (bool success, ) = msg.sender.call{value: profit}("");
         // require(success, "Transferring profit failed");

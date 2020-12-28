@@ -372,59 +372,33 @@ function behavesLikeDojiVolatility(params) {
         );
       });
 
-      it("exercises both the options", async function () {});
-
-      //   it("exercises the call option", async function () {
-      //     await this.hegicOptions.setCurrentPrice(ether("550"));
-      //     const revenue = ether("0.090909090909090909");
-      //     const hegicTracker = await balance.tracker(this.hegicOptions.address);
-      //     const dojiTracker = await balance.tracker(this.contract.address);
-      //     const userTracker = await balance.tracker(user);
-      //     const res = await this.contract.exercise(positionID, {
-      //       from: user,
-      //       gasPrice,
-      //     });
-      //     const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
-      //     const profit = revenue.sub(gasFee);
-      //     assert.equal((await userTracker.delta()).toString(), profit.toString());
-      //     assert.equal(
-      //       (await hegicTracker.delta()).toString(),
-      //       "-" + revenue.toString()
-      //     );
-      //     // make sure doji doesn't accidentally retain any ether
-      //     assert.equal((await dojiTracker.delta()).toString(), "0");
-      //   });
-      //   it("exercises the put option", async function () {
-      //     await this.hegicOptions.setCurrentPrice(ether("450"));
-      //     const revenue = new BN("111111111111111111");
-      //     const hegicTracker = await balance.tracker(this.hegicOptions.address);
-      //     const dojiTracker = await balance.tracker(this.contract.address);
-      //     const userTracker = await balance.tracker(user);
-      //     const res = await this.contract.exercise(positionID, {
-      //       from: user,
-      //       gasPrice,
-      //     });
-      //     const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
-      //     const profit = revenue.sub(gasFee);
-      //     assert.equal((await userTracker.delta()).toString(), profit.toString());
-      //     assert.equal(
-      //       (await hegicTracker.delta()).toString(),
-      //       "-" + revenue.toString()
-      //     );
-      //     // make sure doji doesn't accidentally retain any ether
-      //     assert.equal((await dojiTracker.delta()).toString(), "0");
-      //   });
+      it("exercises one of the options", async function () {
+        const res = await this.contract.exercise(this.positionID);
+      });
     });
 
     describe("#numOfPositions", () => {
-      // it("gets the number of positions", async function () {
-      //   assert.equal(await this.contract.numOfPositions(user), 0);
-      //   await this.contract.buyInstrument(ether("1"), {
-      //     from: user,
-      //     value: ether("0.05735"),
-      //   });
-      //   assert.equal(await this.contract.numOfPositions(user), 1);
-      // });
+      before(async function () {
+        await this.contract.buyInstrument(
+          this.venues,
+          this.optionTypes,
+          this.amounts,
+          {
+            from: user,
+            value: this.totalPremium,
+          }
+        );
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+      });
+
+      after(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
+
+      it("gets the number of positions", async function () {
+        assert.equal(await this.contract.numOfPositions(user), 1);
+      });
     });
   });
 }

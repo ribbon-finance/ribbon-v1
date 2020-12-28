@@ -227,11 +227,6 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         address underlying
     ) external override payable onlyInstrument nonReentrant {
         uint256 scaledAmount = scaleDownDecimals(IOToken(oToken), amount);
-        IERC20(oToken).safeTransferFrom(
-            msg.sender,
-            address(this),
-            scaledAmount
-        );
         OpynV1FlashLoaner.exerciseOTokens(oToken, scaledAmount, underlying);
     }
 

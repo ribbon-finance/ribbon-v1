@@ -37,6 +37,14 @@ interface IProtocolAdapter {
         OptionType optionType
     ) external view returns (bool);
 
+    function getOptionsAddress(
+        address underlying,
+        address strikeAsset,
+        uint256 expiry,
+        uint256 strikePrice,
+        OptionType optionType
+    ) external view returns (address);
+
     function premium(
         address underlying,
         address strikeAsset,

@@ -74,6 +74,21 @@ contract HegicAdapter is
         return underlying == ethAddress || underlying == wbtcAddress;
     }
 
+    function getOptionsAddress(
+        address underlying,
+        address strikeAsset,
+        uint256 expiry,
+        uint256 strikePrice,
+        OptionType optionType
+    ) external override view returns (address) {
+        if (underlying == ethAddress) {
+            return address(ethOptions);
+        } else if (underlying == wbtcAddress) {
+            return address(wbtcOptions);
+        }
+        require(false, "No options found");
+    }
+
     function premium(
         address underlying,
         address strikeAsset,

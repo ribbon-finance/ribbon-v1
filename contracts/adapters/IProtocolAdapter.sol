@@ -74,6 +74,7 @@ interface IProtocolAdapter {
         address options,
         uint256 optionID,
         uint256 amount,
-        address underlying
+        address underlying,
+        address account
     ) external payable;
 }

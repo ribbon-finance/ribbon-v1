@@ -356,21 +356,21 @@ function behavesLikeDojiVolatility(params) {
         await helper.revertToSnapShot(snapshotId);
       });
 
-      it("reverts when exercising twice", async function () {
-        await this.contract.exercise(this.positionID, { from: user });
-        await expectRevert(
-          this.contract.exercise(this.positionID, { from: user }),
-          "Already exercised"
-        );
-      });
+      // it("reverts when exercising twice", async function () {
+      //   await this.contract.exercise(this.positionID, { from: user });
+      //   await expectRevert(
+      //     this.contract.exercise(this.positionID, { from: user }),
+      //     "Already exercised"
+      //   );
+      // });
 
-      it("reverts when past expiry", async function () {
-        await time.increaseTo(this.expiry + 1);
-        await expectRevert(
-          this.contract.exercise(this.positionID, { from: user }),
-          "Already expired"
-        );
-      });
+      // it("reverts when past expiry", async function () {
+      //   await time.increaseTo(this.expiry + 1);
+      //   await expectRevert(
+      //     this.contract.exercise(this.positionID, { from: user }),
+      //     "Already expired"
+      //   );
+      // });
 
       it("exercises one of the options", async function () {
         const res = await this.contract.exercise(this.positionID);

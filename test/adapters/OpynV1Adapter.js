@@ -491,6 +491,7 @@ function behavesLikeOToken(args) {
           0,
           this.purchaseAmount,
           this.underlying,
+          user,
           {
             from: user,
             gasPrice,

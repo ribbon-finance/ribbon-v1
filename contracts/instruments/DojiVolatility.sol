@@ -293,7 +293,8 @@ contract DojiVolatility is
                     optionsAddress,
                     position.optionIDs[i],
                     position.amounts[i],
-                    underlying
+                    underlying,
+                    msg.sender
                 );
             }
             totalProfit += profit;

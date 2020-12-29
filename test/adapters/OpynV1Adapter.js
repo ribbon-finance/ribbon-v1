@@ -471,7 +471,7 @@ function behavesLikeOToken(args) {
       });
 
       it("exercises tokens", async function () {
-        await this.oToken.transfer(
+        await this.oToken.approve(
           this.adapter.address,
           this.scaledPurchaseAmount,
           {

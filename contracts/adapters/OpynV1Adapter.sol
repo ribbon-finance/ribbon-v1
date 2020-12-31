@@ -217,7 +217,7 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         require(changeSuccess, "Transfer of change failed");
 
         // Forward the tokens to the msg.sender
-        IERC20(oToken).safeTransfer(msg.sender, scaledAmount);
+        // IERC20(oToken).safeTransfer(msg.sender, scaledAmount);
     }
 
     function exercise(
@@ -228,11 +228,6 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         address account
     ) external override payable onlyInstrument nonReentrant {
         uint256 scaledAmount = scaleDownDecimals(IOToken(oToken), amount);
-        IERC20(oToken).safeTransferFrom(
-            msg.sender,
-            address(this),
-            scaledAmount
-        );
         OpynV1FlashLoaner.exerciseOTokens(oToken, scaledAmount, underlying);
     }
 

@@ -373,7 +373,9 @@ function behavesLikeDojiVolatility(params) {
       // });
 
       it("exercises one of the options", async function () {
-        const res = await this.contract.exercise(this.positionID);
+        const res = await this.contract.exercise(this.positionID, {
+          from: user,
+        });
       });
     });
 

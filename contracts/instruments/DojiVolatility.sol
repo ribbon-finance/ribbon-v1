@@ -2,7 +2,9 @@
 pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../lib/upgrades/Initializable.sol";
 import "../lib/DSMath.sol";
@@ -21,6 +23,7 @@ contract DojiVolatility is
     DojiVolatilityStorageV1
 {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
     event PositionCreated(
         address indexed account,
@@ -259,13 +262,10 @@ contract DojiVolatility is
         nonReentrant
         returns (uint256 totalProfit)
     {
-        InstrumentPosition[] storage positions = instrumentPositions[msg
-            .sender];
-        InstrumentPosition storage position = positions[positionID];
-        // InstrumentPosition storage position = positions[positionID];
+        InstrumentPosition storage position = instrumentPositions[msg
+            .sender][positionID];
         require(!position.exercised, "Already exercised");
         require(block.timestamp <= expiry, "Already expired");
-
         for (uint256 i = 0; i < position.venues.length; i++) {
             IProtocolAdapter adapter = IProtocolAdapter(
                 factory.getAdapter(position.venues[i])
@@ -281,7 +281,6 @@ contract DojiVolatility is
                 strikePrice,
                 optionType
             );
-
             uint256 profit = adapter.exerciseProfit(
                 optionsAddress,
                 position.optionIDs[i],
@@ -299,11 +298,17 @@ contract DojiVolatility is
             }
             totalProfit += profit;
         }
-
         position.exercised = true;
-        // (bool success, ) = msg.sender.call{value: profit}("");
-        // require(success, "Transferring profit failed");
-        // emit Exercised(msg.sender, positionID, profit);
+
+        if (underlying == address(0)) {
+            // require(false, uint2str(address(this).balance));
+            (bool success, ) = msg.sender.call{value: totalProfit}("");
+            require(success, "Transferring profit failed");
+        } else {
+            IERC20(underlying).safeTransfer(msg.sender, totalProfit);
+        }
+
+        emit Exercised(msg.sender, positionID, totalProfit);
     }
 
     function dToken() external pure returns (address) {

@@ -7,6 +7,7 @@ const {
   constants,
   expectEvent, // Assertions for emitted events
   expectRevert, // Assertions for transactions that should fail
+  balance,
 } = require("@openzeppelin/test-helpers");
 const helper = require("./helper.js");
 const { getDefaultArgs } = require("./utils");
@@ -44,6 +45,7 @@ describe("DojiVolatility", () => {
     premiums: [new BN("193251662956618630"), new BN("210335735004969")],
     purchaseAmount: ether("1"),
     optionIDs: ["1685", "0"],
+    exerciseProfit: new BN("83090832707945605"),
   });
 });
 
@@ -66,6 +68,7 @@ function behavesLikeDojiVolatility(params) {
         purchaseAmount,
         premiums,
         optionIDs,
+        exerciseProfit,
       } = params;
       this.name = name;
       this.symbol = symbol;
@@ -80,6 +83,7 @@ function behavesLikeDojiVolatility(params) {
       this.purchaseAmount = purchaseAmount;
       this.premiums = premiums;
       this.optionIDs = optionIDs;
+      this.exerciseProfit = exerciseProfit;
 
       this.totalPremium = premiums.reduce((a, b) => a.add(b), new BN("0"));
 
@@ -373,9 +377,31 @@ function behavesLikeDojiVolatility(params) {
       // });
 
       it("exercises one of the options", async function () {
+        const userTracker = await balance.tracker(user, "wei");
+
         const res = await this.contract.exercise(this.positionID, {
           from: user,
+          gasPrice,
         });
+
+        expectEvent(res, "Exercised", {
+          account: user,
+          positionID: this.positionID.toString(),
+          totalProfit: this.exerciseProfit,
+        });
+
+        if (this.underlying == constants.ZERO_ADDRESS) {
+          assert.equal(
+            (await userTracker.delta()).toString(),
+            this.exerciseProfit
+          );
+        } else {
+          const underlying = await IERC20.at(this.underlying);
+          assert.equal(
+            (await underlying.balanceOf(user)).toString(),
+            this.exerciseProfit
+          );
+        }
       });
     });
 

@@ -235,12 +235,17 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         uint256 optionID,
         uint256 amount,
         address underlying,
-        address account
+        address recipient
     ) external override payable onlyInstrument nonReentrant {
         IOToken oTokenContract = IOToken(oToken);
         require(!oTokenContract.hasExpired(), "Options contract expired");
         uint256 scaledAmount = scaleDownDecimals(oTokenContract, amount);
-        OpynV1FlashLoaner.exerciseOTokens(oToken, scaledAmount, underlying);
+        OpynV1FlashLoaner.exerciseOTokens(
+            recipient,
+            oToken,
+            scaledAmount,
+            underlying
+        );
     }
 
     function setOTokenWithTerms(

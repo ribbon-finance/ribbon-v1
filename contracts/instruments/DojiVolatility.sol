@@ -36,7 +36,8 @@ contract DojiVolatility is
     event Exercised(
         address indexed account,
         uint256 indexed positionID,
-        uint256 totalProfit
+        uint256 totalProfit,
+        bool[] optionsExercised
     );
 
     receive() external payable {}
@@ -266,6 +267,9 @@ contract DojiVolatility is
             .sender][positionID];
         require(!position.exercised, "Already exercised");
         require(block.timestamp <= expiry, "Already expired");
+
+        bool[] memory optionsExercised = new bool[](position.venues.length);
+
         for (uint256 i = 0; i < position.venues.length; i++) {
             IProtocolAdapter adapter = IProtocolAdapter(
                 factory.getAdapter(position.venues[i])
@@ -295,20 +299,15 @@ contract DojiVolatility is
                     underlying,
                     msg.sender
                 );
+                optionsExercised[i] = true;
+            } else {
+                optionsExercised[i] = false;
             }
             totalProfit += profit;
         }
         position.exercised = true;
 
-        if (underlying == address(0)) {
-            // require(false, uint2str(address(this).balance));
-            (bool success, ) = msg.sender.call{value: totalProfit}("");
-            require(success, "Transferring profit failed");
-        } else {
-            IERC20(underlying).safeTransfer(msg.sender, totalProfit);
-        }
-
-        emit Exercised(msg.sender, positionID, totalProfit);
+        emit Exercised(msg.sender, positionID, totalProfit, optionsExercised);
     }
 
     function dToken() external pure returns (address) {

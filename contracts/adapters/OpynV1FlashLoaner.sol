@@ -58,6 +58,7 @@ contract OpynV1FlashLoaner is
     {}
 
     function exerciseOTokens(
+        address recipient,
         address oToken,
         uint256 exerciseAmount,
         address underlying
@@ -85,7 +86,7 @@ contract OpynV1FlashLoaner is
             oToken,
             exerciseAmount,
             underlying,
-            msg.sender
+            recipient
         );
         uint16 referralCode = 0;
 

@@ -138,26 +138,28 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             oTokenContract,
             exerciseAmount
         );
+        uint256 soldCollateralAmount = getSoldCollateralAmount(
+            oTokenContract,
+            exerciseAmount
+        );
 
         // if we exercised here, the collateral returned will be less than what Uniswap is giving us
         // which means we're at a loss, so don't exercise
         if (collateralToPay < strikeAmountOut) {
             return 0;
         }
+        uint256 profitInCollateral = collateralToPay.sub(soldCollateralAmount);
 
-        if (underlying != oTokenCollateral) {
-            IUniswapV2Router02 router = IUniswapV2Router02(_uniswapRouter);
+        if (oTokenCollateral != underlying) {
             address[] memory path = new address[](2);
             path[0] = oTokenCollateral;
             path[1] = underlying;
 
-            uint256[] memory amountsOut = router.getAmountsOut(
-                collateralToPay,
-                path
-            );
+            uint256[] memory amountsOut = IUniswapV2Router02(_uniswapRouter)
+                .getAmountsOut(profitInCollateral, path);
             return amountsOut[1];
         }
-        return collateralToPay;
+        return profitInCollateral;
     }
 
     function purchase(
@@ -356,5 +358,37 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             path
         );
         return amountsOut[path.length - 1];
+    }
+
+    function getSoldCollateralAmount(IOToken oToken, uint256 exerciseAmount)
+        private
+        view
+        returns (uint256)
+    {
+        address weth = _weth;
+        address collateral = oToken.collateral();
+        address underlying = oToken.underlying();
+        collateral = collateral == address(0) ? weth : collateral;
+        underlying = underlying == address(0) ? weth : underlying;
+
+        uint256 underlyingAmount = oToken.underlyingRequiredToExercise(
+            exerciseAmount
+        );
+        uint256 loanFee = wmul(underlyingAmount, 0.0009 ether);
+
+        address[] memory path;
+        if (collateral == weth || underlying == weth) {
+            path = new address[](2);
+            path[0] = collateral;
+            path[1] = underlying;
+        } else {
+            path = new address[](3);
+            path[0] = collateral;
+            path[1] = weth;
+            path[2] = underlying;
+        }
+        uint256[] memory amountsIn = IUniswapV2Router02(_uniswapRouter)
+            .getAmountsIn(underlyingAmount + loanFee, path);
+        return amountsIn[0];
     }
 }

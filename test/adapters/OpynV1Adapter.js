@@ -98,7 +98,7 @@ describe("OpynV1Adapter", () => {
     premium: new BN("106656198359758724"),
     purchaseAmount: ether("500"),
     scaledPurchaseAmount: new BN("500000000"),
-    exerciseProfitWithoutFees: new BN("1000000000000000000"),
+    exerciseProfitWithoutFees: new BN("83090832707945605"),
     exerciseProfit: new BN("83090832707945605"),
     vaults: [
       "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
@@ -136,7 +136,7 @@ describe("OpynV1Adapter", () => {
     premium: new BN("106920070230577145"),
     purchaseAmount: ether("1"),
     scaledPurchaseAmount: new BN("10000000"),
-    exerciseProfitWithoutFees: new BN("1092696150697474033"),
+    exerciseProfitWithoutFees: new BN("91797789832984586"),
     exerciseProfit: new BN("91796148075270874"),
     vaults: [
       "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
@@ -163,7 +163,7 @@ describe("OpynV1Adapter", () => {
     ],
   });
 
-  // WBTC Options
+  // // WBTC Options
   behavesLikeOToken({
     oTokenName: "WBTC CALL OTM",
     underlying: WBTC_ADDRESS,
@@ -194,7 +194,7 @@ describe("OpynV1Adapter", () => {
     premium: new BN("60713311014396049"),
     purchaseAmount: ether("100"),
     scaledPurchaseAmount: new BN("1000000000"),
-    exerciseProfitWithoutFees: new BN("105167250869224019654"),
+    exerciseProfitWithoutFees: new BN("6895291786998639829"),
     exerciseProfit: new BN("6895291786998639829"),
     vaults: [
       "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",

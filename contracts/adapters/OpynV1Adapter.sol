@@ -138,7 +138,6 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             oTokenContract,
             exerciseAmount
         );
-        require(false, uint2str(collateralToPay));
 
         // if we exercised here, the collateral returned will be less than what Uniswap is giving us
         // which means we're at a loss, so don't exercise
@@ -324,29 +323,33 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         view
         returns (uint256)
     {
+        address weth = _weth;
         address strikeAsset = oToken.strike();
+        strikeAsset = strikeAsset == address(0) ? weth : strikeAsset;
         address oTokenUnderlying = oToken.underlying();
-        uint256 underlyingDecimals = uint256(-oToken.underlyingExp());
+        oTokenUnderlying = oTokenUnderlying == address(0)
+            ? weth
+            : oTokenUnderlying;
 
-        CompoundOracleInterface compoundOracle = CompoundOracleInterface(
-            oToken.COMPOUND_ORACLE()
-        );
-        uint256 price = compoundOracle.getPrice(oTokenUnderlying);
+        address[] memory path;
+        if (strikeAsset == weth || oTokenUnderlying == weth) {
+            path = new address[](2);
+            path[0] = oTokenUnderlying;
+            path[1] = strikeAsset;
+        } else {
+            path = new address[](3);
+            path[0] = oTokenUnderlying;
+            path[1] = weth;
+            path[2] = strikeAsset;
+        }
 
-        IUniswapV2Router02 router = IUniswapV2Router02(_uniswapRouter);
-        address[] memory path = new address[](3);
-        path[0] = oTokenUnderlying == address(0) ? _weth : oTokenUnderlying;
-        path[1] = _weth;
-        path[2] = strikeAsset == address(0) ? _weth : strikeAsset;
-
-        uint256[] memory amountsOut = router.getAmountsOut(
-            exerciseAmount.mul(10**underlyingDecimals).div(
+        uint256[] memory amountsOut = IUniswapV2Router02(_uniswapRouter)
+            .getAmountsOut(
+            exerciseAmount.mul(10**uint256(-oToken.underlyingExp())).div(
                 10**oToken.decimals()
             ),
             path
         );
-        require(false, toAsciiString(oTokenUnderlying));
-        require(false, uint2str(price));
-        return amountsOut[1];
+        return amountsOut[path.length - 1];
     }
 }

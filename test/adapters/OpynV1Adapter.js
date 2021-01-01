@@ -403,7 +403,6 @@ function behavesLikeOToken(args) {
       });
 
       it("purchases the oTokens", async function () {
-        const startUserBalance = await this.oToken.balanceOf(user);
         const startExchangeBalance = await this.oToken.balanceOf(
           this.uniswapExchange.address
         );
@@ -430,11 +429,11 @@ function behavesLikeOToken(args) {
           optionID: "0",
         });
 
-        assert.equal(await this.oToken.balanceOf(this.adapter.address), "0");
         assert.equal(
-          (await this.oToken.balanceOf(user)).toString(),
-          startUserBalance.add(this.scaledPurchaseAmount)
+          (await this.oToken.balanceOf(this.adapter.address)).toString(),
+          this.scaledPurchaseAmount
         );
+        assert.equal((await this.oToken.balanceOf(user)).toString(), "0");
         assert.equal(
           (
             await this.oToken.balanceOf(this.uniswapExchange.address)

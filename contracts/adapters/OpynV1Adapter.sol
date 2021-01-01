@@ -194,6 +194,8 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             optionType
         );
 
+        require(!IOToken(oToken).hasExpired(), "Options contract expired");
+
         uint256 scaledAmount = swapForOToken(oToken, cost, amount);
 
         emit Purchased(

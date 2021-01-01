@@ -50,6 +50,8 @@ interface IOToken {
 
     function strike() external view returns (address);
 
+    function hasExpired() external view returns (bool);
+
     function strikePrice()
         external
         view

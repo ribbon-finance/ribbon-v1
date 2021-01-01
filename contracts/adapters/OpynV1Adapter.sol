@@ -129,10 +129,22 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
     ) public override view returns (uint256 profit) {
         IOToken oTokenContract = IOToken(oToken);
         address oTokenCollateral = oTokenContract.collateral();
+
+        uint256 strikeAmountOut = getStrikeAssetOutAmount(
+            oTokenContract,
+            exerciseAmount
+        );
         uint256 collateralToPay = OpynV1FlashLoaner.calculateCollateralToPay(
             oTokenContract,
             exerciseAmount
         );
+        require(false, uint2str(collateralToPay));
+
+        // if we exercised here, the collateral returned will be less than what Uniswap is giving us
+        // which means we're at a loss, so don't exercise
+        if (collateralToPay < strikeAmountOut) {
+            return 0;
+        }
 
         if (underlying != oTokenCollateral) {
             IUniswapV2Router02 router = IUniswapV2Router02(_uniswapRouter);
@@ -215,9 +227,6 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             ""
         );
         require(changeSuccess, "Transfer of change failed");
-
-        // Forward the tokens to the msg.sender
-        // IERC20(oToken).safeTransfer(msg.sender, scaledAmount);
     }
 
     function exercise(
@@ -227,7 +236,9 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         address underlying,
         address account
     ) external override payable onlyInstrument nonReentrant {
-        uint256 scaledAmount = scaleDownDecimals(IOToken(oToken), amount);
+        IOToken oTokenContract = IOToken(oToken);
+        require(!oTokenContract.hasExpired(), "Options contract expired");
+        uint256 scaledAmount = scaleDownDecimals(oTokenContract, amount);
         OpynV1FlashLoaner.exerciseOTokens(oToken, scaledAmount, underlying);
     }
 
@@ -304,5 +315,36 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         uniswapExchange = UniswapExchangeInterface(
             uniswapFactory.getExchange(oToken)
         );
+    }
+
+    function getStrikeAssetOutAmount(IOToken oToken, uint256 exerciseAmount)
+        private
+        view
+        returns (uint256)
+    {
+        address strikeAsset = oToken.strike();
+        address oTokenUnderlying = oToken.underlying();
+        uint256 underlyingDecimals = uint256(-oToken.underlyingExp());
+
+        CompoundOracleInterface compoundOracle = CompoundOracleInterface(
+            oToken.COMPOUND_ORACLE()
+        );
+        uint256 price = compoundOracle.getPrice(oTokenUnderlying);
+
+        IUniswapV2Router02 router = IUniswapV2Router02(_uniswapRouter);
+        address[] memory path = new address[](3);
+        path[0] = oTokenUnderlying == address(0) ? _weth : oTokenUnderlying;
+        path[1] = _weth;
+        path[2] = strikeAsset == address(0) ? _weth : strikeAsset;
+
+        uint256[] memory amountsOut = router.getAmountsOut(
+            exerciseAmount.mul(10**underlyingDecimals).div(
+                10**oToken.decimals()
+            ),
+            path
+        );
+        require(false, toAsciiString(oTokenUnderlying));
+        require(false, uint2str(price));
+        return amountsOut[1];
     }
 }

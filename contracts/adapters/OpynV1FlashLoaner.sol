@@ -305,7 +305,6 @@ contract OpynV1FlashLoaner is
             exerciseAmount
         );
         uint256 settledProfit = collateralReturned.sub(soldAmount);
-        // require(false, uint2str(settledProfit));
 
         if (collateral == address(0)) {
             // uint256 settledProfit = address(this).balance;
@@ -385,7 +384,6 @@ contract OpynV1FlashLoaner is
         Number memory strikePrice
     ) private pure returns (uint256 amtCollateralToPay) {
         Number memory proportion = Number(1, 0);
-        // calculate how much should be paid out
         uint256 amtCollateralToPayInEthNum = oTokens
             .mul(strikePrice.value)
             .mul(proportion.value)

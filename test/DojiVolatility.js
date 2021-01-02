@@ -46,7 +46,7 @@ describe("DojiVolatility", () => {
     premiums: [new BN("193251662956618630"), new BN("106656198359758724")],
     purchaseAmount: ether("1"),
     optionIDs: ["1685", "0"],
-    exerciseProfit: new BN("166196590272271"),
+    exerciseProfit: new BN("83090832707945605"),
   });
 });
 

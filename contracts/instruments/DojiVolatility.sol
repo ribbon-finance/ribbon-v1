@@ -257,7 +257,7 @@ contract DojiVolatility is
         optionID = adapter.nonFungible() ? uint32(optionID256) : 0;
     }
 
-    function exercise(uint256 positionID)
+    function exercisePosition(uint256 positionID)
         public
         override
         nonReentrant
@@ -288,15 +288,13 @@ contract DojiVolatility is
             uint256 profit = adapter.exerciseProfit(
                 optionsAddress,
                 position.optionIDs[i],
-                position.amounts[i],
-                underlying
+                position.amounts[i]
             );
             if (profit > 0) {
                 adapter.exercise(
                     optionsAddress,
                     position.optionIDs[i],
                     position.amounts[i],
-                    underlying,
                     msg.sender
                 );
                 optionsExercised[i] = true;

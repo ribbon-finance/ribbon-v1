@@ -57,8 +57,7 @@ interface IProtocolAdapter {
     function exerciseProfit(
         address options,
         uint256 optionID,
-        uint256 amount,
-        address underlying
+        uint256 amount
     ) external view returns (uint256 profit);
 
     function purchase(
@@ -74,7 +73,6 @@ interface IProtocolAdapter {
         address options,
         uint256 optionID,
         uint256 amount,
-        address underlying,
-        address account
+        address recipient
     ) external payable;
 }

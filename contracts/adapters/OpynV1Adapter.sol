@@ -116,22 +116,23 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         UniswapExchangeInterface uniswapExchange = getUniswapExchangeFromOToken(
             oToken
         );
-        cost = uniswapExchange.getEthToTokenOutputPrice(
-            scaleDownDecimals(IOToken(oToken), purchaseAmount)
+        uint256 oTokenAmount = convertPurchaseAmountToOTokenAmount(
+            oToken,
+            purchaseAmount
         );
+        cost = uniswapExchange.getEthToTokenOutputPrice(oTokenAmount);
     }
 
     function exerciseProfit(
         address oToken,
         uint256 optionID,
-        uint256 exerciseAmount,
-        address underlying
+        uint256 exerciseAmount
     ) public override view returns (uint256 profit) {
         IOToken oTokenContract = IOToken(oToken);
         address oTokenCollateral = oTokenContract.collateral();
 
-        uint256 scaledExerciseAmount = scaleDownDecimals(
-            oTokenContract,
+        uint256 scaledExerciseAmount = convertPurchaseAmountToOTokenAmount(
+            oToken,
             exerciseAmount
         );
 
@@ -154,6 +155,8 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             return 0;
         }
         uint256 profitInCollateral = collateralToPay.sub(soldCollateralAmount);
+
+        address underlying = _underlyingAssets[oToken];
 
         if (oTokenCollateral != underlying) {
             address[] memory path = new address[](2);
@@ -202,7 +205,11 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
 
         require(!IOToken(oToken).hasExpired(), "Options contract expired");
 
-        uint256 scaledAmount = swapForOToken(oToken, cost, amount);
+        uint256 scaledAmount = convertPurchaseAmountToOTokenAmount(
+            oToken,
+            amount
+        );
+        swapForOToken(oToken, cost, scaledAmount);
 
         emit Purchased(
             msg.sender,
@@ -222,36 +229,38 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         address oToken,
         uint256 tokenCost,
         uint256 purchaseAmount
-    ) private returns (uint256 scaledAmount) {
-        scaledAmount = scaleDownDecimals(IOToken(oToken), purchaseAmount);
-
+    ) private {
         uint256 ethSold = getUniswapExchangeFromOToken(oToken)
             .ethToTokenSwapOutput{value: tokenCost}(
-            scaledAmount,
+            purchaseAmount,
             block.timestamp + _swapDeadline
         );
 
-        (bool changeSuccess, ) = msg.sender.call{value: msg.value - ethSold}(
-            ""
-        );
-        require(changeSuccess, "Transfer of change failed");
+        if (msg.value > ethSold) {
+            (bool changeSuccess, ) = msg.sender.call{
+                value: msg.value.sub(ethSold)
+            }("");
+            require(changeSuccess, "Transfer of change failed");
+        }
     }
 
     function exercise(
         address oToken,
         uint256 optionID,
         uint256 amount,
-        address underlying,
         address recipient
     ) external override payable onlyInstrument nonReentrant {
         IOToken oTokenContract = IOToken(oToken);
         require(!oTokenContract.hasExpired(), "Options contract expired");
-        uint256 scaledAmount = scaleDownDecimals(oTokenContract, amount);
+        uint256 scaledAmount = convertPurchaseAmountToOTokenAmount(
+            oToken,
+            amount
+        );
         OpynV1FlashLoaner.exerciseOTokens(
             recipient,
             oToken,
             scaledAmount,
-            underlying
+            _underlyingAssets[oToken]
         );
     }
 
@@ -276,6 +285,8 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             optionType
         );
         optionTermsToOToken[optionTerms] = oToken;
+        _strikePrices[oToken] = strikePrice;
+        _underlyingAssets[oToken] = underlying;
     }
 
     function getAssets(IOToken oTokenContract, OptionType optionType)
@@ -396,5 +407,31 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         uint256[] memory amountsIn = IUniswapV2Router02(_uniswapRouter)
             .getAmountsIn(underlyingAmount.add(loanFee), path);
         return amountsIn[0];
+    }
+
+    function convertPurchaseAmountToOTokenAmount(
+        address oToken,
+        uint256 purchaseAmount
+    ) private view returns (uint256) {
+        uint256 strike = _strikePrices[oToken];
+        IOToken oTokenContract = IOToken(oToken);
+        address oTokenUnderlying = oTokenContract.underlying();
+        OptionType optionType = getOptionType(oTokenUnderlying);
+
+        uint256 oTokenAmount = optionType == OptionType.Call
+            ? wmul(purchaseAmount, strike)
+            : purchaseAmount;
+        return scaleDownDecimals(oTokenContract, oTokenAmount);
+    }
+
+    function getOptionType(address oTokenUnderlying)
+        private
+        pure
+        returns (OptionType)
+    {
+        return
+            oTokenUnderlying == 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+                ? OptionType.Call
+                : OptionType.Put;
     }
 }

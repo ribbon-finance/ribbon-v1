@@ -96,7 +96,7 @@ describe("OpynV1Adapter", () => {
     optionType: CALL_OPTION_TYPE,
     strikePrice: ether("500"),
     premium: new BN("106656198359758724"),
-    purchaseAmount: ether("500"),
+    purchaseAmount: ether("1"),
     scaledPurchaseAmount: new BN("500000000"),
     exerciseProfitWithoutFees: new BN("83090832707945605"),
     exerciseProfit: new BN("83090832707945605"),
@@ -115,7 +115,7 @@ describe("OpynV1Adapter", () => {
     optionType: CALL_OPTION_TYPE,
     strikePrice: ether("640"),
     premium: new BN("22636934749846005"),
-    purchaseAmount: ether("640"),
+    purchaseAmount: ether("1"),
     scaledPurchaseAmount: new BN("640000000"),
     exerciseProfitWithoutFees: new BN("0"),
     exerciseProfit: new BN("0"),
@@ -173,7 +173,7 @@ describe("OpynV1Adapter", () => {
     optionType: CALL_OPTION_TYPE,
     strikePrice: ether("20000"),
     premium: new BN("2406141839973257206"),
-    purchaseAmount: ether("20000"),
+    purchaseAmount: ether("1"),
     scaledPurchaseAmount: new BN("20000000"),
     exerciseProfitWithoutFees: new BN("0"),
     exerciseProfit: new BN("0"),
@@ -322,8 +322,7 @@ function behavesLikeOToken(args) {
             await this.adapter.exerciseProfit(
               this.oToken.address,
               0,
-              this.purchaseAmount,
-              this.underlying
+              this.purchaseAmount
             )
           ).toString(),
           this.exerciseProfitWithoutFees
@@ -470,7 +469,6 @@ function behavesLikeOToken(args) {
           this.oToken.address,
           0,
           this.purchaseAmount,
-          this.underlying,
           user,
           {
             from: user,

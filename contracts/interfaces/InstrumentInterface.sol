@@ -21,7 +21,9 @@ interface IAggregatedOptionsInstrument {
         uint256[] calldata amounts
     ) external payable returns (uint256 positionID);
 
-    function exercise(uint256 positionID) external returns (uint256 profit);
+    function exercisePosition(uint256 positionID)
+        external
+        returns (uint256 profit);
 }
 
 interface IVaultedInstrument {

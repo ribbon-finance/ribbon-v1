@@ -454,6 +454,40 @@ function behavesLikeOToken(args) {
         await helper.revertToSnapShot(snapshotId);
       });
 
+      it("reverts when expired", async function () {
+        await time.increaseTo(this.expiry + 1);
+
+        await expectRevert(
+          this.adapter.exercise(
+            this.oToken.address,
+            0,
+            this.purchaseAmount,
+            user,
+            {
+              from: user,
+              gasPrice,
+            }
+          ),
+          "Option has expired"
+        );
+      });
+
+      it("reverts when exercising over current options capacity", async function () {
+        await expectRevert(
+          this.adapter.exercise(
+            this.oToken.address,
+            0,
+            this.purchaseAmount.add(new BN("1")),
+            user,
+            {
+              from: user,
+              gasPrice,
+            }
+          ),
+          "Cannot exercise over capacity"
+        );
+      });
+
       it("exercises tokens", async function () {
         await this.oToken.approve(
           this.adapter.address,

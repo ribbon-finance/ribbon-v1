@@ -253,7 +253,12 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         address recipient
     ) external override payable onlyInstrument nonReentrant {
         IOToken oTokenContract = IOToken(oToken);
-        require(!oTokenContract.hasExpired(), "Options contract expired");
+        require(!oTokenContract.hasExpired(), "Option has expired");
+        require(
+            amount < totalOptions[msg.sender],
+            "Cannot exercise over capacity"
+        );
+
         uint256 scaledAmount = convertPurchaseAmountToOTokenAmount(
             oToken,
             amount

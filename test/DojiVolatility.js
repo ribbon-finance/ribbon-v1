@@ -340,10 +340,10 @@ function behavesLikeDojiVolatility(params) {
     });
 
     describe("#exercise", () => {
-      let initSnapshotId;
       let snapshotId;
 
       beforeEach(async function () {
+        snapshotId = (await helper.takeSnapshot())["result"];
         await this.contract.buyInstrument(
           this.venues,
           this.optionTypes,
@@ -354,8 +354,6 @@ function behavesLikeDojiVolatility(params) {
           }
         );
         this.positionID = 0;
-
-        snapshotId = (await helper.takeSnapshot())["result"];
       });
 
       afterEach(async () => {
@@ -415,7 +413,7 @@ function behavesLikeDojiVolatility(params) {
     describe("#numOfPositions", () => {
       let snapshotId;
 
-      before(async function () {
+      beforeEach(async function () {
         await this.contract.buyInstrument(
           this.venues,
           this.optionTypes,
@@ -429,7 +427,7 @@ function behavesLikeDojiVolatility(params) {
         snapshotId = snapShot["result"];
       });
 
-      after(async () => {
+      afterEach(async () => {
         await helper.revertToSnapShot(snapshotId);
       });
 

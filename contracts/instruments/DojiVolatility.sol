@@ -289,7 +289,8 @@ contract DojiVolatility is
                 optionsAddress,
                 position.optionIDs[i],
                 position.amounts[i],
-                underlying
+                underlying,
+                strikePrice
             );
             if (profit > 0) {
                 adapter.exercise(

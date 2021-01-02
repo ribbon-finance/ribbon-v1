@@ -354,7 +354,8 @@ describe("HegicAdapter", () => {
               constants.ZERO_ADDRESS,
               0,
               0,
-              constants.ZERO_ADDRESS
+              constants.ZERO_ADDRESS,
+              0
             ),
             "optionsAddress must match either ETH or WBTC options"
           );
@@ -380,7 +381,8 @@ describe("HegicAdapter", () => {
                 this.hegicOptions.address,
                 purchaseRes.receipt.logs[0].args.optionID,
                 0,
-                this.underlying
+                this.underlying,
+                0
               )
             ).toString(),
             this.exerciseProfit

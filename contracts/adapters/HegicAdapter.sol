@@ -124,7 +124,8 @@ contract HegicAdapter is
         address optionsAddress,
         uint256 optionID,
         uint256 exerciseAmount,
-        address underlying
+        address underlying,
+        uint256 strikePrice
     ) public override view returns (uint256 profit) {
         require(
             optionsAddress == address(ethOptions) ||
@@ -247,13 +248,15 @@ contract HegicAdapter is
             "optionsAddress must match either ETH or WBTC options"
         );
 
+        IHegicOptions options = IHegicOptions(optionsAddress);
+
         uint256 profit = exerciseProfit(
             optionsAddress,
             optionID,
             amount,
-            underlying
+            underlying,
+            0 // this strikePrice param does not do anything
         );
-        IHegicOptions options = IHegicOptions(optionsAddress);
         options.exercise(optionID);
 
         if (optionsAddress == address(ethOptions)) {

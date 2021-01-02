@@ -118,7 +118,7 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         );
         uint256 oTokenAmount = convertPurchaseAmountToOTokenAmount(
             oToken,
-            strikePrice
+            purchaseAmount
         );
         cost = uniswapExchange.getEthToTokenOutputPrice(oTokenAmount);
     }
@@ -207,7 +207,7 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
 
         uint256 scaledAmount = convertPurchaseAmountToOTokenAmount(
             oToken,
-            strikePrice
+            amount
         );
         swapForOToken(oToken, cost, scaledAmount);
 
@@ -236,10 +236,12 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             block.timestamp + _swapDeadline
         );
 
-        (bool changeSuccess, ) = msg.sender.call{value: msg.value - ethSold}(
-            ""
-        );
-        require(changeSuccess, "Transfer of change failed");
+        if (msg.value > ethSold) {
+            (bool changeSuccess, ) = msg.sender.call{
+                value: msg.value.sub(ethSold)
+            }("");
+            require(changeSuccess, "Transfer of change failed");
+        }
     }
 
     function exercise(

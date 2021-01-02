@@ -17,6 +17,7 @@ const IERC20 = contract.fromArtifact("IERC20");
 const IOToken = contract.fromArtifact("IOToken");
 const IHegicETHOptions = contract.fromArtifact("IHegicETHOptions");
 const IHegicBTCOptions = contract.fromArtifact("IHegicBTCOptions");
+const { wmul } = require("../scripts/helpers/utils");
 
 const [admin, owner, user] = accounts;
 const gasPrice = web3.utils.toWei("10", "gwei");
@@ -42,7 +43,7 @@ describe("DojiVolatility", () => {
     venues: [HEGIC_PROTOCOL, OPYN_V1_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [ether("1"), ether("1")],
-    premiums: [new BN("193251662956618630"), new BN("210335735004969")],
+    premiums: [new BN("193251662956618630"), new BN("106656198359758724")],
     purchaseAmount: ether("1"),
     optionIDs: ["1685", "0"],
     exerciseProfit: new BN("166196590272271"),
@@ -302,13 +303,16 @@ function behavesLikeDojiVolatility(params) {
             );
 
             const oTokenERC20 = await IERC20.at(oTokenAddress);
-            const decimals = await (await IOToken.at(oTokenAddress)).decimals();
-            const scaledBy = new BN("18").sub(decimals);
             assert.equal(
               (
                 await oTokenERC20.balanceOf(this.opynV1Adapter.address)
               ).toString(),
-              purchaseAmount.div(new BN("10").pow(scaledBy))
+              await convertStandardPurchaseAmountToOTokenAmount(
+                oTokenAddress,
+                optionType,
+                this.purchaseAmount,
+                strikePrice
+              )
             );
 
             // check that the instrument contract doesnt retain any oTokens
@@ -436,4 +440,19 @@ function behavesLikeDojiVolatility(params) {
       });
     });
   });
+}
+
+async function convertStandardPurchaseAmountToOTokenAmount(
+  oTokenAddress,
+  optionType,
+  purchaseAmount,
+  strikePrice
+) {
+  const decimals = await (await IOToken.at(oTokenAddress)).decimals();
+  const scaledBy = new BN("18").sub(decimals);
+  const amount =
+    optionType === CALL_OPTION_TYPE
+      ? wmul(purchaseAmount, strikePrice)
+      : purchaseAmount;
+  return amount.div(new BN("10").pow(scaledBy));
 }

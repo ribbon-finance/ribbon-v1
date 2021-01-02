@@ -350,13 +350,7 @@ describe("HegicAdapter", () => {
 
         it("reverts when unknown options address passed", async function () {
           await expectRevert(
-            this.adapter.exerciseProfit(
-              constants.ZERO_ADDRESS,
-              0,
-              0,
-              constants.ZERO_ADDRESS,
-              0
-            ),
+            this.adapter.exerciseProfit(constants.ZERO_ADDRESS, 0, 0),
             "optionsAddress must match either ETH or WBTC options"
           );
         });
@@ -380,8 +374,6 @@ describe("HegicAdapter", () => {
               await this.adapter.exerciseProfit(
                 this.hegicOptions.address,
                 purchaseRes.receipt.logs[0].args.optionID,
-                0,
-                this.underlying,
                 0
               )
             ).toString(),
@@ -421,7 +413,6 @@ describe("HegicAdapter", () => {
                 this.hegicOptions.address,
                 this.optionID,
                 0,
-                this.underlying,
                 user,
                 { from: user, gasPrice }
               ),
@@ -441,7 +432,6 @@ describe("HegicAdapter", () => {
               this.hegicOptions.address,
               this.optionID,
               0,
-              this.underlying,
               user,
               { from: user, gasPrice }
             );
@@ -482,7 +472,6 @@ describe("HegicAdapter", () => {
               this.hegicOptions.address,
               this.optionID,
               0,
-              this.underlying,
               user,
               {
                 from: user,
@@ -493,7 +482,6 @@ describe("HegicAdapter", () => {
                 this.hegicOptions.address,
                 this.optionID,
                 0,
-                this.underlying,
                 user,
                 {
                   from: user,
@@ -512,7 +500,6 @@ describe("HegicAdapter", () => {
               this.hegicOptions.address,
               this.optionID,
               0,
-              this.underlying,
               user,
               {
                 from: user,

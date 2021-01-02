@@ -322,9 +322,7 @@ function behavesLikeOToken(args) {
             await this.adapter.exerciseProfit(
               this.oToken.address,
               0,
-              this.purchaseAmount,
-              this.underlying,
-              this.strikePrice
+              this.purchaseAmount
             )
           ).toString(),
           this.exerciseProfitWithoutFees
@@ -471,7 +469,6 @@ function behavesLikeOToken(args) {
           this.oToken.address,
           0,
           this.purchaseAmount,
-          this.underlying,
           user,
           {
             from: user,

@@ -322,7 +322,7 @@ function behavesLikeOToken(args) {
             await this.adapter.exerciseProfit(
               this.oToken.address,
               0,
-              this.scaledPurchaseAmount,
+              this.purchaseAmount,
               this.underlying
             )
           ).toString(),

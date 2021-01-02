@@ -130,17 +130,22 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         IOToken oTokenContract = IOToken(oToken);
         address oTokenCollateral = oTokenContract.collateral();
 
-        uint256 strikeAmountOut = getStrikeAssetOutAmount(
+        uint256 scaledExerciseAmount = scaleDownDecimals(
             oTokenContract,
             exerciseAmount
+        );
+
+        uint256 strikeAmountOut = getStrikeAssetOutAmount(
+            oTokenContract,
+            scaledExerciseAmount
         );
         uint256 collateralToPay = OpynV1FlashLoaner.calculateCollateralToPay(
             oTokenContract,
-            exerciseAmount
+            scaledExerciseAmount
         );
         uint256 soldCollateralAmount = getSoldCollateralAmount(
             oTokenContract,
-            exerciseAmount
+            scaledExerciseAmount
         );
 
         // if we exercised here, the collateral returned will be less than what Uniswap is giving us

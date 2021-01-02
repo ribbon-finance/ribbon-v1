@@ -410,6 +410,11 @@ function behavesLikeOToken(args) {
         });
 
         assert.equal(
+          (await this.adapter.totalOptions(user)).toString(),
+          this.purchaseAmount
+        );
+
+        assert.equal(
           (await this.oToken.balanceOf(this.adapter.address)).toString(),
           this.scaledPurchaseAmount
         );
@@ -480,6 +485,8 @@ function behavesLikeOToken(args) {
           await expectRevert(promise, "Not enough collateral to swap");
           return;
         }
+
+        assert.equal((await this.adapter.totalOptions(user)).toString(), "0");
 
         if (this.underlying === ETH_ADDRESS) {
           const res = await promise;

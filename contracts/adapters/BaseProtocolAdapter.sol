@@ -4,9 +4,11 @@ pragma solidity >=0.6.0;
 import {IDojiFactory} from "../interfaces/IDojiFactory.sol";
 import {Initializable} from "../lib/upgrades/Initializable.sol";
 
-contract BaseProtocolAdapterStorageV1 {
+contract BaseProtocolAdapterStorage {
     address public owner;
     address public dojiFactory;
+
+    mapping(address => uint256) public totalOptions;
 
     modifier onlyOwner {
         require(msg.sender == owner, "only owner");
@@ -21,4 +23,4 @@ contract BaseProtocolAdapterStorageV1 {
     }
 }
 
-contract BaseProtocolAdapter is Initializable, BaseProtocolAdapterStorageV1 {}
+contract BaseProtocolAdapter is Initializable, BaseProtocolAdapterStorage {}

@@ -211,6 +211,8 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         );
         swapForOToken(oToken, cost, scaledAmount);
 
+        totalOptions[msg.sender] += amount;
+
         emit Purchased(
             msg.sender,
             _name,
@@ -262,6 +264,7 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             scaledAmount,
             _underlyingAssets[oToken]
         );
+        totalOptions[msg.sender] -= scaledAmount;
     }
 
     function setOTokenWithTerms(

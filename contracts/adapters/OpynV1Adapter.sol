@@ -117,10 +117,8 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             oToken
         );
         uint256 oTokenAmount = convertPurchaseAmountToOTokenAmount(
-            IOToken(oToken),
-            strikePrice,
-            purchaseAmount,
-            optionType
+            oToken,
+            strikePrice
         );
         cost = uniswapExchange.getEthToTokenOutputPrice(oTokenAmount);
     }
@@ -128,18 +126,14 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
     function exerciseProfit(
         address oToken,
         uint256 optionID,
-        uint256 exerciseAmount,
-        address underlying,
-        uint256 strikePrice
+        uint256 exerciseAmount
     ) public override view returns (uint256 profit) {
         IOToken oTokenContract = IOToken(oToken);
         address oTokenCollateral = oTokenContract.collateral();
 
         uint256 scaledExerciseAmount = convertPurchaseAmountToOTokenAmount(
-            IOToken(oToken),
-            strikePrice,
-            exerciseAmount,
-            getOptionType(IOToken(oToken).underlying())
+            oToken,
+            exerciseAmount
         );
 
         uint256 strikeAmountOut = getStrikeAssetOutAmount(
@@ -161,6 +155,8 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             return 0;
         }
         uint256 profitInCollateral = collateralToPay.sub(soldCollateralAmount);
+
+        address underlying = _underlyingAssets[oToken];
 
         if (oTokenCollateral != underlying) {
             address[] memory path = new address[](2);
@@ -210,10 +206,8 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         require(!IOToken(oToken).hasExpired(), "Options contract expired");
 
         uint256 scaledAmount = convertPurchaseAmountToOTokenAmount(
-            IOToken(oToken),
-            strikePrice,
-            amount,
-            optionType
+            oToken,
+            strikePrice
         );
         swapForOToken(oToken, cost, scaledAmount);
 
@@ -252,17 +246,19 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         address oToken,
         uint256 optionID,
         uint256 amount,
-        address underlying,
         address recipient
     ) external override payable onlyInstrument nonReentrant {
         IOToken oTokenContract = IOToken(oToken);
         require(!oTokenContract.hasExpired(), "Options contract expired");
-        uint256 scaledAmount = scaleDownDecimals(oTokenContract, amount);
+        uint256 scaledAmount = convertPurchaseAmountToOTokenAmount(
+            oToken,
+            amount
+        );
         OpynV1FlashLoaner.exerciseOTokens(
             recipient,
             oToken,
             scaledAmount,
-            underlying
+            _underlyingAssets[oToken]
         );
     }
 
@@ -287,6 +283,8 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             optionType
         );
         optionTermsToOToken[optionTerms] = oToken;
+        _strikePrices[oToken] = strikePrice;
+        _underlyingAssets[oToken] = underlying;
     }
 
     function getAssets(IOToken oTokenContract, OptionType optionType)
@@ -410,15 +408,18 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
     }
 
     function convertPurchaseAmountToOTokenAmount(
-        IOToken oToken,
-        uint256 strikePrice,
-        uint256 purchaseAmount,
-        OptionType optionType
+        address oToken,
+        uint256 purchaseAmount
     ) private view returns (uint256) {
+        uint256 strike = _strikePrices[oToken];
+        IOToken oTokenContract = IOToken(oToken);
+        address oTokenUnderlying = oTokenContract.underlying();
+        OptionType optionType = getOptionType(oTokenUnderlying);
+
         uint256 oTokenAmount = optionType == OptionType.Call
-            ? wmul(purchaseAmount, strikePrice)
+            ? wmul(purchaseAmount, strike)
             : purchaseAmount;
-        return scaleDownDecimals(oToken, oTokenAmount);
+        return scaleDownDecimals(oTokenContract, oTokenAmount);
     }
 
     function getOptionType(address oTokenUnderlying)

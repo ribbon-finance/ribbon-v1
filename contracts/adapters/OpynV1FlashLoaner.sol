@@ -32,6 +32,10 @@ contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
     mapping(address => address payable[]) internal vaults;
 
     mapping(bytes => address) public optionTermsToOToken;
+
+    mapping(address => uint256) internal _strikePrices;
+
+    mapping(address => address) internal _underlyingAssets;
 }
 
 contract OpynV1FlashLoaner is

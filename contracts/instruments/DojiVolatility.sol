@@ -288,16 +288,13 @@ contract DojiVolatility is
             uint256 profit = adapter.exerciseProfit(
                 optionsAddress,
                 position.optionIDs[i],
-                position.amounts[i],
-                underlying,
-                strikePrice
+                position.amounts[i]
             );
             if (profit > 0) {
                 adapter.exercise(
                     optionsAddress,
                     position.optionIDs[i],
                     position.amounts[i],
-                    underlying,
                     msg.sender
                 );
                 optionsExercised[i] = true;

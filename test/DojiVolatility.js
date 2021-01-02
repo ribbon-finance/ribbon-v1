@@ -339,7 +339,7 @@ function behavesLikeDojiVolatility(params) {
       });
     });
 
-    describe("#exercise", () => {
+    describe("#exercisePosition", () => {
       let snapshotId;
 
       beforeEach(async function () {
@@ -365,9 +365,9 @@ function behavesLikeDojiVolatility(params) {
       // });
 
       it("reverts when exercising twice", async function () {
-        await this.contract.exercise(this.positionID, { from: user });
+        await this.contract.exercisePosition(this.positionID, { from: user });
         await expectRevert(
-          this.contract.exercise(this.positionID, { from: user }),
+          this.contract.exercisePosition(this.positionID, { from: user }),
           "Already exercised"
         );
       });
@@ -375,7 +375,7 @@ function behavesLikeDojiVolatility(params) {
       it("reverts when past expiry", async function () {
         await time.increaseTo(this.expiry + 1);
         await expectRevert(
-          this.contract.exercise(this.positionID, { from: user }),
+          this.contract.exercisePosition(this.positionID, { from: user }),
           "Already expired"
         );
       });
@@ -383,7 +383,7 @@ function behavesLikeDojiVolatility(params) {
       it("exercises one of the options", async function () {
         const userTracker = await balance.tracker(user, "wei");
 
-        const res = await this.contract.exercise(this.positionID, {
+        const res = await this.contract.exercisePosition(this.positionID, {
           from: user,
           gasPrice,
         });

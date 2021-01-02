@@ -426,7 +426,7 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
 
     function getOptionType(address oTokenUnderlying)
         private
-        view
+        pure
         returns (OptionType)
     {
         return

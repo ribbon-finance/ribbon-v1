@@ -255,7 +255,7 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         IOToken oTokenContract = IOToken(oToken);
         require(!oTokenContract.hasExpired(), "Option has expired");
         require(
-            amount < totalOptions[msg.sender],
+            amount <= totalOptions[msg.sender],
             "Cannot exercise over capacity"
         );
 
@@ -269,7 +269,7 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             scaledAmount,
             _underlyingAssets[oToken]
         );
-        totalOptions[msg.sender] -= scaledAmount;
+        totalOptions[msg.sender] -= amount;
     }
 
     function setOTokenWithTerms(

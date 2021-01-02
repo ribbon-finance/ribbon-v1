@@ -432,6 +432,9 @@ function behavesLikeOToken(args) {
       let snapshotId;
 
       beforeEach(async function () {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+
         await this.adapter.purchase(
           this.underlying,
           this.strikeAsset,
@@ -445,9 +448,6 @@ function behavesLikeOToken(args) {
         await this.adapter.setVaults(this.oToken.address, this.vaults, {
           from: owner,
         });
-
-        const snapShot = await helper.takeSnapshot();
-        snapshotId = snapShot["result"];
       });
 
       afterEach(async () => {

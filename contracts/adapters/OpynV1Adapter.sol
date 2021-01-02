@@ -379,6 +379,7 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         uint256 underlyingAmount = oToken.underlyingRequiredToExercise(
             exerciseAmount
         );
+        // https://github.com/aave/protocol-v2/blob/master/contracts/protocol/lendingpool/LendingPool.sol#L54
         uint256 loanFee = wmul(underlyingAmount, 0.0009 ether);
 
         address[] memory path;
@@ -393,7 +394,7 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             path[2] = underlying;
         }
         uint256[] memory amountsIn = IUniswapV2Router02(_uniswapRouter)
-            .getAmountsIn(underlyingAmount + loanFee, path);
+            .getAmountsIn(underlyingAmount.add(loanFee), path);
         return amountsIn[0];
     }
 }

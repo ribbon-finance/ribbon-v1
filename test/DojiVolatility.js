@@ -45,7 +45,7 @@ describe("DojiVolatility", () => {
     premiums: [new BN("193251662956618630"), new BN("210335735004969")],
     purchaseAmount: ether("1"),
     optionIDs: ["1685", "0"],
-    exerciseProfit: new BN("83090832707945605"),
+    exerciseProfit: new BN("166196590272271"),
   });
 });
 
@@ -383,6 +383,7 @@ function behavesLikeDojiVolatility(params) {
           from: user,
           gasPrice,
         });
+        const gasUsed = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
 
         expectEvent(res, "Exercised", {
           account: user,
@@ -393,7 +394,7 @@ function behavesLikeDojiVolatility(params) {
         if (this.underlying == constants.ZERO_ADDRESS) {
           assert.equal(
             (await userTracker.delta()).toString(),
-            this.exerciseProfit
+            this.exerciseProfit.sub(gasUsed).toString()
           );
         } else {
           const underlying = await IERC20.at(this.underlying);

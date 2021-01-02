@@ -79,6 +79,25 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         return oToken != address(0);
     }
 
+    function getOptionsAddress(
+        address underlying,
+        address strikeAsset,
+        uint256 expiry,
+        uint256 strikePrice,
+        OptionType optionType
+    ) external override view returns (address) {
+        address oToken = lookupOToken(
+            underlying,
+            strikeAsset,
+            expiry,
+            strikePrice,
+            optionType
+        );
+
+        require(oToken != address(0), "No oToken found");
+        return oToken;
+    }
+
     function premium(
         address underlying,
         address strikeAsset,
@@ -110,24 +129,42 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
     ) public override view returns (uint256 profit) {
         IOToken oTokenContract = IOToken(oToken);
         address oTokenCollateral = oTokenContract.collateral();
-        uint256 collateralToPay = OpynV1FlashLoaner.calculateCollateralToPay(
+
+        uint256 scaledExerciseAmount = scaleDownDecimals(
             oTokenContract,
             exerciseAmount
         );
 
-        if (underlying != oTokenCollateral) {
-            IUniswapV2Router02 router = IUniswapV2Router02(_uniswapRouter);
+        uint256 strikeAmountOut = getStrikeAssetOutAmount(
+            oTokenContract,
+            scaledExerciseAmount
+        );
+        uint256 collateralToPay = OpynV1FlashLoaner.calculateCollateralToPay(
+            oTokenContract,
+            scaledExerciseAmount
+        );
+        uint256 soldCollateralAmount = getSoldCollateralAmount(
+            oTokenContract,
+            scaledExerciseAmount
+        );
+
+        // if we exercised here, the collateral returned will be less than what Uniswap is giving us
+        // which means we're at a loss, so don't exercise
+        if (collateralToPay < strikeAmountOut) {
+            return 0;
+        }
+        uint256 profitInCollateral = collateralToPay.sub(soldCollateralAmount);
+
+        if (oTokenCollateral != underlying) {
             address[] memory path = new address[](2);
             path[0] = oTokenCollateral;
             path[1] = underlying;
 
-            uint256[] memory amountsOut = router.getAmountsOut(
-                collateralToPay,
-                path
-            );
+            uint256[] memory amountsOut = IUniswapV2Router02(_uniswapRouter)
+                .getAmountsOut(profitInCollateral, path);
             return amountsOut[1];
         }
-        return collateralToPay;
+        return profitInCollateral;
     }
 
     function purchase(
@@ -163,6 +200,8 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             optionType
         );
 
+        require(!IOToken(oToken).hasExpired(), "Options contract expired");
+
         uint256 scaledAmount = swapForOToken(oToken, cost, amount);
 
         emit Purchased(
@@ -196,24 +235,24 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             ""
         );
         require(changeSuccess, "Transfer of change failed");
-
-        // Forward the tokens to the msg.sender
-        IERC20(oToken).safeTransfer(msg.sender, scaledAmount);
     }
 
     function exercise(
         address oToken,
         uint256 optionID,
         uint256 amount,
-        address underlying
+        address underlying,
+        address recipient
     ) external override payable onlyInstrument nonReentrant {
-        uint256 scaledAmount = scaleDownDecimals(IOToken(oToken), amount);
-        IERC20(oToken).safeTransferFrom(
-            msg.sender,
-            address(this),
-            scaledAmount
+        IOToken oTokenContract = IOToken(oToken);
+        require(!oTokenContract.hasExpired(), "Options contract expired");
+        uint256 scaledAmount = scaleDownDecimals(oTokenContract, amount);
+        OpynV1FlashLoaner.exerciseOTokens(
+            recipient,
+            oToken,
+            scaledAmount,
+            underlying
         );
-        OpynV1FlashLoaner.exerciseOTokens(oToken, scaledAmount, underlying);
     }
 
     function setOTokenWithTerms(
@@ -289,5 +328,73 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         uniswapExchange = UniswapExchangeInterface(
             uniswapFactory.getExchange(oToken)
         );
+    }
+
+    function getStrikeAssetOutAmount(IOToken oToken, uint256 exerciseAmount)
+        private
+        view
+        returns (uint256)
+    {
+        address weth = _weth;
+        address strikeAsset = oToken.strike();
+        strikeAsset = strikeAsset == address(0) ? weth : strikeAsset;
+        address oTokenUnderlying = oToken.underlying();
+        oTokenUnderlying = oTokenUnderlying == address(0)
+            ? weth
+            : oTokenUnderlying;
+
+        address[] memory path;
+        if (strikeAsset == weth || oTokenUnderlying == weth) {
+            path = new address[](2);
+            path[0] = oTokenUnderlying;
+            path[1] = strikeAsset;
+        } else {
+            path = new address[](3);
+            path[0] = oTokenUnderlying;
+            path[1] = weth;
+            path[2] = strikeAsset;
+        }
+
+        uint256[] memory amountsOut = IUniswapV2Router02(_uniswapRouter)
+            .getAmountsOut(
+            exerciseAmount.mul(10**uint256(-oToken.underlyingExp())).div(
+                10**oToken.decimals()
+            ),
+            path
+        );
+        return amountsOut[path.length - 1];
+    }
+
+    function getSoldCollateralAmount(IOToken oToken, uint256 exerciseAmount)
+        private
+        view
+        returns (uint256)
+    {
+        address weth = _weth;
+        address collateral = oToken.collateral();
+        address underlying = oToken.underlying();
+        collateral = collateral == address(0) ? weth : collateral;
+        underlying = underlying == address(0) ? weth : underlying;
+
+        uint256 underlyingAmount = oToken.underlyingRequiredToExercise(
+            exerciseAmount
+        );
+        // https://github.com/aave/protocol-v2/blob/master/contracts/protocol/lendingpool/LendingPool.sol#L54
+        uint256 loanFee = wmul(underlyingAmount, 0.0009 ether);
+
+        address[] memory path;
+        if (collateral == weth || underlying == weth) {
+            path = new address[](2);
+            path[0] = collateral;
+            path[1] = underlying;
+        } else {
+            path = new address[](3);
+            path[0] = collateral;
+            path[1] = weth;
+            path[2] = underlying;
+        }
+        uint256[] memory amountsIn = IUniswapV2Router02(_uniswapRouter)
+            .getAmountsIn(underlyingAmount.add(loanFee), path);
+        return amountsIn[0];
     }
 }

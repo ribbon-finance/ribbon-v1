@@ -44,9 +44,13 @@ interface IOToken {
 
     function collateralExp() external view returns (int32);
 
+    function underlyingExp() external view returns (int32);
+
     function expiry() external view returns (uint256);
 
     function strike() external view returns (address);
+
+    function hasExpired() external view returns (bool);
 
     function strikePrice()
         external

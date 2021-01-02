@@ -22,6 +22,7 @@ import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {IUniswapV2Factory} from "../interfaces/IUniswapV2Factory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
+import "../tests/DebugLib.sol";
 
 contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
     address internal _uniswapRouter;
@@ -36,7 +37,8 @@ contract OpynV1AdapterStorageV1 is BaseProtocolAdapter {
 contract OpynV1FlashLoaner is
     DSMath,
     FlashLoanReceiverBase,
-    OpynV1AdapterStorageV1
+    OpynV1AdapterStorageV1,
+    DebugLib
 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -56,6 +58,7 @@ contract OpynV1FlashLoaner is
     {}
 
     function exerciseOTokens(
+        address recipient,
         address oToken,
         uint256 exerciseAmount,
         address underlying
@@ -83,7 +86,7 @@ contract OpynV1FlashLoaner is
             oToken,
             exerciseAmount,
             underlying,
-            msg.sender
+            recipient
         );
         uint16 referralCode = 0;
 
@@ -382,7 +385,6 @@ contract OpynV1FlashLoaner is
         Number memory strikePrice
     ) private pure returns (uint256 amtCollateralToPay) {
         Number memory proportion = Number(1, 0);
-        // calculate how much should be paid out
         uint256 amtCollateralToPayInEthNum = oTokens
             .mul(strikePrice.value)
             .mul(proportion.value)

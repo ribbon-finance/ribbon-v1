@@ -420,6 +420,7 @@ describe("HegicAdapter", () => {
                 this.optionID,
                 0,
                 this.underlying,
+                user,
                 { from: user, gasPrice }
               ),
               `Current price is too ${this.optionType === 1 ? "high" : "low"}`
@@ -439,6 +440,7 @@ describe("HegicAdapter", () => {
               this.optionID,
               0,
               this.underlying,
+              user,
               { from: user, gasPrice }
             );
             expectEvent(res, "Exercised", {
@@ -479,6 +481,7 @@ describe("HegicAdapter", () => {
               this.optionID,
               0,
               this.underlying,
+              user,
               {
                 from: user,
               }
@@ -489,6 +492,7 @@ describe("HegicAdapter", () => {
                 this.optionID,
                 0,
                 this.underlying,
+                user,
                 {
                   from: user,
                 }
@@ -507,6 +511,7 @@ describe("HegicAdapter", () => {
               this.optionID,
               0,
               this.underlying,
+              user,
               {
                 from: user,
               }

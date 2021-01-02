@@ -74,6 +74,21 @@ contract HegicAdapter is
         return underlying == ethAddress || underlying == wbtcAddress;
     }
 
+    function getOptionsAddress(
+        address underlying,
+        address strikeAsset,
+        uint256 expiry,
+        uint256 strikePrice,
+        OptionType optionType
+    ) external override view returns (address) {
+        if (underlying == ethAddress) {
+            return address(ethOptions);
+        } else if (underlying == wbtcAddress) {
+            return address(wbtcOptions);
+        }
+        require(false, "No options found");
+    }
+
     function premium(
         address underlying,
         address strikeAsset,
@@ -223,7 +238,8 @@ contract HegicAdapter is
         address optionsAddress,
         uint256 optionID,
         uint256 amount,
-        address underlying
+        address underlying,
+        address account
     ) external override payable onlyInstrument nonReentrant {
         require(
             optionsAddress == address(ethOptions) ||
@@ -241,14 +257,14 @@ contract HegicAdapter is
         options.exercise(optionID);
 
         if (optionsAddress == address(ethOptions)) {
-            (bool success, ) = msg.sender.call{value: profit}("");
+            (bool success, ) = account.call{value: profit}("");
             require(success, "Failed transfer");
         } else {
             IERC20 wbtc = IERC20(wbtcAddress);
-            wbtc.safeTransfer(msg.sender, profit);
+            wbtc.safeTransfer(account, profit);
         }
 
-        emit Exercised(msg.sender, optionsAddress, optionID, amount, profit);
+        emit Exercised(account, optionsAddress, optionID, amount, profit);
     }
 
     function getHegicOptions(address underlying)

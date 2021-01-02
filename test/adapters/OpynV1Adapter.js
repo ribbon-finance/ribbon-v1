@@ -98,7 +98,7 @@ describe("OpynV1Adapter", () => {
     premium: new BN("106656198359758724"),
     purchaseAmount: ether("500"),
     scaledPurchaseAmount: new BN("500000000"),
-    exerciseProfitWithoutFees: new BN("1000000000000000000"),
+    exerciseProfitWithoutFees: new BN("83090832707945605"),
     exerciseProfit: new BN("83090832707945605"),
     vaults: [
       "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
@@ -117,7 +117,7 @@ describe("OpynV1Adapter", () => {
     premium: new BN("22636934749846005"),
     purchaseAmount: ether("640"),
     scaledPurchaseAmount: new BN("640000000"),
-    exerciseProfitWithoutFees: new BN("1000000000000000000"),
+    exerciseProfitWithoutFees: new BN("0"),
     exerciseProfit: new BN("0"),
     vaults: [
       "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
@@ -136,7 +136,7 @@ describe("OpynV1Adapter", () => {
     premium: new BN("106920070230577145"),
     purchaseAmount: ether("1"),
     scaledPurchaseAmount: new BN("10000000"),
-    exerciseProfitWithoutFees: new BN("1092696150697474033"),
+    exerciseProfitWithoutFees: new BN("91797789832984586"),
     exerciseProfit: new BN("91796148075270874"),
     vaults: [
       "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
@@ -155,7 +155,7 @@ describe("OpynV1Adapter", () => {
     premium: new BN("38993035115930594"),
     purchaseAmount: ether("1"),
     scaledPurchaseAmount: new BN("10000000"),
-    exerciseProfitWithoutFees: new BN("947004561427442862"),
+    exerciseProfitWithoutFees: new BN("0"),
     exerciseProfit: new BN("0"),
     vaults: [
       "0x076c95c6cd2eb823acc6347fdf5b3dd9b83511e4",
@@ -163,7 +163,7 @@ describe("OpynV1Adapter", () => {
     ],
   });
 
-  // WBTC Options
+  // // WBTC Options
   behavesLikeOToken({
     oTokenName: "WBTC CALL OTM",
     underlying: WBTC_ADDRESS,
@@ -175,7 +175,7 @@ describe("OpynV1Adapter", () => {
     premium: new BN("2406141839973257206"),
     purchaseAmount: ether("20000"),
     scaledPurchaseAmount: new BN("20000000"),
-    exerciseProfitWithoutFees: new BN("100000000"),
+    exerciseProfitWithoutFees: new BN("0"),
     exerciseProfit: new BN("0"),
     vaults: [
       "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
@@ -194,27 +194,8 @@ describe("OpynV1Adapter", () => {
     premium: new BN("60713311014396049"),
     purchaseAmount: ether("100"),
     scaledPurchaseAmount: new BN("1000000000"),
-    exerciseProfitWithoutFees: new BN("105167250869224019654"),
+    exerciseProfitWithoutFees: new BN("6895291786998639829"),
     exerciseProfit: new BN("6895291786998639829"),
-    vaults: [
-      "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
-      "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
-    ],
-  });
-
-  behavesLikeOToken({
-    oTokenName: "YFI PUT OTM",
-    underlying: YFI_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    expiry: "1609488000",
-    oTokenAddress: "0xe17900D324FB41821Cc38499063B2E3bbae6C27e",
-    optionType: PUT_OPTION_TYPE,
-    strikePrice: ether("25000"),
-    premium: new BN("5179849204290059875"),
-    purchaseAmount: ether("1"),
-    scaledPurchaseAmount: new BN("10000000"),
-    exerciseProfitWithoutFees: new BN("310541472583556376"),
-    exerciseProfit: new BN("0"),
     vaults: [
       "0x076C95c6cd2eb823aCC6347FdF5B3dd9b83511E4",
       "0xC5Df4d5ED23F645687A867D8F83a41836FCf8811",
@@ -341,7 +322,7 @@ function behavesLikeOToken(args) {
             await this.adapter.exerciseProfit(
               this.oToken.address,
               0,
-              this.scaledPurchaseAmount,
+              this.purchaseAmount,
               this.underlying
             )
           ).toString(),
@@ -403,7 +384,6 @@ function behavesLikeOToken(args) {
       });
 
       it("purchases the oTokens", async function () {
-        const startUserBalance = await this.oToken.balanceOf(user);
         const startExchangeBalance = await this.oToken.balanceOf(
           this.uniswapExchange.address
         );
@@ -430,11 +410,11 @@ function behavesLikeOToken(args) {
           optionID: "0",
         });
 
-        assert.equal(await this.oToken.balanceOf(this.adapter.address), "0");
         assert.equal(
-          (await this.oToken.balanceOf(user)).toString(),
-          startUserBalance.add(this.scaledPurchaseAmount)
+          (await this.oToken.balanceOf(this.adapter.address)).toString(),
+          this.scaledPurchaseAmount
         );
+        assert.equal((await this.oToken.balanceOf(user)).toString(), "0");
         assert.equal(
           (
             await this.oToken.balanceOf(this.uniswapExchange.address)
@@ -491,6 +471,7 @@ function behavesLikeOToken(args) {
           0,
           this.purchaseAmount,
           this.underlying,
+          user,
           {
             from: user,
             gasPrice,

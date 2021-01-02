@@ -305,16 +305,16 @@ function behavesLikeDojiVolatility(params) {
             const decimals = await (await IOToken.at(oTokenAddress)).decimals();
             const scaledBy = new BN("18").sub(decimals);
             assert.equal(
-              (await oTokenERC20.balanceOf(this.contract.address)).toString(),
-              purchaseAmount.div(new BN("10").pow(scaledBy))
-            );
-
-            // check that the adapter doesnt retain any oTokens
-            // and that the user doesnt receive the oTokens
-            assert.equal(
               (
                 await oTokenERC20.balanceOf(this.opynV1Adapter.address)
               ).toString(),
+              purchaseAmount.div(new BN("10").pow(scaledBy))
+            );
+
+            // check that the instrument contract doesnt retain any oTokens
+            // and that the user doesnt receive the oTokens
+            assert.equal(
+              (await oTokenERC20.balanceOf(this.contract.address)).toString(),
               "0"
             );
             assert.equal((await oTokenERC20.balanceOf(user)).toString(), "0");
@@ -340,7 +340,10 @@ function behavesLikeDojiVolatility(params) {
     });
 
     describe("#exercise", () => {
-      before(async function () {
+      let initSnapshotId;
+      let snapshotId;
+
+      beforeEach(async function () {
         await this.contract.buyInstrument(
           this.venues,
           this.optionTypes,
@@ -352,29 +355,32 @@ function behavesLikeDojiVolatility(params) {
         );
         this.positionID = 0;
 
-        const snapShot = await helper.takeSnapshot();
-        snapshotId = snapShot["result"];
+        snapshotId = (await helper.takeSnapshot())["result"];
       });
 
       afterEach(async () => {
         await helper.revertToSnapShot(snapshotId);
       });
 
-      // it("reverts when exercising twice", async function () {
-      //   await this.contract.exercise(this.positionID, { from: user });
-      //   await expectRevert(
-      //     this.contract.exercise(this.positionID, { from: user }),
-      //     "Already exercised"
-      //   );
+      // after(async () => {
+      //   await helper.revertToSnapShot(initSnapshotId);
       // });
 
-      // it("reverts when past expiry", async function () {
-      //   await time.increaseTo(this.expiry + 1);
-      //   await expectRevert(
-      //     this.contract.exercise(this.positionID, { from: user }),
-      //     "Already expired"
-      //   );
-      // });
+      it("reverts when exercising twice", async function () {
+        await this.contract.exercise(this.positionID, { from: user });
+        await expectRevert(
+          this.contract.exercise(this.positionID, { from: user }),
+          "Already exercised"
+        );
+      });
+
+      it("reverts when past expiry", async function () {
+        await time.increaseTo(this.expiry + 1);
+        await expectRevert(
+          this.contract.exercise(this.positionID, { from: user }),
+          "Already expired"
+        );
+      });
 
       it("exercises one of the options", async function () {
         const userTracker = await balance.tracker(user, "wei");
@@ -407,6 +413,8 @@ function behavesLikeDojiVolatility(params) {
     });
 
     describe("#numOfPositions", () => {
+      let snapshotId;
+
       before(async function () {
         await this.contract.buyInstrument(
           this.venues,

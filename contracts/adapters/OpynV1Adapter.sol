@@ -32,11 +32,23 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
     bool private constant _nonFungible = false;
     uint256 private constant _swapDeadline = 900; // 15 minutes
 
+    /**
+     * @notice Constructor for Opyn v1 adapter
+     * @param _addressProvider is the mainnet Aave address provider, used to look up lending pool addresses
+     */
     constructor(ILendingPoolAddressesProvider _addressProvider)
         public
         OpynV1FlashLoaner(_addressProvider)
     {}
 
+    /**
+     * @notice Initializer for Opyn v1 adapter
+     * @param _owner is the owner of the contract
+     * @param _dojiFactory is the factory used to look up deployed instruments
+     * @param _provider is the mainnet Aave address provider, used to look up lending pool addresses
+     * @param router is the uniswap v2 router address
+     * @param weth is the mainnet weth address
+     */
     function initialize(
         address _owner,
         address _dojiFactory,
@@ -62,6 +74,14 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         return _nonFungible;
     }
 
+    /**
+     * @notice Check if an options contract exist based on the passed parameters.
+     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
+     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
+     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
+     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
+     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     */
     function optionsExist(
         address underlying,
         address strikeAsset,
@@ -79,6 +99,14 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         return oToken != address(0);
     }
 
+    /**
+     * @notice Get the options contract's address based on the passed parameters
+     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
+     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
+     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
+     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
+     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     */
     function getOptionsAddress(
         address underlying,
         address strikeAsset,
@@ -98,6 +126,14 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         return oToken;
     }
 
+    /**
+     * @notice Gets the premium to buy `purchaseAmount` of the option contract in ETH terms.
+     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
+     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
+     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
+     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
+     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     */
     function premium(
         address underlying,
         address strikeAsset,
@@ -123,6 +159,12 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         cost = uniswapExchange.getEthToTokenOutputPrice(oTokenAmount);
     }
 
+    /**
+     * @notice Amount of profit made from exercising an option contract (current price - strike price). 0 if exercising out-the-money.
+     * @param oToken is the address of the options contract
+     * @param optionID is the ID of the option position in non fungible protocols like Hegic.
+     * @param exerciseAmount is the amount of tokens or options contract to exercise. Only relevant for fungle protocols like Opyn
+     */
     function exerciseProfit(
         address oToken,
         uint256 optionID,
@@ -170,6 +212,15 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         return profitInCollateral;
     }
 
+    /**
+     * @notice Purchases the options contract.
+     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
+     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
+     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
+     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
+     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     * @param amount is the purchase amount in Wad units (10**18)
+     */
     function purchase(
         address underlying,
         address strikeAsset,
@@ -227,6 +278,12 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         );
     }
 
+    /**
+     * @notice Talking to Uniswap v1 pool to swap ETH for oTokens
+     * @param oToken is the oToken address
+     * @param tokenCost is the premium to be paid
+     * @param purchaseAmount is the purchase amount in ETh
+     */
     function swapForOToken(
         address oToken,
         uint256 tokenCost,
@@ -246,6 +303,13 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         }
     }
 
+    /**
+     * @notice Exercises the options contract.
+     * @param oToken is the address of the options contract
+     * @param optionID is the ID of the option position in non fungible protocols like Hegic.
+     * @param amount is the amount of tokens or options contract to exercise. Only relevant for fungle protocols like Opyn
+     * @param recipient is the account that receives the exercised profits. This is needed since the adapter holds all the positions and the msg.sender is an instrument contract.
+     */
     function exercise(
         address oToken,
         uint256 optionID,
@@ -272,6 +336,12 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         totalOptions[msg.sender] -= amount;
     }
 
+    /**
+     * @notice Sets an oToken with the terms. `strikePrice` and `optionType` are manually set. The rest are populated automatically with the oToken's parameters.
+     * @param strikePrice is the strike price in USD terms (Wad)
+     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     * @param oToken is the oToken address
+     */
     function setOTokenWithTerms(
         uint256 strikePrice,
         OptionType optionType,
@@ -297,6 +367,11 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         _underlyingAssets[oToken] = underlying;
     }
 
+    /**
+     * @notice Helper function to lookup the collateral and underlying assets. In Opyn, the underlying and collaterals are inverted for Puts and Calls.
+     * @param oTokenContract is the IOToken instance of the oToken
+     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     */
     function getAssets(IOToken oTokenContract, OptionType optionType)
         private
         view
@@ -311,6 +386,11 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         }
     }
 
+    /**
+     * @notice Since we cannot lookup the array of vaults automatically via the contract, we need to set the exercisable vaults for each oToken here.
+     * @param oToken is the oToken address
+     * @param vaultOwners is the array of exercisable vaults for an oToken
+     */
     function setVaults(address oToken, address payable[] memory vaultOwners)
         public
         onlyOwner
@@ -320,6 +400,15 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         }
     }
 
+    /**
+     * @notice Function to lookup oToken addresses. oToken addresses are keyed by an ABI-encoded byte string
+     * @param oToken is the oToken address
+     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
+     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
+     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
+     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
+     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     */
     function lookupOToken(
         address underlying,
         address strikeAsset,
@@ -337,6 +426,10 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         return optionTermsToOToken[optionTerms];
     }
 
+    /**
+     * @notice Helper function to get the Uniswap exchange from an oToken address
+     * @param oToken is the oToken address
+     */
     function getUniswapExchangeFromOToken(address oToken)
         private
         view
@@ -349,6 +442,11 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         );
     }
 
+    /**
+     * @notice Function to determine how much of the strike asset we can receive when exercising oTokens.
+     * @param oToken is the oToken instance
+     * @param exerciseAmount is the amount of oTokens to exercise
+     */
     function getStrikeAssetOutAmount(IOToken oToken, uint256 exerciseAmount)
         private
         view
@@ -384,6 +482,11 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         return amountsOut[path.length - 1];
     }
 
+    /**
+     * @notice Function to get the amount of collateral that would be sold to swap from underlying to collateral via Uniswap v2.
+     * @param oToken is the oToken instance
+     * @param exerciseAmount is the amount of oTokens to exercise
+     */
     function getSoldCollateralAmount(IOToken oToken, uint256 exerciseAmount)
         private
         view
@@ -417,6 +520,11 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         return amountsIn[0];
     }
 
+    /**
+     * @notice Function to convert the standardized purchase amounts (in Wads, 10**18) to an oToken amount (either 10**6 for calls and 10**7 for puts)
+     * @param oToken is the oToken address
+     * @param purchaseAmount is the purchase amount in Wads
+     */
     function convertPurchaseAmountToOTokenAmount(
         address oToken,
         uint256 purchaseAmount
@@ -432,6 +540,10 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         return scaleDownDecimals(oTokenContract, oTokenAmount);
     }
 
+    /**
+     * @notice Function to lookup the option type of the oToken. Currently oToken contracts don't expose this information. However, we can assume that contracts with the .underlying() as USDC is a call option.
+     * @param oTokenUnderlying is underlying asset for an oToken contract
+     */
     function getOptionType(address oTokenUnderlying)
         private
         pure

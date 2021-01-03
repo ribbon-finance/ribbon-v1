@@ -39,6 +39,13 @@ contract HegicAdapter is
     IHegicETHOptions public immutable ethOptions;
     IHegicBTCOptions public immutable wbtcOptions;
 
+    /**
+     * @notice constructor for the HegicAdapter
+     * @param _ethOptions is the contract address for the mainnet HegicETHOptions
+     * @param _wbtcOptions is the contract address for the mainnet HegicWBTCOptions
+     * @param _ethAddress is the contract address for Ethereum, defaults to zero address
+     * @param _wbtcOptions is the contract address for mainnet WBTC
+     */
     constructor(
         address _ethOptions,
         address _wbtcOptions,
@@ -51,6 +58,11 @@ contract HegicAdapter is
         wbtcAddress = _wbtcAddress;
     }
 
+    /**
+     * @notice Proxy initializer for HegicAdapter
+     * @param _owner is the owner of the contract
+     * @param _dojiFactory is the factory used to look up deployed instruments
+     */
     function initialize(address _owner, address _dojiFactory)
         public
         initializer
@@ -69,6 +81,14 @@ contract HegicAdapter is
         return _nonFungible;
     }
 
+    /**
+     * @notice Check if an options contract exist based on the passed parameters.
+     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
+     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
+     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
+     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
+     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     */
     function optionsExist(
         address underlying,
         address strikeAsset,
@@ -79,6 +99,14 @@ contract HegicAdapter is
         return underlying == ethAddress || underlying == wbtcAddress;
     }
 
+    /**
+     * @notice Get the options contract's address based on the passed parameters
+     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
+     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
+     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
+     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
+     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     */
     function getOptionsAddress(
         address underlying,
         address strikeAsset,
@@ -94,6 +122,14 @@ contract HegicAdapter is
         require(false, "No options found");
     }
 
+    /**
+     * @notice Gets the premium to buy `purchaseAmount` of the option contract in ETH terms.
+     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
+     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
+     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
+     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
+     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     */
     function premium(
         address underlying,
         address strikeAsset,
@@ -125,6 +161,12 @@ contract HegicAdapter is
         }
     }
 
+    /**
+     * @notice Amount of profit made from exercising an option contract (current price - strike price). 0 if exercising out-the-money.
+     * @param optionsAddress is the address of the options contract
+     * @param optionID is the ID of the option position in non fungible protocols like Hegic.
+     * @param exerciseAmount is the amount of tokens or options contract to exercise. Only relevant for fungle protocols like Opyn
+     */
     function exerciseProfit(
         address optionsAddress,
         uint256 optionID,
@@ -170,6 +212,15 @@ contract HegicAdapter is
         if (profit > lockedAmount) profit = lockedAmount;
     }
 
+    /**
+     * @notice Purchases the options contract.
+     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
+     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
+     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
+     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
+     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     * @param amount is the purchase amount in Wad units (10**18)
+     */
     function purchase(
         address underlying,
         address strikeAsset,
@@ -218,6 +269,15 @@ contract HegicAdapter is
         );
     }
 
+    /**
+     * @notice Implementation of creating a Hegic options position
+     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
+     * @param cost is the premium paid to create a position
+     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
+     * @param amount is the purchase amount in Wad units (10**18)
+     * @param strikePrice is the strike price of the optionContract in Wad units
+     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     */
     function _purchase(
         address underlying,
         uint256 cost,
@@ -239,6 +299,13 @@ contract HegicAdapter is
         );
     }
 
+    /**
+     * @notice Exercises the options contract.
+     * @param optionsAddress is the address of the options contract
+     * @param optionID is the ID of the option position in non fungible protocols like Hegic.
+     * @param amount is the amount of tokens or options contract to exercise. Only relevant for fungle protocols like Opyn
+     * @param account is the account that receives the exercised profits. This is needed since the adapter holds all the positions and the msg.sender is an instrument contract.
+     */
     function exercise(
         address optionsAddress,
         uint256 optionID,
@@ -274,6 +341,10 @@ contract HegicAdapter is
         emit Exercised(account, optionsAddress, optionID, amount, profit);
     }
 
+    /**
+     * @notice Helper function to get the options address based on the underlying asset
+     * @param underlying is the underlying asset for the options
+     */
     function getHegicOptions(address underlying)
         private
         view
@@ -287,6 +358,10 @@ contract HegicAdapter is
         require(false, "No matching options contract");
     }
 
+    /**
+     * @notice Helper function to scale down strike prices from 10**18 to 10**8
+     * @param strikePrice is the strikePrice in 10**18
+     */
     function scaleDownStrikePrice(uint256 strikePrice)
         private
         pure

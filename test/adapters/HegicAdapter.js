@@ -20,7 +20,7 @@ const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const ETH_ADDRESS = constants.ZERO_ADDRESS;
-const [admin, owner, user] = accounts;
+const [admin, owner, user, recipient] = accounts;
 
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
@@ -83,90 +83,90 @@ describe("HegicAdapter", () => {
     exerciseProfit: new BN("86680823070678630"),
   });
 
-  behavesLikeHegicOptions({
-    optionName: "ETH CALL OTM",
-    underlying: ETH_ADDRESS,
-    strikeAsset: ETH_ADDRESS,
-    strikePrice: ether("600"),
-    premium: new BN("38399162806593750"),
-    purchaseAmount: ether("1"),
-    optionType: CALL_OPTION_TYPE,
-    expectedOptionID: "1685",
-    exerciseProfit: new BN("0"),
-  });
+  // behavesLikeHegicOptions({
+  //   optionName: "ETH CALL OTM",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: ETH_ADDRESS,
+  //   strikePrice: ether("600"),
+  //   premium: new BN("38399162806593750"),
+  //   purchaseAmount: ether("1"),
+  //   optionType: CALL_OPTION_TYPE,
+  //   expectedOptionID: "1685",
+  //   exerciseProfit: new BN("0"),
+  // });
 
-  behavesLikeHegicOptions({
-    optionName: "ETH PUT ITM",
-    underlying: ETH_ADDRESS,
-    strikeAsset: ETH_ADDRESS,
-    strikePrice: ether("600"),
-    premium: new BN("140095483573495796"),
-    purchaseAmount: ether("1"),
-    optionType: PUT_OPTION_TYPE,
-    expectedOptionID: "1685",
-    exerciseProfit: new BN("95983012315185643"),
-  });
+  // behavesLikeHegicOptions({
+  //   optionName: "ETH PUT ITM",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: ETH_ADDRESS,
+  //   strikePrice: ether("600"),
+  //   premium: new BN("140095483573495796"),
+  //   purchaseAmount: ether("1"),
+  //   optionType: PUT_OPTION_TYPE,
+  //   expectedOptionID: "1685",
+  //   exerciseProfit: new BN("95983012315185643"),
+  // });
 
-  behavesLikeHegicOptions({
-    optionName: "ETH PUT OTM",
-    underlying: ETH_ADDRESS,
-    strikeAsset: ETH_ADDRESS,
-    strikePrice: ether("500"),
-    premium: new BN("38427059381925127"),
-    purchaseAmount: ether("1"),
-    optionType: PUT_OPTION_TYPE,
-    expectedOptionID: "1685",
-    exerciseProfit: new BN("0"),
-  });
+  // behavesLikeHegicOptions({
+  //   optionName: "ETH PUT OTM",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: ETH_ADDRESS,
+  //   strikePrice: ether("500"),
+  //   premium: new BN("38427059381925127"),
+  //   purchaseAmount: ether("1"),
+  //   optionType: PUT_OPTION_TYPE,
+  //   expectedOptionID: "1685",
+  //   exerciseProfit: new BN("0"),
+  // });
 
-  // WBTC Options
-  behavesLikeHegicOptions({
-    optionName: "WBTC CALL ITM",
-    underlying: WBTC_ADDRESS,
-    strikeAsset: WBTC_ADDRESS,
-    strikePrice: ether("17000"),
-    premium: new BN("3245932593862604696"),
-    purchaseAmount: new BN("100000000"),
-    optionType: CALL_OPTION_TYPE,
-    expectedOptionID: "804",
-    exerciseProfit: new BN("6541306"),
-  });
+  // // WBTC Options
+  // behavesLikeHegicOptions({
+  //   optionName: "WBTC CALL ITM",
+  //   underlying: WBTC_ADDRESS,
+  //   strikeAsset: WBTC_ADDRESS,
+  //   strikePrice: ether("17000"),
+  //   premium: new BN("3245932593862604696"),
+  //   purchaseAmount: new BN("100000000"),
+  //   optionType: CALL_OPTION_TYPE,
+  //   expectedOptionID: "804",
+  //   exerciseProfit: new BN("6541306"),
+  // });
 
-  behavesLikeHegicOptions({
-    optionName: "WBTC CALL OTM",
-    underlying: WBTC_ADDRESS,
-    strikeAsset: WBTC_ADDRESS,
-    strikePrice: ether("19000"),
-    premium: new BN("993071208326308189"),
-    purchaseAmount: new BN("100000000"),
-    optionType: CALL_OPTION_TYPE,
-    expectedOptionID: "804",
-    exerciseProfit: new BN("0"),
-  });
+  // behavesLikeHegicOptions({
+  //   optionName: "WBTC CALL OTM",
+  //   underlying: WBTC_ADDRESS,
+  //   strikeAsset: WBTC_ADDRESS,
+  //   strikePrice: ether("19000"),
+  //   premium: new BN("993071208326308189"),
+  //   purchaseAmount: new BN("100000000"),
+  //   optionType: CALL_OPTION_TYPE,
+  //   expectedOptionID: "804",
+  //   exerciseProfit: new BN("0"),
+  // });
 
-  behavesLikeHegicOptions({
-    optionName: "WBTC PUT ITM",
-    underlying: WBTC_ADDRESS,
-    strikeAsset: WBTC_ADDRESS,
-    strikePrice: ether("19000"),
-    premium: new BN("2534225943323958120"),
-    purchaseAmount: new BN("100000000"),
-    optionType: PUT_OPTION_TYPE,
-    expectedOptionID: "804",
-    exerciseProfit: new BN("4453833"),
-  });
+  // behavesLikeHegicOptions({
+  //   optionName: "WBTC PUT ITM",
+  //   underlying: WBTC_ADDRESS,
+  //   strikeAsset: WBTC_ADDRESS,
+  //   strikePrice: ether("19000"),
+  //   premium: new BN("2534225943323958120"),
+  //   purchaseAmount: new BN("100000000"),
+  //   optionType: PUT_OPTION_TYPE,
+  //   expectedOptionID: "804",
+  //   exerciseProfit: new BN("4453833"),
+  // });
 
-  behavesLikeHegicOptions({
-    optionName: "WBTC PUT OTM",
-    underlying: WBTC_ADDRESS,
-    strikeAsset: WBTC_ADDRESS,
-    strikePrice: ether("17000"),
-    premium: new BN("977357655115998008"),
-    purchaseAmount: new BN("100000000"),
-    optionType: PUT_OPTION_TYPE,
-    expectedOptionID: "804",
-    exerciseProfit: new BN("0"),
-  });
+  // behavesLikeHegicOptions({
+  //   optionName: "WBTC PUT OTM",
+  //   underlying: WBTC_ADDRESS,
+  //   strikeAsset: WBTC_ADDRESS,
+  //   strikePrice: ether("17000"),
+  //   premium: new BN("977357655115998008"),
+  //   purchaseAmount: new BN("100000000"),
+  //   optionType: PUT_OPTION_TYPE,
+  //   expectedOptionID: "804",
+  //   exerciseProfit: new BN("0"),
+  // });
 
   function behavesLikeHegicOptions(params) {
     describe(`${params.optionName}`, () => {
@@ -301,6 +301,11 @@ describe("HegicAdapter", () => {
             optionID: this.expectedOptionID,
           });
 
+          assert.equal(
+            (await this.adapter.totalOptions(user)).toString(),
+            this.purchaseAmount
+          );
+
           const {
             holder,
             strike,
@@ -406,6 +411,44 @@ describe("HegicAdapter", () => {
           await helper.revertToSnapShot(snapshotId);
         });
 
+        it("reverts when exercising over options capacity", async function () {
+          await this.factory.setInstrument(owner, { from: owner });
+
+          const premium = await this.adapter.premium(
+            this.underlying,
+            this.strikeAsset,
+            this.expiry,
+            this.strikePrice,
+            this.optionType,
+            this.purchaseAmount.add(new BN("1"))
+          );
+
+          const purchaseRes = await this.adapter.purchase(
+            this.underlying,
+            this.strikeAsset,
+            this.expiry,
+            this.strikePrice,
+            this.optionType,
+            this.purchaseAmount.add(new BN("1")),
+            {
+              from: owner,
+              value: premium,
+            }
+          );
+          const optionID = purchaseRes.receipt.logs[0].args.optionID;
+
+          await expectRevert(
+            this.adapter.exercise(
+              this.hegicOptions.address,
+              optionID,
+              0,
+              user,
+              { from: user, gasPrice }
+            ),
+            "Cannot exercise over capacity"
+          );
+        });
+
         if (params.exerciseProfit.isZero()) {
           it("reverts when not ITM", async function () {
             await expectRevert(
@@ -442,6 +485,11 @@ describe("HegicAdapter", () => {
               exerciseProfit: this.exerciseProfit,
             });
 
+            assert.equal(
+              (await this.adapter.totalOptions(user)).toString(),
+              "0"
+            );
+
             if (this.underlying === ETH_ADDRESS) {
               const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
               const profit = this.exerciseProfit.sub(gasFee);
@@ -458,6 +506,47 @@ describe("HegicAdapter", () => {
             } else {
               assert.equal(
                 (await token.balanceOf(user)).sub(startUserBalance).toString(),
+                this.exerciseProfit
+              );
+              assert.equal(
+                (await token.balanceOf(this.adapter.address)).toString(),
+                "0"
+              );
+            }
+          });
+
+          it("redirects exercise profit to recipient", async function () {
+            const recipientTracker = await balance.tracker(recipient);
+            let token, startRecipientBalance;
+            if (this.underlying !== ETH_ADDRESS) {
+              token = await IERC20.at(this.underlying);
+              startRecipientBalance = await token.balanceOf(recipient);
+            }
+
+            await this.adapter.exercise(
+              this.hegicOptions.address,
+              this.optionID,
+              0,
+              recipient,
+              { from: user, gasPrice }
+            );
+
+            if (this.underlying === ETH_ADDRESS) {
+              assert.equal(
+                (await recipientTracker.delta()).toString(),
+                this.exerciseProfit.toString() //gas fee not subtracted from recipient
+              );
+
+              // make sure the adapter doesn't accidentally retain any ether
+              assert.equal(
+                (await balance.current(this.adapter.address)).toString(),
+                "0"
+              );
+            } else {
+              assert.equal(
+                (await token.balanceOf(user))
+                  .sub(startRecipientBalance)
+                  .toString(),
                 this.exerciseProfit
               );
               assert.equal(
@@ -487,7 +576,7 @@ describe("HegicAdapter", () => {
                   from: user,
                 }
               ),
-              "Wrong state"
+              "Cannot exercise over capacity"
             );
           });
         }

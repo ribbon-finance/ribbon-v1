@@ -18,6 +18,7 @@ import {
     ReentrancyGuard
 } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
+import "../tests/DebugLib.sol";
 
 contract HegicAdapterStorageV1 {}
 
@@ -25,7 +26,8 @@ contract HegicAdapter is
     IProtocolAdapter,
     ReentrancyGuard,
     BaseProtocolAdapter,
-    HegicAdapterStorageV1
+    HegicAdapterStorageV1,
+    DebugLib
 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -200,6 +202,7 @@ contract HegicAdapter is
             strikePrice,
             optionType
         );
+        totalOptions[msg.sender] += amount;
 
         emit Purchased(
             msg.sender,
@@ -249,6 +252,11 @@ contract HegicAdapter is
         );
 
         IHegicOptions options = IHegicOptions(optionsAddress);
+        (, , , uint256 optionAmount, , , , ) = options.options(optionID);
+        require(
+            optionAmount <= totalOptions[msg.sender],
+            "Cannot exercise over capacity"
+        );
 
         uint256 profit = exerciseProfit(optionsAddress, optionID, amount);
         options.exercise(optionID);
@@ -260,6 +268,8 @@ contract HegicAdapter is
             IERC20 wbtc = IERC20(wbtcAddress);
             wbtc.safeTransfer(account, profit);
         }
+
+        totalOptions[msg.sender] -= optionAmount;
 
         emit Exercised(account, optionsAddress, optionID, amount, profit);
     }

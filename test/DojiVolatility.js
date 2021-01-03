@@ -32,9 +32,10 @@ const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
 
 describe("DojiVolatility", () => {
+  // Hegic OTM Put, Opyn ITM Call
   behavesLikeDojiVolatility({
-    name: "VOL 500 25/12/2020",
-    symbol: "VOL-500-251220",
+    name: "ETH VOL 500 25/12/2020",
+    symbol: "ETH-VOL-500-251220",
     expiry: "1608883200",
     callStrikePrice: ether("500"),
     putStrikePrice: ether("500"),
@@ -43,11 +44,32 @@ describe("DojiVolatility", () => {
     venues: [HEGIC_PROTOCOL, OPYN_V1_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [ether("1"), ether("1")],
-    premiums: [new BN("193251662956618630"), new BN("106656198359758724")],
+    premiums: [new BN("90554751405166144"), new BN("106656198359758724")],
     purchaseAmount: ether("1"),
     optionIDs: ["1685", "0"],
     exerciseProfit: new BN("83090832707945605"),
   });
+
+  // Hegic ITM Put, Opyn OTM Call
+  behavesLikeDojiVolatility({
+    name: "ETH VOL 640 25/12/2020",
+    symbol: "ETH-VOL-640-251220",
+    expiry: "1608883200",
+    callStrikePrice: ether("640"),
+    putStrikePrice: ether("640"),
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    venues: [HEGIC_PROTOCOL, OPYN_V1_PROTOCOL],
+    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+    amounts: [ether("1"), ether("1")],
+    premiums: [new BN("282158628268144018"), new BN("22636934749846005")],
+    purchaseAmount: ether("1"),
+    optionIDs: ["1685", "0"],
+    exerciseProfit: new BN("83090832707945605"),
+  });
+
+  // Hegic OTM Call, Opyn ITM Put
+  // Hegic ITM Put, Opyn OTM Put
 });
 
 function behavesLikeDojiVolatility(params) {
@@ -201,10 +223,25 @@ function behavesLikeDojiVolatility(params) {
             [this.amounts[0]],
             {
               from: user,
-              value: this.totalPremium,
+              value: this.amounts[0].add(this.amounts[0]),
             }
           ),
           "Must have at least 2 venues"
+        );
+      });
+
+      it("reverts when passed 2 options of the same type", async function () {
+        await expectRevert(
+          this.contract.buyInstrument(
+            [this.venues[0], this.venues[0]],
+            [this.optionTypes[0], this.optionTypes[0]],
+            [this.amounts[0], this.amounts[0]],
+            {
+              from: user,
+              value: this.totalPremium,
+            }
+          ),
+          "Must have both put and call options"
         );
       });
 

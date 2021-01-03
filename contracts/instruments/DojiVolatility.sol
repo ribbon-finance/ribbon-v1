@@ -182,6 +182,8 @@ contract DojiVolatility is
         uint256[] memory amounts
     ) public override payable nonReentrant returns (uint256 positionID) {
         require(venues.length >= 2, "Must have at least 2 venues");
+        require(block.timestamp < expiry, "Cannot purchase after expiry");
+
         uint32[] memory optionIDs = new uint32[](venues.length);
         bool seenCall = false;
         bool seenPut = false;
@@ -251,7 +253,7 @@ contract DojiVolatility is
         if (underlying == address(0)) {
             require(
                 address(this).balance >= premium,
-                "Value cannot cover total premium"
+                "Value cannot cover premium"
             );
         }
 

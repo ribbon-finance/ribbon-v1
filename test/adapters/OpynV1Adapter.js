@@ -28,7 +28,7 @@ const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const UNI_ADDRESS = "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984";
 const YFI_ADDRESS = "0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e";
 
-const [admin, owner, user] = accounts;
+const [admin, owner, user, recipient] = accounts;
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
 const ETH_ADDRESS = constants.ZERO_ADDRESS;
@@ -410,6 +410,11 @@ function behavesLikeOToken(args) {
         });
 
         assert.equal(
+          (await this.adapter.totalOptions(user)).toString(),
+          this.purchaseAmount
+        );
+
+        assert.equal(
           (await this.oToken.balanceOf(this.adapter.address)).toString(),
           this.scaledPurchaseAmount
         );
@@ -427,6 +432,9 @@ function behavesLikeOToken(args) {
       let snapshotId;
 
       beforeEach(async function () {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+
         await this.adapter.purchase(
           this.underlying,
           this.strikeAsset,
@@ -440,13 +448,44 @@ function behavesLikeOToken(args) {
         await this.adapter.setVaults(this.oToken.address, this.vaults, {
           from: owner,
         });
-
-        const snapShot = await helper.takeSnapshot();
-        snapshotId = snapShot["result"];
       });
 
       afterEach(async () => {
         await helper.revertToSnapShot(snapshotId);
+      });
+
+      it("reverts when expired", async function () {
+        await time.increaseTo(this.expiry + 1);
+
+        await expectRevert(
+          this.adapter.exercise(
+            this.oToken.address,
+            0,
+            this.purchaseAmount,
+            user,
+            {
+              from: user,
+              gasPrice,
+            }
+          ),
+          "Option has expired"
+        );
+      });
+
+      it("reverts when exercising over current options capacity", async function () {
+        await expectRevert(
+          this.adapter.exercise(
+            this.oToken.address,
+            0,
+            this.purchaseAmount.add(new BN("1")),
+            user,
+            {
+              from: user,
+              gasPrice,
+            }
+          ),
+          "Cannot exercise over capacity"
+        );
       });
 
       it("exercises tokens", async function () {
@@ -481,6 +520,8 @@ function behavesLikeOToken(args) {
           return;
         }
 
+        assert.equal((await this.adapter.totalOptions(user)).toString(), "0");
+
         if (this.underlying === ETH_ADDRESS) {
           const res = await promise;
           const gasUsed = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
@@ -506,6 +547,61 @@ function behavesLikeOToken(args) {
         assert.equal(await balance.current(this.adapter.address), "0");
         assert.equal(await this.oToken.balanceOf(this.adapter.address), "0");
         assert.equal(await strikeERC20.balanceOf(this.adapter.address), "0");
+      });
+
+      it("redirects exercise profit to recipient", async function () {
+        await this.oToken.approve(
+          this.adapter.address,
+          this.scaledPurchaseAmount,
+          {
+            from: user,
+          }
+        );
+
+        const recipientTracker = await balance.tracker(recipient);
+        let token, startRecipientBalance;
+        if (this.underlying !== ETH_ADDRESS) {
+          token = await IERC20.at(this.underlying);
+          startRecipientBalance = await token.balanceOf(recipient);
+        }
+
+        const promise = this.adapter.exercise(
+          this.oToken.address,
+          0,
+          this.purchaseAmount,
+          recipient,
+          {
+            from: user,
+            gasPrice,
+          }
+        );
+
+        if (this.exerciseProfit.isZero()) {
+          await expectRevert(promise, "Not enough collateral to swap");
+          return;
+        }
+
+        assert.equal((await this.adapter.totalOptions(user)).toString(), "0");
+
+        if (this.underlying === ETH_ADDRESS) {
+          const balanceChange = await recipientTracker.delta();
+          assert.equal(
+            balanceChange.toString(),
+            this.exerciseProfit.toString()
+          );
+        } else {
+          assert.equal((await token.balanceOf(user)).toString(), "0");
+          assert.equal(
+            (await token.balanceOf(recipient))
+              .sub(startRecipientBalance)
+              .toString(),
+            this.exerciseProfit
+          );
+          assert.equal(
+            (await token.balanceOf(this.adapter.address)).toString(),
+            "0"
+          );
+        }
       });
     });
   });

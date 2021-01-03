@@ -211,6 +211,8 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         );
         swapForOToken(oToken, cost, scaledAmount);
 
+        totalOptions[msg.sender] += amount;
+
         emit Purchased(
             msg.sender,
             _name,
@@ -251,7 +253,12 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         address recipient
     ) external override payable onlyInstrument nonReentrant {
         IOToken oTokenContract = IOToken(oToken);
-        require(!oTokenContract.hasExpired(), "Options contract expired");
+        require(!oTokenContract.hasExpired(), "Option has expired");
+        require(
+            amount <= totalOptions[msg.sender],
+            "Cannot exercise over capacity"
+        );
+
         uint256 scaledAmount = convertPurchaseAmountToOTokenAmount(
             oToken,
             amount
@@ -262,6 +269,7 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             scaledAmount,
             _underlyingAssets[oToken]
         );
+        totalOptions[msg.sender] -= amount;
     }
 
     function setOTokenWithTerms(

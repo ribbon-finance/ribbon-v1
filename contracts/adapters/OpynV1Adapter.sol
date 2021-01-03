@@ -201,13 +201,12 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         address underlying = _underlyingAssets[oToken];
 
         if (oTokenCollateral != underlying) {
-            address[] memory path = new address[](2);
-            path[0] = oTokenCollateral;
-            path[1] = underlying;
-
-            uint256[] memory amountsOut = IUniswapV2Router02(_uniswapRouter)
-                .getAmountsOut(profitInCollateral, path);
-            return amountsOut[1];
+            return
+                getExercisedProfitsInUnderlyingAmount(
+                    oTokenCollateral,
+                    underlying,
+                    profitInCollateral
+                );
         }
         return profitInCollateral;
     }
@@ -367,6 +366,21 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
         _underlyingAssets[oToken] = underlying;
     }
 
+    function getExercisedProfitsInUnderlyingAmount(
+        address oTokenCollateral,
+        address underlying,
+        uint256 collateralAmount
+    ) private view returns (uint256) {
+        address weth = _weth;
+        address[] memory path = new address[](2);
+        path[0] = oTokenCollateral == address(0) ? weth : oTokenCollateral;
+        path[1] = underlying == address(0) ? weth : underlying;
+
+        uint256[] memory amountsOut = IUniswapV2Router02(_uniswapRouter)
+            .getAmountsOut(collateralAmount, path);
+        return amountsOut[1];
+    }
+
     /**
      * @notice Helper function to lookup the collateral and underlying assets. In Opyn, the underlying and collaterals are inverted for Puts and Calls.
      * @param oTokenContract is the IOToken instance of the oToken
@@ -384,6 +398,9 @@ contract OpynV1Adapter is IProtocolAdapter, ReentrancyGuard, OpynV1FlashLoaner {
             underlying = oTokenContract.underlying();
             strikeAsset = oTokenContract.collateral();
         }
+
+        underlying = underlying == _weth ? address(0) : underlying;
+        strikeAsset = strikeAsset == _weth ? address(0) : strikeAsset;
     }
 
     /**

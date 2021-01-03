@@ -127,7 +127,7 @@ describe("OpynV1Adapter", () => {
 
   behavesLikeOToken({
     oTokenName: "ETH PUT ITM",
-    underlying: WETH_ADDRESS,
+    underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     expiry: "1608278400",
     oTokenAddress: "0xef99E80D6963D801B1f2b4c61F780082D2642152",
@@ -146,7 +146,7 @@ describe("OpynV1Adapter", () => {
 
   behavesLikeOToken({
     oTokenName: "ETH PUT OTM",
-    underlying: WETH_ADDRESS,
+    underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     expiry: "1608883200",
     oTokenAddress: "0x77fe93a60A579E4eD52159aE711794C6fb7CdeA7",

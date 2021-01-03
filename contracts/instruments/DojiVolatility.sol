@@ -58,7 +58,7 @@ contract DojiVolatility is
         factory = IDojiFactory(_factory);
         owner = _owner;
         name = _name;
-        _symbol = _symbol;
+        symbol = _symbol;
         expiry = _expiry;
         callStrikePrice = _callStrikePrice;
         putStrikePrice = _putStrikePrice;
@@ -103,7 +103,7 @@ contract DojiVolatility is
                 if (
                     cheapestPutPremium == 0 || putPremium < cheapestPutPremium
                 ) {
-                    cheapestPutPremium = callPremium;
+                    cheapestPutPremium = putPremium;
                     putVenue = adapter.protocolName();
                 }
             }
@@ -182,6 +182,8 @@ contract DojiVolatility is
         uint256[] memory amounts
     ) public override payable nonReentrant returns (uint256 positionID) {
         require(venues.length >= 2, "Must have at least 2 venues");
+        require(block.timestamp < expiry, "Cannot purchase after expiry");
+
         uint32[] memory optionIDs = new uint32[](venues.length);
         bool seenCall = false;
         bool seenPut = false;
@@ -245,6 +247,15 @@ contract DojiVolatility is
             optionType,
             amount
         );
+
+        // This only applies to ETH payments for now
+        // We have not enabled purchases using the underlying asset.
+        if (underlying == address(0)) {
+            require(
+                address(this).balance >= premium,
+                "Value cannot cover premium"
+            );
+        }
 
         uint256 optionID256 = adapter.purchase{value: premium}(
             underlying,

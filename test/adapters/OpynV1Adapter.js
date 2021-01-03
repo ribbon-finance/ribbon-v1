@@ -590,8 +590,11 @@ function behavesLikeOToken(args) {
             this.exerciseProfit.toString()
           );
         } else {
+          assert.equal((await token.balanceOf(user)).toString(), "0");
           assert.equal(
-            (await token.balanceOf(user)).sub(startRecipientBalance).toString(),
+            (await token.balanceOf(recipient))
+              .sub(startRecipientBalance)
+              .toString(),
             this.exerciseProfit
           );
           assert.equal(

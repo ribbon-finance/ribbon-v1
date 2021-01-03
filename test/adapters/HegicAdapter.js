@@ -83,90 +83,90 @@ describe("HegicAdapter", () => {
     exerciseProfit: new BN("86680823070678630"),
   });
 
-  // behavesLikeHegicOptions({
-  //   optionName: "ETH CALL OTM",
-  //   underlying: ETH_ADDRESS,
-  //   strikeAsset: ETH_ADDRESS,
-  //   strikePrice: ether("600"),
-  //   premium: new BN("38399162806593750"),
-  //   purchaseAmount: ether("1"),
-  //   optionType: CALL_OPTION_TYPE,
-  //   expectedOptionID: "1685",
-  //   exerciseProfit: new BN("0"),
-  // });
+  behavesLikeHegicOptions({
+    optionName: "ETH CALL OTM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: ETH_ADDRESS,
+    strikePrice: ether("600"),
+    premium: new BN("38399162806593750"),
+    purchaseAmount: ether("1"),
+    optionType: CALL_OPTION_TYPE,
+    expectedOptionID: "1685",
+    exerciseProfit: new BN("0"),
+  });
 
-  // behavesLikeHegicOptions({
-  //   optionName: "ETH PUT ITM",
-  //   underlying: ETH_ADDRESS,
-  //   strikeAsset: ETH_ADDRESS,
-  //   strikePrice: ether("600"),
-  //   premium: new BN("140095483573495796"),
-  //   purchaseAmount: ether("1"),
-  //   optionType: PUT_OPTION_TYPE,
-  //   expectedOptionID: "1685",
-  //   exerciseProfit: new BN("95983012315185643"),
-  // });
+  behavesLikeHegicOptions({
+    optionName: "ETH PUT ITM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: ETH_ADDRESS,
+    strikePrice: ether("600"),
+    premium: new BN("140095483573495796"),
+    purchaseAmount: ether("1"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "1685",
+    exerciseProfit: new BN("95983012315185643"),
+  });
 
-  // behavesLikeHegicOptions({
-  //   optionName: "ETH PUT OTM",
-  //   underlying: ETH_ADDRESS,
-  //   strikeAsset: ETH_ADDRESS,
-  //   strikePrice: ether("500"),
-  //   premium: new BN("38427059381925127"),
-  //   purchaseAmount: ether("1"),
-  //   optionType: PUT_OPTION_TYPE,
-  //   expectedOptionID: "1685",
-  //   exerciseProfit: new BN("0"),
-  // });
+  behavesLikeHegicOptions({
+    optionName: "ETH PUT OTM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: ETH_ADDRESS,
+    strikePrice: ether("500"),
+    premium: new BN("38427059381925127"),
+    purchaseAmount: ether("1"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "1685",
+    exerciseProfit: new BN("0"),
+  });
 
-  // // WBTC Options
-  // behavesLikeHegicOptions({
-  //   optionName: "WBTC CALL ITM",
-  //   underlying: WBTC_ADDRESS,
-  //   strikeAsset: WBTC_ADDRESS,
-  //   strikePrice: ether("17000"),
-  //   premium: new BN("3245932593862604696"),
-  //   purchaseAmount: new BN("100000000"),
-  //   optionType: CALL_OPTION_TYPE,
-  //   expectedOptionID: "804",
-  //   exerciseProfit: new BN("6541306"),
-  // });
+  // WBTC Options
+  behavesLikeHegicOptions({
+    optionName: "WBTC CALL ITM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: WBTC_ADDRESS,
+    strikePrice: ether("17000"),
+    premium: new BN("3245932593862604696"),
+    purchaseAmount: new BN("100000000"),
+    optionType: CALL_OPTION_TYPE,
+    expectedOptionID: "804",
+    exerciseProfit: new BN("6541306"),
+  });
 
-  // behavesLikeHegicOptions({
-  //   optionName: "WBTC CALL OTM",
-  //   underlying: WBTC_ADDRESS,
-  //   strikeAsset: WBTC_ADDRESS,
-  //   strikePrice: ether("19000"),
-  //   premium: new BN("993071208326308189"),
-  //   purchaseAmount: new BN("100000000"),
-  //   optionType: CALL_OPTION_TYPE,
-  //   expectedOptionID: "804",
-  //   exerciseProfit: new BN("0"),
-  // });
+  behavesLikeHegicOptions({
+    optionName: "WBTC CALL OTM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: WBTC_ADDRESS,
+    strikePrice: ether("19000"),
+    premium: new BN("993071208326308189"),
+    purchaseAmount: new BN("100000000"),
+    optionType: CALL_OPTION_TYPE,
+    expectedOptionID: "804",
+    exerciseProfit: new BN("0"),
+  });
 
-  // behavesLikeHegicOptions({
-  //   optionName: "WBTC PUT ITM",
-  //   underlying: WBTC_ADDRESS,
-  //   strikeAsset: WBTC_ADDRESS,
-  //   strikePrice: ether("19000"),
-  //   premium: new BN("2534225943323958120"),
-  //   purchaseAmount: new BN("100000000"),
-  //   optionType: PUT_OPTION_TYPE,
-  //   expectedOptionID: "804",
-  //   exerciseProfit: new BN("4453833"),
-  // });
+  behavesLikeHegicOptions({
+    optionName: "WBTC PUT ITM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: WBTC_ADDRESS,
+    strikePrice: ether("19000"),
+    premium: new BN("2534225943323958120"),
+    purchaseAmount: new BN("100000000"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "804",
+    exerciseProfit: new BN("4453833"),
+  });
 
-  // behavesLikeHegicOptions({
-  //   optionName: "WBTC PUT OTM",
-  //   underlying: WBTC_ADDRESS,
-  //   strikeAsset: WBTC_ADDRESS,
-  //   strikePrice: ether("17000"),
-  //   premium: new BN("977357655115998008"),
-  //   purchaseAmount: new BN("100000000"),
-  //   optionType: PUT_OPTION_TYPE,
-  //   expectedOptionID: "804",
-  //   exerciseProfit: new BN("0"),
-  // });
+  behavesLikeHegicOptions({
+    optionName: "WBTC PUT OTM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: WBTC_ADDRESS,
+    strikePrice: ether("17000"),
+    premium: new BN("977357655115998008"),
+    purchaseAmount: new BN("100000000"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "804",
+    exerciseProfit: new BN("0"),
+  });
 
   function behavesLikeHegicOptions(params) {
     describe(`${params.optionName}`, () => {
@@ -534,7 +534,7 @@ describe("HegicAdapter", () => {
             if (this.underlying === ETH_ADDRESS) {
               assert.equal(
                 (await recipientTracker.delta()).toString(),
-                this.exerciseProfit.toString() //gas fee not subtracted from recipient
+                this.exerciseProfit.toString() // gas fee not subtracted from recipient
               );
 
               // make sure the adapter doesn't accidentally retain any ether

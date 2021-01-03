@@ -544,7 +544,7 @@ describe("HegicAdapter", () => {
               );
             } else {
               assert.equal(
-                (await token.balanceOf(user))
+                (await token.balanceOf(recipient))
                   .sub(startRecipientBalance)
                   .toString(),
                 this.exerciseProfit

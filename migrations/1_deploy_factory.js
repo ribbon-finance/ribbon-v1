@@ -6,11 +6,10 @@ const {
   updateDeployedAddresses,
 } = require("../scripts/helpers/updateDeployedAddresses");
 const ADDRESSES = require("../constants/externalAddresses.json");
+const ACCOUNTS = require("../constants/accounts.json");
 
-module.exports = async function (deployer, network, accounts) {
-  const [admin, owner] = accounts;
-  console.log(admin);
-  console.log(owner);
+module.exports = async function (deployer, network) {
+  const { admin, owner } = ACCOUNTS[network.replace("-fork", "")];
 
   let wethAddress;
   if (network === "development") {
@@ -32,7 +31,7 @@ async function deployFactory(deployer, admin, owner) {
 
   const initBytes = encodeCall(
     "initialize",
-    ["address", "address", "address", "address"],
+    ["address", "address"],
     [owner, admin]
   );
   await deployer.deploy(

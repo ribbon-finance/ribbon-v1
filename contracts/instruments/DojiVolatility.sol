@@ -49,9 +49,7 @@ contract DojiVolatility is
         string memory _symbol,
         address _underlying,
         address _strikeAsset,
-        uint256 _expiry,
-        uint256 _callStrikePrice,
-        uint256 _putStrikePrice
+        uint256 _expiry
     ) public initializer {
         require(block.timestamp < _expiry, "Expiry has already passed");
 
@@ -60,92 +58,27 @@ contract DojiVolatility is
         name = _name;
         symbol = _symbol;
         expiry = _expiry;
-        callStrikePrice = _callStrikePrice;
-        putStrikePrice = _putStrikePrice;
         underlying = _underlying;
         strikeAsset = _strikeAsset;
     }
 
-    function getBestTrade(uint256 optionAmount)
-        public
-        override
-        view
-        returns (
-            string[] memory venues,
-            uint8[] memory optionTypes,
-            uint256[] memory amounts,
-            uint256[] memory premiums
-        )
-    {
-        address[] memory adapters = factory.getAdapters();
-        uint256 cheapestCallPremium;
-        uint256 cheapestPutPremium;
-        string memory callVenue;
-        string memory putVenue;
-
-        for (uint256 i = 0; i < adapters.length; i++) {
-            IProtocolAdapter adapter = IProtocolAdapter(adapters[i]);
-            (uint256 callPremium, uint256 putPremium) = getPremiumsFromAdapter(
-                adapter,
-                optionAmount
-            );
-
-            if (callPremium != 0) {
-                if (
-                    cheapestCallPremium == 0 ||
-                    callPremium < cheapestCallPremium
-                ) {
-                    cheapestCallPremium = callPremium;
-                    callVenue = adapter.protocolName();
-                }
-            }
-            if (putPremium != 0) {
-                if (
-                    cheapestPutPremium == 0 || putPremium < cheapestPutPremium
-                ) {
-                    cheapestPutPremium = putPremium;
-                    putVenue = adapter.protocolName();
-                }
-            }
-        }
-        require(
-            bytes(callVenue).length >= 1 && bytes(putVenue).length >= 1,
-            "No matching venues"
-        );
-
-        venues = new string[](2);
-        venues[0] = putVenue;
-        venues[1] = callVenue;
-
-        optionTypes = new uint8[](2);
-        optionTypes[0] = uint8(OptionType.Put);
-        optionTypes[1] = uint8(OptionType.Call);
-
-        amounts = new uint256[](2);
-        amounts[0] = optionAmount;
-        amounts[1] = optionAmount;
-
-        premiums = new uint256[](2);
-        premiums[0] = cheapestPutPremium;
-        premiums[1] = cheapestCallPremium;
-    }
-
     function getPremiumsFromAdapter(
         IProtocolAdapter adapter,
+        uint256 strikePrice,
         uint256 optionAmount
     ) private view returns (uint256 callPremium, uint256 putPremium) {
         bool callOptionExists = adapter.optionsExist(
             underlying,
             strikeAsset,
             expiry,
-            callStrikePrice,
+            strikePrice,
             OptionType.Call
         );
         bool putOptionExists = adapter.optionsExist(
             underlying,
             strikeAsset,
             expiry,
-            putStrikePrice,
+            strikePrice,
             OptionType.Put
         );
 
@@ -154,7 +87,7 @@ contract DojiVolatility is
                 underlying,
                 strikeAsset,
                 expiry,
-                callStrikePrice,
+                strikePrice,
                 OptionType.Call,
                 optionAmount
             )
@@ -164,7 +97,7 @@ contract DojiVolatility is
                 underlying,
                 strikeAsset,
                 expiry,
-                putStrikePrice,
+                strikePrice,
                 OptionType.Put,
                 optionAmount
             )
@@ -179,7 +112,8 @@ contract DojiVolatility is
     function buyInstrument(
         string[] memory venues,
         OptionType[] memory optionTypes,
-        uint256[] memory amounts
+        uint256[] memory amounts,
+        uint256[] memory strikePrices
     ) public override payable nonReentrant returns (uint256 positionID) {
         require(venues.length >= 2, "Must have at least 2 venues");
         require(block.timestamp < expiry, "Cannot purchase after expiry");
@@ -192,7 +126,8 @@ contract DojiVolatility is
             uint32 optionID = purchaseOptionAtVenue(
                 venues[i],
                 optionTypes[i],
-                amounts[i]
+                amounts[i],
+                strikePrices[i]
             );
 
             if (!seenPut && optionTypes[i] == OptionType.Put) {
@@ -210,6 +145,7 @@ contract DojiVolatility is
             optionTypes,
             optionIDs,
             amounts,
+            strikePrices,
             venues
         );
         positionID = instrumentPositions[msg.sender].length;
@@ -228,16 +164,14 @@ contract DojiVolatility is
     function purchaseOptionAtVenue(
         string memory venue,
         OptionType optionType,
-        uint256 amount
+        uint256 amount,
+        uint256 strikePrice
     ) private returns (uint32 optionID) {
         address adapterAddress = factory.getAdapter(venue);
         require(adapterAddress != address(0), "Adapter does not exist");
         IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
 
         require(optionType != OptionType.Invalid, "Invalid option type");
-        uint256 strikePrice = optionType == OptionType.Put
-            ? putStrikePrice
-            : callStrikePrice;
 
         uint256 premium = adapter.premium(
             underlying,
@@ -286,9 +220,8 @@ contract DojiVolatility is
                 factory.getAdapter(position.venues[i])
             );
             OptionType optionType = position.optionTypes[i];
-            uint256 strikePrice = optionType == OptionType.Put
-                ? putStrikePrice
-                : callStrikePrice;
+            uint256 strikePrice = position.strikePrices[i];
+
             address optionsAddress = adapter.getOptionsAddress(
                 underlying,
                 strikeAsset,

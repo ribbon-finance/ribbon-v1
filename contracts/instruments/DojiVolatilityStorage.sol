@@ -10,8 +10,6 @@ contract DojiVolatilityStorageV1 {
     IDojiFactory public factory;
     address public underlying;
     address public strikeAsset;
-    uint256 public callStrikePrice;
-    uint256 public putStrikePrice;
     uint256 public expiry;
     string public name;
     string public symbol;
@@ -21,6 +19,7 @@ contract DojiVolatilityStorageV1 {
         OptionType[] optionTypes;
         uint32[] optionIDs;
         uint256[] amounts;
+        uint256[] strikePrices;
         string[] venues;
     }
 

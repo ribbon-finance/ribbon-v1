@@ -10,5 +10,12 @@
 		"LiquidatorProxy": "0x970e8f18ebfEa0B08810f33a5A40438b9530FBCF",
 		"DojimaFactory": "0xaf5C4C6C7920B4883bC6252e9d9B8fE27187Cf68",
 		"TwinYieldLogic": "0xEC5d4F247aF81A843612eb1371CBCfa88b762119"
+	},
+	"mainnet": {},
+	"mainnet-fork": {
+		"DojiFactory": "0xA8C1D9796D9f2A630DE86f73DD2015f775B49676",
+		"DojiVolatilityLogic": "0xBc5B97b7C187f61ae96B8B9b035d72570C6aC2eA",
+		"HegicAdapterLogic": "0x02A1eF02E13C15601Db6ba4554fDd131Ad04cAca",
+		"HegicAdapter": "0xF1b23047019100c87cb3c7A38fE66d2cB727FEA0"
 	}
 }

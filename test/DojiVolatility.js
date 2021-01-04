@@ -45,13 +45,12 @@ describe("DojiVolatility", () => {
     name: "ETH VOL 500 25/12/2020",
     symbol: "ETH-VOL-500-251220",
     expiry: "1608883200",
-    callStrikePrice: ether("500"),
-    putStrikePrice: ether("500"),
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     venues: [HEGIC_PROTOCOL, OPYN_V1_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [ether("1"), ether("1")],
+    strikePrices: [ether("500"), ether("500")],
     premiums: [new BN("90554751405166144"), new BN("106656198359758724")],
     purchaseAmount: ether("1"),
     optionIDs: ["1685", "0"],
@@ -64,13 +63,12 @@ describe("DojiVolatility", () => {
     name: "ETH VOL 640 25/12/2020",
     symbol: "ETH-VOL-640-251220",
     expiry: "1608883200",
-    callStrikePrice: ether("640"),
-    putStrikePrice: ether("640"),
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     venues: [HEGIC_PROTOCOL, OPYN_V1_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [ether("1"), ether("1")],
+    strikePrices: [ether("640"), ether("640")],
     premiums: [new BN("282158628268144018"), new BN("22636934749846005")],
     purchaseAmount: ether("1"),
     optionIDs: ["1685", "0"],
@@ -83,13 +81,12 @@ describe("DojiVolatility", () => {
     name: "ETH VOL 600 18/12/2020",
     symbol: "ETH-VOL-600-181220",
     expiry: "1608278400",
-    callStrikePrice: ether("600"),
-    putStrikePrice: ether("600"),
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     venues: [OPYN_V1_PROTOCOL, HEGIC_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [ether("1"), ether("1")],
+    strikePrices: [ether("600"), ether("600")],
     premiums: [new BN("106920070230577145"), new BN("70356774928712500")],
     purchaseAmount: ether("1"),
     optionIDs: ["0", "1685"],
@@ -102,13 +99,12 @@ describe("DojiVolatility", () => {
     name: "ETH VOL 520 25/12/2020",
     symbol: "ETH-VOL-520-181220",
     expiry: "1608883200",
-    callStrikePrice: ether("520"),
-    putStrikePrice: ether("520"),
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     venues: [OPYN_V1_PROTOCOL, HEGIC_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [ether("1"), ether("1")],
+    strikePrices: [ether("520"), ether("520")],
     premiums: [new BN("38993035115930594"), new BN("153004632806909621")],
     purchaseAmount: ether("1"),
     optionIDs: ["0", "1685"],
@@ -121,13 +117,12 @@ describe("DojiVolatility", () => {
     name: "ETH VOL 510 25/12/2020",
     symbol: "ETH-VOL-510-181220",
     expiry: "1608883200",
-    callStrikePrice: ether("510"),
-    putStrikePrice: ether("510"),
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [ether("1"), ether("1")],
+    strikePrices: [ether("510"), ether("510")],
     premiums: [new BN("92165846433269467"), new BN("173091733537915731")],
     purchaseAmount: ether("1"),
     optionIDs: ["1685", "1686"],
@@ -140,13 +135,12 @@ describe("DojiVolatility", () => {
     name: "ETH VOL 560 25/12/2020",
     symbol: "ETH-VOL-560-181220",
     expiry: "1608883200",
-    callStrikePrice: ether("560"),
-    putStrikePrice: ether("560"),
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [ether("1"), ether("1")],
+    strikePrices: [ether("560"), ether("560")],
     premiums: [new BN("123138799734626016"), new BN("96223964183875000")],
     purchaseAmount: ether("1"),
     optionIDs: ["1685", "1686"],
@@ -166,8 +160,6 @@ function behavesLikeDojiVolatility(params) {
         expiry,
         underlying,
         strikeAsset,
-        callStrikePrice,
-        putStrikePrice,
         venues,
         optionTypes,
         amounts,
@@ -176,14 +168,14 @@ function behavesLikeDojiVolatility(params) {
         optionIDs,
         exerciseProfit,
         actualExerciseProfit,
+        strikePrices,
       } = params;
       this.name = name;
       this.symbol = symbol;
       this.expiry = expiry;
       this.underlying = underlying;
       this.strikeAsset = strikeAsset;
-      this.callStrikePrice = callStrikePrice;
-      this.putStrikePrice = putStrikePrice;
+      this.strikePrices = strikePrices;
       this.venues = venues;
       this.optionTypes = optionTypes;
       this.amounts = amounts;
@@ -221,8 +213,6 @@ function behavesLikeDojiVolatility(params) {
         "address",
         "address",
         "uint256",
-        "uint256",
-        "uint256",
       ];
       const initArgs = [
         owner,
@@ -232,8 +222,6 @@ function behavesLikeDojiVolatility(params) {
         this.underlying,
         this.strikeAsset,
         this.expiry,
-        this.callStrikePrice.toString(),
-        this.putStrikePrice.toString(),
       ];
       const initBytes = encodeCall("initialize", initTypes, initArgs);
       const res = await this.factory.newInstrument(
@@ -256,7 +244,7 @@ function behavesLikeDojiVolatility(params) {
       await helper.revertToSnapShot(initSnapshotId);
     });
 
-    describe("#getBestTrade", () => {
+    describe("#cost", () => {
       beforeEach(async () => {
         const snapShot = await helper.takeSnapshot();
         snapshotId = snapShot["result"];
@@ -266,26 +254,17 @@ function behavesLikeDojiVolatility(params) {
         await helper.revertToSnapShot(snapshotId);
       });
 
-      it("gets the venues to trade", async function () {
-        const {
-          venues,
-          optionTypes,
-          amounts,
-          premiums,
-        } = await this.contract.getBestTrade(this.purchaseAmount);
-
-        assert.deepEqual(venues, this.venues);
-        assert.deepEqual(
-          optionTypes.map((i) => i.toNumber()),
-          this.optionTypes
-        );
-        assert.deepEqual(
-          amounts.map((a) => a.toString()),
-          this.amounts.map((a) => a.toString())
-        );
-        assert.deepEqual(
-          premiums.map((a) => a.toString()),
-          this.premiums.map((a) => a.toString())
+      it("returns the total cost of the position", async function () {
+        assert.equal(
+          (
+            await this.contract.cost(
+              this.venues,
+              this.optionTypes,
+              this.amounts,
+              this.strikePrices
+            )
+          ).toString(),
+          this.totalPremium
         );
       });
     });
@@ -306,6 +285,7 @@ function behavesLikeDojiVolatility(params) {
             [this.venues[0]],
             [this.optionTypes[0]],
             [this.amounts[0]],
+            [this.strikePrices[0]],
             {
               from: user,
               value: this.premiums[0],
@@ -321,6 +301,7 @@ function behavesLikeDojiVolatility(params) {
             [this.venues[0], this.venues[0]],
             [this.optionTypes[0], this.optionTypes[0]],
             [this.amounts[0], this.amounts[0]],
+            [this.strikePrices[0], this.strikePrices[0]],
             {
               from: user,
               value: this.premiums[0].mul(new BN("3")), // just multiply premium by 3 because doubling the premiums sometimes doesnt work
@@ -338,6 +319,7 @@ function behavesLikeDojiVolatility(params) {
             this.venues,
             this.optionTypes,
             this.amounts,
+            this.strikePrices,
             {
               from: user,
               value: this.totalPremium,
@@ -352,6 +334,7 @@ function behavesLikeDojiVolatility(params) {
           this.venues,
           this.optionTypes,
           this.amounts,
+          this.strikePrices,
           {
             from: user,
             value: this.totalPremium,
@@ -391,10 +374,7 @@ function behavesLikeDojiVolatility(params) {
         let i = 0;
         for (const venue of this.venues) {
           const expectedOptionType = this.optionTypes[i];
-          const strikePrice =
-            expectedOptionType === PUT_OPTION_TYPE
-              ? this.putStrikePrice
-              : this.callStrikePrice;
+          const strikePrice = this.strikePrices[i];
           const hegicScaledStrikePrice = strikePrice.div(new BN("10000000000"));
           const purchaseAmount = this.amounts[i];
           const optionType = this.optionTypes[i];
@@ -456,12 +436,13 @@ function behavesLikeDojiVolatility(params) {
           this.venues,
           this.optionTypes,
           this.amounts,
+          this.strikePrices,
           {
             from: user,
             value: this.totalPremium,
           }
         );
-        assert.isAtMost(res.receipt.gasUsed, 650000);
+        assert.isAtMost(res.receipt.gasUsed, 700000);
       });
     });
 
@@ -474,6 +455,7 @@ function behavesLikeDojiVolatility(params) {
           this.venues,
           this.optionTypes,
           this.amounts,
+          this.strikePrices,
           {
             from: user,
             value: this.totalPremium,
@@ -540,6 +522,7 @@ function behavesLikeDojiVolatility(params) {
           this.venues,
           this.optionTypes,
           this.amounts,
+          this.strikePrices,
           {
             from: user,
             value: this.totalPremium,

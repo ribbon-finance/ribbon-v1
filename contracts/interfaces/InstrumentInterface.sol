@@ -5,20 +5,18 @@ pragma experimental ABIEncoderV2;
 import {OptionType} from "../adapters/IProtocolAdapter.sol";
 
 interface IAggregatedOptionsInstrument {
-    function getBestTrade(uint256 purchaseAmount)
-        external
-        view
-        returns (
-            string[] memory venues,
-            uint8[] memory optionTypes,
-            uint256[] memory amounts,
-            uint256[] memory premiums
-        );
+    function cost(
+        string[] calldata venues,
+        OptionType[] calldata optionTypes,
+        uint256[] calldata amounts,
+        uint256[] calldata strikePrices
+    ) external view returns (uint256);
 
     function buyInstrument(
         string[] calldata venues,
         OptionType[] calldata optionTypes,
-        uint256[] calldata amounts
+        uint256[] calldata amounts,
+        uint256[] calldata strikePrices
     ) external payable returns (uint256 positionID);
 
     function exercisePosition(uint256 positionID)

@@ -62,46 +62,35 @@ contract DojiVolatility is
         strikeAsset = _strikeAsset;
     }
 
-    function getPremiumsFromAdapter(
-        IProtocolAdapter adapter,
-        uint256 strikePrice,
-        uint256 optionAmount
-    ) private view returns (uint256 callPremium, uint256 putPremium) {
-        bool callOptionExists = adapter.optionsExist(
-            underlying,
-            strikeAsset,
-            expiry,
-            strikePrice,
-            OptionType.Call
-        );
-        bool putOptionExists = adapter.optionsExist(
-            underlying,
-            strikeAsset,
-            expiry,
-            strikePrice,
-            OptionType.Put
-        );
+    function cost(
+        string[] memory venues,
+        OptionType[] memory optionTypes,
+        uint256[] memory amounts,
+        uint256[] memory strikePrices
+    ) public override view returns (uint256 totalPremium) {
+        for (uint256 i = 0; i < venues.length; i++) {
+            address adapterAddress = factory.getAdapter(venues[i]);
+            require(adapterAddress != address(0), "Adapter does not exist");
+            IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
 
-        callPremium = callOptionExists
-            ? adapter.premium(
+            bool exists = adapter.optionsExist(
                 underlying,
                 strikeAsset,
                 expiry,
-                strikePrice,
-                OptionType.Call,
-                optionAmount
-            )
-            : 0;
-        putPremium = putOptionExists
-            ? adapter.premium(
+                strikePrices[i],
+                optionTypes[i]
+            );
+            require(exists, "Options does not exist");
+
+            totalPremium += adapter.premium(
                 underlying,
                 strikeAsset,
                 expiry,
-                strikePrice,
-                OptionType.Put,
-                optionAmount
-            )
-            : 0;
+                strikePrices[i],
+                optionTypes[i],
+                amounts[i]
+            );
+        }
     }
 
     /**

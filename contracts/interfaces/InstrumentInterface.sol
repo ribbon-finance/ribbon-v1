@@ -5,6 +5,13 @@ pragma experimental ABIEncoderV2;
 import {OptionType} from "../adapters/IProtocolAdapter.sol";
 
 interface IAggregatedOptionsInstrument {
+    function cost(
+        string[] calldata venues,
+        OptionType[] calldata optionTypes,
+        uint256[] calldata amounts,
+        uint256[] calldata strikePrices
+    ) external view returns (uint256);
+
     function buyInstrument(
         string[] calldata venues,
         OptionType[] calldata optionTypes,

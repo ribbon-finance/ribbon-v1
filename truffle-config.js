@@ -35,6 +35,19 @@ module.exports = {
       timeoutBlocks: 200,
       skipDryRun: true,
     },
+    mainnet: {
+      provider: () =>
+        new HDWalletProvider(
+          process.env.MNEMONIC,
+          process.env.INFURA_MAINNET_URI
+        ),
+      network_id: 1,
+      gas: 5500000,
+      networkCheckTimeout: 5000,
+      confirmations: 1,
+      timeoutBlocks: 200,
+      skipDryRun: false,
+    },
   },
 
   api_keys: {

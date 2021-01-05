@@ -17,18 +17,9 @@ import {
 import {
     ReentrancyGuard
 } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {BaseProtocolAdapter} from "./BaseProtocolAdapter.sol";
 import "../tests/DebugLib.sol";
 
-contract HegicAdapterStorageV1 {}
-
-contract HegicAdapter is
-    IProtocolAdapter,
-    ReentrancyGuard,
-    BaseProtocolAdapter,
-    HegicAdapterStorageV1,
-    DebugLib
-{
+contract HegicAdapter is IProtocolAdapter, ReentrancyGuard, DebugLib {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -73,11 +64,11 @@ contract HegicAdapter is
 
     receive() external payable {}
 
-    function protocolName() public override pure returns (string memory) {
+    function protocolName() public pure override returns (string memory) {
         return _name;
     }
 
-    function nonFungible() external override pure returns (bool) {
+    function nonFungible() external pure override returns (bool) {
         return _nonFungible;
     }
 
@@ -95,7 +86,7 @@ contract HegicAdapter is
         uint256 expiry,
         uint256 strikePrice,
         OptionType optionType
-    ) external override view returns (bool) {
+    ) external view override returns (bool) {
         return underlying == ethAddress || underlying == wbtcAddress;
     }
 
@@ -113,7 +104,7 @@ contract HegicAdapter is
         uint256 expiry,
         uint256 strikePrice,
         OptionType optionType
-    ) external override view returns (address) {
+    ) external view override returns (address) {
         if (underlying == ethAddress) {
             return address(ethOptions);
         } else if (underlying == wbtcAddress) {
@@ -137,7 +128,7 @@ contract HegicAdapter is
         uint256 strikePrice,
         OptionType optionType,
         uint256 purchaseAmount
-    ) public override view returns (uint256 cost) {
+    ) public view override returns (uint256 cost) {
         require(block.timestamp < expiry, "Cannot purchase after expiry");
         uint256 period = expiry.sub(block.timestamp);
         uint256 scaledStrikePrice = scaleDownStrikePrice(strikePrice);
@@ -171,7 +162,7 @@ contract HegicAdapter is
         address optionsAddress,
         uint256 optionID,
         uint256 exerciseAmount
-    ) public override view returns (uint256 profit) {
+    ) public view override returns (uint256 profit) {
         require(
             optionsAddress == address(ethOptions) ||
                 optionsAddress == address(wbtcOptions),
@@ -179,9 +170,8 @@ contract HegicAdapter is
         );
         IHegicOptions options = IHegicOptions(optionsAddress);
 
-        AggregatorV3Interface priceProvider = AggregatorV3Interface(
-            options.priceProvider()
-        );
+        AggregatorV3Interface priceProvider =
+            AggregatorV3Interface(options.priceProvider());
         (, int256 latestPrice, , , ) = priceProvider.latestRoundData();
         uint256 currentPrice = uint256(latestPrice);
 
@@ -230,21 +220,22 @@ contract HegicAdapter is
         uint256 amount
     )
         external
-        override
         payable
+        override
         nonReentrant
         onlyInstrument
         returns (uint256 optionID)
     {
         require(block.timestamp < expiry, "Cannot purchase after expiry");
-        uint256 cost = premium(
-            underlying,
-            strikeAsset,
-            expiry,
-            strikePrice,
-            optionType,
-            amount
-        );
+        uint256 cost =
+            premium(
+                underlying,
+                strikeAsset,
+                expiry,
+                strikePrice,
+                optionType,
+                amount
+            );
         optionID = _purchase(
             underlying,
             cost,
@@ -311,7 +302,7 @@ contract HegicAdapter is
         uint256 optionID,
         uint256 amount,
         address account
-    ) external override payable onlyInstrument nonReentrant {
+    ) external payable override onlyInstrument nonReentrant {
         require(
             optionsAddress == address(ethOptions) ||
                 optionsAddress == address(wbtcOptions),

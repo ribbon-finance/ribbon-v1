@@ -113,22 +113,22 @@ describe("DojiVolatility", () => {
   // });
 
   // Hegic ITM Put, Hegic OTM Call
-  behavesLikeDojiVolatility({
-    name: "ETH VOL 510 25/12/2020",
-    symbol: "ETH-VOL-510-181220",
-    expiry: "1608883200",
-    underlying: ETH_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
-    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    amounts: [ether("1"), ether("1")],
-    strikePrices: [ether("510"), ether("510")],
-    premiums: [new BN("92165846433269467"), new BN("173091733537915731")],
-    purchaseAmount: ether("1"),
-    optionIDs: ["1685", "1686"],
-    exerciseProfit: new BN("68414439532092202"),
-    actualExerciseProfit: new BN("68414439532092202"),
-  });
+  // behavesLikeDojiVolatility({
+  //   name: "ETH VOL 510 25/12/2020",
+  //   symbol: "ETH-VOL-510-181220",
+  //   expiry: "1608883200",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   amounts: [ether("1"), ether("1")],
+  //   strikePrices: [ether("510"), ether("510")],
+  //   premiums: [new BN("92165846433269467"), new BN("173091733537915731")],
+  //   purchaseAmount: ether("1"),
+  //   optionIDs: ["1685", "1686"],
+  //   exerciseProfit: new BN("68414439532092202"),
+  //   actualExerciseProfit: new BN("68414439532092202"),
+  // });
 
   // Hegic OTM Put, Hegic ITM Call
   behavesLikeDojiVolatility({

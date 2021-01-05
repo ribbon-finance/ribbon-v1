@@ -286,17 +286,18 @@ contract HegicAdapter is IProtocolAdapter, DebugLib {
         IHegicOptions options = IHegicOptions(optionsAddress);
 
         uint256 profit = exerciseProfit(optionsAddress, optionID, amount);
+
         options.exercise(optionID);
 
-        if (optionsAddress == address(ethOptions)) {
-            (bool success, ) = account.call{value: profit}("");
-            require(success, "Failed transfer");
-        } else {
-            IERC20 wbtc = IERC20(wbtcAddress);
-            wbtc.safeTransfer(account, profit);
-        }
+        // if (optionsAddress == address(ethOptions)) {
+        //     (bool success, ) = account.call{value: profit}("");
+        //     require(success, "Failed transfer");
+        // } else {
+        //     IERC20 wbtc = IERC20(wbtcAddress);
+        //     wbtc.safeTransfer(account, profit);
+        // }
 
-        emit Exercised(account, optionsAddress, optionID, amount, profit);
+        // emit Exercised(account, optionsAddress, optionID, amount, profit);
     }
 
     /**

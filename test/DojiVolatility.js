@@ -40,77 +40,77 @@ describe("DojiVolatility", () => {
    * Date is 9 December 2020
    */
 
-  // Hegic OTM Put, Opyn ITM Call
-  behavesLikeDojiVolatility({
-    name: "ETH VOL 500 25/12/2020",
-    symbol: "ETH-VOL-500-251220",
-    expiry: "1608883200",
-    underlying: ETH_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    venues: [HEGIC_PROTOCOL, OPYN_V1_PROTOCOL],
-    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    amounts: [ether("1"), ether("1")],
-    strikePrices: [ether("500"), ether("500")],
-    premiums: [new BN("90554751405166144"), new BN("106656198359758724")],
-    purchaseAmount: ether("1"),
-    optionIDs: ["1685", "0"],
-    exerciseProfit: new BN("83090832707945605"),
-    actualExerciseProfit: new BN("83090832707945605"),
-  });
+  // // Hegic OTM Put, Opyn ITM Call
+  // behavesLikeDojiVolatility({
+  //   name: "ETH VOL 500 25/12/2020",
+  //   symbol: "ETH-VOL-500-251220",
+  //   expiry: "1608883200",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, OPYN_V1_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   amounts: [ether("1"), ether("1")],
+  //   strikePrices: [ether("500"), ether("500")],
+  //   premiums: [new BN("90554751405166144"), new BN("106656198359758724")],
+  //   purchaseAmount: ether("1"),
+  //   optionIDs: ["1685", "0"],
+  //   exerciseProfit: new BN("83090832707945605"),
+  //   actualExerciseProfit: new BN("83090832707945605"),
+  // });
 
-  // Hegic ITM Put, Opyn OTM Call
-  behavesLikeDojiVolatility({
-    name: "ETH VOL 640 25/12/2020",
-    symbol: "ETH-VOL-640-251220",
-    expiry: "1608883200",
-    underlying: ETH_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    venues: [HEGIC_PROTOCOL, OPYN_V1_PROTOCOL],
-    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    amounts: [ether("1"), ether("1")],
-    strikePrices: [ether("640"), ether("640")],
-    premiums: [new BN("282158628268144018"), new BN("22636934749846005")],
-    purchaseAmount: ether("1"),
-    optionIDs: ["1685", "0"],
-    exerciseProfit: new BN("169048546469531353"),
-    actualExerciseProfit: new BN("169048546469531353"),
-  });
+  // // Hegic ITM Put, Opyn OTM Call
+  // behavesLikeDojiVolatility({
+  //   name: "ETH VOL 640 25/12/2020",
+  //   symbol: "ETH-VOL-640-251220",
+  //   expiry: "1608883200",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, OPYN_V1_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   amounts: [ether("1"), ether("1")],
+  //   strikePrices: [ether("640"), ether("640")],
+  //   premiums: [new BN("282158628268144018"), new BN("22636934749846005")],
+  //   purchaseAmount: ether("1"),
+  //   optionIDs: ["1685", "0"],
+  //   exerciseProfit: new BN("169048546469531353"),
+  //   actualExerciseProfit: new BN("169048546469531353"),
+  // });
 
-  // Hegic OTM Call, Opyn ITM Put
-  behavesLikeDojiVolatility({
-    name: "ETH VOL 600 18/12/2020",
-    symbol: "ETH-VOL-600-181220",
-    expiry: "1608278400",
-    underlying: ETH_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    venues: [OPYN_V1_PROTOCOL, HEGIC_PROTOCOL],
-    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    amounts: [ether("1"), ether("1")],
-    strikePrices: [ether("600"), ether("600")],
-    premiums: [new BN("106920070230577145"), new BN("70356774928712500")],
-    purchaseAmount: ether("1"),
-    optionIDs: ["0", "1685"],
-    exerciseProfit: new BN("91797789832984586"),
-    actualExerciseProfit: new BN("91796148075270874"),
-  });
+  // // Hegic OTM Call, Opyn ITM Put
+  // behavesLikeDojiVolatility({
+  //   name: "ETH VOL 600 18/12/2020",
+  //   symbol: "ETH-VOL-600-181220",
+  //   expiry: "1608278400",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   venues: [OPYN_V1_PROTOCOL, HEGIC_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   amounts: [ether("1"), ether("1")],
+  //   strikePrices: [ether("600"), ether("600")],
+  //   premiums: [new BN("106920070230577145"), new BN("70356774928712500")],
+  //   purchaseAmount: ether("1"),
+  //   optionIDs: ["0", "1685"],
+  //   exerciseProfit: new BN("91797789832984586"),
+  //   actualExerciseProfit: new BN("91796148075270874"),
+  // });
 
-  // Hegic ITM Put, Opyn OTM Put
-  behavesLikeDojiVolatility({
-    name: "ETH VOL 520 25/12/2020",
-    symbol: "ETH-VOL-520-181220",
-    expiry: "1608883200",
-    underlying: ETH_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    venues: [OPYN_V1_PROTOCOL, HEGIC_PROTOCOL],
-    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    amounts: [ether("1"), ether("1")],
-    strikePrices: [ether("520"), ether("520")],
-    premiums: [new BN("38993035115930594"), new BN("153004632806909621")],
-    purchaseAmount: ether("1"),
-    optionIDs: ["0", "1685"],
-    exerciseProfit: new BN("50148055993505775"),
-    actualExerciseProfit: new BN("50148055993505775"),
-  });
+  // // Hegic ITM Put, Opyn OTM Put
+  // behavesLikeDojiVolatility({
+  //   name: "ETH VOL 520 25/12/2020",
+  //   symbol: "ETH-VOL-520-181220",
+  //   expiry: "1608883200",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   venues: [OPYN_V1_PROTOCOL, HEGIC_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   amounts: [ether("1"), ether("1")],
+  //   strikePrices: [ether("520"), ether("520")],
+  //   premiums: [new BN("38993035115930594"), new BN("153004632806909621")],
+  //   purchaseAmount: ether("1"),
+  //   optionIDs: ["0", "1685"],
+  //   exerciseProfit: new BN("50148055993505775"),
+  //   actualExerciseProfit: new BN("50148055993505775"),
+  // });
 
   // Hegic ITM Put, Hegic OTM Call
   behavesLikeDojiVolatility({
@@ -187,14 +187,19 @@ function behavesLikeDojiVolatility(params) {
 
       this.totalPremium = premiums.reduce((a, b) => a.add(b), new BN("0"));
 
-      const { factory, hegicAdapter, opynV1Adapter } = await getDefaultArgs(
-        admin,
-        owner,
-        user
-      );
+      const {
+        factory,
+        hegicAdapter,
+        protocolAdapterLib,
+      } = await getDefaultArgs(admin, owner, user);
       this.factory = factory;
       this.hegicAdapter = hegicAdapter;
-      this.opynV1Adapter = opynV1Adapter;
+
+      await DojimaVolatility.detectNetwork();
+      await DojimaVolatility.link(
+        "ProtocolAdapter",
+        protocolAdapterLib.address
+      );
       this.instrumentLogic = await DojimaVolatility.new({ from: admin });
 
       if (this.underlying === ETH_ADDRESS) {

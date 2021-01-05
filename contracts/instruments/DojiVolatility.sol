@@ -12,6 +12,7 @@ import "../interfaces/InstrumentInterface.sol";
 import "../interfaces/HegicInterface.sol";
 import "./DojiVolatilityStorage.sol";
 import {OptionType, IProtocolAdapter} from "../adapters/IProtocolAdapter.sol";
+import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import "../tests/DebugLib.sol";
 
 contract DojiVolatility is
@@ -24,6 +25,7 @@ contract DojiVolatility is
 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
+    using ProtocolAdapter for IProtocolAdapter;
 
     event PositionCreated(
         address indexed account,
@@ -67,22 +69,23 @@ contract DojiVolatility is
         OptionType[] memory optionTypes,
         uint256[] memory amounts,
         uint256[] memory strikePrices
-    ) public override view returns (uint256 totalPremium) {
+    ) public view override returns (uint256 totalPremium) {
         for (uint256 i = 0; i < venues.length; i++) {
             address adapterAddress = factory.getAdapter(venues[i]);
             require(adapterAddress != address(0), "Adapter does not exist");
             IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
 
-            bool exists = adapter.optionsExist(
-                underlying,
-                strikeAsset,
-                expiry,
-                strikePrices[i],
-                optionTypes[i]
-            );
+            bool exists =
+                adapter.delegateOptionsExist(
+                    underlying,
+                    strikeAsset,
+                    expiry,
+                    strikePrices[i],
+                    optionTypes[i]
+                );
             require(exists, "Options does not exist");
 
-            totalPremium += adapter.premium(
+            totalPremium += adapter.delegatePremium(
                 underlying,
                 strikeAsset,
                 expiry,
@@ -103,7 +106,7 @@ contract DojiVolatility is
         OptionType[] memory optionTypes,
         uint256[] memory amounts,
         uint256[] memory strikePrices
-    ) public override payable nonReentrant returns (uint256 positionID) {
+    ) public payable override nonReentrant returns (uint256 positionID) {
         require(venues.length >= 2, "Must have at least 2 venues");
         require(block.timestamp < expiry, "Cannot purchase after expiry");
 
@@ -112,12 +115,13 @@ contract DojiVolatility is
         bool seenPut = false;
 
         for (uint256 i = 0; i < venues.length; i++) {
-            uint32 optionID = purchaseOptionAtVenue(
-                venues[i],
-                optionTypes[i],
-                amounts[i],
-                strikePrices[i]
-            );
+            uint32 optionID =
+                purchaseOptionAtVenue(
+                    venues[i],
+                    optionTypes[i],
+                    amounts[i],
+                    strikePrices[i]
+                );
 
             if (!seenPut && optionTypes[i] == OptionType.Put) {
                 seenPut = true;
@@ -129,14 +133,15 @@ contract DojiVolatility is
 
         require(seenCall && seenPut, "Must have both put and call options");
 
-        InstrumentPosition memory position = InstrumentPosition(
-            false,
-            optionTypes,
-            optionIDs,
-            amounts,
-            strikePrices,
-            venues
-        );
+        InstrumentPosition memory position =
+            InstrumentPosition(
+                false,
+                optionTypes,
+                optionIDs,
+                amounts,
+                strikePrices,
+                venues
+            );
         positionID = instrumentPositions[msg.sender].length;
         instrumentPositions[msg.sender].push(position);
 
@@ -162,14 +167,15 @@ contract DojiVolatility is
 
         require(optionType != OptionType.Invalid, "Invalid option type");
 
-        uint256 premium = adapter.premium(
-            underlying,
-            strikeAsset,
-            expiry,
-            strikePrice,
-            optionType,
-            amount
-        );
+        uint256 premium =
+            adapter.delegatePremium(
+                underlying,
+                strikeAsset,
+                expiry,
+                strikePrice,
+                optionType,
+                amount
+            );
 
         // This only applies to ETH payments for now
         // We have not enabled purchases using the underlying asset.
@@ -180,14 +186,15 @@ contract DojiVolatility is
             );
         }
 
-        uint256 optionID256 = adapter.purchase{value: premium}(
-            underlying,
-            strikeAsset,
-            expiry,
-            strikePrice,
-            optionType,
-            amount
-        );
+        uint256 optionID256 =
+            adapter.purchase{value: premium}(
+                underlying,
+                strikeAsset,
+                expiry,
+                strikePrice,
+                optionType,
+                amount
+            );
         optionID = adapter.nonFungible() ? uint32(optionID256) : 0;
     }
 
@@ -197,34 +204,35 @@ contract DojiVolatility is
         nonReentrant
         returns (uint256 totalProfit)
     {
-        InstrumentPosition storage position = instrumentPositions[msg
-            .sender][positionID];
+        InstrumentPosition storage position =
+            instrumentPositions[msg.sender][positionID];
         require(!position.exercised, "Already exercised");
         require(block.timestamp <= expiry, "Already expired");
 
         bool[] memory optionsExercised = new bool[](position.venues.length);
 
         for (uint256 i = 0; i < position.venues.length; i++) {
-            IProtocolAdapter adapter = IProtocolAdapter(
-                factory.getAdapter(position.venues[i])
-            );
+            IProtocolAdapter adapter =
+                IProtocolAdapter(factory.getAdapter(position.venues[i]));
             OptionType optionType = position.optionTypes[i];
             uint256 strikePrice = position.strikePrices[i];
 
-            address optionsAddress = adapter.getOptionsAddress(
-                underlying,
-                strikeAsset,
-                expiry,
-                strikePrice,
-                optionType
-            );
-            uint256 profit = adapter.exerciseProfit(
-                optionsAddress,
-                position.optionIDs[i],
-                position.amounts[i]
-            );
+            address optionsAddress =
+                adapter.delegateGetOptionsAddress(
+                    underlying,
+                    strikeAsset,
+                    expiry,
+                    strikePrice,
+                    optionType
+                );
+            uint256 profit =
+                adapter.delegateExerciseProfit(
+                    optionsAddress,
+                    position.optionIDs[i],
+                    position.amounts[i]
+                );
             if (profit > 0) {
-                adapter.exercise(
+                adapter.delegateExercise(
                     optionsAddress,
                     position.optionIDs[i],
                     position.amounts[i],

@@ -14,12 +14,9 @@ import {
     IHegicETHOptions,
     IHegicBTCOptions
 } from "../interfaces/HegicInterface.sol";
-import {
-    ReentrancyGuard
-} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../tests/DebugLib.sol";
 
-contract HegicAdapter is IProtocolAdapter, ReentrancyGuard, DebugLib {
+contract HegicAdapter is IProtocolAdapter, DebugLib {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -48,21 +45,6 @@ contract HegicAdapter is IProtocolAdapter, ReentrancyGuard, DebugLib {
         ethAddress = _ethAddress;
         wbtcAddress = _wbtcAddress;
     }
-
-    /**
-     * @notice Proxy initializer for HegicAdapter
-     * @param _owner is the owner of the contract
-     * @param _dojiFactory is the factory used to look up deployed instruments
-     */
-    function initialize(address _owner, address _dojiFactory)
-        public
-        initializer
-    {
-        owner = _owner;
-        dojiFactory = _dojiFactory;
-    }
-
-    receive() external payable {}
 
     function protocolName() public pure override returns (string memory) {
         return _name;
@@ -218,14 +200,7 @@ contract HegicAdapter is IProtocolAdapter, ReentrancyGuard, DebugLib {
         uint256 strikePrice,
         OptionType optionType,
         uint256 amount
-    )
-        external
-        payable
-        override
-        nonReentrant
-        onlyInstrument
-        returns (uint256 optionID)
-    {
+    ) external payable override returns (uint256 optionID) {
         require(block.timestamp < expiry, "Cannot purchase after expiry");
         uint256 cost =
             premium(
@@ -244,7 +219,6 @@ contract HegicAdapter is IProtocolAdapter, ReentrancyGuard, DebugLib {
             strikePrice,
             optionType
         );
-        totalOptions[msg.sender] += amount;
 
         emit Purchased(
             msg.sender,
@@ -302,7 +276,7 @@ contract HegicAdapter is IProtocolAdapter, ReentrancyGuard, DebugLib {
         uint256 optionID,
         uint256 amount,
         address account
-    ) external payable override onlyInstrument nonReentrant {
+    ) external payable override {
         require(
             optionsAddress == address(ethOptions) ||
                 optionsAddress == address(wbtcOptions),
@@ -310,11 +284,6 @@ contract HegicAdapter is IProtocolAdapter, ReentrancyGuard, DebugLib {
         );
 
         IHegicOptions options = IHegicOptions(optionsAddress);
-        (, , , uint256 optionAmount, , , , ) = options.options(optionID);
-        require(
-            optionAmount <= totalOptions[msg.sender],
-            "Cannot exercise over capacity"
-        );
 
         uint256 profit = exerciseProfit(optionsAddress, optionID, amount);
         options.exercise(optionID);
@@ -326,8 +295,6 @@ contract HegicAdapter is IProtocolAdapter, ReentrancyGuard, DebugLib {
             IERC20 wbtc = IERC20(wbtcAddress);
             wbtc.safeTransfer(account, profit);
         }
-
-        totalOptions[msg.sender] -= optionAmount;
 
         emit Exercised(account, optionsAddress, optionID, amount, profit);
     }

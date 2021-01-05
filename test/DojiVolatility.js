@@ -394,7 +394,7 @@ function behavesLikeDojiVolatility(params) {
               optionType,
             } = await this.hegicOptions.options(this.optionIDs[i]);
 
-            assert.equal(holder, this.hegicAdapter.address);
+            assert.equal(holder, this.contract.address);
             assert.equal(strike.toString(), hegicScaledStrikePrice);
             assert.equal(lockedAmount.toString(), purchaseAmount);
             assert.equal(amount.toString(), purchaseAmount);

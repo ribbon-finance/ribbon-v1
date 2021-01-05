@@ -187,7 +187,7 @@ contract DojiVolatility is
         }
 
         uint256 optionID256 =
-            adapter.purchase{value: premium}(
+            adapter.delegatePurchase(
                 underlying,
                 strikeAsset,
                 expiry,

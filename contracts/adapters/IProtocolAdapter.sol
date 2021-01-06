@@ -1,7 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
+pragma experimental ABIEncoderV2;
 
 enum OptionType {Invalid, Put, Call}
+
+/**
+ * @notice Terms of an options contract
+ * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
+ * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
+ * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
+ * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
+ * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+ */
+struct OptionTerms {
+    address underlying;
+    address strikeAsset;
+    address collateralAsset;
+    uint256 expiry;
+    uint256 strikePrice;
+    OptionType optionType;
+}
 
 interface IProtocolAdapter {
     /**
@@ -44,52 +62,31 @@ interface IProtocolAdapter {
 
     /**
      * @notice Check if an options contract exist based on the passed parameters.
-     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
-     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
-     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
-     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
-     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     * @param optionTerms is the terms of the option contract
      */
-    function optionsExist(
-        address underlying,
-        address strikeAsset,
-        uint256 expiry,
-        uint256 strikePrice,
-        OptionType optionType
-    ) external view returns (bool);
+    function optionsExist(OptionTerms calldata optionTerms)
+        external
+        view
+        returns (bool);
 
     /**
      * @notice Get the options contract's address based on the passed parameters
-     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
-     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
-     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
-     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
-     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     * @param optionTerms is the terms of the option contract
      */
-    function getOptionsAddress(
-        address underlying,
-        address strikeAsset,
-        uint256 expiry,
-        uint256 strikePrice,
-        OptionType optionType
-    ) external view returns (address);
+    function getOptionsAddress(OptionTerms calldata optionTerms)
+        external
+        view
+        returns (address);
 
     /**
      * @notice Gets the premium to buy `purchaseAmount` of the option contract in ETH terms.
-     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
-     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
-     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
-     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
-     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     * @param optionTerms is the terms of the option contract
+     * @param purchaseAmount is the number of options purchased
      */
-    function premium(
-        address underlying,
-        address strikeAsset,
-        uint256 expiry,
-        uint256 strikePrice,
-        OptionType optionType,
-        uint256 purchaseAmount
-    ) external view returns (uint256 cost);
+    function premium(OptionTerms calldata optionTerms, uint256 purchaseAmount)
+        external
+        view
+        returns (uint256 cost);
 
     /**
      * @notice Amount of profit made from exercising an option contract (current price - strike price). 0 if exercising out-the-money.
@@ -105,21 +102,13 @@ interface IProtocolAdapter {
 
     /**
      * @notice Purchases the options contract.
-     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
-     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
-     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
-     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
-     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     * @param optionTerms is the terms of the option contract
      * @param amount is the purchase amount in Wad units (10**18)
      */
-    function purchase(
-        address underlying,
-        address strikeAsset,
-        uint256 expiry,
-        uint256 strikePrice,
-        OptionType optionType,
-        uint256 amount
-    ) external payable returns (uint256 optionID);
+    function purchase(OptionTerms calldata optionTerms, uint256 amount)
+        external
+        payable
+        returns (uint256 optionID);
 
     /**
      * @notice Exercises the options contract.

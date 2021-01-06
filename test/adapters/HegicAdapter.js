@@ -179,6 +179,7 @@ describe("HegicAdapter", () => {
         } = params;
         this.underlying = underlying;
         this.strikeAsset = strikeAsset;
+        this.collateralAsset = underlying;
         this.startTime = (await web3.eth.getBlock("latest")).timestamp;
         this.expiry = expiry || this.startTime + 60 * 60 * 24 * 2; // 2 days from now
         this.strikePrice = strikePrice;
@@ -193,11 +194,14 @@ describe("HegicAdapter", () => {
       describe("#premium", () => {
         it("gets premium of option", async function () {
           const premium = await this.adapter.premium(
-            this.underlying,
-            this.strikeAsset,
-            this.expiry,
-            this.strikePrice,
-            this.optionType,
+            [
+              this.underlying,
+              this.strikeAsset,
+              this.collateralAsset,
+              this.expiry,
+              this.strikePrice,
+              this.optionType,
+            ],
             this.purchaseAmount
           );
           assert.equal(premium.toString(), this.premium.toString());
@@ -217,11 +221,14 @@ describe("HegicAdapter", () => {
         it("reverts when not enough value is passed", async function () {
           await expectRevert(
             this.adapter.purchase(
-              this.underlying,
-              this.strikeAsset,
-              this.expiry,
-              this.strikePrice,
-              this.optionType,
+              [
+                this.underlying,
+                this.strikeAsset,
+                this.collateralAsset,
+                this.expiry,
+                this.strikePrice,
+                this.optionType,
+              ],
               this.purchaseAmount,
               {
                 from: user,
@@ -237,11 +244,14 @@ describe("HegicAdapter", () => {
 
           await expectRevert(
             this.adapter.purchase(
-              this.underlying,
-              this.strikeAsset,
-              this.expiry,
-              this.strikePrice,
-              this.optionType,
+              [
+                this.underlying,
+                this.strikeAsset,
+                this.collateralAsset,
+                this.expiry,
+                this.strikePrice,
+                this.optionType,
+              ],
               this.purchaseAmount,
               {
                 from: user,
@@ -255,12 +265,14 @@ describe("HegicAdapter", () => {
         it("reverts when passing unknown underlying", async function () {
           await expectRevert(
             this.adapter.purchase(
-              "0x0000000000000000000000000000000000000001",
-              this.strikeAsset,
-              this.expiry,
-              this.strikePrice,
-              this.optionType,
-              this.purchaseAmount,
+              [
+                "0x0000000000000000000000000000000000000001",
+                this.strikeAsset,
+                this.collateralAsset,
+                this.expiry,
+                this.strikePrice,
+                this.optionType,
+              ],
               {
                 from: user,
                 value: this.purchaseAmount,
@@ -272,11 +284,14 @@ describe("HegicAdapter", () => {
 
         it("creates options on hegic", async function () {
           const res = await this.adapter.purchase(
-            this.underlying,
-            this.strikeAsset,
-            this.expiry,
-            this.strikePrice,
-            this.optionType,
+            [
+              this.underlying,
+              this.strikeAsset,
+              this.collateralAsset,
+              this.expiry,
+              this.strikePrice,
+              this.optionType,
+            ],
             this.purchaseAmount,
             {
               from: user,
@@ -352,11 +367,14 @@ describe("HegicAdapter", () => {
 
         it("gets correct exercise profit for an option", async function () {
           const purchaseRes = await this.adapter.purchase(
-            this.underlying,
-            this.strikeAsset,
-            this.expiry,
-            this.strikePrice,
-            this.optionType,
+            [
+              this.underlying,
+              this.strikeAsset,
+              this.collateralAsset,
+              this.expiry,
+              this.strikePrice,
+              this.optionType,
+            ],
             this.purchaseAmount,
             {
               from: user,
@@ -383,11 +401,14 @@ describe("HegicAdapter", () => {
           snapshotId = snapShot["result"];
 
           const purchaseRes = await this.adapter.purchase(
-            this.underlying,
-            this.strikeAsset,
-            this.expiry,
-            this.strikePrice,
-            this.optionType,
+            [
+              this.underlying,
+              this.strikeAsset,
+              this.collateralAsset,
+              this.expiry,
+              this.strikePrice,
+              this.optionType,
+            ],
             this.purchaseAmount,
             {
               from: user,

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
+pragma experimental ABIEncoderV2;
 
 import {
     AggregatorV3Interface
@@ -7,7 +8,11 @@ import {
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import {IProtocolAdapter, OptionType} from "./IProtocolAdapter.sol";
+import {
+    IProtocolAdapter,
+    OptionTerms,
+    OptionType
+} from "./IProtocolAdapter.sol";
 import {
     IHegicOptions,
     HegicOptionType,
@@ -58,40 +63,32 @@ contract HegicAdapter is IProtocolAdapter, DebugLib {
 
     /**
      * @notice Check if an options contract exist based on the passed parameters.
-     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
-     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
-     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
-     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
-     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     * @param optionTerms is the terms of the option contract
      */
-    function optionsExist(
-        address underlying,
-        address strikeAsset,
-        uint256 expiry,
-        uint256 strikePrice,
-        OptionType optionType
-    ) external view override returns (bool) {
-        return underlying == ethAddress || underlying == wbtcAddress;
+    function optionsExist(OptionTerms calldata optionTerms)
+        external
+        view
+        override
+        returns (bool)
+    {
+        return
+            optionTerms.underlying == ethAddress ||
+            optionTerms.underlying == wbtcAddress;
     }
 
     /**
      * @notice Get the options contract's address based on the passed parameters
-     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
-     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
-     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
-     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
-     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     * @param optionTerms is the terms of the option contract
      */
-    function getOptionsAddress(
-        address underlying,
-        address strikeAsset,
-        uint256 expiry,
-        uint256 strikePrice,
-        OptionType optionType
-    ) external view override returns (address) {
-        if (underlying == ethAddress) {
+    function getOptionsAddress(OptionTerms calldata optionTerms)
+        external
+        view
+        override
+        returns (address)
+    {
+        if (optionTerms.underlying == ethAddress) {
             return address(ethOptions);
-        } else if (underlying == wbtcAddress) {
+        } else if (optionTerms.underlying == wbtcAddress) {
             return address(wbtcOptions);
         }
         require(false, "No options found");
@@ -99,37 +96,36 @@ contract HegicAdapter is IProtocolAdapter, DebugLib {
 
     /**
      * @notice Gets the premium to buy `purchaseAmount` of the option contract in ETH terms.
-     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
-     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
-     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
-     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
-     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     * @param optionTerms is the terms of the option contract
+     * @param purchaseAmount is the purchase amount in Wad units (10**18)
      */
-    function premium(
-        address underlying,
-        address strikeAsset,
-        uint256 expiry,
-        uint256 strikePrice,
-        OptionType optionType,
-        uint256 purchaseAmount
-    ) public view override returns (uint256 cost) {
-        require(block.timestamp < expiry, "Cannot purchase after expiry");
-        uint256 period = expiry.sub(block.timestamp);
-        uint256 scaledStrikePrice = scaleDownStrikePrice(strikePrice);
+    function premium(OptionTerms memory optionTerms, uint256 purchaseAmount)
+        public
+        view
+        override
+        returns (uint256 cost)
+    {
+        require(
+            block.timestamp < optionTerms.expiry,
+            "Cannot purchase after expiry"
+        );
+        uint256 period = optionTerms.expiry.sub(block.timestamp);
+        uint256 scaledStrikePrice =
+            scaleDownStrikePrice(optionTerms.strikePrice);
 
-        if (underlying == ethAddress) {
+        if (optionTerms.underlying == ethAddress) {
             (cost, , , ) = ethOptions.fees(
                 period,
                 purchaseAmount,
                 scaledStrikePrice,
-                HegicOptionType(uint8(optionType))
+                HegicOptionType(uint8(optionTerms.optionType))
             );
-        } else if (underlying == wbtcAddress) {
+        } else if (optionTerms.underlying == wbtcAddress) {
             (, cost, , , ) = wbtcOptions.fees(
                 period,
                 purchaseAmount,
                 scaledStrikePrice,
-                HegicOptionType(uint8(optionType))
+                HegicOptionType(uint8(optionTerms.optionType))
             );
         } else {
             require(false, "No matching underlying");
@@ -188,81 +184,45 @@ contract HegicAdapter is IProtocolAdapter, DebugLib {
 
     /**
      * @notice Purchases the options contract.
-     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
-     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
-     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
-     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
-     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     * @param optionTerms is the terms of the option contract
      * @param amount is the purchase amount in Wad units (10**18)
      */
-    function purchase(
-        address underlying,
-        address strikeAsset,
-        uint256 expiry,
-        uint256 strikePrice,
-        OptionType optionType,
-        uint256 amount
-    ) external payable override returns (uint256 optionID) {
-        require(block.timestamp < expiry, "Cannot purchase after expiry");
-        uint256 cost =
-            premium(
-                underlying,
-                strikeAsset,
-                expiry,
-                strikePrice,
-                optionType,
-                amount
-            );
-        optionID = _purchase(
-            underlying,
-            cost,
-            expiry,
-            amount,
-            strikePrice,
-            optionType
+    function purchase(OptionTerms calldata optionTerms, uint256 amount)
+        external
+        payable
+        override
+        returns (uint256 optionID)
+    {
+        require(
+            block.timestamp < optionTerms.expiry,
+            "Cannot purchase after expiry"
         );
+        uint256 cost = premium(optionTerms, amount);
 
-        emit Purchased(
-            msg.sender,
-            _name,
-            underlying,
-            strikeAsset,
-            expiry,
-            strikePrice,
-            optionType,
-            amount,
-            cost,
-            optionID
-        );
-    }
-
-    /**
-     * @notice Implementation of creating a Hegic options position
-     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
-     * @param cost is the premium paid to create a position
-     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
-     * @param amount is the purchase amount in Wad units (10**18)
-     * @param strikePrice is the strike price of the optionContract in Wad units
-     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
-     */
-    function _purchase(
-        address underlying,
-        uint256 cost,
-        uint256 expiry,
-        uint256 amount,
-        uint256 strikePrice,
-        OptionType optionType
-    ) private returns (uint256 optionID) {
-        uint256 scaledStrikePrice = scaleDownStrikePrice(strikePrice);
-        uint256 period = expiry.sub(block.timestamp);
-        IHegicOptions options = getHegicOptions(underlying);
+        uint256 scaledStrikePrice =
+            scaleDownStrikePrice(optionTerms.strikePrice);
+        uint256 period = optionTerms.expiry.sub(block.timestamp);
+        IHegicOptions options = getHegicOptions(optionTerms.underlying);
         require(msg.value >= cost, "Value does not cover cost");
 
         optionID = options.create{value: cost}(
             period,
             amount,
             scaledStrikePrice,
-            HegicOptionType(uint8(optionType))
+            HegicOptionType(uint8(optionTerms.optionType))
+        );
+
+        emit Purchased(
+            msg.sender,
+            _name,
+            optionTerms.underlying,
+            optionTerms.strikeAsset,
+            optionTerms.expiry,
+            optionTerms.strikePrice,
+            optionTerms.optionType,
+            amount,
+            cost,
+            optionID
         );
     }
 

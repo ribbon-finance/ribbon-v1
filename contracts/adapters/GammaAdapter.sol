@@ -2,63 +2,37 @@
 pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 
-enum OptionType {Invalid, Put, Call}
+import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {
+    OptionType,
+    IProtocolAdapter,
+    OptionTerms
+} from "./IProtocolAdapter.sol";
+import {InstrumentStorageV1} from "../storage/InstrumentStorage.sol";
+import {
+    OtokenFactory,
+    OtokenInterface
+} from "../interfaces/OtokenInterface.sol";
+import "../tests/DebugLib.sol";
 
-/**
- * @notice Terms of an options contract
- * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
- * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
- * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
- * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
- * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
- */
-struct OptionTerms {
-    address underlying;
-    address strikeAsset;
-    address collateralAsset;
-    uint256 expiry;
-    uint256 strikePrice;
-    OptionType optionType;
-}
+contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
+    using SafeMath for uint256;
 
-interface IProtocolAdapter {
-    /**
-     * @notice Emitted when a new option contract is purchased
-     */
-    event Purchased(
-        address indexed caller,
-        string indexed protocolName,
-        address indexed underlying,
-        address strikeAsset,
-        uint256 expiry,
-        uint256 strikePrice,
-        OptionType optionType,
-        uint256 amount,
-        uint256 premium,
-        uint256 optionID
-    );
+    address public immutable oTokenFactory;
+    address private immutable _weth;
 
-    /**
-     * @notice Emitted when an option contract is exercised
-     */
-    event Exercised(
-        address indexed caller,
-        address indexed options,
-        uint256 indexed optionID,
-        uint256 amount,
-        uint256 exerciseProfit
-    );
+    constructor(address _oTokenFactory, address weth) public {
+        oTokenFactory = _oTokenFactory;
+        _weth = weth;
+    }
 
-    /**
-     * @notice Name of the adapter. E.g. "HEGIC", "OPYN_V1". Used as index key for adapter addresses
-     */
-    function protocolName() external pure returns (string memory);
+    function protocolName() external pure override returns (string memory) {
+        return "OPYN_GAMMA";
+    }
 
-    /**
-     * @notice Boolean flag to indicate whether to use option IDs or not.
-     * Fungible protocols normally use tokens to represent option contracts.
-     */
-    function nonFungible() external pure returns (bool);
+    function nonFungible() external pure override returns (bool) {
+        return false;
+    }
 
     /**
      * @notice Check if an options contract exist based on the passed parameters.
@@ -67,7 +41,11 @@ interface IProtocolAdapter {
     function optionsExist(OptionTerms calldata optionTerms)
         external
         view
-        returns (bool);
+        override
+        returns (bool)
+    {
+        return false;
+    }
 
     /**
      * @notice Get the options contract's address based on the passed parameters
@@ -76,17 +54,25 @@ interface IProtocolAdapter {
     function getOptionsAddress(OptionTerms calldata optionTerms)
         external
         view
-        returns (address);
+        override
+        returns (address)
+    {
+        return address(0);
+    }
 
     /**
      * @notice Gets the premium to buy `purchaseAmount` of the option contract in ETH terms.
      * @param optionTerms is the terms of the option contract
-     * @param purchaseAmount is the number of options purchased
+     * @param purchaseAmount is the purchase amount in Wad units (10**18)
      */
     function premium(OptionTerms calldata optionTerms, uint256 purchaseAmount)
         external
         view
-        returns (uint256 cost);
+        override
+        returns (uint256 cost)
+    {
+        return 0;
+    }
 
     /**
      * @notice Amount of profit made from exercising an option contract (current price - strike price). 0 if exercising out-the-money.
@@ -98,7 +84,9 @@ interface IProtocolAdapter {
         address options,
         uint256 optionID,
         uint256 amount
-    ) external view returns (uint256 profit);
+    ) external view override returns (uint256 profit) {
+        return 0;
+    }
 
     /**
      * @notice Purchases the options contract.
@@ -108,7 +96,9 @@ interface IProtocolAdapter {
     function purchase(OptionTerms calldata optionTerms, uint256 amount)
         external
         payable
-        returns (uint256 optionID);
+        override
+        returns (uint256 optionID)
+    {}
 
     /**
      * @notice Exercises the options contract.
@@ -122,5 +112,36 @@ interface IProtocolAdapter {
         uint256 optionID,
         uint256 amount,
         address recipient
-    ) external payable;
+    ) external payable override {}
+
+    /**
+     * @notice Function to lookup oToken addresses. oToken addresses are keyed by an ABI-encoded byte string
+     * @param optionTerms is the terms of the option contract
+     */
+    function lookupOToken(OptionTerms memory optionTerms)
+        public
+        view
+        returns (address oToken)
+    {
+        OtokenFactory factory = OtokenFactory(oTokenFactory);
+
+        bool isPut = optionTerms.optionType == OptionType.Put;
+        address underlying = optionTerms.underlying;
+
+        if (
+            optionTerms.underlying == address(0) ||
+            optionTerms.underlying == _weth
+        ) {
+            underlying = _weth;
+        }
+
+        oToken = factory.getOtoken(
+            underlying,
+            optionTerms.strikeAsset,
+            optionTerms.collateralAsset,
+            optionTerms.strikePrice.div(10**10),
+            optionTerms.expiry,
+            isPut
+        );
+    }
 }

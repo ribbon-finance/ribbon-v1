@@ -33,10 +33,6 @@ describe("HegicAdapter", () => {
     this.protocolName = "HEGIC";
     this.nonFungible = true;
 
-    // we assume the user account is the calling instrument
-    this.factory = await MockDojiFactory.new({ from: owner });
-    await this.factory.setInstrument(user, { from: user });
-
     this.adapter = await HegicAdapter.new(
       HEGIC_ETH_OPTIONS,
       HEGIC_WBTC_OPTIONS,
@@ -65,8 +61,8 @@ describe("HegicAdapter", () => {
   });
 
   /**
-   * Current price for ETH-USD = ~$545
-   * Current price for BTC-USD = ~$18,000
+   * Current price for ETH-USD = ~$1100
+   * Current price for BTC-USD = ~$35,000
    */
 
   // ETH Options
@@ -74,23 +70,23 @@ describe("HegicAdapter", () => {
     optionName: "ETH CALL ITM",
     underlying: ETH_ADDRESS,
     strikeAsset: ETH_ADDRESS,
-    strikePrice: ether("500"),
-    premium: new BN("130759818438591130"),
+    strikePrice: ether("900"),
+    premium: new BN("256038081054691404"),
     purchaseAmount: ether("1"),
     optionType: CALL_OPTION_TYPE,
-    expectedOptionID: "1685",
-    exerciseProfit: new BN("86680823070678630"),
+    expectedOptionID: "2259",
+    exerciseProfit: new BN("196944347773923627"),
   });
 
   behavesLikeHegicOptions({
     optionName: "ETH CALL OTM",
     underlying: ETH_ADDRESS,
     strikeAsset: ETH_ADDRESS,
-    strikePrice: ether("600"),
-    premium: new BN("38399162806593750"),
+    strikePrice: ether("1200"),
+    premium: new BN("46820299960575833"),
     purchaseAmount: ether("1"),
     optionType: CALL_OPTION_TYPE,
-    expectedOptionID: "1685",
+    expectedOptionID: "2259",
     exerciseProfit: new BN("0"),
   });
 
@@ -98,23 +94,23 @@ describe("HegicAdapter", () => {
     optionName: "ETH PUT ITM",
     underlying: ETH_ADDRESS,
     strikeAsset: ETH_ADDRESS,
-    strikePrice: ether("600"),
-    premium: new BN("140095483573495796"),
+    strikePrice: ether("1200"),
+    premium: new BN("122954828420119245"),
     purchaseAmount: ether("1"),
     optionType: PUT_OPTION_TYPE,
-    expectedOptionID: "1685",
-    exerciseProfit: new BN("95983012315185643"),
+    expectedOptionID: "2259",
+    exerciseProfit: new BN("70740869634768497"),
   });
 
   behavesLikeHegicOptions({
     optionName: "ETH PUT OTM",
     underlying: ETH_ADDRESS,
     strikeAsset: ETH_ADDRESS,
-    strikePrice: ether("500"),
-    premium: new BN("38427059381925127"),
+    strikePrice: ether("900"),
+    premium: new BN("41660469089013061"),
     purchaseAmount: ether("1"),
     optionType: PUT_OPTION_TYPE,
-    expectedOptionID: "1685",
+    expectedOptionID: "2259",
     exerciseProfit: new BN("0"),
   });
 
@@ -123,23 +119,23 @@ describe("HegicAdapter", () => {
     optionName: "WBTC CALL ITM",
     underlying: WBTC_ADDRESS,
     strikeAsset: WBTC_ADDRESS,
-    strikePrice: ether("17000"),
-    premium: new BN("3245932593862604696"),
+    strikePrice: ether("33000"),
+    premium: new BN("3027270642769128387"),
     purchaseAmount: new BN("100000000"),
     optionType: CALL_OPTION_TYPE,
-    expectedOptionID: "804",
-    exerciseProfit: new BN("6541306"),
+    expectedOptionID: "1097",
+    exerciseProfit: new BN("5959144"),
   });
 
   behavesLikeHegicOptions({
     optionName: "WBTC CALL OTM",
     underlying: WBTC_ADDRESS,
     strikeAsset: WBTC_ADDRESS,
-    strikePrice: ether("19000"),
-    premium: new BN("993071208326308189"),
+    strikePrice: ether("37000"),
+    premium: new BN("1059244569843599461"),
     purchaseAmount: new BN("100000000"),
     optionType: CALL_OPTION_TYPE,
-    expectedOptionID: "804",
+    expectedOptionID: "1097",
     exerciseProfit: new BN("0"),
   });
 
@@ -147,23 +143,23 @@ describe("HegicAdapter", () => {
     optionName: "WBTC PUT ITM",
     underlying: WBTC_ADDRESS,
     strikeAsset: WBTC_ADDRESS,
-    strikePrice: ether("19000"),
-    premium: new BN("2534225943323958120"),
+    strikePrice: ether("37000"),
+    premium: new BN("2856558260713033715"),
     purchaseAmount: new BN("100000000"),
     optionType: PUT_OPTION_TYPE,
-    expectedOptionID: "804",
-    exerciseProfit: new BN("4453833"),
+    expectedOptionID: "1097",
+    exerciseProfit: new BN("5439746"),
   });
 
   behavesLikeHegicOptions({
     optionName: "WBTC PUT OTM",
     underlying: WBTC_ADDRESS,
     strikeAsset: WBTC_ADDRESS,
-    strikePrice: ether("17000"),
-    premium: new BN("977357655115998008"),
+    strikePrice: ether("33000"),
+    premium: new BN("1052967255510576865"),
     purchaseAmount: new BN("100000000"),
     optionType: PUT_OPTION_TYPE,
-    expectedOptionID: "804",
+    expectedOptionID: "1097",
     exerciseProfit: new BN("0"),
   });
 
@@ -183,6 +179,7 @@ describe("HegicAdapter", () => {
         } = params;
         this.underlying = underlying;
         this.strikeAsset = strikeAsset;
+        this.collateralAsset = underlying;
         this.startTime = (await web3.eth.getBlock("latest")).timestamp;
         this.expiry = expiry || this.startTime + 60 * 60 * 24 * 2; // 2 days from now
         this.strikePrice = strikePrice;
@@ -197,11 +194,14 @@ describe("HegicAdapter", () => {
       describe("#premium", () => {
         it("gets premium of option", async function () {
           const premium = await this.adapter.premium(
-            this.underlying,
-            this.strikeAsset,
-            this.expiry,
-            this.strikePrice,
-            this.optionType,
+            [
+              this.underlying,
+              this.strikeAsset,
+              this.collateralAsset,
+              this.expiry,
+              this.strikePrice,
+              this.optionType,
+            ],
             this.purchaseAmount
           );
           assert.equal(premium.toString(), this.premium.toString());
@@ -221,11 +221,14 @@ describe("HegicAdapter", () => {
         it("reverts when not enough value is passed", async function () {
           await expectRevert(
             this.adapter.purchase(
-              this.underlying,
-              this.strikeAsset,
-              this.expiry,
-              this.strikePrice,
-              this.optionType,
+              [
+                this.underlying,
+                this.strikeAsset,
+                this.collateralAsset,
+                this.expiry,
+                this.strikePrice,
+                this.optionType,
+              ],
               this.purchaseAmount,
               {
                 from: user,
@@ -241,11 +244,14 @@ describe("HegicAdapter", () => {
 
           await expectRevert(
             this.adapter.purchase(
-              this.underlying,
-              this.strikeAsset,
-              this.expiry,
-              this.strikePrice,
-              this.optionType,
+              [
+                this.underlying,
+                this.strikeAsset,
+                this.collateralAsset,
+                this.expiry,
+                this.strikePrice,
+                this.optionType,
+              ],
               this.purchaseAmount,
               {
                 from: user,
@@ -259,11 +265,14 @@ describe("HegicAdapter", () => {
         it("reverts when passing unknown underlying", async function () {
           await expectRevert(
             this.adapter.purchase(
-              "0x0000000000000000000000000000000000000001",
-              this.strikeAsset,
-              this.expiry,
-              this.strikePrice,
-              this.optionType,
+              [
+                "0x0000000000000000000000000000000000000001",
+                this.strikeAsset,
+                this.collateralAsset,
+                this.expiry,
+                this.strikePrice,
+                this.optionType,
+              ],
               this.purchaseAmount,
               {
                 from: user,
@@ -276,11 +285,14 @@ describe("HegicAdapter", () => {
 
         it("creates options on hegic", async function () {
           const res = await this.adapter.purchase(
-            this.underlying,
-            this.strikeAsset,
-            this.expiry,
-            this.strikePrice,
-            this.optionType,
+            [
+              this.underlying,
+              this.strikeAsset,
+              this.collateralAsset,
+              this.expiry,
+              this.strikePrice,
+              this.optionType,
+            ],
             this.purchaseAmount,
             {
               from: user,
@@ -356,11 +368,14 @@ describe("HegicAdapter", () => {
 
         it("gets correct exercise profit for an option", async function () {
           const purchaseRes = await this.adapter.purchase(
-            this.underlying,
-            this.strikeAsset,
-            this.expiry,
-            this.strikePrice,
-            this.optionType,
+            [
+              this.underlying,
+              this.strikeAsset,
+              this.collateralAsset,
+              this.expiry,
+              this.strikePrice,
+              this.optionType,
+            ],
             this.purchaseAmount,
             {
               from: user,
@@ -387,11 +402,14 @@ describe("HegicAdapter", () => {
           snapshotId = snapShot["result"];
 
           const purchaseRes = await this.adapter.purchase(
-            this.underlying,
-            this.strikeAsset,
-            this.expiry,
-            this.strikePrice,
-            this.optionType,
+            [
+              this.underlying,
+              this.strikeAsset,
+              this.collateralAsset,
+              this.expiry,
+              this.strikePrice,
+              this.optionType,
+            ],
             this.purchaseAmount,
             {
               from: user,

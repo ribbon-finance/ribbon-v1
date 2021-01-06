@@ -2,10 +2,22 @@
 pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 
+import {
+    ReentrancyGuard
+} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Initializable} from "../lib/upgrades/Initializable.sol";
 import {IDojiFactory} from "../interfaces/IDojiFactory.sol";
 import {OptionType} from "../adapters/IProtocolAdapter.sol";
 
-contract DojiVolatilityStorageV1 {
+contract GammaAdapterStorage {
+    mapping(bytes => address) public optionTermsToOToken;
+}
+
+contract InstrumentStorageV1 is
+    Initializable,
+    ReentrancyGuard,
+    GammaAdapterStorage
+{
     address public owner;
     IDojiFactory public factory;
     address public underlying;
@@ -24,6 +36,11 @@ contract DojiVolatilityStorageV1 {
     }
 
     mapping(address => InstrumentPosition[]) public instrumentPositions;
+
+    modifier onlyOwner {
+        require(msg.sender == owner, "Only owner");
+        _;
+    }
 
     /**
      * @notice Returns the symbol of the instrument

@@ -2,6 +2,7 @@
 pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 
+import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {OptionType, IProtocolAdapter} from "./IProtocolAdapter.sol";
 import {InstrumentStorageV1} from "../storage/InstrumentStorage.sol";
 import {
@@ -10,6 +11,16 @@ import {
 } from "../interfaces/OtokenInterface.sol";
 
 contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1 {
+    using SafeMath for uint256;
+
+    address public immutable oTokenFactory;
+    address private immutable _weth;
+
+    constructor(address _oTokenFactory, address weth) public {
+        oTokenFactory = _oTokenFactory;
+        _weth = weth;
+    }
+
     function protocolName() external pure override returns (string memory) {
         return "OPYN_GAMMA";
     }

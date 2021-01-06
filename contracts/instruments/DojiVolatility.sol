@@ -5,10 +5,6 @@ pragma experimental ABIEncoderV2;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import {
-    ReentrancyGuard
-} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {Initializable} from "../lib/upgrades/Initializable.sol";
 import {DSMath} from "../lib/DSMath.sol";
 import {
     IAggregatedOptionsInstrument
@@ -20,9 +16,7 @@ import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import "../tests/DebugLib.sol";
 
 contract DojiVolatility is
-    Initializable,
     IAggregatedOptionsInstrument,
-    ReentrancyGuard,
     DSMath,
     DebugLib,
     InstrumentStorageV1

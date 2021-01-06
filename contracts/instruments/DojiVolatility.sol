@@ -5,13 +5,17 @@ pragma experimental ABIEncoderV2;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "../lib/upgrades/Initializable.sol";
-import "../lib/DSMath.sol";
-import "../interfaces/InstrumentInterface.sol";
-import "../interfaces/HegicInterface.sol";
+import {
+    ReentrancyGuard
+} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Initializable} from "../lib/upgrades/Initializable.sol";
+import {DSMath} from "../lib/DSMath.sol";
+import {
+    IAggregatedOptionsInstrument
+} from "../interfaces/InstrumentInterface.sol";
 import {InstrumentStorageV1} from "../storage/InstrumentStorage.sol";
 import {OptionType, IProtocolAdapter} from "../adapters/IProtocolAdapter.sol";
+import {IDojiFactory} from "../interfaces/IDojiFactory.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import "../tests/DebugLib.sol";
 

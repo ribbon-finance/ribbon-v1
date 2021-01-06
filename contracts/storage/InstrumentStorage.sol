@@ -5,7 +5,9 @@ pragma experimental ABIEncoderV2;
 import {IDojiFactory} from "../interfaces/IDojiFactory.sol";
 import {OptionType} from "../adapters/IProtocolAdapter.sol";
 
-contract GammaAdapterStorage {}
+contract GammaAdapterStorage {
+    mapping(bytes => address) public optionTermsToOToken;
+}
 
 contract InstrumentStorageV1 is GammaAdapterStorage {
     address public owner;
@@ -26,6 +28,11 @@ contract InstrumentStorageV1 is GammaAdapterStorage {
     }
 
     mapping(address => InstrumentPosition[]) public instrumentPositions;
+
+    modifier onlyOwner {
+        require(msg.sender == owner, "Only owner");
+        _;
+    }
 
     /**
      * @notice Returns the symbol of the instrument

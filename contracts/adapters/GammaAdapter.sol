@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
+pragma experimental ABIEncoderV2;
 
 import {OptionType, IProtocolAdapter} from "./IProtocolAdapter.sol";
+import {InstrumentStorageV1} from "../storage/InstrumentStorage.sol";
 
-contract GammaAdapter is IProtocolAdapter {
+contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1 {
     function protocolName() external pure override returns (string memory) {
         return "OPYN_GAMMA";
     }
@@ -112,4 +114,61 @@ contract GammaAdapter is IProtocolAdapter {
         uint256 amount,
         address recipient
     ) external payable override {}
+
+    /**
+     * @notice Function to lookup oToken addresses. oToken addresses are keyed by an ABI-encoded byte string
+     * @param oToken is the oToken address
+     * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
+     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
+     * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
+     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
+     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     */
+    function lookupOToken(
+        address underlying,
+        address strikeAsset,
+        uint256 expiry,
+        uint256 strikePrice,
+        OptionType optionType
+    ) public view returns (address oToken) {
+        bytes memory optionTerms =
+            abi.encode(
+                underlying,
+                strikeAsset,
+                expiry,
+                strikePrice,
+                optionType
+            );
+        return optionTermsToOToken[optionTerms];
+    }
+
+    /**
+     * @notice Sets an oToken with the terms. `strikePrice` and `optionType` are manually set. The rest are populated automatically with the oToken's parameters.
+     * @param strikePrice is the strike price in USD terms (Wad)
+     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     * @param oToken is the oToken address
+     */
+    function setOTokenWithTerms(
+        uint256 strikePrice,
+        OptionType optionType,
+        address oToken
+    ) external onlyOwner {
+        IOToken oTokenContract = IOToken(oToken);
+
+        (address underlying, address strikeAsset) =
+            getAssets(oTokenContract, optionType);
+        uint256 expiry = oTokenContract.expiry();
+
+        bytes memory optionTerms =
+            abi.encode(
+                underlying,
+                strikeAsset,
+                expiry,
+                strikePrice,
+                optionType
+            );
+        optionTermsToOToken[optionTerms] = oToken;
+        _strikePrices[oToken] = strikePrice;
+        _underlyingAssets[oToken] = underlying;
+    }
 }

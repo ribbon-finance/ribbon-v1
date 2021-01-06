@@ -33,10 +33,6 @@ describe("HegicAdapter", () => {
     this.protocolName = "HEGIC";
     this.nonFungible = true;
 
-    // we assume the user account is the calling instrument
-    this.factory = await MockDojiFactory.new({ from: owner });
-    await this.factory.setInstrument(user, { from: user });
-
     this.adapter = await HegicAdapter.new(
       HEGIC_ETH_OPTIONS,
       HEGIC_WBTC_OPTIONS,

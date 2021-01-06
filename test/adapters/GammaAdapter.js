@@ -10,11 +10,12 @@ const {
 } = require("@openzeppelin/test-helpers");
 const { assert } = require("chai");
 const helper = require("../helper.js");
-const GammaAdapter = contract.fromArtifact("GammaAdapter");
+const MockGammaAdapter = contract.fromArtifact("MockGammaAdapter");
 const IERC20 = contract.fromArtifact("IERC20");
 
-const OTOKEN_FACTORY = "0x8c8b4C5caEAf1A6FB8308a6336932B3e3419704C";
+const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const ETH_ADDRESS = constants.ZERO_ADDRESS;
 const [admin, owner, user, recipient] = accounts;
@@ -30,7 +31,9 @@ describe("GammaAdapter", () => {
     this.protocolName = "OPYN_GAMMA";
     this.nonFungible = false;
 
-    this.adapter = await GammaAdapter.new(OTOKEN_FACTORY, WETH_ADDRESS);
+    this.adapter = await MockGammaAdapter.new(OTOKEN_FACTORY, WETH_ADDRESS, {
+      from: owner,
+    });
 
     const snapShot = await helper.takeSnapshot();
     initSnapshotId = snapShot["result"];
@@ -49,6 +52,22 @@ describe("GammaAdapter", () => {
   describe("#nonFungible", () => {
     it("matches the nonFungible bool", async function () {
       assert.equal(await this.adapter.nonFungible(), this.nonFungible);
+    });
+  });
+
+  describe("#lookupOtoken", () => {
+    it("looks oToken correctly", async function () {
+      const oTokenAddress = "0x60ad22806B89DD17B2ecfe220c3712A2c86dfFFE";
+
+      const actualOTokenAddress = await this.adapter.lookupOToken(
+        constants.ZERO_ADDRESS,
+        USDC_ADDRESS,
+        WETH_ADDRESS,
+        "1614326400",
+        ether("800"),
+        CALL_OPTION_TYPE
+      );
+      assert.equal(actualOTokenAddress, oTokenAddress);
     });
   });
 });

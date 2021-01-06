@@ -195,7 +195,7 @@ contract DojiVolatility is
                 optionType,
                 amount
             );
-        optionID = adapter.nonFungible() ? uint32(optionID256) : 0;
+        optionID = adapter.delegateNonFungible() ? uint32(optionID256) : 0;
     }
 
     function exercisePosition(uint256 positionID)

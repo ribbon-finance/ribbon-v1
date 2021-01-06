@@ -10,7 +10,7 @@ import "../lib/upgrades/Initializable.sol";
 import "../lib/DSMath.sol";
 import "../interfaces/InstrumentInterface.sol";
 import "../interfaces/HegicInterface.sol";
-import "./DojiVolatilityStorage.sol";
+import {InstrumentStorageV1} from "../storage/InstrumentStorage.sol";
 import {OptionType, IProtocolAdapter} from "../adapters/IProtocolAdapter.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import "../tests/DebugLib.sol";
@@ -21,7 +21,7 @@ contract DojiVolatility is
     ReentrancyGuard,
     DSMath,
     DebugLib,
-    DojiVolatilityStorageV1
+    InstrumentStorageV1
 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;

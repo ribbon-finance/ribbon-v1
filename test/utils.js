@@ -7,8 +7,7 @@ const AdminUpgradeabilityProxy = contract.fromArtifact(
 );
 const Factory = contract.fromArtifact("DojiFactory");
 const HegicAdapter = contract.fromArtifact("HegicAdapter");
-const OpynV1Adapter = contract.fromArtifact("OpynV1Adapter");
-const { setupOTokenAndVaults } = require("./opyn_v1");
+const ProtocolAdapter = contract.fromArtifact("ProtocolAdapter");
 
 module.exports = {
   getDefaultArgs,
@@ -67,29 +66,15 @@ async function getDefaultArgs(admin, owner, user) {
     WBTC_ADDRESS,
     { from: owner }
   );
-  await hegicAdapter.initialize(owner, factory.address, { from: owner });
-
-  opynV1Adapter = await OpynV1Adapter.new(AAVE_ADDRESS_PROVIDER, {
-    from: owner,
-  });
-
-  await opynV1Adapter.initialize(
-    owner,
-    factory.address,
-    AAVE_ADDRESS_PROVIDER,
-    UNISWAP_ROUTER,
-    WETH_ADDRESS,
-    { from: owner }
-  );
-  await setupOTokenAndVaults(opynV1Adapter, owner);
 
   await factory.setAdapter("HEGIC", hegicAdapter.address, { from: owner });
-  await factory.setAdapter("OPYN_V1", opynV1Adapter.address, { from: owner });
+
+  const protocolAdapterLib = await ProtocolAdapter.new();
 
   return {
     factory,
     hegicAdapter,
-    opynV1Adapter,
+    protocolAdapterLib,
   };
 }
 

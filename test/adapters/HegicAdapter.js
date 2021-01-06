@@ -43,7 +43,6 @@ describe("HegicAdapter", () => {
       ETH_ADDRESS,
       WBTC_ADDRESS
     );
-    await this.adapter.initialize(owner, this.factory.address);
 
     const snapShot = await helper.takeSnapshot();
     initSnapshotId = snapShot["result"];
@@ -301,11 +300,6 @@ describe("HegicAdapter", () => {
             optionID: this.expectedOptionID,
           });
 
-          assert.equal(
-            (await this.adapter.totalOptions(user)).toString(),
-            this.purchaseAmount
-          );
-
           const {
             holder,
             strike,
@@ -411,44 +405,6 @@ describe("HegicAdapter", () => {
           await helper.revertToSnapShot(snapshotId);
         });
 
-        it("reverts when exercising over options capacity", async function () {
-          await this.factory.setInstrument(owner, { from: owner });
-
-          const premium = await this.adapter.premium(
-            this.underlying,
-            this.strikeAsset,
-            this.expiry,
-            this.strikePrice,
-            this.optionType,
-            this.purchaseAmount.add(new BN("1"))
-          );
-
-          const purchaseRes = await this.adapter.purchase(
-            this.underlying,
-            this.strikeAsset,
-            this.expiry,
-            this.strikePrice,
-            this.optionType,
-            this.purchaseAmount.add(new BN("1")),
-            {
-              from: owner,
-              value: premium,
-            }
-          );
-          const optionID = purchaseRes.receipt.logs[0].args.optionID;
-
-          await expectRevert(
-            this.adapter.exercise(
-              this.hegicOptions.address,
-              optionID,
-              0,
-              user,
-              { from: user, gasPrice }
-            ),
-            "Cannot exercise over capacity"
-          );
-        });
-
         if (params.exerciseProfit.isZero()) {
           it("reverts when not ITM", async function () {
             await expectRevert(
@@ -484,11 +440,6 @@ describe("HegicAdapter", () => {
               amount: "0",
               exerciseProfit: this.exerciseProfit,
             });
-
-            assert.equal(
-              (await this.adapter.totalOptions(user)).toString(),
-              "0"
-            );
 
             if (this.underlying === ETH_ADDRESS) {
               const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
@@ -554,30 +505,6 @@ describe("HegicAdapter", () => {
                 "0"
               );
             }
-          });
-
-          it("reverts when exercising twice", async function () {
-            await this.adapter.exercise(
-              this.hegicOptions.address,
-              this.optionID,
-              0,
-              user,
-              {
-                from: user,
-              }
-            );
-            await expectRevert(
-              this.adapter.exercise(
-                this.hegicOptions.address,
-                this.optionID,
-                0,
-                user,
-                {
-                  from: user,
-                }
-              ),
-              "Cannot exercise over capacity"
-            );
           });
         }
 

@@ -14,7 +14,6 @@ const { getDefaultArgs } = require("./utils");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const DojimaVolatility = contract.fromArtifact("DojiVolatility");
 const IERC20 = contract.fromArtifact("IERC20");
-const IOToken = contract.fromArtifact("IOToken");
 const IHegicETHOptions = contract.fromArtifact("IHegicETHOptions");
 const IHegicBTCOptions = contract.fromArtifact("IHegicBTCOptions");
 const { wmul } = require("../scripts/helpers/utils");

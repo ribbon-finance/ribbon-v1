@@ -132,20 +132,20 @@ describe("DojiVolatility", () => {
 
   // Hegic OTM Put, Hegic ITM Call
   behavesLikeDojiVolatility({
-    name: "ETH VOL 560 25/12/2020",
-    symbol: "ETH-VOL-560-181220",
-    expiry: "1608883200",
+    name: "ETH VOL 560 09/01/2021",
+    symbol: "ETH-VOL-1000-01092021",
+    expiry: "1610150400",
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [ether("1"), ether("1")],
     strikePrices: [ether("560"), ether("560")],
-    premiums: [new BN("123138799734626016"), new BN("96223964183875000")],
+    premiums: [new BN("634840051068131857"), new BN("0")],
     purchaseAmount: ether("1"),
-    optionIDs: ["1685", "1686"],
-    exerciseProfit: new BN("22917478160839934"),
-    actualExerciseProfit: new BN("22917478160839934"),
+    optionIDs: ["2259", "2260"],
+    exerciseProfit: new BN("500320927503774701"),
+    actualExerciseProfit: new BN("500320927503774701"),
   });
 });
 

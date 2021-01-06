@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
+pragma experimental ABIEncoderV2;
 
-import {IProtocolAdapter, OptionType} from "./IProtocolAdapter.sol";
+import {
+    IProtocolAdapter,
+    OptionTerms,
+    OptionType
+} from "./IProtocolAdapter.sol";
 
 library ProtocolAdapter {
     function delegateProtocolName(IProtocolAdapter adapter)
@@ -32,21 +37,13 @@ library ProtocolAdapter {
 
     function delegateOptionsExist(
         IProtocolAdapter adapter,
-        address underlying,
-        address strikeAsset,
-        uint256 expiry,
-        uint256 strikePrice,
-        OptionType optionType
+        OptionTerms calldata optionTerms
     ) external view returns (bool) {
         (bool success, bytes memory result) =
             address(adapter).staticcall(
                 abi.encodeWithSignature(
-                    "optionsExist(address,address,uint256,uint256,uint8)",
-                    underlying,
-                    strikeAsset,
-                    expiry,
-                    strikePrice,
-                    optionType
+                    "optionsExist((address,address,address,uint256,uint256,uint8))",
+                    optionTerms
                 )
             );
         require(success, "optionsExist staticcall failed");
@@ -55,21 +52,13 @@ library ProtocolAdapter {
 
     function delegateGetOptionsAddress(
         IProtocolAdapter adapter,
-        address underlying,
-        address strikeAsset,
-        uint256 expiry,
-        uint256 strikePrice,
-        OptionType optionType
+        OptionTerms calldata optionTerms
     ) external view returns (address) {
         (bool success, bytes memory result) =
             address(adapter).staticcall(
                 abi.encodeWithSignature(
-                    "getOptionsAddress(address,address,uint256,uint256,uint8)",
-                    underlying,
-                    strikeAsset,
-                    expiry,
-                    strikePrice,
-                    optionType
+                    "getOptionsAddress((address,address,address,uint256,uint256,uint8))",
+                    optionTerms
                 )
             );
         require(success, "getOptionsAddress staticcall failed");
@@ -78,22 +67,14 @@ library ProtocolAdapter {
 
     function delegatePremium(
         IProtocolAdapter adapter,
-        address underlying,
-        address strikeAsset,
-        uint256 expiry,
-        uint256 strikePrice,
-        OptionType optionType,
+        OptionTerms calldata optionTerms,
         uint256 purchaseAmount
     ) external view returns (uint256) {
         (bool success, bytes memory result) =
             address(adapter).staticcall(
                 abi.encodeWithSignature(
-                    "premium(address,address,uint256,uint256,uint8,uint256)",
-                    underlying,
-                    strikeAsset,
-                    expiry,
-                    strikePrice,
-                    optionType,
+                    "premium((address,address,address,uint256,uint256,uint8),uint256)",
+                    optionTerms,
                     purchaseAmount
                 )
             );
@@ -122,22 +103,14 @@ library ProtocolAdapter {
 
     function delegatePurchase(
         IProtocolAdapter adapter,
-        address underlying,
-        address strikeAsset,
-        uint256 expiry,
-        uint256 strikePrice,
-        OptionType optionType,
+        OptionTerms calldata optionTerms,
         uint256 purchaseAmount
     ) external returns (uint256) {
         (bool success, bytes memory result) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
-                    "purchase(address,address,uint256,uint256,uint8,uint256)",
-                    underlying,
-                    strikeAsset,
-                    expiry,
-                    strikePrice,
-                    optionType,
+                    "purchase((address,address,address,uint256,uint256,uint8),uint256)",
+                    optionTerms,
                     purchaseAmount
                 )
             );

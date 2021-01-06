@@ -10,7 +10,11 @@ import {
     IAggregatedOptionsInstrument
 } from "../interfaces/InstrumentInterface.sol";
 import {InstrumentStorageV1} from "../storage/InstrumentStorage.sol";
-import {OptionType, IProtocolAdapter} from "../adapters/IProtocolAdapter.sol";
+import {
+    OptionType,
+    OptionTerms,
+    IProtocolAdapter
+} from "../adapters/IProtocolAdapter.sol";
 import {IDojiFactory} from "../interfaces/IDojiFactory.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import "../tests/DebugLib.sol";
@@ -75,20 +79,26 @@ contract DojiVolatility is
 
             bool exists =
                 adapter.delegateOptionsExist(
-                    underlying,
-                    strikeAsset,
-                    expiry,
-                    strikePrices[i],
-                    optionTypes[i]
+                    OptionTerms(
+                        underlying,
+                        strikeAsset,
+                        strikeAsset,
+                        expiry,
+                        strikePrices[i],
+                        optionTypes[i]
+                    )
                 );
             require(exists, "Options does not exist");
 
             totalPremium += adapter.delegatePremium(
-                underlying,
-                strikeAsset,
-                expiry,
-                strikePrices[i],
-                optionTypes[i],
+                OptionTerms(
+                    underlying,
+                    strikeAsset,
+                    strikeAsset,
+                    expiry,
+                    strikePrices[i],
+                    optionTypes[i]
+                ),
                 amounts[i]
             );
         }
@@ -167,11 +177,14 @@ contract DojiVolatility is
 
         uint256 premium =
             adapter.delegatePremium(
-                underlying,
-                strikeAsset,
-                expiry,
-                strikePrice,
-                optionType,
+                OptionTerms(
+                    underlying,
+                    strikeAsset,
+                    strikeAsset,
+                    expiry,
+                    strikePrice,
+                    optionType
+                ),
                 amount
             );
 
@@ -186,11 +199,14 @@ contract DojiVolatility is
 
         uint256 optionID256 =
             adapter.delegatePurchase(
-                underlying,
-                strikeAsset,
-                expiry,
-                strikePrice,
-                optionType,
+                OptionTerms(
+                    underlying,
+                    strikeAsset,
+                    strikeAsset,
+                    expiry,
+                    strikePrice,
+                    optionType
+                ),
                 amount
             );
         optionID = adapter.delegateNonFungible() ? uint32(optionID256) : 0;
@@ -217,11 +233,14 @@ contract DojiVolatility is
 
             address optionsAddress =
                 adapter.delegateGetOptionsAddress(
-                    underlying,
-                    strikeAsset,
-                    expiry,
-                    strikePrice,
-                    optionType
+                    OptionTerms(
+                        underlying,
+                        strikeAsset,
+                        strikeAsset,
+                        expiry,
+                        strikePrice,
+                        optionType
+                    )
                 );
             uint256 profit =
                 adapter.delegateExerciseProfit(

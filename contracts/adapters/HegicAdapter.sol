@@ -46,6 +46,8 @@ contract HegicAdapter is IProtocolAdapter, DebugLib {
         wbtcAddress = _wbtcAddress;
     }
 
+    receive() external payable {}
+
     function protocolName() public pure override returns (string memory) {
         return _name;
     }

@@ -106,7 +106,7 @@ describe("DojiFactory", function () {
         await this.factory.getAdapter("TEST"),
         "0x0000000000000000000000000000000000000001"
       );
-      assert.equal((await this.factory.getAdapters()).length, 3);
+      assert.equal((await this.factory.getAdapters()).length, 2);
     });
 
     it("reverts when not owner", async function () {
@@ -128,13 +128,6 @@ describe("DojiFactory", function () {
         this.hegicAdapter.address
       );
     });
-
-    it("gets the opyn v1 adapter", async function () {
-      assert.equal(
-        await this.factory.getAdapter("OPYN_V1"),
-        this.opynV1Adapter.address
-      );
-    });
   });
 
   describe("#adapters", () => {
@@ -142,10 +135,6 @@ describe("DojiFactory", function () {
       assert.equal(
         (await this.factory.getAdapters())[0],
         this.hegicAdapter.address
-      );
-      assert.equal(
-        (await this.factory.getAdapters())[1],
-        this.opynV1Adapter.address
       );
     });
   });

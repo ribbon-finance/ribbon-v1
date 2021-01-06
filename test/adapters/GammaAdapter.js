@@ -59,14 +59,14 @@ describe("GammaAdapter", () => {
     it("looks oToken correctly", async function () {
       const oTokenAddress = "0x60ad22806B89DD17B2ecfe220c3712A2c86dfFFE";
 
-      const actualOTokenAddress = await this.adapter.lookupOToken(
+      const actualOTokenAddress = await this.adapter.lookupOToken([
         constants.ZERO_ADDRESS,
         USDC_ADDRESS,
         WETH_ADDRESS,
         "1614326400",
         ether("800"),
-        CALL_OPTION_TYPE
-      );
+        CALL_OPTION_TYPE,
+      ]);
       assert.equal(actualOTokenAddress, oTokenAddress);
     });
   });

@@ -4,6 +4,10 @@ pragma experimental ABIEncoderV2;
 
 import {OptionType, IProtocolAdapter} from "./IProtocolAdapter.sol";
 import {InstrumentStorageV1} from "../storage/InstrumentStorage.sol";
+import {
+    OtokenFactory,
+    OtokenInterface
+} from "../interfaces/OtokenInterface.sol";
 
 contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1 {
     function protocolName() external pure override returns (string memory) {
@@ -142,33 +146,31 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1 {
         return optionTermsToOToken[optionTerms];
     }
 
+    function setAllOtokens(address oTokenFactoryAddr) external onlyOwner {
+        OtokenFactory factory = OtokenFactory(oTokenFactoryAddr);
+
+        for (uint256 i = 0; i < factory.getOtokensLength(); i++) {
+            address oToken = factory.oTokens(i);
+            setOTokenWithTerms(oToken);
+        }
+    }
+
     /**
      * @notice Sets an oToken with the terms. `strikePrice` and `optionType` are manually set. The rest are populated automatically with the oToken's parameters.
-     * @param strikePrice is the strike price in USD terms (Wad)
-     * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
      * @param oToken is the oToken address
      */
-    function setOTokenWithTerms(
-        uint256 strikePrice,
-        OptionType optionType,
-        address oToken
-    ) external onlyOwner {
-        IOToken oTokenContract = IOToken(oToken);
+    function setOTokenWithTerms(address oToken) public onlyOwner {
+        OtokenInterface oTokenContract = OtokenInterface(oToken);
 
-        (address underlying, address strikeAsset) =
-            getAssets(oTokenContract, optionType);
-        uint256 expiry = oTokenContract.expiry();
-
+        uint256 scaledStrikePrice = oTokenContract.strikePrice() * 10**10;
         bytes memory optionTerms =
             abi.encode(
-                underlying,
-                strikeAsset,
-                expiry,
-                strikePrice,
-                optionType
+                oTokenContract.underlyingAsset(),
+                oTokenContract.strikeAsset(),
+                oTokenContract.expiryTimestamp(),
+                scaledStrikePrice,
+                oTokenContract.isPut() ? OptionType.Put : OptionType.Call
             );
         optionTermsToOToken[optionTerms] = oToken;
-        _strikePrices[oToken] = strikePrice;
-        _underlyingAssets[oToken] = underlying;
     }
 }

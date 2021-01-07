@@ -3,6 +3,8 @@ pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {
     OptionType,
     IProtocolAdapter,
@@ -13,17 +15,30 @@ import {
     OtokenFactory,
     OtokenInterface
 } from "../interfaces/OtokenInterface.sol";
+import {IZeroExExchange, Order} from "../interfaces/IZeroExExchange.sol";
+import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
+import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import "../tests/DebugLib.sol";
 
 contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
+    address public immutable zeroExExchange;
     address public immutable oTokenFactory;
     address private immutable _weth;
+    address private immutable _router;
 
-    constructor(address _oTokenFactory, address weth) public {
+    constructor(
+        address _oTokenFactory,
+        address weth,
+        address _zeroExExchange,
+        address router
+    ) public {
         oTokenFactory = _oTokenFactory;
+        zeroExExchange = _zeroExExchange;
         _weth = weth;
+        _router = router;
     }
 
     function protocolName() external pure override returns (string memory) {
@@ -99,6 +114,64 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         override
         returns (uint256 optionID)
     {}
+
+    function purchaseWithZeroEx(
+        OptionTerms calldata optionTerms,
+        address proxyAddress,
+        address buyTokenAddress,
+        address sellTokenAddress,
+        Order calldata order,
+        bytes calldata signature,
+        address allowanceTarget,
+        uint256 protocolFee
+    ) external payable {
+        IUniswapV2Router02 router = IUniswapV2Router02(_router);
+
+        address[] memory path = new address[](2);
+        path[0] = _weth;
+        path[1] = sellTokenAddress;
+
+        // uint256[] memory amounts =
+        //     router.getAmountsIn(order.takerAssetAmount, path);
+        uint256[] memory amounts =
+            router.getAmountsIn(order.takerAssetAmount * 2, path);
+
+        require(msg.value >= amounts[0], "Not enough value to swap");
+
+        router.swapETHForExactTokens{value: amounts[0]}(
+            order.takerAssetAmount * 2,
+            path,
+            address(this),
+            block.timestamp + 10000
+        );
+
+        require(
+            IERC20(sellTokenAddress).balanceOf(address(this)) >=
+                order.takerAssetAmount,
+            "Not enough takerAsset balance"
+        );
+        IERC20(sellTokenAddress).safeApprove(
+            allowanceTarget,
+            order.takerAssetAmount * 2
+        );
+
+        require(
+            IERC20(buyTokenAddress).balanceOf(order.makerAddress) >=
+                order.makerAssetAmount,
+            "Not enough marketAsset balance"
+        );
+        require(
+            address(this).balance >= protocolFee,
+            "Enough to cover protocolFee"
+        );
+        require(block.timestamp < order.expirationTimeSeconds, "expired");
+
+        IZeroExExchange(proxyAddress).fillOrder{value: protocolFee}(
+            order,
+            1,
+            signature
+        );
+    }
 
     /**
      * @notice Exercises the options contract.

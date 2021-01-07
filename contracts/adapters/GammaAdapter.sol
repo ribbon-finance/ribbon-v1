@@ -28,6 +28,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
     address public immutable oTokenFactory;
     address private immutable _weth;
     address private immutable _router;
+    uint256 private constant _swapWindow = 900;
 
     constructor(
         address _oTokenFactory,
@@ -40,6 +41,8 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         _weth = weth;
         _router = router;
     }
+
+    receive() external payable {}
 
     function protocolName() external pure override returns (string memory) {
         return "OPYN_GAMMA";
@@ -117,60 +120,45 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
 
     function purchaseWithZeroEx(
         OptionTerms calldata optionTerms,
-        address proxyAddress,
+        address payable exchangeAddress,
         address buyTokenAddress,
         address sellTokenAddress,
-        Order calldata order,
-        bytes calldata signature,
         address allowanceTarget,
-        uint256 protocolFee
+        uint256 protocolFee,
+        uint256 takerAssetAmount,
+        bytes calldata swapData
     ) external payable {
+        require(msg.value >= protocolFee, "Value cannot cover protocolFee");
+
         IUniswapV2Router02 router = IUniswapV2Router02(_router);
 
         address[] memory path = new address[](2);
         path[0] = _weth;
         path[1] = sellTokenAddress;
 
-        // uint256[] memory amounts =
-        //     router.getAmountsIn(order.takerAssetAmount, path);
-        uint256[] memory amounts =
-            router.getAmountsIn(order.takerAssetAmount * 2, path);
+        uint256[] memory amounts = router.getAmountsIn(takerAssetAmount, path);
 
         require(msg.value >= amounts[0], "Not enough value to swap");
 
         router.swapETHForExactTokens{value: amounts[0]}(
-            order.takerAssetAmount * 2,
+            takerAssetAmount,
             path,
             address(this),
-            block.timestamp + 10000
+            block.timestamp + _swapWindow
         );
 
         require(
             IERC20(sellTokenAddress).balanceOf(address(this)) >=
-                order.takerAssetAmount,
+                takerAssetAmount,
             "Not enough takerAsset balance"
         );
-        IERC20(sellTokenAddress).safeApprove(
-            allowanceTarget,
-            order.takerAssetAmount * 2
-        );
 
-        require(
-            IERC20(buyTokenAddress).balanceOf(order.makerAddress) >=
-                order.makerAssetAmount,
-            "Not enough marketAsset balance"
-        );
-        require(
-            address(this).balance >= protocolFee,
-            "Enough to cover protocolFee"
-        );
-        require(block.timestamp < order.expirationTimeSeconds, "expired");
+        IERC20(sellTokenAddress).safeApprove(allowanceTarget, takerAssetAmount);
 
-        IZeroExExchange(proxyAddress).fillOrder{value: protocolFee}(
-            order,
-            1,
-            signature
-        );
+        (bool success, bytes memory res) =
+            exchangeAddress.call{value: protocolFee}(swapData);
+
+        require(success, "0x swap failed");
     }
 
     /**

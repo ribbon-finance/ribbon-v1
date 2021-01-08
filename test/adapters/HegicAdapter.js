@@ -62,7 +62,7 @@ describe("HegicAdapter", () => {
 
   /**
    * Current price for ETH-USD = ~$1100
-   * Current price for BTC-USD = ~$35,000
+   * Current price for BTC-USD = ~$38000
    */
 
   // ETH Options
@@ -71,11 +71,11 @@ describe("HegicAdapter", () => {
     underlying: ETH_ADDRESS,
     strikeAsset: ETH_ADDRESS,
     strikePrice: ether("900"),
-    premium: new BN("256038081054691404"),
+    premium: new BN("285817414096087812"),
     purchaseAmount: ether("1"),
     optionType: CALL_OPTION_TYPE,
-    expectedOptionID: "2259",
-    exerciseProfit: new BN("196944347773923627"),
+    expectedOptionID: "2353",
+    exerciseProfit: new BN("200547181040532257"),
   });
 
   behavesLikeHegicOptions({
@@ -83,10 +83,10 @@ describe("HegicAdapter", () => {
     underlying: ETH_ADDRESS,
     strikeAsset: ETH_ADDRESS,
     strikePrice: ether("1200"),
-    premium: new BN("46820299960575833"),
+    premium: new BN("66452674791666666"),
     purchaseAmount: ether("1"),
     optionType: CALL_OPTION_TYPE,
-    expectedOptionID: "2259",
+    expectedOptionID: "2353",
     exerciseProfit: new BN("0"),
   });
 
@@ -95,11 +95,11 @@ describe("HegicAdapter", () => {
     underlying: ETH_ADDRESS,
     strikeAsset: ETH_ADDRESS,
     strikePrice: ether("1200"),
-    premium: new BN("122954828420119245"),
+    premium: new BN("140079856453804950"),
     purchaseAmount: ether("1"),
     optionType: PUT_OPTION_TYPE,
-    expectedOptionID: "2259",
-    exerciseProfit: new BN("70740869634768497"),
+    expectedOptionID: "2353",
+    exerciseProfit: new BN("65937091945956989"),
   });
 
   behavesLikeHegicOptions({
@@ -107,10 +107,10 @@ describe("HegicAdapter", () => {
     underlying: ETH_ADDRESS,
     strikeAsset: ETH_ADDRESS,
     strikePrice: ether("900"),
-    premium: new BN("41660469089013061"),
+    premium: new BN("58107073380885971"),
     purchaseAmount: ether("1"),
     optionType: PUT_OPTION_TYPE,
-    expectedOptionID: "2259",
+    expectedOptionID: "2353",
     exerciseProfit: new BN("0"),
   });
 
@@ -119,23 +119,23 @@ describe("HegicAdapter", () => {
     optionName: "WBTC CALL ITM",
     underlying: WBTC_ADDRESS,
     strikeAsset: WBTC_ADDRESS,
-    strikePrice: ether("33000"),
-    premium: new BN("3027270642769128387"),
+    strikePrice: ether("34000"),
+    premium: new BN("5028351441863137425"),
     purchaseAmount: new BN("100000000"),
     optionType: CALL_OPTION_TYPE,
-    expectedOptionID: "1097",
-    exerciseProfit: new BN("5959144"),
+    expectedOptionID: "1119",
+    exerciseProfit: new BN("9897877"),
   });
 
   behavesLikeHegicOptions({
     optionName: "WBTC CALL OTM",
     underlying: WBTC_ADDRESS,
     strikeAsset: WBTC_ADDRESS,
-    strikePrice: ether("37000"),
-    premium: new BN("1059244569843599461"),
+    strikePrice: ether("41000"),
+    premium: new BN("1483260273030990622"),
     purchaseAmount: new BN("100000000"),
     optionType: CALL_OPTION_TYPE,
-    expectedOptionID: "1097",
+    expectedOptionID: "1119",
     exerciseProfit: new BN("0"),
   });
 
@@ -143,23 +143,23 @@ describe("HegicAdapter", () => {
     optionName: "WBTC PUT ITM",
     underlying: WBTC_ADDRESS,
     strikeAsset: WBTC_ADDRESS,
-    strikePrice: ether("37000"),
-    premium: new BN("2856558260713033715"),
+    strikePrice: ether("41000"),
+    premium: new BN("4582950345865552024"),
     purchaseAmount: new BN("100000000"),
     optionType: PUT_OPTION_TYPE,
-    expectedOptionID: "1097",
-    exerciseProfit: new BN("5439746"),
+    expectedOptionID: "1119",
+    exerciseProfit: new BN("8652559"),
   });
 
   behavesLikeHegicOptions({
     optionName: "WBTC PUT OTM",
     underlying: WBTC_ADDRESS,
     strikeAsset: WBTC_ADDRESS,
-    strikePrice: ether("33000"),
-    premium: new BN("1052967255510576865"),
+    strikePrice: ether("34000"),
+    premium: new BN("1459110991698151816"),
     purchaseAmount: new BN("100000000"),
     optionType: PUT_OPTION_TYPE,
-    expectedOptionID: "1097",
+    expectedOptionID: "1119",
     exerciseProfit: new BN("0"),
   });
 

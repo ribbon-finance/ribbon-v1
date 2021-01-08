@@ -13,12 +13,11 @@ import {
 import {InstrumentStorageV1} from "../storage/InstrumentStorage.sol";
 import {
     IOtokenFactory,
-    IOtoken,
+    OtokenInterface,
     IController,
     OracleInterface
 } from "../interfaces/GammaInterface.sol";
 import {IZeroExExchange, Order} from "../interfaces/IZeroExExchange.sol";
-import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import "../tests/DebugLib.sol";
 
@@ -110,7 +109,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
     ) external view override returns (uint256 profit) {
         IController controller = IController(gammaController);
         OracleInterface oracle = OracleInterface(controller.oracle());
-        IOtoken otoken = IOtoken(options);
+        OtokenInterface otoken = OtokenInterface(options);
 
         uint256 spotPrice = oracle.getPrice(otoken.underlyingAsset());
         uint256 strikePrice = otoken.strikePrice();

@@ -2,7 +2,7 @@
 pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 
-interface IOtoken {
+interface OtokenInterface {
     function addressBook() external view returns (address);
 
     function underlyingAsset() external view returns (address);
@@ -80,6 +80,15 @@ interface IController {
         uint256 index;
         // any other data that needs to be passed in for arbitrary function calls
         bytes data;
+    }
+
+    struct RedeemArgs {
+        // address to which we pay out the oToken proceeds
+        address receiver;
+        // oToken that is to be redeemed
+        address otoken;
+        // amount of oTokens that is to be redeemed
+        uint256 amount;
     }
 
     function getPayout(address _otoken, uint256 _amount)

@@ -10,9 +10,12 @@ const {
 } = require("@openzeppelin/test-helpers");
 const { assert } = require("chai");
 const helper = require("../helper.js");
-const MockGammaAdapter = contract.fromArtifact("MockGammaAdapter");
+const GammaAdapter = contract.fromArtifact("GammaAdapter");
 const IERC20 = contract.fromArtifact("IERC20");
+const ZERO_EX_API_RESPONSES = require("../fixtures/GammaAdapter.json");
 
+const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
+const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";
 const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
@@ -31,9 +34,15 @@ describe("GammaAdapter", () => {
     this.protocolName = "OPYN_GAMMA";
     this.nonFungible = false;
 
-    this.adapter = await MockGammaAdapter.new(OTOKEN_FACTORY, WETH_ADDRESS, {
-      from: owner,
-    });
+    this.adapter = await GammaAdapter.new(
+      OTOKEN_FACTORY,
+      WETH_ADDRESS,
+      ZERO_EX_EXCHANGE,
+      UNISWAP_ROUTER,
+      {
+        from: owner,
+      }
+    );
 
     const snapShot = await helper.takeSnapshot();
     initSnapshotId = snapShot["result"];
@@ -70,10 +79,92 @@ describe("GammaAdapter", () => {
       assert.equal(actualOTokenAddress, oTokenAddress);
     });
   });
+
+  // Call ITM
+  behavesLikeOTokens({
+    name: "Call ITM",
+    oTokenAddress: "0x3cF86d40988309AF3b90C14544E1BB0673BFd439",
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: WETH_ADDRESS,
+    strikePrice: ether("960"),
+    expiry: "1614326400",
+    optionType: CALL_OPTION_TYPE,
+  });
+
+  behavesLikeOTokens({
+    name: "Call OTM",
+    oTokenAddress: "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3",
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: WETH_ADDRESS,
+    strikePrice: ether("1480"),
+    expiry: "1610697600",
+    optionType: CALL_OPTION_TYPE,
+  });
+
+  behavesLikeOTokens({
+    name: "Put OTM",
+    oTokenAddress: "0x006583fEea92C695A9dE02C3AC2d4cd321f2F341",
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: USDC_ADDRESS,
+    strikePrice: ether("800"),
+    expiry: "1610697600",
+    optionType: PUT_OPTION_TYPE,
+  });
 });
 
 function behavesLikeOTokens(params) {
   describe(`${params.name}`, () => {
-    before(async function () {});
+    before(async function () {
+      const {
+        underlying,
+        strikeAsset,
+        collateralAsset,
+        strikePrice,
+        expiry,
+        optionType,
+        oTokenAddress,
+      } = params;
+
+      this.oTokenAddress = oTokenAddress;
+      this.underlying = underlying;
+      this.strikeAsset = strikeAsset;
+      this.collateralAsset = collateralAsset;
+      this.strikePrice = strikePrice;
+      this.expiry = expiry;
+      this.optionType = optionType;
+      this.apiResponse = ZERO_EX_API_RESPONSES[oTokenAddress];
+
+      this.optionTerms = [
+        this.underlying,
+        this.strikeAsset,
+        this.collateralAsset,
+        this.strikePrice,
+        this.expiry,
+        this.optionType,
+      ];
+    });
+
+    describe("#purchaseWithZeroEx", () => {
+      it("purchases with 0x exchange", async function () {
+        await this.adapter.purchaseWithZeroEx(
+          this.apiResponse.to,
+          this.apiResponse.buyTokenAddress,
+          this.apiResponse.sellTokenAddress,
+          this.apiResponse.to,
+          this.apiResponse.protocolFee,
+          this.apiResponse.buyAmount,
+          this.apiResponse.sellAmount,
+          this.apiResponse.data,
+          {
+            from: user,
+            gasPrice: this.apiResponse.gasPrice,
+            value: ether("10"),
+          }
+        );
+      });
+    });
   });
 }

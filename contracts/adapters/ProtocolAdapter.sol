@@ -114,7 +114,7 @@ library ProtocolAdapter {
                     purchaseAmount
                 )
             );
-        require(success, "purchase delegatecall failed");
+        require(success, getRevertMsg(result));
         return abi.decode(result, (uint256));
     }
 
@@ -125,7 +125,7 @@ library ProtocolAdapter {
         uint256 amount,
         address recipient
     ) external {
-        (bool success, bytes memory res) =
+        (bool success, ) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
                     "exercise(address,uint256,uint256,address)",
@@ -135,11 +135,10 @@ library ProtocolAdapter {
                     recipient
                 )
             );
-        // require(success, "exercise delegatecall failed");
-        require(success, _getRevertMsg(res));
+        require(success, "exercise delegatecall failed");
     }
 
-    function _getRevertMsg(bytes memory _returnData)
+    function getRevertMsg(bytes memory _returnData)
         internal
         pure
         returns (string memory)

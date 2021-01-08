@@ -3,6 +3,8 @@ pragma solidity >=0.6.0;
 pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {
     OptionType,
     IProtocolAdapter,
@@ -13,18 +15,34 @@ import {
     OtokenFactory,
     OtokenInterface
 } from "../interfaces/OtokenInterface.sol";
+import {IZeroExExchange, Order} from "../interfaces/IZeroExExchange.sol";
+import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
+import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import "../tests/DebugLib.sol";
 
 contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
+    address public immutable zeroExExchange;
     address public immutable oTokenFactory;
     address private immutable _weth;
+    address private immutable _router;
+    uint256 private constant _swapWindow = 900;
 
-    constructor(address _oTokenFactory, address weth) public {
+    constructor(
+        address _oTokenFactory,
+        address weth,
+        address _zeroExExchange,
+        address router
+    ) public {
         oTokenFactory = _oTokenFactory;
+        zeroExExchange = _zeroExExchange;
         _weth = weth;
+        _router = router;
     }
+
+    receive() external payable {}
 
     function protocolName() external pure override returns (string memory) {
         return "OPYN_GAMMA";
@@ -100,6 +118,55 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         returns (uint256 optionID)
     {}
 
+    function purchaseWithZeroEx(
+        address payable exchangeAddress,
+        address buyTokenAddress,
+        address sellTokenAddress,
+        address allowanceTarget,
+        uint256 protocolFee,
+        uint256 makerAssetAmount,
+        uint256 takerAssetAmount,
+        bytes calldata swapData
+    ) external payable {
+        require(msg.value >= protocolFee, "Value cannot cover protocolFee");
+
+        IUniswapV2Router02 router = IUniswapV2Router02(_router);
+
+        address[] memory path = new address[](2);
+        path[0] = _weth;
+        path[1] = sellTokenAddress;
+
+        uint256[] memory amounts = router.getAmountsIn(takerAssetAmount, path);
+
+        require(msg.value >= amounts[0], "Not enough value to swap");
+
+        router.swapETHForExactTokens{value: amounts[0]}(
+            takerAssetAmount,
+            path,
+            address(this),
+            block.timestamp + _swapWindow
+        );
+
+        require(
+            IERC20(sellTokenAddress).balanceOf(address(this)) >=
+                takerAssetAmount,
+            "Not enough takerAsset balance"
+        );
+
+        IERC20(sellTokenAddress).safeApprove(allowanceTarget, takerAssetAmount);
+
+        (bool success, bytes memory res) =
+            exchangeAddress.call{value: protocolFee}(swapData);
+
+        require(success, "0x swap failed");
+
+        require(
+            IERC20(buyTokenAddress).balanceOf(address(this)) >=
+                makerAssetAmount,
+            "Not enough buyToken balance"
+        );
+    }
+
     /**
      * @notice Exercises the options contract.
      * @param options is the address of the options contract
@@ -112,7 +179,9 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         uint256 optionID,
         uint256 amount,
         address recipient
-    ) external payable override {}
+    ) external payable override {
+        require(false, "Not implemented");
+    }
 
     /**
      * @notice Function to lookup oToken addresses. oToken addresses are keyed by an ABI-encoded byte string

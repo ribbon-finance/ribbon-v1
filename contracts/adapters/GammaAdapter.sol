@@ -11,10 +11,7 @@ import {
     OptionTerms
 } from "./IProtocolAdapter.sol";
 import {InstrumentStorageV1} from "../storage/InstrumentStorage.sol";
-import {
-    OtokenFactory,
-    OtokenInterface
-} from "../interfaces/OtokenInterface.sol";
+import {IOtokenFactory, IController} from "../interfaces/GammaInterface.sol";
 import {IZeroExExchange, Order} from "../interfaces/IZeroExExchange.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
@@ -25,6 +22,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
     using SafeERC20 for IERC20;
 
     address public immutable zeroExExchange;
+    address public immutable gammaController;
     address public immutable oTokenFactory;
     address private immutable _weth;
     address private immutable _router;
@@ -32,12 +30,14 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
 
     constructor(
         address _oTokenFactory,
+        address _gammaController,
         address weth,
         address _zeroExExchange,
         address router
     ) public {
         oTokenFactory = _oTokenFactory;
         zeroExExchange = _zeroExExchange;
+        gammaController = _gammaController;
         _weth = weth;
         _router = router;
     }
@@ -103,7 +103,8 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         uint256 optionID,
         uint256 amount
     ) external view override returns (uint256 profit) {
-        return 0;
+        IController controller = IController(gammaController);
+        return controller.getPayout(options, amount);
     }
 
     /**
@@ -192,7 +193,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         view
         returns (address oToken)
     {
-        OtokenFactory factory = OtokenFactory(oTokenFactory);
+        IOtokenFactory factory = IOtokenFactory(oTokenFactory);
 
         bool isPut = optionTerms.optionType == OptionType.Put;
         address underlying = optionTerms.underlying;

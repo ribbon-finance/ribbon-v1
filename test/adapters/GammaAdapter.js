@@ -11,10 +11,12 @@ const {
 const { assert } = require("chai");
 const helper = require("../helper.js");
 const GammaAdapter = contract.fromArtifact("GammaAdapter");
+const MockGammaController = contract.fromArtifact("MockGammaController");
 const IERC20 = contract.fromArtifact("IERC20");
 const ZERO_EX_API_RESPONSES = require("../fixtures/GammaAdapter.json");
 
 const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
+const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";
 const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
@@ -35,9 +37,13 @@ describe("GammaAdapter", () => {
     this.protocolName = "OPYN_GAMMA";
     this.nonFungible = false;
 
+    const controller = await MockGammaController.new(GAMMA_ORACLE);
+
+    await controller.setPrice("110000000000");
+
     this.adapter = await GammaAdapter.new(
       OTOKEN_FACTORY,
-      GAMMA_CONTROLLER,
+      controller.address,
       WETH_ADDRESS,
       ZERO_EX_EXCHANGE,
       UNISWAP_ROUTER,
@@ -82,7 +88,6 @@ describe("GammaAdapter", () => {
     });
   });
 
-  // Call ITM
   behavesLikeOTokens({
     name: "Call ITM",
     oTokenAddress: "0x3cF86d40988309AF3b90C14544E1BB0673BFd439",
@@ -92,6 +97,8 @@ describe("GammaAdapter", () => {
     strikePrice: ether("960"),
     expiry: "1614326400",
     optionType: CALL_OPTION_TYPE,
+    purchaseAmount: ether("0.1"),
+    exerciseProfit: new BN("14000000"),
   });
 
   behavesLikeOTokens({
@@ -103,6 +110,8 @@ describe("GammaAdapter", () => {
     strikePrice: ether("1480"),
     expiry: "1610697600",
     optionType: CALL_OPTION_TYPE,
+    purchaseAmount: ether("0.1"),
+    exerciseProfit: new BN("0"),
   });
 
   behavesLikeOTokens({
@@ -114,6 +123,8 @@ describe("GammaAdapter", () => {
     strikePrice: ether("800"),
     expiry: "1610697600",
     optionType: PUT_OPTION_TYPE,
+    purchaseAmount: ether("0.1"),
+    exerciseProfit: new BN("0"),
   });
 });
 
@@ -128,6 +139,8 @@ function behavesLikeOTokens(params) {
         expiry,
         optionType,
         oTokenAddress,
+        purchaseAmount,
+        exerciseProfit,
       } = params;
 
       this.oTokenAddress = oTokenAddress;
@@ -137,6 +150,8 @@ function behavesLikeOTokens(params) {
       this.strikePrice = strikePrice;
       this.expiry = expiry;
       this.optionType = optionType;
+      this.purchaseAmount = purchaseAmount;
+      this.exerciseProfit = exerciseProfit;
       this.apiResponse = ZERO_EX_API_RESPONSES[oTokenAddress];
 
       this.optionTerms = [
@@ -147,6 +162,43 @@ function behavesLikeOTokens(params) {
         this.expiry,
         this.optionType,
       ];
+    });
+
+    describe("#premium", () => {
+      it("has a premium of 0", async function () {
+        assert.equal(
+          await this.adapter.premium(this.optionTerms, this.purchaseAmount),
+          "0"
+        );
+      });
+    });
+
+    describe("#exerciseProfit", () => {
+      let snapshotId;
+
+      beforeEach(async () => {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+      });
+
+      afterEach(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
+
+      it("gets exercise profit", async function () {
+        await time.increaseTo(this.expiry + 1);
+
+        assert.equal(
+          (
+            await this.adapter.exerciseProfit(
+              this.oTokenAddress,
+              0,
+              this.purchaseAmount
+            )
+          ).toString(),
+          this.exerciseProfit
+        );
+      });
     });
 
     describe("#purchaseWithZeroEx", () => {

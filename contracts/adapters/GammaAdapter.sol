@@ -11,7 +11,12 @@ import {
     OptionTerms
 } from "./IProtocolAdapter.sol";
 import {InstrumentStorageV1} from "../storage/InstrumentStorage.sol";
-import {IOtokenFactory, IController} from "../interfaces/GammaInterface.sol";
+import {
+    IOtokenFactory,
+    IOtoken,
+    IController,
+    OracleInterface
+} from "../interfaces/GammaInterface.sol";
 import {IZeroExExchange, Order} from "../interfaces/IZeroExExchange.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
@@ -104,7 +109,20 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         uint256 amount
     ) external view override returns (uint256 profit) {
         IController controller = IController(gammaController);
-        return controller.getPayout(options, amount);
+        OracleInterface oracle = OracleInterface(controller.oracle());
+        IOtoken otoken = IOtoken(options);
+
+        uint256 spotPrice = oracle.getPrice(otoken.underlyingAsset());
+        uint256 strikePrice = otoken.strikePrice();
+        bool isPut = otoken.isPut();
+
+        if (!isPut && spotPrice <= strikePrice) {
+            return 0;
+        } else if (isPut && spotPrice >= strikePrice) {
+            return 0;
+        }
+
+        return controller.getPayout(options, amount.div(10**10));
     }
 
     /**

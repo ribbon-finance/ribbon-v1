@@ -125,6 +125,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         address sellTokenAddress,
         address allowanceTarget,
         uint256 protocolFee,
+        uint256 makerAssetAmount,
         uint256 takerAssetAmount,
         bytes calldata swapData
     ) external payable {
@@ -159,6 +160,12 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
             exchangeAddress.call{value: protocolFee}(swapData);
 
         require(success, "0x swap failed");
+
+        require(
+            IERC20(buyTokenAddress).balanceOf(address(this)) >=
+                makerAssetAmount,
+            "Not enough buyToken balance"
+        );
     }
 
     /**

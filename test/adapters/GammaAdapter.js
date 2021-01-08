@@ -80,17 +80,6 @@ describe("GammaAdapter", () => {
     });
   });
 
-  // behavesLikeOTokens({
-  //   name: "oToken",
-  //   oTokenAddress: "0x9d3129BefDAac4aB2d6939DD1054A64dF7D84a11",
-  //   underlying: ETH_ADDRESS,
-  //   strikeAsset: USDC_ADDRESS,
-  //   collateralAsset: WETH_ADDRESS,
-  //   strikePrice: ether("1280"),
-  //   expiry: "1614326400",
-  //   optionType: CALL_OPTION_TYPE,
-  // });
-
   // Call ITM
   behavesLikeOTokens({
     name: "Call ITM",
@@ -161,7 +150,6 @@ function behavesLikeOTokens(params) {
     describe("#purchaseWithZeroEx", () => {
       it("purchases with 0x exchange", async function () {
         await this.adapter.purchaseWithZeroEx(
-          this.optionTerms,
           this.apiResponse.to,
           this.apiResponse.buyTokenAddress,
           this.apiResponse.sellTokenAddress,

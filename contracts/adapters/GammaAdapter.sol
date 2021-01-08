@@ -119,7 +119,6 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
     {}
 
     function purchaseWithZeroEx(
-        OptionTerms calldata optionTerms,
         address payable exchangeAddress,
         address buyTokenAddress,
         address sellTokenAddress,
@@ -180,7 +179,9 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         uint256 optionID,
         uint256 amount,
         address recipient
-    ) external payable override {}
+    ) external payable override {
+        require(false, "Not implemented");
+    }
 
     /**
      * @notice Function to lookup oToken addresses. oToken addresses are keyed by an ABI-encoded byte string

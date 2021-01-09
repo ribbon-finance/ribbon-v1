@@ -6,8 +6,10 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {OtokenInterface, IController} from "../interfaces/GammaInterface.sol";
+import {IWETH} from "../interfaces/IWETH.sol";
+import {DebugLib} from "../tests/DebugLib.sol";
 
-contract MockGammaController {
+contract MockGammaController is DebugLib {
     using SafeMath for uint256;
 
     uint256 public price;
@@ -33,12 +35,24 @@ contract MockGammaController {
         OtokenInterface oToken = OtokenInterface(_otoken);
         uint256 strikePrice = oToken.strikePrice();
 
+        uint256 payout;
         if (strikePrice >= price) {
-            return _amount;
+            payout = _amount;
+        } else {
+            payout = (price.sub(strikePrice)).mul(_amount).div(10**8);
         }
 
-        uint256 payout = (price.sub(strikePrice)).mul(_amount).div(10**8);
-        return (payout.mul(10**6)).div(10**8);
+        uint256 collateralDecimals;
+        if (
+            oToken.collateralAsset() ==
+            0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+        ) {
+            collateralDecimals = 6;
+        } else {
+            collateralDecimals = 18;
+        }
+
+        return (payout.mul(10**collateralDecimals)).div(10**8);
     }
 
     function operate(IController.ActionArgs[] memory actions) public {
@@ -50,22 +64,33 @@ contract MockGammaController {
         }
     }
 
-    function buyCollateral(address otoken, uint256 buyAmount) external payable {
+    function buyCollateral(address otoken) external payable {
         address collateralAsset = OtokenInterface(otoken).collateralAsset();
+
+        if (collateralAsset == weth) {
+            IWETH wethContract = IWETH(weth);
+            wethContract.deposit{value: msg.value}();
+            return;
+        }
 
         address[] memory path = new address[](2);
         path[0] = weth;
         path[1] = collateralAsset;
 
-        uint256[] memory amountsIn = router.getAmountsIn(buyAmount, path);
-        uint256 sellAmount = amountsIn[0];
-        require(msg.value >= sellAmount, "Not enough value");
+        uint256[] memory amountsOut = router.getAmountsOut(msg.value, path);
+        uint256 minAmountOut = amountsOut[1];
 
-        router.swapETHForExactTokens{value: sellAmount}(
-            buyAmount,
-            path,
-            address(this),
-            block.timestamp + 1000
+        uint256[] memory swappedAmountsOut =
+            router.swapExactETHForTokens{value: msg.value}(
+                minAmountOut,
+                path,
+                address(this),
+                block.timestamp + 1000
+            );
+
+        require(
+            IERC20(collateralAsset).balanceOf(address(this)) >= minAmountOut,
+            "Not enough collateral balance"
         );
     }
 
@@ -79,9 +104,14 @@ contract MockGammaController {
 
         uint256 payout = getPayout(_args.otoken, _args.amount);
 
-        otoken.burnOtoken(msg.sender, _args.amount);
+        IERC20 collateralToken = IERC20(otoken.collateralAsset());
 
-        IERC20(otoken.collateralAsset()).transfer(_args.receiver, payout);
+        require(
+            collateralToken.balanceOf(address(this)) >= payout,
+            "Not enough collateral balance to payout"
+        );
+
+        collateralToken.transfer(_args.receiver, payout);
     }
 
     function _parseRedeemArgs(IController.ActionArgs memory _args)

@@ -37,13 +37,17 @@ describe("GammaAdapter", () => {
     this.protocolName = "OPYN_GAMMA";
     this.nonFungible = false;
 
-    const controller = await MockGammaController.new(GAMMA_ORACLE);
+    this.mockController = await MockGammaController.new(
+      GAMMA_ORACLE,
+      UNISWAP_ROUTER,
+      WETH_ADDRESS
+    );
 
-    await controller.setPrice("110000000000");
+    this.mockController.setPrice("110000000000");
 
     this.adapter = await GammaAdapter.new(
       OTOKEN_FACTORY,
-      controller.address,
+      this.mockController.address,
       WETH_ADDRESS,
       ZERO_EX_EXCHANGE,
       UNISWAP_ROUTER,
@@ -202,6 +206,17 @@ function behavesLikeOTokens(params) {
     });
 
     describe("#purchaseWithZeroEx", () => {
+      let snapshotId;
+
+      beforeEach(async () => {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+      });
+
+      afterEach(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
+
       it("purchases with 0x exchange", async function () {
         await this.adapter.purchaseWithZeroEx(
           this.apiResponse.to,
@@ -217,6 +232,62 @@ function behavesLikeOTokens(params) {
             gasPrice: this.apiResponse.gasPrice,
             value: ether("10"),
           }
+        );
+
+        const buyToken = await IERC20.at(this.apiResponse.buyTokenAddress);
+        const sellToken = await IERC20.at(this.apiResponse.sellTokenAddress);
+
+        assert.equal(
+          await buyToken.balanceOf(this.adapter.address),
+          this.apiResponse.buyAmount
+        );
+        assert.equal(await sellToken.balanceOf(this.adapter.address), "0");
+      });
+    });
+
+    describe("#exercise", () => {
+      let snapshotId;
+
+      beforeEach(async function () {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+
+        // load the contract with collateralAsset
+        await this.mockController.buyCollateral(this.oTokenAddress, {
+          from: owner,
+          value: ether("10"),
+        });
+
+        await this.adapter.purchaseWithZeroEx(
+          this.apiResponse.to,
+          this.apiResponse.buyTokenAddress,
+          this.apiResponse.sellTokenAddress,
+          this.apiResponse.to,
+          this.apiResponse.protocolFee,
+          this.apiResponse.buyAmount,
+          this.apiResponse.sellAmount,
+          this.apiResponse.data,
+          {
+            from: user,
+            gasPrice: this.apiResponse.gasPrice,
+            value: ether("5"),
+          }
+        );
+      });
+
+      afterEach(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
+
+      it("exercises otokens", async function () {
+        await time.increaseTo(this.expiry + 1);
+
+        const res = await this.adapter.exercise(
+          this.oTokenAddress,
+          0,
+          this.purchaseAmount,
+          user,
+          { from: user }
         );
       });
     });

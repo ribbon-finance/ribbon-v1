@@ -153,7 +153,6 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         address[] memory path = new address[](2);
         path[0] = _weth;
         path[1] = sellTokenAddress;
-
         uint256[] memory amounts = router.getAmountsIn(takerAssetAmount, path);
 
         require(msg.value >= amounts[0], "Not enough value to swap");
@@ -183,6 +182,12 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
                 makerAssetAmount,
             "Not enough buyToken balance"
         );
+
+        if (msg.value > amounts[0].add(protocolFee)) {
+            uint256 change = msg.value.sub(amounts[0].add(protocolFee));
+            (bool changeSuccess, ) = msg.sender.call{value: change}("");
+            require(changeSuccess, "Change transfer failed");
+        }
     }
 
     /**
@@ -198,7 +203,25 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         uint256 amount,
         address recipient
     ) external payable override {
-        require(false, "Not implemented");
+        uint256 scaledAmount = amount.div(10**10);
+
+        IController.ActionArgs memory action =
+            IController.ActionArgs(
+                IController.ActionType.Redeem,
+                address(this), // owner
+                msg.sender, // receiver
+                options, // asset, otoken
+                0, // vaultId
+                scaledAmount,
+                0, //index
+                "" //data
+            );
+
+        IController.ActionArgs[] memory actions =
+            new IController.ActionArgs[](1);
+        actions[0] = action;
+
+        IController(gammaController).operate(actions);
     }
 
     /**

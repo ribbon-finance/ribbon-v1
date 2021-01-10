@@ -19,6 +19,7 @@ import {
     IController,
     OracleInterface
 } from "../interfaces/GammaInterface.sol";
+import {IWETH} from "../interfaces/IWETH.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import "../tests/DebugLib.sol";
 
@@ -113,7 +114,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         address options,
         uint256 optionID,
         uint256 amount
-    ) external view override returns (uint256 profit) {
+    ) public view override returns (uint256 profit) {
         IController controller = IController(gammaController);
         OracleInterface oracle = OracleInterface(controller.oracle());
         OtokenInterface otoken = OtokenInterface(options);
@@ -230,12 +231,15 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         address recipient
     ) external payable override {
         uint256 scaledAmount = amount.div(10**10);
+        uint256 profit = exerciseProfit(options, optionID, amount);
+
+        require(profit > 0, "Not profitable to exercise");
 
         IController.ActionArgs memory action =
             IController.ActionArgs(
                 IController.ActionType.Redeem,
                 address(this), // owner
-                recipient, // receiver
+                address(this), // receiver -  we need this contract to receive so we can swap at the end
                 options, // asset, otoken
                 0, // vaultId
                 scaledAmount,
@@ -249,7 +253,59 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
 
         IController(gammaController).operate(actions);
 
-        emit Exercised(recipient, options, optionID, amount, 0);
+        uint256 profitInUnderlying =
+            swapExercisedProfitsToUnderlying(options, profit, recipient);
+
+        emit Exercised(
+            recipient,
+            options,
+            optionID,
+            amount,
+            profitInUnderlying
+        );
+    }
+
+    function swapExercisedProfitsToUnderlying(
+        address otokenAddress,
+        uint256 profitInCollateral,
+        address recipient
+    ) private returns (uint256 profitInUnderlying) {
+        OtokenInterface otoken = OtokenInterface(otokenAddress);
+        address collateral = otoken.collateralAsset();
+        IERC20 collateralToken = IERC20(collateral);
+
+        require(
+            collateralToken.balanceOf(address(this)) >= profitInCollateral,
+            "Not enough collateral from exercising"
+        );
+
+        IUniswapV2Router02 router = IUniswapV2Router02(_router);
+
+        IWETH weth = IWETH(_weth);
+
+        if (collateral == address(weth)) {
+            profitInUnderlying = profitInCollateral;
+            weth.withdraw(profitInCollateral);
+            (bool success, ) = recipient.call{value: profitInCollateral}("");
+            require(success, "Failed to transfer exercise profit");
+        } else {
+            address[] memory path = new address[](2);
+            path[0] = collateral;
+            path[1] = address(weth);
+
+            uint256[] memory amountsOut =
+                router.getAmountsOut(profitInCollateral, path);
+            profitInUnderlying = amountsOut[1];
+            require(profitInUnderlying > 0, "Swap is unprofitable");
+
+            router.swapExactTokensForETH(
+                profitInCollateral,
+                profitInUnderlying,
+                path,
+                recipient,
+                block.timestamp + _swapWindow
+            );
+        }
     }
 
     /**

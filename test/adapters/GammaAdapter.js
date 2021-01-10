@@ -316,7 +316,7 @@ function behavesLikeOTokens(params) {
           options: this.oTokenAddress,
           optionID: "0",
           amount: this.purchaseAmount,
-          exerciseProfit: "0",
+          exerciseProfit: this.exerciseProfit,
         });
 
         const otoken = await IERC20.at(this.oTokenAddress);

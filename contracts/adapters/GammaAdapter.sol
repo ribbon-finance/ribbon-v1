@@ -229,7 +229,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         uint256 optionID,
         uint256 amount,
         address recipient
-    ) external payable override {
+    ) public payable override {
         uint256 scaledAmount = amount.div(10**10);
         uint256 profit = exerciseProfit(options, optionID, amount);
 
@@ -257,7 +257,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
             swapExercisedProfitsToUnderlying(options, profit, recipient);
 
         emit Exercised(
-            recipient,
+            msg.sender,
             options,
             optionID,
             amount,

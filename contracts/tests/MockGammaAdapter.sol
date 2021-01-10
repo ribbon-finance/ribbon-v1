@@ -36,6 +36,6 @@ contract MockGammaAdapter is GammaAdapter {
             amount / 10**10
         );
 
-        this.exercise(options, optionID, amount, recipient);
+        exercise(options, optionID, amount, recipient);
     }
 }

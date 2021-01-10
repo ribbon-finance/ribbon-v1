@@ -298,6 +298,8 @@ function behavesLikeOTokens(params) {
       });
 
       it("exercises otokens", async function () {
+        const recipientTracker = await balance.tracker(recipient);
+
         if (new BN(this.exerciseProfit).isZero()) {
           return;
         }
@@ -307,7 +309,7 @@ function behavesLikeOTokens(params) {
           this.oTokenAddress,
           0,
           this.purchaseAmount,
-          user,
+          recipient,
           { from: user }
         );
 
@@ -320,17 +322,25 @@ function behavesLikeOTokens(params) {
         });
 
         const otoken = await IERC20.at(this.oTokenAddress);
-        const collateralToken = await IERC20.at(this.collateralAsset);
 
         assert.equal((await otoken.balanceOf(user)).toString(), "0");
         assert.equal(
           (await otoken.balanceOf(this.adapter.address)).toString(),
           "0"
         );
-        assert.equal(
-          (await collateralToken.balanceOf(user)).toString(),
-          this.exerciseProfit
-        );
+
+        if (this.collateralAsset == WETH_ADDRESS) {
+          assert.equal(
+            (await recipientTracker.delta()).toString(),
+            this.exerciseProfit
+          );
+        } else {
+          const collateralToken = await IERC20.at(this.collateralAsset);
+          assert.equal(
+            (await collateralToken.balanceOf(user)).toString(),
+            this.exerciseProfit
+          );
+        }
       });
     });
   });

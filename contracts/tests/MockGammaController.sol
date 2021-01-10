@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {OtokenInterface, IController} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
@@ -12,6 +13,7 @@ import {DebugLib} from "../tests/DebugLib.sol";
 
 contract MockGammaController is DSMath, DebugLib {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
     uint256 public price;
     address public oracle;
@@ -111,7 +113,7 @@ contract MockGammaController is DSMath, DebugLib {
             "Not enough collateral balance to payout"
         );
 
-        collateralToken.transfer(_args.receiver, payout);
+        collateralToken.safeTransfer(_args.receiver, payout);
     }
 
     function _parseRedeemArgs(IController.ActionArgs memory _args)

@@ -10,7 +10,7 @@ const {
 } = require("@openzeppelin/test-helpers");
 const { assert } = require("chai");
 const helper = require("../helper.js");
-const GammaAdapter = contract.fromArtifact("GammaAdapter");
+const MockGammaAdapter = contract.fromArtifact("MockGammaAdapter");
 const MockGammaController = contract.fromArtifact("MockGammaController");
 const IERC20 = contract.fromArtifact("IERC20");
 const ZERO_EX_API_RESPONSES = require("../fixtures/GammaAdapter.json");
@@ -45,7 +45,7 @@ describe("GammaAdapter", () => {
 
     this.mockController.setPrice("110000000000");
 
-    this.adapter = await GammaAdapter.new(
+    this.adapter = await MockGammaAdapter.new(
       OTOKEN_FACTORY,
       this.mockController.address,
       WETH_ADDRESS,
@@ -148,6 +148,7 @@ function behavesLikeOTokens(params) {
         oTokenAddress,
         purchaseAmount,
         exerciseProfit,
+        premium,
       } = params;
 
       this.oTokenAddress = oTokenAddress;
@@ -159,6 +160,7 @@ function behavesLikeOTokens(params) {
       this.optionType = optionType;
       this.purchaseAmount = purchaseAmount;
       this.exerciseProfit = exerciseProfit;
+      this.premium = premium;
       this.apiResponse = ZERO_EX_API_RESPONSES[oTokenAddress];
       this.scaleDecimals = (n) => n.div(new BN("10").pow(new BN("10")));
 
@@ -296,14 +298,38 @@ function behavesLikeOTokens(params) {
       });
 
       it("exercises otokens", async function () {
+        if (new BN(this.exerciseProfit).isZero()) {
+          return;
+        }
         await time.increaseTo(this.expiry + 1);
 
-        const res = await this.adapter.exercise(
+        const res = await this.adapter.mockedExercise(
           this.oTokenAddress,
           0,
           this.purchaseAmount,
           user,
           { from: user }
+        );
+
+        expectEvent(res, "Exercised", {
+          caller: user,
+          options: this.oTokenAddress,
+          optionID: "0",
+          amount: this.purchaseAmount,
+          exerciseProfit: "0",
+        });
+
+        const otoken = await IERC20.at(this.oTokenAddress);
+        const collateralToken = await IERC20.at(this.collateralAsset);
+
+        assert.equal((await otoken.balanceOf(user)).toString(), "0");
+        assert.equal(
+          (await otoken.balanceOf(this.adapter.address)).toString(),
+          "0"
+        );
+        assert.equal(
+          (await collateralToken.balanceOf(user)).toString(),
+          this.exerciseProfit
         );
       });
     });

@@ -235,7 +235,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
             IController.ActionArgs(
                 IController.ActionType.Redeem,
                 address(this), // owner
-                msg.sender, // receiver
+                recipient, // receiver
                 options, // asset, otoken
                 0, // vaultId
                 scaledAmount,

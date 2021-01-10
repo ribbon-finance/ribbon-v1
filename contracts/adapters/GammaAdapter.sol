@@ -33,7 +33,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
     address private immutable _router;
     uint256 private constant _swapWindow = 900;
     string private constant _name = "OPYN_GAMMA";
-    bool private constant _nonFungible = true;
+    bool private constant _nonFungible = false;
 
     constructor(
         address _oTokenFactory,

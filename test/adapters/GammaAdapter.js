@@ -10,10 +10,13 @@ const {
 } = require("@openzeppelin/test-helpers");
 const { assert } = require("chai");
 const helper = require("../helper.js");
-const GammaAdapter = contract.fromArtifact("GammaAdapter");
+const MockGammaAdapter = contract.fromArtifact("MockGammaAdapter");
+const MockGammaController = contract.fromArtifact("MockGammaController");
 const IERC20 = contract.fromArtifact("IERC20");
 const ZERO_EX_API_RESPONSES = require("../fixtures/GammaAdapter.json");
 
+const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
+const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";
 const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
@@ -34,8 +37,17 @@ describe("GammaAdapter", () => {
     this.protocolName = "OPYN_GAMMA";
     this.nonFungible = false;
 
-    this.adapter = await GammaAdapter.new(
+    this.mockController = await MockGammaController.new(
+      GAMMA_ORACLE,
+      UNISWAP_ROUTER,
+      WETH_ADDRESS
+    );
+
+    this.mockController.setPrice("110000000000");
+
+    this.adapter = await MockGammaAdapter.new(
       OTOKEN_FACTORY,
+      this.mockController.address,
       WETH_ADDRESS,
       ZERO_EX_EXCHANGE,
       UNISWAP_ROUTER,
@@ -80,7 +92,6 @@ describe("GammaAdapter", () => {
     });
   });
 
-  // Call ITM
   behavesLikeOTokens({
     name: "Call ITM",
     oTokenAddress: "0x3cF86d40988309AF3b90C14544E1BB0673BFd439",
@@ -90,6 +101,9 @@ describe("GammaAdapter", () => {
     strikePrice: ether("960"),
     expiry: "1614326400",
     optionType: CALL_OPTION_TYPE,
+    purchaseAmount: ether("0.1"),
+    exerciseProfit: "12727272727272727",
+    premium: "50329523139774375",
   });
 
   behavesLikeOTokens({
@@ -101,6 +115,9 @@ describe("GammaAdapter", () => {
     strikePrice: ether("1480"),
     expiry: "1610697600",
     optionType: CALL_OPTION_TYPE,
+    purchaseAmount: ether("0.1"),
+    exerciseProfit: new BN("0"),
+    premium: "18271767935676968",
   });
 
   behavesLikeOTokens({
@@ -112,6 +129,9 @@ describe("GammaAdapter", () => {
     strikePrice: ether("800"),
     expiry: "1610697600",
     optionType: PUT_OPTION_TYPE,
+    purchaseAmount: ether("0.1"),
+    exerciseProfit: new BN("0"),
+    premium: "16125055430257410",
   });
 });
 
@@ -126,6 +146,9 @@ function behavesLikeOTokens(params) {
         expiry,
         optionType,
         oTokenAddress,
+        purchaseAmount,
+        exerciseProfit,
+        premium,
       } = params;
 
       this.oTokenAddress = oTokenAddress;
@@ -135,34 +158,178 @@ function behavesLikeOTokens(params) {
       this.strikePrice = strikePrice;
       this.expiry = expiry;
       this.optionType = optionType;
+      this.purchaseAmount = purchaseAmount;
+      this.exerciseProfit = exerciseProfit;
+      this.premium = premium;
       this.apiResponse = ZERO_EX_API_RESPONSES[oTokenAddress];
+      this.scaleDecimals = (n) => n.div(new BN("10").pow(new BN("10")));
 
       this.optionTerms = [
         this.underlying,
         this.strikeAsset,
         this.collateralAsset,
-        this.strikePrice,
         this.expiry,
+        this.strikePrice,
         this.optionType,
+      ];
+
+      this.zeroExOrder = [
+        this.apiResponse.to,
+        this.apiResponse.buyTokenAddress,
+        this.apiResponse.sellTokenAddress,
+        this.apiResponse.to,
+        this.apiResponse.protocolFee,
+        this.apiResponse.buyAmount,
+        this.apiResponse.sellAmount,
+        this.apiResponse.data,
       ];
     });
 
+    describe("#premium", () => {
+      it("has a premium of 0", async function () {
+        assert.equal(
+          await this.adapter.premium(this.optionTerms, this.purchaseAmount),
+          "0"
+        );
+      });
+    });
+
+    describe("#exerciseProfit", () => {
+      let snapshotId;
+
+      beforeEach(async () => {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+      });
+
+      afterEach(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
+
+      it("gets exercise profit", async function () {
+        await time.increaseTo(this.expiry + 1);
+
+        assert.equal(
+          (
+            await this.adapter.exerciseProfit(
+              this.oTokenAddress,
+              0,
+              this.purchaseAmount
+            )
+          ).toString(),
+          this.exerciseProfit
+        );
+      });
+    });
+
     describe("#purchaseWithZeroEx", () => {
+      let snapshotId;
+
+      beforeEach(async () => {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+      });
+
+      afterEach(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
+
       it("purchases with 0x exchange", async function () {
-        await this.adapter.purchaseWithZeroEx(
-          this.apiResponse.to,
-          this.apiResponse.buyTokenAddress,
-          this.apiResponse.sellTokenAddress,
-          this.apiResponse.to,
-          this.apiResponse.protocolFee,
-          this.apiResponse.buyAmount,
-          this.apiResponse.sellAmount,
-          this.apiResponse.data,
+        const res = await this.adapter.purchaseWithZeroEx(
+          this.optionTerms,
+          this.zeroExOrder,
           {
             from: user,
             gasPrice: this.apiResponse.gasPrice,
             value: ether("10"),
           }
+        );
+
+        const buyToken = await IERC20.at(this.apiResponse.buyTokenAddress);
+        const sellToken = await IERC20.at(this.apiResponse.sellTokenAddress);
+
+        assert.isAtLeast(
+          (await buyToken.balanceOf(this.adapter.address)).toNumber(),
+          parseInt(this.apiResponse.buyAmount)
+        );
+        assert.equal(await sellToken.balanceOf(this.adapter.address), "0");
+
+        expectEvent(res, "Purchased", {
+          caller: user,
+          protocolName: web3.utils.sha3(this.protocolName),
+          underlying: this.underlying,
+          strikeAsset: this.strikeAsset,
+          expiry: this.expiry,
+          strikePrice: this.strikePrice,
+          optionType: this.optionType.toString(),
+          amount: this.scaleDecimals(this.purchaseAmount),
+          premium: this.premium,
+          optionID: "0",
+        });
+      });
+    });
+
+    describe("#exercise", () => {
+      let snapshotId;
+
+      beforeEach(async function () {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+
+        // load the contract with collateralAsset
+        await this.mockController.buyCollateral(this.oTokenAddress, {
+          from: owner,
+          value: ether("10"),
+        });
+
+        await this.adapter.purchaseWithZeroEx(
+          this.optionTerms,
+          this.zeroExOrder,
+          {
+            from: user,
+            gasPrice: this.apiResponse.gasPrice,
+            value: ether("5"),
+          }
+        );
+      });
+
+      afterEach(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
+
+      it("exercises otokens", async function () {
+        if (new BN(this.exerciseProfit).isZero()) {
+          return;
+        }
+        await time.increaseTo(this.expiry + 1);
+
+        const res = await this.adapter.mockedExercise(
+          this.oTokenAddress,
+          0,
+          this.purchaseAmount,
+          user,
+          { from: user }
+        );
+
+        expectEvent(res, "Exercised", {
+          caller: user,
+          options: this.oTokenAddress,
+          optionID: "0",
+          amount: this.purchaseAmount,
+          exerciseProfit: "0",
+        });
+
+        const otoken = await IERC20.at(this.oTokenAddress);
+        const collateralToken = await IERC20.at(this.collateralAsset);
+
+        assert.equal((await otoken.balanceOf(user)).toString(), "0");
+        assert.equal(
+          (await otoken.balanceOf(this.adapter.address)).toString(),
+          "0"
+        );
+        assert.equal(
+          (await collateralToken.balanceOf(user)).toString(),
+          this.exerciseProfit
         );
       });
     });

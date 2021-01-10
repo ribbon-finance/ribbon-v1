@@ -11,7 +11,8 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {
     IProtocolAdapter,
     OptionTerms,
-    OptionType
+    OptionType,
+    PurchaseMethod
 } from "./IProtocolAdapter.sol";
 import {
     IHegicOptions,
@@ -59,6 +60,10 @@ contract HegicAdapter is IProtocolAdapter, DebugLib {
 
     function nonFungible() external pure override returns (bool) {
         return _nonFungible;
+    }
+
+    function purchaseMethod() external pure override returns (PurchaseMethod) {
+        return PurchaseMethod.Contract;
     }
 
     /**

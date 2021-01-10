@@ -4,6 +4,8 @@ pragma experimental ABIEncoderV2;
 
 enum OptionType {Invalid, Put, Call}
 
+enum PurchaseMethod {Invalid, Contract, ZeroEx}
+
 /**
  * @notice Terms of an options contract
  * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
@@ -19,6 +21,17 @@ struct OptionTerms {
     uint256 expiry;
     uint256 strikePrice;
     OptionType optionType;
+}
+
+struct ZeroExOrder {
+    address exchangeAddress;
+    address buyTokenAddress;
+    address sellTokenAddress;
+    address allowanceTarget;
+    uint256 protocolFee;
+    uint256 makerAssetAmount;
+    uint256 takerAssetAmount;
+    bytes swapData;
 }
 
 interface IProtocolAdapter {
@@ -59,6 +72,11 @@ interface IProtocolAdapter {
      * Fungible protocols normally use tokens to represent option contracts.
      */
     function nonFungible() external pure returns (bool);
+
+    /**
+     * @notice Returns the purchase method used to purchase options
+     */
+    function purchaseMethod() external pure returns (PurchaseMethod);
 
     /**
      * @notice Check if an options contract exist based on the passed parameters.

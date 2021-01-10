@@ -8,15 +8,17 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {
     OptionType,
     IProtocolAdapter,
-    OptionTerms
+    OptionTerms,
+    ZeroExOrder,
+    PurchaseMethod
 } from "./IProtocolAdapter.sol";
 import {InstrumentStorageV1} from "../storage/InstrumentStorage.sol";
 import {
-    OtokenFactory,
-    OtokenInterface
-} from "../interfaces/OtokenInterface.sol";
-import {IZeroExExchange, Order} from "../interfaces/IZeroExExchange.sol";
-import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
+    IOtokenFactory,
+    OtokenInterface,
+    IController,
+    OracleInterface
+} from "../interfaces/GammaInterface.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import "../tests/DebugLib.sol";
 
@@ -25,19 +27,24 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
     using SafeERC20 for IERC20;
 
     address public immutable zeroExExchange;
+    address public immutable gammaController;
     address public immutable oTokenFactory;
     address private immutable _weth;
     address private immutable _router;
     uint256 private constant _swapWindow = 900;
+    string private constant _name = "OPYN_GAMMA";
+    bool private constant _nonFungible = false;
 
     constructor(
         address _oTokenFactory,
+        address _gammaController,
         address weth,
         address _zeroExExchange,
         address router
     ) public {
         oTokenFactory = _oTokenFactory;
         zeroExExchange = _zeroExExchange;
+        gammaController = _gammaController;
         _weth = weth;
         _router = router;
     }
@@ -45,11 +52,15 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
     receive() external payable {}
 
     function protocolName() external pure override returns (string memory) {
-        return "OPYN_GAMMA";
+        return _name;
     }
 
     function nonFungible() external pure override returns (bool) {
-        return false;
+        return _nonFungible;
+    }
+
+    function purchaseMethod() external pure override returns (PurchaseMethod) {
+        return PurchaseMethod.ZeroEx;
     }
 
     /**
@@ -103,7 +114,21 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         uint256 optionID,
         uint256 amount
     ) external view override returns (uint256 profit) {
-        return 0;
+        IController controller = IController(gammaController);
+        OracleInterface oracle = OracleInterface(controller.oracle());
+        OtokenInterface otoken = OtokenInterface(options);
+
+        uint256 spotPrice = oracle.getPrice(otoken.underlyingAsset());
+        uint256 strikePrice = otoken.strikePrice();
+        bool isPut = otoken.isPut();
+
+        if (!isPut && spotPrice <= strikePrice) {
+            return 0;
+        } else if (isPut && spotPrice >= strikePrice) {
+            return 0;
+        }
+
+        return controller.getPayout(options, amount.div(10**10));
     }
 
     /**
@@ -119,51 +144,75 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
     {}
 
     function purchaseWithZeroEx(
-        address payable exchangeAddress,
-        address buyTokenAddress,
-        address sellTokenAddress,
-        address allowanceTarget,
-        uint256 protocolFee,
-        uint256 makerAssetAmount,
-        uint256 takerAssetAmount,
-        bytes calldata swapData
+        OptionTerms calldata optionTerms,
+        ZeroExOrder calldata zeroExOrder
     ) external payable {
-        require(msg.value >= protocolFee, "Value cannot cover protocolFee");
+        require(
+            msg.value >= zeroExOrder.protocolFee,
+            "Value cannot cover protocolFee"
+        );
 
         IUniswapV2Router02 router = IUniswapV2Router02(_router);
 
         address[] memory path = new address[](2);
         path[0] = _weth;
-        path[1] = sellTokenAddress;
+        path[1] = zeroExOrder.sellTokenAddress;
+        uint256[] memory amountsIn =
+            router.getAmountsIn(zeroExOrder.takerAssetAmount, path);
 
-        uint256[] memory amounts = router.getAmountsIn(takerAssetAmount, path);
+        uint256 soldETH = amountsIn[0];
+        uint256 totalCost = soldETH.add(zeroExOrder.protocolFee);
 
-        require(msg.value >= amounts[0], "Not enough value to swap");
+        require(msg.value >= soldETH, "Not enough value to swap");
 
-        router.swapETHForExactTokens{value: amounts[0]}(
-            takerAssetAmount,
+        router.swapETHForExactTokens{value: soldETH}(
+            zeroExOrder.takerAssetAmount,
             path,
             address(this),
             block.timestamp + _swapWindow
         );
 
         require(
-            IERC20(sellTokenAddress).balanceOf(address(this)) >=
-                takerAssetAmount,
+            IERC20(zeroExOrder.sellTokenAddress).balanceOf(address(this)) >=
+                zeroExOrder.takerAssetAmount,
             "Not enough takerAsset balance"
         );
 
-        IERC20(sellTokenAddress).safeApprove(allowanceTarget, takerAssetAmount);
+        IERC20(zeroExOrder.sellTokenAddress).safeApprove(
+            zeroExOrder.allowanceTarget,
+            zeroExOrder.takerAssetAmount
+        );
 
-        (bool success, bytes memory res) =
-            exchangeAddress.call{value: protocolFee}(swapData);
+        (bool success, ) =
+            zeroExOrder.exchangeAddress.call{value: zeroExOrder.protocolFee}(
+                zeroExOrder.swapData
+            );
 
         require(success, "0x swap failed");
 
         require(
-            IERC20(buyTokenAddress).balanceOf(address(this)) >=
-                makerAssetAmount,
+            IERC20(zeroExOrder.buyTokenAddress).balanceOf(address(this)) >=
+                zeroExOrder.makerAssetAmount,
             "Not enough buyToken balance"
+        );
+
+        if (msg.value > totalCost) {
+            uint256 change = msg.value.sub(totalCost);
+            (bool changeSuccess, ) = msg.sender.call{value: change}("");
+            require(changeSuccess, "Change transfer failed");
+        }
+
+        emit Purchased(
+            msg.sender,
+            _name,
+            optionTerms.underlying,
+            optionTerms.strikeAsset,
+            optionTerms.expiry,
+            optionTerms.strikePrice,
+            optionTerms.optionType,
+            zeroExOrder.makerAssetAmount,
+            totalCost,
+            0
         );
     }
 
@@ -180,7 +229,27 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         uint256 amount,
         address recipient
     ) external payable override {
-        require(false, "Not implemented");
+        uint256 scaledAmount = amount.div(10**10);
+
+        IController.ActionArgs memory action =
+            IController.ActionArgs(
+                IController.ActionType.Redeem,
+                address(this), // owner
+                recipient, // receiver
+                options, // asset, otoken
+                0, // vaultId
+                scaledAmount,
+                0, //index
+                "" //data
+            );
+
+        IController.ActionArgs[] memory actions =
+            new IController.ActionArgs[](1);
+        actions[0] = action;
+
+        IController(gammaController).operate(actions);
+
+        emit Exercised(recipient, options, optionID, amount, 0);
     }
 
     /**
@@ -192,7 +261,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         view
         returns (address oToken)
     {
-        OtokenFactory factory = OtokenFactory(oTokenFactory);
+        IOtokenFactory factory = IOtokenFactory(oTokenFactory);
 
         bool isPut = optionTerms.optionType == OptionType.Put;
         address underlying = optionTerms.underlying;

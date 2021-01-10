@@ -13,7 +13,9 @@ import {InstrumentStorageV1} from "../storage/InstrumentStorage.sol";
 import {
     OptionType,
     OptionTerms,
-    IProtocolAdapter
+    IProtocolAdapter,
+    PurchaseMethod,
+    ZeroExOrder
 } from "../adapters/IProtocolAdapter.sol";
 import {IDojiFactory} from "../interfaces/IDojiFactory.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
@@ -113,7 +115,8 @@ contract DojiVolatility is
         string[] memory venues,
         OptionType[] memory optionTypes,
         uint256[] memory amounts,
-        uint256[] memory strikePrices
+        uint256[] memory strikePrices,
+        bytes[] memory buyData
     ) public payable override nonReentrant returns (uint256 positionID) {
         require(venues.length >= 2, "Must have at least 2 venues");
         require(block.timestamp < expiry, "Cannot purchase after expiry");
@@ -128,7 +131,8 @@ contract DojiVolatility is
                     venues[i],
                     optionTypes[i],
                     amounts[i],
-                    strikePrices[i]
+                    strikePrices[i],
+                    buyData[i]
                 );
 
             if (!seenPut && optionTypes[i] == OptionType.Put) {
@@ -167,7 +171,8 @@ contract DojiVolatility is
         string memory venue,
         OptionType optionType,
         uint256 amount,
-        uint256 strikePrice
+        uint256 strikePrice,
+        bytes memory buyData
     ) private returns (uint32 optionID) {
         address adapterAddress = factory.getAdapter(venue);
         require(adapterAddress != address(0), "Adapter does not exist");
@@ -175,18 +180,48 @@ contract DojiVolatility is
 
         require(optionType != OptionType.Invalid, "Invalid option type");
 
-        uint256 premium =
-            adapter.delegatePremium(
-                OptionTerms(
-                    underlying,
-                    strikeAsset,
-                    strikeAsset,
-                    expiry,
-                    strikePrice,
-                    optionType
-                ),
-                amount
+        PurchaseMethod purchaseMethod = adapter.purchaseMethod();
+
+        require(
+            purchaseMethod != PurchaseMethod.Invalid,
+            "Invalid purchase method"
+        );
+
+        if (purchaseMethod == PurchaseMethod.Contract) {
+            optionID = purchaseWithContract(
+                adapter,
+                optionType,
+                amount,
+                strikePrice
             );
+        } else if (purchaseMethod == PurchaseMethod.ZeroEx) {
+            purchaseWithZeroEx(
+                adapter,
+                optionType,
+                amount,
+                strikePrice,
+                buyData
+            );
+        }
+    }
+
+    function purchaseWithContract(
+        IProtocolAdapter adapter,
+        OptionType optionType,
+        uint256 amount,
+        uint256 strikePrice
+    ) private returns (uint32 optionID) {
+        OptionTerms memory optionTerms =
+            OptionTerms(
+                underlying,
+                strikeAsset,
+                strikeAsset,
+                expiry,
+                strikePrice,
+                optionType
+            );
+
+        uint256 premium = adapter.delegatePremium(optionTerms, amount);
 
         // This only applies to ETH payments for now
         // We have not enabled purchases using the underlying asset.
@@ -197,19 +232,30 @@ contract DojiVolatility is
             );
         }
 
-        uint256 optionID256 =
-            adapter.delegatePurchase(
-                OptionTerms(
-                    underlying,
-                    strikeAsset,
-                    strikeAsset,
-                    expiry,
-                    strikePrice,
-                    optionType
-                ),
-                amount
-            );
+        uint256 optionID256 = adapter.delegatePurchase(optionTerms, amount);
         optionID = adapter.delegateNonFungible() ? uint32(optionID256) : 0;
+    }
+
+    function purchaseWithZeroEx(
+        IProtocolAdapter adapter,
+        OptionType optionType,
+        uint256 amount,
+        uint256 strikePrice,
+        bytes memory buyData
+    ) private {
+        OptionTerms memory optionTerms =
+            OptionTerms(
+                underlying,
+                strikeAsset,
+                strikeAsset,
+                expiry,
+                strikePrice,
+                optionType
+            );
+
+        ZeroExOrder memory zeroExOrder = abi.decode(buyData, (ZeroExOrder));
+
+        adapter.delegatePurchaseWithZeroEx(optionTerms, zeroExOrder);
     }
 
     function exercisePosition(uint256 positionID)

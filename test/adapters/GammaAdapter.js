@@ -103,6 +103,7 @@ describe("GammaAdapter", () => {
     optionType: CALL_OPTION_TYPE,
     purchaseAmount: ether("0.1"),
     exerciseProfit: "12727272727272727",
+    premium: "50329523139774375",
   });
 
   behavesLikeOTokens({
@@ -116,6 +117,7 @@ describe("GammaAdapter", () => {
     optionType: CALL_OPTION_TYPE,
     purchaseAmount: ether("0.1"),
     exerciseProfit: new BN("0"),
+    premium: "18271767935676968",
   });
 
   behavesLikeOTokens({
@@ -129,6 +131,7 @@ describe("GammaAdapter", () => {
     optionType: PUT_OPTION_TYPE,
     purchaseAmount: ether("0.1"),
     exerciseProfit: new BN("0"),
+    premium: "16125055430257410",
   });
 });
 
@@ -157,13 +160,14 @@ function behavesLikeOTokens(params) {
       this.purchaseAmount = purchaseAmount;
       this.exerciseProfit = exerciseProfit;
       this.apiResponse = ZERO_EX_API_RESPONSES[oTokenAddress];
+      this.scaleDecimals = (n) => n.div(new BN("10").pow(new BN("10")));
 
       this.optionTerms = [
         this.underlying,
         this.strikeAsset,
         this.collateralAsset,
-        this.strikePrice,
         this.expiry,
+        this.strikePrice,
         this.optionType,
       ];
 
@@ -242,16 +246,23 @@ function behavesLikeOTokens(params) {
         const buyToken = await IERC20.at(this.apiResponse.buyTokenAddress);
         const sellToken = await IERC20.at(this.apiResponse.sellTokenAddress);
 
-        assert.equal(
-          (await buyToken.balanceOf(this.adapter.address)).toString(),
-          this.apiResponse.buyAmount
+        assert.isAtLeast(
+          (await buyToken.balanceOf(this.adapter.address)).toNumber(),
+          parseInt(this.apiResponse.buyAmount)
         );
         assert.equal(await sellToken.balanceOf(this.adapter.address), "0");
 
         expectEvent(res, "Purchased", {
           caller: user,
-          protocolName: this.protocolName,
+          protocolName: web3.utils.sha3(this.protocolName),
           underlying: this.underlying,
+          strikeAsset: this.strikeAsset,
+          expiry: this.expiry,
+          strikePrice: this.strikePrice,
+          optionType: this.optionType.toString(),
+          amount: this.scaleDecimals(this.purchaseAmount),
+          premium: this.premium,
+          optionID: "0",
         });
       });
     });

@@ -11,7 +11,6 @@ const {
 const { assert } = require("chai");
 const helper = require("../helper.js");
 const HegicAdapter = contract.fromArtifact("HegicAdapter");
-const MockDojiFactory = contract.fromArtifact("MockDojiFactory");
 const IHegicETHOptions = contract.fromArtifact("IHegicETHOptions");
 const IHegicBTCOptions = contract.fromArtifact("IHegicBTCOptions");
 const IERC20 = contract.fromArtifact("IERC20");

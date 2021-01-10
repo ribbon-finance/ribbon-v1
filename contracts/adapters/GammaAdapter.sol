@@ -31,6 +31,19 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
     address private immutable _weth;
     address private immutable _router;
     uint256 private constant _swapWindow = 900;
+    string private constant _name = "HEGIC";
+    bool private constant _nonFungible = true;
+
+    struct ZeroExOrder {
+        address exchangeAddress;
+        address buyTokenAddress;
+        address sellTokenAddress;
+        address allowanceTarget;
+        uint256 protocolFee;
+        uint256 makerAssetAmount;
+        uint256 takerAssetAmount;
+        bytes swapData;
+    }
 
     constructor(
         address _oTokenFactory,
@@ -49,11 +62,11 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
     receive() external payable {}
 
     function protocolName() external pure override returns (string memory) {
-        return "OPYN_GAMMA";
+        return _name;
     }
 
     function nonFungible() external pure override returns (bool) {
-        return false;
+        return _nonFungible;
     }
 
     /**
@@ -137,57 +150,76 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
     {}
 
     function purchaseWithZeroEx(
-        address payable exchangeAddress,
-        address buyTokenAddress,
-        address sellTokenAddress,
-        address allowanceTarget,
-        uint256 protocolFee,
-        uint256 makerAssetAmount,
-        uint256 takerAssetAmount,
-        bytes calldata swapData
+        OptionTerms calldata optionTerms,
+        ZeroExOrder calldata zeroExOrder
     ) external payable {
-        require(msg.value >= protocolFee, "Value cannot cover protocolFee");
+        require(
+            msg.value >= zeroExOrder.protocolFee,
+            "Value cannot cover protocolFee"
+        );
 
         IUniswapV2Router02 router = IUniswapV2Router02(_router);
 
         address[] memory path = new address[](2);
         path[0] = _weth;
-        path[1] = sellTokenAddress;
-        uint256[] memory amounts = router.getAmountsIn(takerAssetAmount, path);
+        path[1] = zeroExOrder.sellTokenAddress;
+        uint256[] memory amountsIn =
+            router.getAmountsIn(zeroExOrder.takerAssetAmount, path);
 
-        require(msg.value >= amounts[0], "Not enough value to swap");
+        uint256 soldETH = amountsIn[0];
+        uint256 totalCost = soldETH.add(zeroExOrder.protocolFee);
 
-        router.swapETHForExactTokens{value: amounts[0]}(
-            takerAssetAmount,
+        require(msg.value >= soldETH, "Not enough value to swap");
+
+        router.swapETHForExactTokens{value: soldETH}(
+            zeroExOrder.takerAssetAmount,
             path,
             address(this),
             block.timestamp + _swapWindow
         );
 
         require(
-            IERC20(sellTokenAddress).balanceOf(address(this)) >=
-                takerAssetAmount,
+            IERC20(zeroExOrder.sellTokenAddress).balanceOf(address(this)) >=
+                zeroExOrder.takerAssetAmount,
             "Not enough takerAsset balance"
         );
 
-        IERC20(sellTokenAddress).safeApprove(allowanceTarget, takerAssetAmount);
+        IERC20(zeroExOrder.sellTokenAddress).safeApprove(
+            zeroExOrder.allowanceTarget,
+            zeroExOrder.takerAssetAmount
+        );
 
-        (bool success, bytes memory res) =
-            exchangeAddress.call{value: protocolFee}(swapData);
+        (bool success, ) =
+            zeroExOrder.exchangeAddress.call{value: zeroExOrder.protocolFee}(
+                zeroExOrder.swapData
+            );
 
         require(success, "0x swap failed");
 
         require(
-            IERC20(buyTokenAddress).balanceOf(address(this)) >=
-                makerAssetAmount,
+            IERC20(zeroExOrder.buyTokenAddress).balanceOf(address(this)) >=
+                zeroExOrder.makerAssetAmount,
             "Not enough buyToken balance"
         );
 
-        if (msg.value > amounts[0].add(protocolFee)) {
-            uint256 change = msg.value.sub(amounts[0].add(protocolFee));
+        if (msg.value > totalCost) {
+            uint256 change = msg.value.sub(totalCost);
             (bool changeSuccess, ) = msg.sender.call{value: change}("");
             require(changeSuccess, "Change transfer failed");
         }
+
+        emit Purchased(
+            msg.sender,
+            _name,
+            optionTerms.underlying,
+            optionTerms.strikeAsset,
+            optionTerms.expiry,
+            optionTerms.strikePrice,
+            optionTerms.optionType,
+            zeroExOrder.makerAssetAmount,
+            totalCost,
+            0
+        );
     }
 
     /**
@@ -222,6 +254,8 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         actions[0] = action;
 
         IController(gammaController).operate(actions);
+
+        emit Exercised(recipient, options, optionID, amount, 0);
     }
 
     /**

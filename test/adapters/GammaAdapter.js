@@ -166,6 +166,17 @@ function behavesLikeOTokens(params) {
         this.expiry,
         this.optionType,
       ];
+
+      this.zeroExOrder = [
+        this.apiResponse.to,
+        this.apiResponse.buyTokenAddress,
+        this.apiResponse.sellTokenAddress,
+        this.apiResponse.to,
+        this.apiResponse.protocolFee,
+        this.apiResponse.buyAmount,
+        this.apiResponse.sellAmount,
+        this.apiResponse.data,
+      ];
     });
 
     describe("#premium", () => {
@@ -218,15 +229,9 @@ function behavesLikeOTokens(params) {
       });
 
       it("purchases with 0x exchange", async function () {
-        await this.adapter.purchaseWithZeroEx(
-          this.apiResponse.to,
-          this.apiResponse.buyTokenAddress,
-          this.apiResponse.sellTokenAddress,
-          this.apiResponse.to,
-          this.apiResponse.protocolFee,
-          this.apiResponse.buyAmount,
-          this.apiResponse.sellAmount,
-          this.apiResponse.data,
+        const res = await this.adapter.purchaseWithZeroEx(
+          this.optionTerms,
+          this.zeroExOrder,
           {
             from: user,
             gasPrice: this.apiResponse.gasPrice,
@@ -259,14 +264,8 @@ function behavesLikeOTokens(params) {
         });
 
         await this.adapter.purchaseWithZeroEx(
-          this.apiResponse.to,
-          this.apiResponse.buyTokenAddress,
-          this.apiResponse.sellTokenAddress,
-          this.apiResponse.to,
-          this.apiResponse.protocolFee,
-          this.apiResponse.buyAmount,
-          this.apiResponse.sellAmount,
-          this.apiResponse.data,
+          this.optionTerms,
+          this.zeroExOrder,
           {
             from: user,
             gasPrice: this.apiResponse.gasPrice,

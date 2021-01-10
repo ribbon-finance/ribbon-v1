@@ -7,9 +7,10 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {OtokenInterface, IController} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
+import {DSMath} from "../lib/DSMath.sol";
 import {DebugLib} from "../tests/DebugLib.sol";
 
-contract MockGammaController is DebugLib {
+contract MockGammaController is DSMath, DebugLib {
     using SafeMath for uint256;
 
     uint256 public price;
@@ -48,11 +49,11 @@ contract MockGammaController is DebugLib {
             0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
         ) {
             collateralDecimals = 6;
+            return (payout.mul(10**collateralDecimals)).div(10**8);
         } else {
             collateralDecimals = 18;
+            return wdiv(payout, price);
         }
-
-        return (payout.mul(10**collateralDecimals)).div(10**8);
     }
 
     function operate(IController.ActionArgs[] memory actions) public {
@@ -80,13 +81,12 @@ contract MockGammaController is DebugLib {
         uint256[] memory amountsOut = router.getAmountsOut(msg.value, path);
         uint256 minAmountOut = amountsOut[1];
 
-        uint256[] memory swappedAmountsOut =
-            router.swapExactETHForTokens{value: msg.value}(
-                minAmountOut,
-                path,
-                address(this),
-                block.timestamp + 1000
-            );
+        router.swapExactETHForTokens{value: msg.value}(
+            minAmountOut,
+            path,
+            address(this),
+            block.timestamp + 1000
+        );
 
         require(
             IERC20(collateralAsset).balanceOf(address(this)) >= minAmountOut,

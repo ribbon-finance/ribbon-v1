@@ -102,7 +102,7 @@ describe("GammaAdapter", () => {
     expiry: "1614326400",
     optionType: CALL_OPTION_TYPE,
     purchaseAmount: ether("0.1"),
-    exerciseProfit: new BN("14000000"),
+    exerciseProfit: "12727272727272727",
   });
 
   behavesLikeOTokens({

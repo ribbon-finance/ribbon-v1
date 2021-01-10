@@ -243,10 +243,16 @@ function behavesLikeOTokens(params) {
         const sellToken = await IERC20.at(this.apiResponse.sellTokenAddress);
 
         assert.equal(
-          await buyToken.balanceOf(this.adapter.address),
+          (await buyToken.balanceOf(this.adapter.address)).toString(),
           this.apiResponse.buyAmount
         );
         assert.equal(await sellToken.balanceOf(this.adapter.address), "0");
+
+        expectEvent(res, "Purchased", {
+          caller: user,
+          protocolName: this.protocolName,
+          underlying: this.underlying,
+        });
       });
     });
 

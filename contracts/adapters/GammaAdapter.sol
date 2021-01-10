@@ -8,7 +8,9 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {
     OptionType,
     IProtocolAdapter,
-    OptionTerms
+    OptionTerms,
+    ZeroExOrder,
+    PurchaseMethod
 } from "./IProtocolAdapter.sol";
 import {InstrumentStorageV1} from "../storage/InstrumentStorage.sol";
 import {
@@ -17,7 +19,6 @@ import {
     IController,
     OracleInterface
 } from "../interfaces/GammaInterface.sol";
-import {IZeroExExchange, Order} from "../interfaces/IZeroExExchange.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import "../tests/DebugLib.sol";
 
@@ -33,17 +34,6 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
     uint256 private constant _swapWindow = 900;
     string private constant _name = "HEGIC";
     bool private constant _nonFungible = true;
-
-    struct ZeroExOrder {
-        address exchangeAddress;
-        address buyTokenAddress;
-        address sellTokenAddress;
-        address allowanceTarget;
-        uint256 protocolFee;
-        uint256 makerAssetAmount;
-        uint256 takerAssetAmount;
-        bytes swapData;
-    }
 
     constructor(
         address _oTokenFactory,
@@ -67,6 +57,10 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
 
     function nonFungible() external pure override returns (bool) {
         return _nonFungible;
+    }
+
+    function purchaseMethod() external pure override returns (PurchaseMethod) {
+        return PurchaseMethod.ZeroEx;
     }
 
     /**

@@ -5,7 +5,8 @@ pragma experimental ABIEncoderV2;
 import {
     IProtocolAdapter,
     OptionTerms,
-    OptionType
+    OptionType,
+    ZeroExOrder
 } from "./IProtocolAdapter.sol";
 
 library ProtocolAdapter {
@@ -116,6 +117,22 @@ library ProtocolAdapter {
             );
         require(success, getRevertMsg(result));
         return abi.decode(result, (uint256));
+    }
+
+    function delegatePurchaseWithZeroEx(
+        IProtocolAdapter adapter,
+        OptionTerms calldata optionTerms,
+        ZeroExOrder calldata zeroExOrder
+    ) external {
+        (bool success, bytes memory result) =
+            address(adapter).delegatecall(
+                abi.encodeWithSignature(
+                    "purchase((address,address,address,uint256,uint256,uint8),(address,address,address,address,uint256,uint256,uint256,bytes))",
+                    optionTerms,
+                    zeroExOrder
+                )
+            );
+        require(success, getRevertMsg(result));
     }
 
     function delegateExercise(

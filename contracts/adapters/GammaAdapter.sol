@@ -164,7 +164,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         uint256 soldETH = amountsIn[0];
         uint256 totalCost = soldETH.add(zeroExOrder.protocolFee);
 
-        require(msg.value >= soldETH, "Not enough value to swap");
+        require(msg.value >= totalCost, "Not enough value to purchase");
 
         router.swapETHForExactTokens{value: soldETH}(
             zeroExOrder.takerAssetAmount,
@@ -197,11 +197,11 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
             "Not enough buyToken balance"
         );
 
-        if (msg.value > totalCost) {
-            uint256 change = msg.value.sub(totalCost);
-            (bool changeSuccess, ) = msg.sender.call{value: change}("");
-            require(changeSuccess, "Change transfer failed");
-        }
+        // if (msg.value > totalCost) {
+        //     uint256 change = msg.value.sub(totalCost);
+        //     (bool changeSuccess, ) = msg.sender.call{value: change}("");
+        //     require(changeSuccess, "Change transfer failed");
+        // }
 
         emit Purchased(
             msg.sender,

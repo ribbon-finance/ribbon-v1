@@ -11,6 +11,8 @@ import {OptionType} from "../adapters/IProtocolAdapter.sol";
 
 contract GammaAdapterStorage {
     mapping(bytes => address) public optionTermsToOToken;
+
+    uint256[50] private __gammaAdapterGap;
 }
 
 contract InstrumentStorageV1 is
@@ -26,6 +28,10 @@ contract InstrumentStorageV1 is
     string public name;
     string public symbol;
 
+    mapping(address => InstrumentPosition[]) public instrumentPositions;
+
+    uint256[100] private __instrumentGap;
+
     struct InstrumentPosition {
         bool exercised;
         OptionType[] optionTypes;
@@ -34,8 +40,6 @@ contract InstrumentStorageV1 is
         uint256[] strikePrices;
         string[] venues;
     }
-
-    mapping(address => InstrumentPosition[]) public instrumentPositions;
 
     modifier onlyOwner {
         require(msg.sender == owner, "Only owner");

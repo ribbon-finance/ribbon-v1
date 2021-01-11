@@ -78,21 +78,14 @@ describe("DojiVolatility", () => {
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [ether("0.1"), ether("0.1")],
     strikePrices: [ether("960"), ether("960")],
-    premiums: [
-      new BN("343924487476973783"),
-      calculateZeroExOrderCost(
-        ZERO_EX_API_RESPONSES["0x3cF86d40988309AF3b90C14544E1BB0673BFd439"]
-      ),
-    ],
+    premiums: [new BN("6131421160627836"), new BN("0")],
     purchaseAmount: ether("1"),
     optionIDs: ["2353", "0"],
     exerciseProfit: new BN("200547181040532257"),
     actualExerciseProfit: new BN("200547181040532257"),
-    buyData: [
-      "0x",
-      serializeZeroExOrder(
-        ZERO_EX_API_RESPONSES["0x3cF86d40988309AF3b90C14544E1BB0673BFd439"]
-      ),
+    apiResponses: [
+      null,
+      ZERO_EX_API_RESPONSES["0x3cF86d40988309AF3b90C14544E1BB0673BFd439"],
     ],
   });
 });
@@ -117,7 +110,7 @@ function behavesLikeDojiVolatility(params) {
         actualExerciseProfit,
         strikePrices,
         expiry,
-        buyData = [],
+        apiResponses,
       } = params;
       this.name = name;
       this.symbol = symbol;
@@ -128,13 +121,37 @@ function behavesLikeDojiVolatility(params) {
       this.optionTypes = optionTypes;
       this.amounts = amounts;
       this.purchaseAmount = purchaseAmount;
-      this.premiums = premiums;
       this.optionIDs = optionIDs;
       this.exerciseProfit = exerciseProfit;
       this.actualExerciseProfit = actualExerciseProfit;
-      this.buyData = buyData;
 
-      this.totalPremium = premiums.reduce((a, b) => a.add(b), new BN("0"));
+      this.apiResponses = apiResponses;
+
+      this.premiums = venues.map((venue, i) => {
+        return venue === GAMMA_PROTOCOL
+          ? calculateZeroExOrderCost(apiResponses[i])
+          : premiums[i];
+      });
+
+      this.buyData = venues.map((venue, i) =>
+        venue === GAMMA_PROTOCOL ? serializeZeroExOrder(apiResponses[i]) : "0x"
+      );
+
+      this.gasPrice = Math.max(
+        ...venues.map((venue, i) =>
+          venue === GAMMA_PROTOCOL ? apiResponses[i].gasPrice : gasPrice
+        )
+      );
+
+      this.totalPremium = this.premiums.reduce((a, b) => a.add(b), new BN("0"));
+
+      this.cost = new BN("0");
+      venues.forEach((venue, index) => {
+        if (venue === "OPYN_GAMMA") {
+          return;
+        }
+        this.cost = this.cost.add(premiums[index]);
+      });
 
       this.startTime = (await web3.eth.getBlock("latest")).timestamp;
       this.expiry = expiry || this.startTime + 60 * 60 * 24 * 2; // 2 days from now
@@ -223,12 +240,14 @@ function behavesLikeDojiVolatility(params) {
               this.strikePrices
             )
           ).toString(),
-          this.totalPremium
+          this.cost
         );
       });
     });
 
     describe("#buyInstrument", () => {
+      let snapshotId;
+
       beforeEach(async () => {
         const snapShot = await helper.takeSnapshot();
         snapshotId = snapShot["result"];
@@ -249,6 +268,7 @@ function behavesLikeDojiVolatility(params) {
             {
               from: user,
               value: this.premiums[0],
+              gasPrice: this.gasPrice,
             }
           ),
           "Must have at least 2 venues"
@@ -266,6 +286,7 @@ function behavesLikeDojiVolatility(params) {
             {
               from: user,
               value: this.premiums[0].mul(new BN("3")), // just multiply premium by 3 because doubling the premiums sometimes doesnt work
+              gasPrice: this.gasPrice,
             }
           ),
           "Must have both put and call options"
@@ -285,6 +306,7 @@ function behavesLikeDojiVolatility(params) {
             {
               from: user,
               value: this.totalPremium,
+              gasPrice: this.gasPrice,
             }
           ),
           "Cannot purchase after expiry"
@@ -301,6 +323,7 @@ function behavesLikeDojiVolatility(params) {
           {
             from: user,
             value: this.totalPremium,
+            gasPrice: this.gasPrice,
           }
         );
 
@@ -340,7 +363,6 @@ function behavesLikeDojiVolatility(params) {
           const strikePrice = this.strikePrices[i];
           const hegicScaledStrikePrice = strikePrice.div(new BN("10000000000"));
           const purchaseAmount = this.amounts[i];
-          const optionType = this.optionTypes[i];
 
           if (venue === "HEGIC") {
             const {
@@ -358,35 +380,7 @@ function behavesLikeDojiVolatility(params) {
             assert.equal(amount.toString(), purchaseAmount);
             assert.equal(expiration, this.expiry);
             assert.equal(optionType, expectedOptionType);
-          } else if (venue === "OPYN_V1") {
-            const oTokenAddress = await this.opynV1Adapter.lookupOToken(
-              this.underlying,
-              this.strikeAsset,
-              this.expiry,
-              strikePrice,
-              optionType
-            );
-
-            const oTokenERC20 = await IERC20.at(oTokenAddress);
-            assert.equal(
-              (
-                await oTokenERC20.balanceOf(this.opynV1Adapter.address)
-              ).toString(),
-              await convertStandardPurchaseAmountToOTokenAmount(
-                oTokenAddress,
-                optionType,
-                this.purchaseAmount,
-                strikePrice
-              )
-            );
-
-            // check that the instrument contract doesnt retain any oTokens
-            // and that the user doesnt receive the oTokens
-            assert.equal(
-              (await oTokenERC20.balanceOf(this.contract.address)).toString(),
-              "0"
-            );
-            assert.equal((await oTokenERC20.balanceOf(user)).toString(), "0");
+          } else if (venue === "OPYN_GAMMA") {
           } else {
             throw new Error(`No venue found ${venue}`);
           }
@@ -404,6 +398,7 @@ function behavesLikeDojiVolatility(params) {
           {
             from: user,
             value: this.totalPremium,
+            gasPrice: this.gasPrice,
           }
         );
         assert.isAtMost(res.receipt.gasUsed, 700000);
@@ -490,6 +485,7 @@ function behavesLikeDojiVolatility(params) {
           {
             from: user,
             value: this.totalPremium,
+            gasPrice: gasPrice,
           }
         );
         const snapShot = await helper.takeSnapshot();

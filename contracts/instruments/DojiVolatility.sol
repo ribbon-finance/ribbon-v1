@@ -79,6 +79,10 @@ contract DojiVolatility is
             require(adapterAddress != address(0), "Adapter does not exist");
             IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
 
+            if (adapter.purchaseMethod() == PurchaseMethod.ZeroEx) {
+                continue;
+            }
+
             bool exists =
                 adapter.delegateOptionsExist(
                     OptionTerms(

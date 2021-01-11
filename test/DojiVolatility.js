@@ -17,6 +17,7 @@ const IERC20 = contract.fromArtifact("IERC20");
 const IHegicETHOptions = contract.fromArtifact("IHegicETHOptions");
 const IHegicBTCOptions = contract.fromArtifact("IHegicBTCOptions");
 const { wmul } = require("../scripts/helpers/utils");
+const ZERO_EX_API_RESPONSES = require("./fixtures/GammaAdapter.json");
 
 const [admin, owner, user] = accounts;
 const gasPrice = web3.utils.toWei("10", "gwei");
@@ -24,8 +25,9 @@ const gasPrice = web3.utils.toWei("10", "gwei");
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
 const HEGIC_PROTOCOL = "HEGIC";
-const OPYN_V1_PROTOCOL = "OPYN_V1";
+const GAMMA_PROTOCOL = "OPYN_GAMMA";
 const ETH_ADDRESS = constants.ZERO_ADDRESS;
+const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
@@ -37,37 +39,61 @@ describe("DojiVolatility", () => {
    */
 
   // Hegic ITM Put, Hegic OTM Call
-  behavesLikeDojiVolatility({
-    name: "ETH VOL 510 25/12/2020",
-    symbol: "ETH-VOL-510-181220",
-    underlying: ETH_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
-    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    amounts: [ether("1"), ether("1")],
-    strikePrices: [ether("1300"), ether("1300")],
-    premiums: [new BN("296363339171109209"), new BN("0")],
-    purchaseAmount: ether("1"),
-    optionIDs: ["2353", "2354"],
-    exerciseProfit: new BN("154765182941453405"),
-    actualExerciseProfit: new BN("154765182941453405"),
-  });
+  // behavesLikeDojiVolatility({
+  //   name: "Hegic ITM Put, Hegic OTM Call",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   amounts: [ether("1"), ether("1")],
+  //   strikePrices: [ether("1300"), ether("1300")],
+  //   premiums: [new BN("296363339171109209"), new BN("0")],
+  //   purchaseAmount: ether("1"),
+  //   optionIDs: ["2353", "2354"],
+  //   exerciseProfit: new BN("154765182941453405"),
+  //   actualExerciseProfit: new BN("154765182941453405"),
+  // });
 
-  // Hegic OTM Put, Hegic ITM Call
+  // // Hegic OTM Put, Hegic ITM Call
+  // behavesLikeDojiVolatility({
+  //   name: "Hegic OTM Put, Hegic ITM Call",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   amounts: [ether("1"), ether("1")],
+  //   strikePrices: [ether("900"), ether("900")],
+  //   premiums: [new BN("343924487476973783"), new BN("0")],
+  //   purchaseAmount: ether("1"),
+  //   optionIDs: ["2353", "2354"],
+  //   exerciseProfit: new BN("200547181040532257"),
+  //   actualExerciseProfit: new BN("200547181040532257"),
+  // });
+
   behavesLikeDojiVolatility({
-    name: "ETH VOL 560 09/01/2021",
-    symbol: "ETH-VOL-1000-01092021",
+    name: "Hegic OTM Put, Gamma ITM Call",
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
-    venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+    venues: [HEGIC_PROTOCOL, GAMMA_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    amounts: [ether("1"), ether("1")],
-    strikePrices: [ether("900"), ether("900")],
-    premiums: [new BN("343924487476973783"), new BN("0")],
+    amounts: [ether("0.1"), ether("0.1")],
+    strikePrices: [ether("960"), ether("960")],
+    premiums: [
+      new BN("343924487476973783"),
+      calculateZeroExOrderCost(
+        ZERO_EX_API_RESPONSES["0x3cF86d40988309AF3b90C14544E1BB0673BFd439"]
+      ),
+    ],
     purchaseAmount: ether("1"),
-    optionIDs: ["2353", "2354"],
+    optionIDs: ["2353", "0"],
     exerciseProfit: new BN("200547181040532257"),
     actualExerciseProfit: new BN("200547181040532257"),
+    buyData: [
+      "0x",
+      serializeZeroExOrder(
+        ZERO_EX_API_RESPONSES["0x3cF86d40988309AF3b90C14544E1BB0673BFd439"]
+      ),
+    ],
   });
 });
 
@@ -91,6 +117,7 @@ function behavesLikeDojiVolatility(params) {
         actualExerciseProfit,
         strikePrices,
         expiry,
+        buyData = [],
       } = params;
       this.name = name;
       this.symbol = symbol;
@@ -105,6 +132,7 @@ function behavesLikeDojiVolatility(params) {
       this.optionIDs = optionIDs;
       this.exerciseProfit = exerciseProfit;
       this.actualExerciseProfit = actualExerciseProfit;
+      this.buyData = buyData;
 
       this.totalPremium = premiums.reduce((a, b) => a.add(b), new BN("0"));
 
@@ -114,10 +142,12 @@ function behavesLikeDojiVolatility(params) {
       const {
         factory,
         hegicAdapter,
+        gammaAdapter,
         protocolAdapterLib,
       } = await getDefaultArgs(admin, owner, user);
       this.factory = factory;
       this.hegicAdapter = hegicAdapter;
+      this.gammaAdapter = gammaAdapter;
 
       await DojimaVolatility.detectNetwork();
       await DojimaVolatility.link(
@@ -147,7 +177,7 @@ function behavesLikeDojiVolatility(params) {
         owner,
         this.factory.address,
         this.name,
-        this.symbol,
+        "ETH Straddle",
         this.underlying,
         this.strikeAsset,
         this.expiry,
@@ -215,6 +245,7 @@ function behavesLikeDojiVolatility(params) {
             [this.optionTypes[0]],
             [this.amounts[0]],
             [this.strikePrices[0]],
+            this.buyData,
             {
               from: user,
               value: this.premiums[0],
@@ -231,6 +262,7 @@ function behavesLikeDojiVolatility(params) {
             [this.optionTypes[0], this.optionTypes[0]],
             [this.amounts[0], this.amounts[0]],
             [this.strikePrices[0], this.strikePrices[0]],
+            this.buyData,
             {
               from: user,
               value: this.premiums[0].mul(new BN("3")), // just multiply premium by 3 because doubling the premiums sometimes doesnt work
@@ -249,6 +281,7 @@ function behavesLikeDojiVolatility(params) {
             this.optionTypes,
             this.amounts,
             this.strikePrices,
+            this.buyData,
             {
               from: user,
               value: this.totalPremium,
@@ -264,6 +297,7 @@ function behavesLikeDojiVolatility(params) {
           this.optionTypes,
           this.amounts,
           this.strikePrices,
+          this.buyData,
           {
             from: user,
             value: this.totalPremium,
@@ -366,6 +400,7 @@ function behavesLikeDojiVolatility(params) {
           this.optionTypes,
           this.amounts,
           this.strikePrices,
+          this.buyData,
           {
             from: user,
             value: this.totalPremium,
@@ -470,6 +505,55 @@ function behavesLikeDojiVolatility(params) {
       });
     });
   });
+}
+
+function serializeZeroExOrder(apiResponse) {
+  return web3.eth.abi.encodeParameters(
+    [
+      {
+        ZeroExOrder: {
+          exchangeAddress: "address",
+          buyTokenAddress: "address",
+          sellTokenAddress: "address",
+          allowanceTarget: "address",
+          protocolFee: "uint256",
+          makerAssetAmount: "uint256",
+          takerAssetAmount: "uint256",
+          swapData: "bytes",
+        },
+      },
+    ],
+    [
+      {
+        exchangeAddress: apiResponse.to,
+        buyTokenAddress: apiResponse.buyTokenAddress,
+        sellTokenAddress: apiResponse.sellTokenAddress,
+        allowanceTarget: apiResponse.to,
+        protocolFee: apiResponse.protocolFee,
+        makerAssetAmount: apiResponse.buyAmount,
+        takerAssetAmount: apiResponse.sellAmount,
+        swapData: apiResponse.data,
+      },
+    ]
+  );
+}
+
+function calculateZeroExOrderCost(apiResponse) {
+  let decimals;
+
+  if (apiResponse.sellTokenAddress === USDC_ADDRESS.toLowerCase()) {
+    decimals = 10 ** 6;
+  } else if (apiResponse.sellTokenAddress === WETH_ADDRESS.toLowerCase()) {
+    return new BN(apiResponse.sellAmount);
+  } else {
+    decimals = 10 ** 18;
+  }
+
+  const scaledSellAmount = parseInt(apiResponse.sellAmount) / decimals;
+  const totalETH =
+    scaledSellAmount / parseFloat(apiResponse.sellTokenToEthRate);
+
+  return ether(totalETH.toPrecision(6)).add(new BN(apiResponse.value));
 }
 
 async function convertStandardPurchaseAmountToOTokenAmount(

@@ -7,6 +7,8 @@ const AdminUpgradeabilityProxy = contract.fromArtifact(
 );
 const Factory = contract.fromArtifact("DojiFactory");
 const HegicAdapter = contract.fromArtifact("HegicAdapter");
+const GammaAdapter = contract.fromArtifact("GammaAdapter");
+const MockGammaController = contract.fromArtifact("MockGammaController");
 const ProtocolAdapter = contract.fromArtifact("ProtocolAdapter");
 
 module.exports = {
@@ -40,16 +42,19 @@ const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const ETH_ADDRESS = constants.ZERO_ADDRESS;
-const AAVE_ADDRESS_PROVIDER = "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5";
+
+const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";
+const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
+const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 
-let factory, hegicAdapter, opynV1Adapter;
+let factory, hegicAdapter, opynV1Adapter, gammaAdapter;
 
 async function getDefaultArgs(admin, owner, user) {
   // ensure we just return the cached instances instead of re-initializing everything
-  if (factory && hegicAdapter && opynV1Adapter) {
-    return { factory, hegicAdapter, opynV1Adapter };
+  if (factory && hegicAdapter && opynV1Adapter && gammaAdapter) {
+    return { factory, hegicAdapter, opynV1Adapter, gammaAdapter };
   }
 
   factory = await deployProxy(
@@ -67,13 +72,32 @@ async function getDefaultArgs(admin, owner, user) {
     { from: owner }
   );
 
+  const mockController = await MockGammaController.new(
+    GAMMA_ORACLE,
+    UNISWAP_ROUTER,
+    WETH_ADDRESS
+  );
+
+  gammaAdapter = await GammaAdapter.new(
+    OTOKEN_FACTORY,
+    mockController.address,
+    WETH_ADDRESS,
+    ZERO_EX_EXCHANGE,
+    UNISWAP_ROUTER,
+    {
+      from: owner,
+    }
+  );
+
   await factory.setAdapter("HEGIC", hegicAdapter.address, { from: owner });
+  await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address, { from: owner });
 
   const protocolAdapterLib = await ProtocolAdapter.new();
 
   return {
     factory,
     hegicAdapter,
+    gammaAdapter,
     protocolAdapterLib,
   };
 }

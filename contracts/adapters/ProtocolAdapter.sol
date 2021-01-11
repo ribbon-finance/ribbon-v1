@@ -127,7 +127,7 @@ library ProtocolAdapter {
         (bool success, bytes memory result) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
-                    "purchase((address,address,address,uint256,uint256,uint8),(address,address,address,address,uint256,uint256,uint256,bytes))",
+                    "purchaseWithZeroEx((address,address,address,uint256,uint256,uint8),(address,address,address,address,uint256,uint256,uint256,bytes))",
                     optionTerms,
                     zeroExOrder
                 )

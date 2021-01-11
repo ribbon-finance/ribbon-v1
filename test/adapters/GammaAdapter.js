@@ -15,7 +15,6 @@ const MockGammaController = contract.fromArtifact("MockGammaController");
 const IERC20 = contract.fromArtifact("IERC20");
 const ZERO_EX_API_RESPONSES = require("../fixtures/GammaAdapter.json");
 
-const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";

@@ -195,13 +195,7 @@ contract DojiVolatility is
                 strikePrice
             );
         } else if (purchaseMethod == PurchaseMethod.ZeroEx) {
-            purchaseWithZeroEx(
-                adapter,
-                optionType,
-                amount,
-                strikePrice,
-                buyData
-            );
+            purchaseWithZeroEx(adapter, optionType, strikePrice, buyData);
         }
     }
 
@@ -239,7 +233,6 @@ contract DojiVolatility is
     function purchaseWithZeroEx(
         IProtocolAdapter adapter,
         OptionType optionType,
-        uint256 amount,
         uint256 strikePrice,
         bytes memory buyData
     ) private {

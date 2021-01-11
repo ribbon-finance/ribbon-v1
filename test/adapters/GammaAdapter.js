@@ -240,7 +240,7 @@ function behavesLikeOTokens(params) {
           {
             from: user,
             gasPrice: this.apiResponse.gasPrice,
-            value: ether("10"),
+            value: calculateZeroExOrderCost(this.apiResponse),
           }
         );
 
@@ -343,4 +343,22 @@ function behavesLikeOTokens(params) {
       });
     });
   });
+}
+
+function calculateZeroExOrderCost(apiResponse) {
+  let decimals;
+
+  if (apiResponse.sellTokenAddress === USDC_ADDRESS.toLowerCase()) {
+    decimals = 10 ** 6;
+  } else if (apiResponse.sellTokenAddress === WETH_ADDRESS.toLowerCase()) {
+    return new BN(apiResponse.sellAmount);
+  } else {
+    decimals = 10 ** 18;
+  }
+
+  const scaledSellAmount = parseInt(apiResponse.sellAmount) / decimals;
+  const totalETH =
+    scaledSellAmount / parseFloat(apiResponse.sellTokenToEthRate);
+
+  return ether(totalETH.toPrecision(6)).add(new BN(apiResponse.value));
 }

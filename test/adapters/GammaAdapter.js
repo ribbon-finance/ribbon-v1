@@ -266,6 +266,28 @@ function behavesLikeOTokens(params) {
           optionID: "0",
         });
       });
+
+      it("purchases twice", async function () {
+        await this.adapter.purchaseWithZeroEx(
+          this.optionTerms,
+          this.zeroExOrder,
+          {
+            from: user,
+            gasPrice: this.apiResponse.gasPrice,
+            value: calculateZeroExOrderCost(this.apiResponse),
+          }
+        );
+
+        await this.adapter.purchaseWithZeroEx(
+          this.optionTerms,
+          this.zeroExOrder,
+          {
+            from: user,
+            gasPrice: this.apiResponse.gasPrice,
+            value: calculateZeroExOrderCost(this.apiResponse),
+          }
+        );
+      });
     });
 
     describe("#exercise", () => {

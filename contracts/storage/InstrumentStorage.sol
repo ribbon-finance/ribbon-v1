@@ -9,17 +9,7 @@ import {Initializable} from "../lib/upgrades/Initializable.sol";
 import {IDojiFactory} from "../interfaces/IDojiFactory.sol";
 import {OptionType} from "../adapters/IProtocolAdapter.sol";
 
-contract GammaAdapterStorage {
-    mapping(bytes => address) public optionTermsToOToken;
-
-    uint256[50] private __gammaAdapterGap;
-}
-
-contract InstrumentStorageV1 is
-    Initializable,
-    ReentrancyGuard,
-    GammaAdapterStorage
-{
+contract InstrumentStorageV1 is Initializable, ReentrancyGuard {
     address public owner;
     IDojiFactory public factory;
     address public underlying;

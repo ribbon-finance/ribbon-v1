@@ -74,7 +74,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         override
         returns (bool)
     {
-        return false;
+        return lookupOToken(optionTerms) != address(0);
     }
 
     /**
@@ -87,7 +87,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         override
         returns (address)
     {
-        return address(0);
+        return lookupOToken(optionTerms);
     }
 
     /**
@@ -128,6 +128,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         } else if (isPut && spotPrice >= strikePrice) {
             return 0;
         }
+        require(false, uint2str(amount));
 
         return controller.getPayout(options, amount.div(10**10));
     }
@@ -321,6 +322,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
 
         bool isPut = optionTerms.optionType == OptionType.Put;
         address underlying = optionTerms.underlying;
+        address collateralAsset = optionTerms.collateralAsset;
 
         if (
             optionTerms.underlying == address(0) ||
@@ -329,10 +331,17 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
             underlying = _weth;
         }
 
+        if (
+            optionTerms.collateralAsset == address(0) ||
+            optionTerms.collateralAsset == _weth
+        ) {
+            collateralAsset = _weth;
+        }
+
         oToken = factory.getOtoken(
             underlying,
             optionTerms.strikeAsset,
-            optionTerms.collateralAsset,
+            collateralAsset,
             optionTerms.strikePrice.div(10**10),
             optionTerms.expiry,
             isPut

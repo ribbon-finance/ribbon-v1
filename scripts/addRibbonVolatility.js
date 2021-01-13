@@ -6,7 +6,6 @@ const program = new Command();
 const externalAddresses = require("../constants/externalAddresses.json");
 const deployments = require("../constants/deployments.json");
 const accountAddresses = require("../constants/accounts.json");
-const { newTwinYield } = require("./helpers/newInstrument");
 
 // expiry 1 week from now
 const defaultExpirySeconds = parseInt(
@@ -17,14 +16,17 @@ const defaultExpirySeconds = parseInt(
 program.version("0.0.1");
 program
   .option("-N, --network <network>", "Ethereum network", "kovan")
-  .requiredOption("-x, --strikePrice <strike>", "strike", parseInt)
+  .option("-f, --factory <factory>", "RibbonFactory proxy address")
+  .option("-n, --name <name>", "name of instrument (must be unique)")
+  .option("-s, --symbol <symbol>", "symbol")
+  .option("-u, --underlying <underlying>", "underlying asset")
+  .option("-a, --strikeAsset <strikeAsset>", "strike asset")
+  .option("-c, --collateral <collateral>", "collateral asset")
   .requiredOption(
     "-e, --expiry <time>",
     "defaults to current day + 1 week",
     defaultExpirySeconds
-  )
-  .option("-n, --instrumentName <name>", "name of instrument (must be unique)")
-  .option("-s, --symbol <symbol>", "symbol");
+  );
 
 program.parse(process.argv);
 

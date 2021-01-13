@@ -2,5 +2,9 @@
   "kovan": {
     "admin": "0xbE4f6D7255D21F06a4e5F856a13f9d271575AD94",
     "owner": "0xe41f1D600c85B2D0fF8C99959B1613Fea04846b7"
+  },
+  "mainnet": {
+    "admin": "0x15FCB7d77735Eb665168901D9FbC59dF5b2EF2C6",
+    "owner": "0xd4613c4f1e7f220eA43200Cc8E7D40007bed5Fe6"
   }
 }

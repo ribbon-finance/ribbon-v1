@@ -19,12 +19,10 @@ import {
 } from "../adapters/IProtocolAdapter.sol";
 import {IDojiFactory} from "../interfaces/IDojiFactory.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
-import "../tests/DebugLib.sol";
 
 contract DojiVolatility is
     IAggregatedOptionsInstrument,
     DSMath,
-    DebugLib,
     InstrumentStorageV1
 {
     using SafeMath for uint256;
@@ -55,6 +53,7 @@ contract DojiVolatility is
         string memory _symbol,
         address _underlying,
         address _strikeAsset,
+        address _collateralAsset,
         uint256 _expiry
     ) public initializer {
         require(block.timestamp < _expiry, "Expiry has already passed");
@@ -66,6 +65,7 @@ contract DojiVolatility is
         expiry = _expiry;
         underlying = _underlying;
         strikeAsset = _strikeAsset;
+        collateralAsset = _collateralAsset;
     }
 
     function cost(
@@ -88,7 +88,7 @@ contract DojiVolatility is
                     OptionTerms(
                         underlying,
                         strikeAsset,
-                        strikeAsset,
+                        collateralAsset,
                         expiry,
                         strikePrices[i],
                         optionTypes[i]
@@ -100,7 +100,7 @@ contract DojiVolatility is
                 OptionTerms(
                     underlying,
                     strikeAsset,
-                    strikeAsset,
+                    collateralAsset,
                     expiry,
                     strikePrices[i],
                     optionTypes[i]
@@ -213,7 +213,7 @@ contract DojiVolatility is
             OptionTerms(
                 underlying,
                 strikeAsset,
-                strikeAsset,
+                collateralAsset,
                 expiry,
                 strikePrice,
                 optionType
@@ -244,7 +244,7 @@ contract DojiVolatility is
             OptionTerms(
                 underlying,
                 strikeAsset,
-                strikeAsset,
+                collateralAsset,
                 expiry,
                 strikePrice,
                 optionType
@@ -278,7 +278,7 @@ contract DojiVolatility is
                     OptionTerms(
                         underlying,
                         strikeAsset,
-                        underlying,
+                        collateralAsset,
                         expiry,
                         strikePrice,
                         optionType

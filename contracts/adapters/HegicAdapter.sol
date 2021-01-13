@@ -20,9 +20,8 @@ import {
     IHegicETHOptions,
     IHegicBTCOptions
 } from "../interfaces/HegicInterface.sol";
-import "../tests/DebugLib.sol";
 
-contract HegicAdapter is IProtocolAdapter, DebugLib {
+contract HegicAdapter is IProtocolAdapter {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 

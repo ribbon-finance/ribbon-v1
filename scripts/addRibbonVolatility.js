@@ -15,13 +15,13 @@ const defaultExpirySeconds = parseInt(
 
 program.version("0.0.1");
 program
-  .option("-N, --network <network>", "Ethereum network", "kovan")
+  .option("-N, --network <network>", "Ethereum network", "mainnet-fork")
   .option("-f, --factory <factory>", "RibbonFactory proxy address")
-  .option("-n, --name <name>", "name of instrument (must be unique)")
+  .option("-n, --instrumentName <name>", "name of instrument (must be unique)")
   .option("-s, --symbol <symbol>", "symbol")
   .option("-u, --underlying <underlying>", "underlying asset")
   .option("-a, --strikeAsset <strikeAsset>", "strike asset")
-  .option("-c, --collateral <collateral>", "collateral asset")
+  .option("-c, --collateralAsset <collateralAsset>", "collateral asset")
   .requiredOption(
     "-e, --expiry <time>",
     "defaults to current day + 1 week",
@@ -30,13 +30,28 @@ program
 
 program.parse(process.argv);
 
-async function addDojiVolatility() {
+async function addRibbonVolatility() {
   const {
+    network,
+    factory,
     instrumentName,
     symbol,
     expiry,
-    strikePrice,
     underlying,
     strikeAsset,
+    collateralAsset,
   } = program;
+
+  console.log([
+    network,
+    factory,
+    instrumentName,
+    symbol,
+    expiry,
+    underlying,
+    strikeAsset,
+    collateralAsset,
+  ]);
 }
+
+addRibbonVolatility();

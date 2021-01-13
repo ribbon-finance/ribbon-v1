@@ -27,7 +27,7 @@ module.exports = async function (deployer, network) {
 };
 
 async function deployFactory(deployer, admin, owner) {
-  await deployer.deploy(Factory);
+  await deployer.deploy(Factory, { from: admin });
 
   const initBytes = encodeCall(
     "initialize",

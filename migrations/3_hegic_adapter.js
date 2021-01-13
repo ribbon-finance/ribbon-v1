@@ -1,3 +1,4 @@
+const HegicAdapter = artifacts.require("HegicAdapter");
 const { constants } = require("@openzeppelin/test-helpers");
 const {
   updateDeployedAddresses,
@@ -9,19 +10,15 @@ const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const ETH_ADDRESS = constants.ZERO_ADDRESS;
 
-let admin, owner, deployer, network;
+let deployer, owner;
 
 module.exports = async function (_deployer, _network) {
   deployer = _deployer;
   network = _network;
-
-  const { admin: _admin, owner: _owner } = ACCOUNTS[
-    network.replace("-fork", "")
-  ];
-  admin = _admin;
+  let { owner: _owner } = ACCOUNTS[network.replace("-fork", "")];
   owner = _owner;
 
-  await deployHegicAdapter(admin, owner);
+  await deployHegicAdapter();
 };
 
 async function deployHegicAdapter() {
@@ -30,7 +27,8 @@ async function deployHegicAdapter() {
     HEGIC_ETH_OPTIONS,
     HEGIC_WBTC_OPTIONS,
     ETH_ADDRESS,
-    WBTC_ADDRESS
+    WBTC_ADDRESS,
+    { from: owner }
   );
   await updateDeployedAddresses(
     network,

@@ -70,21 +70,41 @@ describe("DojiVolatility", () => {
   //   actualExerciseProfit: new BN("200547181040532257"),
   // });
 
+  // behavesLikeDojiVolatility({
+  //   name: "Hegic OTM Put, Gamma ITM Call",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, GAMMA_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   amounts: [ether("0.1"), ether("0.1")],
+  //   strikePrices: [ether("960"), ether("960")],
+  //   premiums: [new BN("6131421160627836"), new BN("0")],
+  //   purchaseAmount: ether("1"),
+  //   expiry: "1614326400",
+  //   optionIDs: ["2353", "0"],
+  //   exerciseProfit: new BN("200547181040532257"),
+  //   actualExerciseProfit: new BN("200547181040532257"),
+  //   apiResponses: [
+  //     null,
+  //     ZERO_EX_API_RESPONSES["0x3cF86d40988309AF3b90C14544E1BB0673BFd439"],
+  //   ],
+  // });
+
   behavesLikeDojiVolatility({
     name: "Hegic OTM Put, Gamma ITM Call",
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
-    venues: [HEGIC_PROTOCOL, GAMMA_PROTOCOL],
-    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    amounts: [ether("0.1"), ether("0.1")],
-    strikePrices: [ether("960"), ether("960")],
-    premiums: [new BN("6131421160627836"), new BN("0")],
+    venues: [GAMMA_PROTOCOL],
+    optionTypes: [CALL_OPTION_TYPE],
+    amounts: [ether("0.1")],
+    strikePrices: [ether("960")],
+    premiums: [new BN("0")],
     purchaseAmount: ether("1"),
-    optionIDs: ["2353", "0"],
+    expiry: "1614326400",
+    optionIDs: ["0"],
     exerciseProfit: new BN("200547181040532257"),
     actualExerciseProfit: new BN("200547181040532257"),
     apiResponses: [
-      null,
       ZERO_EX_API_RESPONSES["0x3cF86d40988309AF3b90C14544E1BB0673BFd439"],
     ],
   });
@@ -313,90 +333,90 @@ function behavesLikeDojiVolatility(params) {
         );
       });
 
-      it("buys instrument", async function () {
-        const res = await this.contract.buyInstrument(
-          this.venues,
-          this.optionTypes,
-          this.amounts,
-          this.strikePrices,
-          this.buyData,
-          {
-            from: user,
-            value: this.totalPremium,
-            gasPrice: this.gasPrice,
-          }
-        );
+      // it("buys instrument", async function () {
+      //   const res = await this.contract.buyInstrument(
+      //     this.venues,
+      //     this.optionTypes,
+      //     this.amounts,
+      //     this.strikePrices,
+      //     this.buyData,
+      //     {
+      //       from: user,
+      //       value: this.totalPremium,
+      //       gasPrice: this.gasPrice,
+      //     }
+      //   );
 
-        expectEvent(res, "PositionCreated", {
-          account: user,
-          positionID: "0",
-          venues: this.venues,
-        });
+      //   expectEvent(res, "PositionCreated", {
+      //     account: user,
+      //     positionID: "0",
+      //     venues: this.venues,
+      //   });
 
-        const { optionTypes, amounts } = res.logs[0].args;
-        assert.deepEqual(
-          optionTypes.map((o) => o.toNumber()),
-          this.optionTypes
-        );
-        assert.deepEqual(
-          amounts.map((a) => a.toString()),
-          this.amounts.map((a) => a.toString())
-        );
+      //   const { optionTypes, amounts } = res.logs[0].args;
+      //   assert.deepEqual(
+      //     optionTypes.map((o) => o.toNumber()),
+      //     this.optionTypes
+      //   );
+      //   assert.deepEqual(
+      //     amounts.map((a) => a.toString()),
+      //     this.amounts.map((a) => a.toString())
+      //   );
 
-        const position = await this.contract.instrumentPosition(user, 0);
+      //   const position = await this.contract.instrumentPosition(user, 0);
 
-        assert.equal(position.exercised, false);
-        assert.deepEqual(position.venues, this.venues);
-        assert.deepEqual(
-          position.optionTypes.map((o) => o.toString()),
-          this.optionTypes.map((o) => o.toString())
-        );
-        assert.deepEqual(
-          position.amounts.map((a) => a.toString()),
-          this.amounts.map((a) => a.toString())
-        );
-        assert.deepEqual(position.optionIDs, this.optionIDs);
+      //   assert.equal(position.exercised, false);
+      //   assert.deepEqual(position.venues, this.venues);
+      //   assert.deepEqual(
+      //     position.optionTypes.map((o) => o.toString()),
+      //     this.optionTypes.map((o) => o.toString())
+      //   );
+      //   assert.deepEqual(
+      //     position.amounts.map((a) => a.toString()),
+      //     this.amounts.map((a) => a.toString())
+      //   );
+      //   assert.deepEqual(position.optionIDs, this.optionIDs);
 
-        let i = 0;
-        for (const venue of this.venues) {
-          const expectedOptionType = this.optionTypes[i];
-          const strikePrice = this.strikePrices[i];
-          const hegicScaledStrikePrice = strikePrice.div(new BN("10000000000"));
-          const purchaseAmount = this.amounts[i];
+      //   let i = 0;
+      //   for (const venue of this.venues) {
+      //     const expectedOptionType = this.optionTypes[i];
+      //     const strikePrice = this.strikePrices[i];
+      //     const hegicScaledStrikePrice = strikePrice.div(new BN("10000000000"));
+      //     const purchaseAmount = this.amounts[i];
 
-          if (venue === HEGIC_PROTOCOL) {
-            const {
-              holder,
-              strike,
-              amount,
-              lockedAmount,
-              expiration,
-              optionType,
-            } = await this.hegicOptions.options(this.optionIDs[i]);
+      //     if (venue === HEGIC_PROTOCOL) {
+      //       const {
+      //         holder,
+      //         strike,
+      //         amount,
+      //         lockedAmount,
+      //         expiration,
+      //         optionType,
+      //       } = await this.hegicOptions.options(this.optionIDs[i]);
 
-            assert.equal(holder, this.contract.address);
-            assert.equal(strike.toString(), hegicScaledStrikePrice);
-            assert.equal(lockedAmount.toString(), purchaseAmount);
-            assert.equal(amount.toString(), purchaseAmount);
-            assert.equal(expiration, this.expiry);
-            assert.equal(optionType, expectedOptionType);
-          } else if (venue === GAMMA_PROTOCOL) {
-            const apiResponse = this.apiResponses[i];
+      //       assert.equal(holder, this.contract.address);
+      //       assert.equal(strike.toString(), hegicScaledStrikePrice);
+      //       assert.equal(lockedAmount.toString(), purchaseAmount);
+      //       assert.equal(amount.toString(), purchaseAmount);
+      //       assert.equal(expiration, this.expiry);
+      //       assert.equal(optionType, expectedOptionType);
+      //     } else if (venue === GAMMA_PROTOCOL) {
+      //       const apiResponse = this.apiResponses[i];
 
-            const buyToken = await IERC20.at(apiResponse.buyTokenAddress);
-            const sellToken = await IERC20.at(apiResponse.sellTokenAddress);
+      //       const buyToken = await IERC20.at(apiResponse.buyTokenAddress);
+      //       const sellToken = await IERC20.at(apiResponse.sellTokenAddress);
 
-            assert.isAtLeast(
-              (await buyToken.balanceOf(this.contract.address)).toNumber(),
-              parseInt(apiResponse.buyAmount)
-            );
-            assert.equal(await sellToken.balanceOf(this.contract.address), "0");
-          } else {
-            throw new Error(`No venue found ${venue}`);
-          }
-          i++;
-        }
-      });
+      //       assert.isAtLeast(
+      //         (await buyToken.balanceOf(this.contract.address)).toNumber(),
+      //         parseInt(apiResponse.buyAmount)
+      //       );
+      //       assert.equal(await sellToken.balanceOf(this.contract.address), "0");
+      //     } else {
+      //       throw new Error(`No venue found ${venue}`);
+      //     }
+      //     i++;
+      //   }
+      // });
 
       // it("does not exceed gas limit budget", async function () {
       //   const res = await this.contract.buyInstrument(
@@ -426,9 +446,11 @@ function behavesLikeDojiVolatility(params) {
           this.optionTypes,
           this.amounts,
           this.strikePrices,
+          this.buyData,
           {
             from: user,
             value: this.totalPremium,
+            gasPrice: this.gasPrice,
           }
         );
         this.positionID = 0;
@@ -438,23 +460,25 @@ function behavesLikeDojiVolatility(params) {
         await helper.revertToSnapShot(snapshotId);
       });
 
-      it("reverts when exercising twice", async function () {
-        await this.contract.exercisePosition(this.positionID, { from: user });
-        await expectRevert(
-          this.contract.exercisePosition(this.positionID, { from: user }),
-          "Already exercised"
-        );
-      });
+      // it("reverts when exercising twice", async function () {
+      //   await this.contract.exercisePosition(this.positionID, { from: user });
+      //   await expectRevert(
+      //     this.contract.exercisePosition(this.positionID, { from: user }),
+      //     "Already exercised"
+      //   );
+      // });
 
-      it("reverts when past expiry", async function () {
-        await time.increaseTo(this.expiry + 1);
-        await expectRevert(
-          this.contract.exercisePosition(this.positionID, { from: user }),
-          "Already expired"
-        );
-      });
+      // it("reverts when past expiry", async function () {
+      //   await time.increaseTo(this.expiry + 1);
+      //   await expectRevert(
+      //     this.contract.exercisePosition(this.positionID, { from: user }),
+      //     "Already expired"
+      //   );
+      // });
 
       it("exercises one of the options", async function () {
+        await time.increaseTo(this.expiry + 1);
+
         const userTracker = await balance.tracker(user, "wei");
 
         const res = await this.contract.exercisePosition(this.positionID, {
@@ -488,23 +512,25 @@ function behavesLikeDojiVolatility(params) {
       let snapshotId;
 
       beforeEach(async function () {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+
         await this.contract.buyInstrument(
           this.venues,
           this.optionTypes,
           this.amounts,
           this.strikePrices,
+          this.buyData,
           {
             from: user,
             value: this.totalPremium,
-            gasPrice: gasPrice,
+            gasPrice: this.gasPrice,
           }
         );
-        const snapShot = await helper.takeSnapshot();
-        snapshotId = snapShot["result"];
       });
 
       afterEach(async () => {
-        await helper.revertToSnapShot(snapshotId);
+        await helper.revertToSnapShot(initSnapshotId);
       });
 
       it("gets the number of positions", async function () {

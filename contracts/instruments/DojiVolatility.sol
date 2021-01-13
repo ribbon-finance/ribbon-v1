@@ -122,7 +122,7 @@ contract DojiVolatility is
         uint256[] memory strikePrices,
         bytes[] memory buyData
     ) public payable override nonReentrant returns (uint256 positionID) {
-        require(venues.length >= 2, "Must have at least 2 venues");
+        // require(venues.length >= 2, "Must have at least 2 venues");
         require(block.timestamp < expiry, "Cannot purchase after expiry");
 
         uint32[] memory optionIDs = new uint32[](venues.length);
@@ -147,7 +147,7 @@ contract DojiVolatility is
             optionIDs[i] = optionID;
         }
 
-        require(seenCall && seenPut, "Must have both put and call options");
+        // require(seenCall && seenPut, "Must have both put and call options");
 
         InstrumentPosition memory position =
             InstrumentPosition(
@@ -264,7 +264,6 @@ contract DojiVolatility is
         InstrumentPosition storage position =
             instrumentPositions[msg.sender][positionID];
         require(!position.exercised, "Already exercised");
-        require(block.timestamp <= expiry, "Already expired");
 
         bool[] memory optionsExercised = new bool[](position.venues.length);
 
@@ -279,12 +278,15 @@ contract DojiVolatility is
                     OptionTerms(
                         underlying,
                         strikeAsset,
-                        strikeAsset,
+                        underlying,
                         expiry,
                         strikePrice,
                         optionType
                     )
                 );
+
+            require(optionsAddress != address(0), "Options address must exist");
+
             uint256 profit =
                 adapter.delegateExerciseProfit(
                     optionsAddress,

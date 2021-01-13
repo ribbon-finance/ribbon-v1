@@ -33,8 +33,10 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
     address private immutable _weth;
     address private immutable _router;
     uint256 private constant _swapWindow = 900;
+
     string private constant _name = "OPYN_GAMMA";
     bool private constant _nonFungible = false;
+    bool private constant _isEuropean = false;
 
     constructor(
         address _oTokenFactory,
@@ -62,6 +64,10 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
 
     function purchaseMethod() external pure override returns (PurchaseMethod) {
         return PurchaseMethod.ZeroEx;
+    }
+
+    function isEuropean() external pure override returns (bool) {
+        return _isEuropean;
     }
 
     /**
@@ -119,6 +125,11 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         OracleInterface oracle = OracleInterface(controller.oracle());
         OtokenInterface otoken = OtokenInterface(options);
 
+        require(
+            block.timestamp >= otoken.expiryTimestamp(),
+            "oToken not expired yet"
+        );
+
         uint256 spotPrice = oracle.getPrice(otoken.underlyingAsset());
         uint256 strikePrice = otoken.strikePrice();
         bool isPut = otoken.isPut();
@@ -128,7 +139,6 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         } else if (isPut && spotPrice >= strikePrice) {
             return 0;
         }
-        require(false, uint2str(amount));
 
         return controller.getPayout(options, amount.div(10**10));
     }
@@ -231,9 +241,14 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         uint256 amount,
         address recipient
     ) public payable override {
+        OtokenInterface otoken = OtokenInterface(options);
         uint256 scaledAmount = amount.div(10**10);
         uint256 profit = exerciseProfit(options, optionID, amount);
 
+        require(
+            block.timestamp >= otoken.expiryTimestamp(),
+            "oToken not expired yet"
+        );
         require(profit > 0, "Not profitable to exercise");
 
         IController.ActionArgs memory action =

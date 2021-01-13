@@ -17,10 +17,10 @@ import {
     PurchaseMethod,
     ZeroExOrder
 } from "../adapters/IProtocolAdapter.sol";
-import {IDojiFactory} from "../interfaces/IDojiFactory.sol";
+import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 
-contract DojiVolatility is
+contract RibbonVolatility is
     IAggregatedOptionsInstrument,
     DSMath,
     InstrumentStorageV1
@@ -58,7 +58,7 @@ contract DojiVolatility is
     ) public initializer {
         require(block.timestamp < _expiry, "Expiry has already passed");
 
-        factory = IDojiFactory(_factory);
+        factory = IRibbonFactory(_factory);
         owner = _owner;
         name = _name;
         symbol = _symbol;

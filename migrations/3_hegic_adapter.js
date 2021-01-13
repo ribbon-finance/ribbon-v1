@@ -1,12 +1,8 @@
-const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
-const HegicAdapter = artifacts.require("HegicAdapter");
-const { encodeCall } = require("@openzeppelin/upgrades");
 const { constants } = require("@openzeppelin/test-helpers");
 const {
   updateDeployedAddresses,
 } = require("../scripts/helpers/updateDeployedAddresses");
 const ACCOUNTS = require("../constants/accounts.json");
-const DEPLOYMENTS = require("../constants/deployments.json");
 
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
@@ -25,11 +21,10 @@ module.exports = async function (_deployer, _network) {
   admin = _admin;
   owner = _owner;
 
-  await deployHegicAdapterLogic(admin, owner);
-  await deployHegicAdapterProxy(admin, owner);
+  await deployHegicAdapter(admin, owner);
 };
 
-async function deployHegicAdapterLogic() {
+async function deployHegicAdapter() {
   await deployer.deploy(
     HegicAdapter,
     HEGIC_ETH_OPTIONS,
@@ -41,29 +36,5 @@ async function deployHegicAdapterLogic() {
     network,
     "HegicAdapterLogic",
     HegicAdapter.address
-  );
-}
-
-async function deployHegicAdapterProxy() {
-  const { DojiFactory } = DEPLOYMENTS[network];
-
-  const initBytes = encodeCall(
-    "initialize",
-    ["address", "address"],
-    [owner, DojiFactory]
-  );
-  await deployer.deploy(
-    AdminUpgradeabilityProxy,
-    HegicAdapter.address,
-    admin,
-    initBytes,
-    {
-      from: admin,
-    }
-  );
-  await updateDeployedAddresses(
-    network,
-    "HegicAdapter",
-    AdminUpgradeabilityProxy.address
   );
 }

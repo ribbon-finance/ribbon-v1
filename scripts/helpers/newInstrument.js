@@ -9,63 +9,46 @@ const accountAddresses = require("../../constants/accounts.json");
 const deployedAddresses = require("../../constants/deployments");
 
 module.exports = {
-  newTwinYield,
+  newRibbonVolatility,
 };
 
-function encodeTwinYieldData({
+function encodeRibbonVolatilityData({
   owner,
-  dataProvider,
+  factory,
   name,
   symbol,
-  expiry,
-  strikePrice,
-  collateralizationRatio,
+  underlying,
+  strikeAsset,
   collateralAsset,
-  targetAsset,
-  paymentToken,
-  liquidatorProxy,
-  balancerFactory,
+  expiry,
 }) {
-  const newInstrumentTypes = [
+  const types = [
     "address",
     "address",
     "string",
     "string",
+    "address",
+    "address",
+    "address",
     "uint256",
-    "uint256",
-    "uint256",
-    "address",
-    "address",
-    "address",
-    "address",
-    "address",
   ];
-  const newInstrumentArgs = [
+  const args = [
     owner,
-    dataProvider,
+    factory,
     name,
     symbol,
-    expiry,
-    strikePrice,
-    collateralizationRatio,
+    underlying,
+    strikeAsset,
     collateralAsset,
-    targetAsset,
-    paymentToken,
-    liquidatorProxy,
-    balancerFactory,
+    expiry,
   ];
-  const initData = encodeCall(
-    "initialize",
-    newInstrumentTypes,
-    newInstrumentArgs
-  );
-  return initData;
+  return encodeCall("initialize", types, args);
 }
 
 const InstrumentCreatedTopic =
   "0x772afdcbda650f2713223d4a9c12ba1ff2f3c819a4faea1faf64595cb9f80595";
 
-async function newTwinYield(web3, opts) {
+async function newRibbonVolatility(web3, opts) {
   const factory = new web3.eth.Contract(
     factoryJSON.abi,
     deployedAddresses.kovan.DojimaFactory

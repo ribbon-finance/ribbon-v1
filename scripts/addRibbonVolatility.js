@@ -1,5 +1,5 @@
 require("dotenv").config();
-const web3 = require("./helpers/web3");
+const getWeb3 = require("./helpers/web3");
 const { Command } = require("commander");
 const program = new Command();
 
@@ -15,8 +15,7 @@ const defaultExpirySeconds = parseInt(
 
 program.version("0.0.1");
 program
-  .option("-N, --network <network>", "Ethereum network", "mainnet-fork")
-  .option("-f, --factory <factory>", "RibbonFactory proxy address")
+  .option("-N, --network <network>", "Ethereum network", "mainnet-sim")
   .option("-n, --instrumentName <name>", "name of instrument (must be unique)")
   .option("-s, --symbol <symbol>", "symbol")
   .option("-u, --underlying <underlying>", "underlying asset")
@@ -30,10 +29,11 @@ program
 
 program.parse(process.argv);
 
+let web3;
+
 async function addRibbonVolatility() {
   const {
     network,
-    factory,
     instrumentName,
     symbol,
     expiry,
@@ -42,9 +42,12 @@ async function addRibbonVolatility() {
     collateralAsset,
   } = program;
 
+  web3 = getWeb3(network);
+
+  const factoryAddress = deployments[network].RibbonFactory;
+
   console.log([
     network,
-    factory,
     instrumentName,
     symbol,
     expiry,

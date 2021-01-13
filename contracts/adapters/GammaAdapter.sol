@@ -36,7 +36,7 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
 
     string private constant _name = "OPYN_GAMMA";
     bool private constant _nonFungible = false;
-    bool private constant _isEuropean = false;
+    bool private constant _isEuropean = true;
 
     constructor(
         address _oTokenFactory,

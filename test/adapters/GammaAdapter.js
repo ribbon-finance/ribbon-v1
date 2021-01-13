@@ -35,6 +35,7 @@ describe("GammaAdapter", () => {
   before(async function () {
     this.protocolName = "OPYN_GAMMA";
     this.nonFungible = false;
+    this.isEuropean = true;
 
     this.mockController = await MockGammaController.new(
       GAMMA_ORACLE,
@@ -72,6 +73,12 @@ describe("GammaAdapter", () => {
   describe("#nonFungible", () => {
     it("matches the nonFungible bool", async function () {
       assert.equal(await this.adapter.nonFungible(), this.nonFungible);
+    });
+  });
+
+  describe("#isEuropean", () => {
+    it("matches the isEuropean bool", async function () {
+      assert.equal(await this.adapter.isEuropean(), this.isEuropean);
     });
   });
 

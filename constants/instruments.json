@@ -1,6 +1,13 @@
 {
 	"kovan": [],
 	"development": [],
-	"mainnet-sim": [],
+	"mainnet-sim": [
+		{
+			"txhash": "0x087448d674a704bc5c84411836b26b13ce392a223b6a257f1e6b745de5d323c6",
+			"expiry": "1610697600",
+			"instrumentSymbol": "VOL-JAN152021",
+			"address": "0xEee23Aa18414245cF24D041F9Cb30c92e93f02eC"
+		}
+	],
 	"mainnet": []
 }

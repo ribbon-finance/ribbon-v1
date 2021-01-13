@@ -43,6 +43,7 @@ describe("DojiVolatility", () => {
     name: "Hegic ITM Put, Hegic OTM Call",
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
+    collateralAsset: USDC_ADDRESS,
     venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [ether("1"), ether("1")],
@@ -59,6 +60,7 @@ describe("DojiVolatility", () => {
     name: "Hegic OTM Put, Hegic ITM Call",
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
+    collateralAsset: USDC_ADDRESS,
     venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [ether("1"), ether("1")],
@@ -74,6 +76,7 @@ describe("DojiVolatility", () => {
   //   name: "Hegic OTM Put, Gamma ITM Call",
   //   underlying: ETH_ADDRESS,
   //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: ETH_ADDRESS,
   //   venues: [GAMMA_PROTOCOL],
   //   optionTypes: [CALL_OPTION_TYPE],
   //   amounts: [ether("0.1")],
@@ -111,11 +114,13 @@ function behavesLikeDojiVolatility(params) {
         strikePrices,
         expiry,
         apiResponses,
+        collateralAsset,
       } = params;
       this.name = name;
       this.symbol = symbol;
       this.underlying = underlying;
       this.strikeAsset = strikeAsset;
+      this.collateralAsset = collateralAsset;
       this.strikePrices = strikePrices;
       this.venues = venues;
       this.optionTypes = optionTypes;
@@ -190,6 +195,7 @@ function behavesLikeDojiVolatility(params) {
         "string",
         "address",
         "address",
+        "address",
         "uint256",
       ];
       const initArgs = [
@@ -199,6 +205,7 @@ function behavesLikeDojiVolatility(params) {
         "ETH Straddle",
         this.underlying,
         this.strikeAsset,
+        this.collateralAsset,
         this.expiry,
       ];
       const initBytes = encodeCall("initialize", initTypes, initArgs);
@@ -465,14 +472,6 @@ function behavesLikeDojiVolatility(params) {
           "Already exercised"
         );
       });
-
-      // it("reverts when past expiry", async function () {
-      //   await time.increaseTo(this.expiry + 1);
-      //   await expectRevert(
-      //     this.contract.exercisePosition(this.positionID, { from: user }),
-      //     "Already expired"
-      //   );
-      // });
 
       it("exercises one of the options", async function () {
         const userTracker = await balance.tracker(user, "wei");

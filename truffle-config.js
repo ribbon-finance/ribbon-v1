@@ -39,6 +39,20 @@ module.exports = {
       host: "127.0.0.1",
       port: 8545,
       network_id: "*",
+      skipDryRun: true,
+      provider: () =>
+        new HDWalletProvider(
+          process.env.MNEMONIC,
+          "http://127.0.0.1:8545",
+          0,
+          10,
+          "m/44'/60'/0'/0/"
+        ),
+      gas: 5500000,
+      gasPrice: 300000000000,
+      networkCheckTimeout: 20000,
+      confirmations: 0,
+      timeoutBlocks: 20000,
     },
     mainnet: {
       provider: () =>

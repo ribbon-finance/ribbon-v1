@@ -1,4 +1,4 @@
-const Factory = artifacts.require("DojiFactory");
+const Factory = artifacts.require("RibbonFactory");
 const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const { constants } = require("@openzeppelin/test-helpers");
@@ -21,7 +21,7 @@ module.exports = async function (deployer, network) {
   await deployFactory(deployer, admin, owner);
   await updateDeployedAddresses(
     network,
-    "DojiFactory",
+    "RibbonFactory",
     AdminUpgradeabilityProxy.address
   );
 };

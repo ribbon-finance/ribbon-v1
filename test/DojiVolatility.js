@@ -70,26 +70,6 @@ describe("DojiVolatility", () => {
     actualExerciseProfit: new BN("200547181040532257"),
   });
 
-  behavesLikeDojiVolatility({
-    name: "Hegic OTM Put, Gamma ITM Call",
-    underlying: ETH_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    venues: [HEGIC_PROTOCOL, GAMMA_PROTOCOL],
-    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    amounts: [ether("0.1"), ether("0.1")],
-    strikePrices: [ether("960"), ether("960")],
-    premiums: [new BN("6131421160627836"), new BN("0")],
-    purchaseAmount: ether("1"),
-    expiry: "1614326400",
-    optionIDs: ["2353", "0"],
-    exerciseProfit: new BN("200547181040532257"),
-    actualExerciseProfit: new BN("200547181040532257"),
-    apiResponses: [
-      null,
-      ZERO_EX_API_RESPONSES["0x3cF86d40988309AF3b90C14544E1BB0673BFd439"],
-    ],
-  });
-
   // behavesLikeDojiVolatility({
   //   name: "Hegic OTM Put, Gamma ITM Call",
   //   underlying: ETH_ADDRESS,
@@ -279,41 +259,41 @@ function behavesLikeDojiVolatility(params) {
         await helper.revertToSnapShot(snapshotId);
       });
 
-      it("reverts when passed less than 2 venues", async function () {
-        await expectRevert(
-          this.contract.buyInstrument(
-            [this.venues[0]],
-            [this.optionTypes[0]],
-            [this.amounts[0]],
-            [this.strikePrices[0]],
-            this.buyData,
-            {
-              from: user,
-              value: this.premiums[0],
-              gasPrice: this.gasPrice,
-            }
-          ),
-          "Must have at least 2 venues"
-        );
-      });
+      // it("reverts when passed less than 2 venues", async function () {
+      //   await expectRevert(
+      //     this.contract.buyInstrument(
+      //       [this.venues[0]],
+      //       [this.optionTypes[0]],
+      //       [this.amounts[0]],
+      //       [this.strikePrices[0]],
+      //       this.buyData,
+      //       {
+      //         from: user,
+      //         value: this.premiums[0],
+      //         gasPrice: this.gasPrice,
+      //       }
+      //     ),
+      //     "Must have at least 2 venues"
+      //   );
+      // });
 
-      it("reverts when passed 2 options of the same type", async function () {
-        await expectRevert(
-          this.contract.buyInstrument(
-            [this.venues[0], this.venues[0]],
-            [this.optionTypes[0], this.optionTypes[0]],
-            [this.amounts[0], this.amounts[0]],
-            [this.strikePrices[0], this.strikePrices[0]],
-            this.buyData,
-            {
-              from: user,
-              value: this.premiums[0].mul(new BN("3")), // just multiply premium by 3 because doubling the premiums sometimes doesnt work
-              gasPrice: this.gasPrice,
-            }
-          ),
-          "Must have both put and call options"
-        );
-      });
+      // it("reverts when passed 2 options of the same type", async function () {
+      //   await expectRevert(
+      //     this.contract.buyInstrument(
+      //       [this.venues[0], this.venues[0]],
+      //       [this.optionTypes[0], this.optionTypes[0]],
+      //       [this.amounts[0], this.amounts[0]],
+      //       [this.strikePrices[0], this.strikePrices[0]],
+      //       this.buyData,
+      //       {
+      //         from: user,
+      //         value: this.premiums[0].mul(new BN("3")), // just multiply premium by 3 because doubling the premiums sometimes doesnt work
+      //         gasPrice: this.gasPrice,
+      //       }
+      //     ),
+      //     "Must have both put and call options"
+      //   );
+      // });
 
       it("reverts when buying after expiry", async function () {
         await time.increaseTo(this.expiry + 1);
@@ -460,6 +440,8 @@ function behavesLikeDojiVolatility(params) {
         const venueIndex = this.venues.findIndex((v) => v === GAMMA_PROTOCOL);
 
         if (venueIndex !== -1) {
+          await time.increaseTo(this.expiry + 1);
+
           const oTokenAddress = this.apiResponses[venueIndex].buyTokenAddress;
 
           await this.mockGammaController.setPrice("110000000000");
@@ -493,8 +475,6 @@ function behavesLikeDojiVolatility(params) {
       // });
 
       it("exercises one of the options", async function () {
-        await time.increaseTo(this.expiry + 1);
-
         const userTracker = await balance.tracker(user, "wei");
 
         const res = await this.contract.exercisePosition(this.positionID, {
@@ -502,7 +482,6 @@ function behavesLikeDojiVolatility(params) {
           gasPrice,
         });
         const gasUsed = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
-        console.log(res.receipt.gasUsed);
 
         expectEvent(res, "Exercised", {
           account: user,

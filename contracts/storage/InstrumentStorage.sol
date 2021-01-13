@@ -14,10 +14,10 @@ contract InstrumentStorageV1 is Initializable, ReentrancyGuard {
     IDojiFactory public factory;
     address public underlying;
     address public strikeAsset;
+    address public collateralAsset;
     uint256 public expiry;
     string public name;
     string public symbol;
-
     mapping(address => InstrumentPosition[]) public instrumentPositions;
 
     uint256[100] private __instrumentGap;

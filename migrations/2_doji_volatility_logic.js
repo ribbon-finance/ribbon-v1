@@ -19,7 +19,13 @@ module.exports = async function (_deployer, network) {
 
   await deployer.deploy(ProtocolAdapterLib);
 
-  deployer.link(ProtocolAdapterLib, RibbonVolatility);
+  await updateDeployedAddresses(
+    network,
+    "ProtocolAdapterLib",
+    ProtocolAdapterLib.address
+  );
+
+  await deployer.link(ProtocolAdapterLib, RibbonVolatility);
 
   await deployer.deploy(RibbonVolatility, { from: admin });
 

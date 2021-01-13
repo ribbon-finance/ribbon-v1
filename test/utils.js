@@ -53,8 +53,20 @@ let factory, hegicAdapter, opynV1Adapter, gammaAdapter;
 
 async function getDefaultArgs(admin, owner, user) {
   // ensure we just return the cached instances instead of re-initializing everything
-  if (factory && hegicAdapter && opynV1Adapter && gammaAdapter) {
-    return { factory, hegicAdapter, opynV1Adapter, gammaAdapter };
+  if (
+    factory &&
+    hegicAdapter &&
+    opynV1Adapter &&
+    gammaAdapter &&
+    mockGammaController
+  ) {
+    return {
+      factory,
+      hegicAdapter,
+      opynV1Adapter,
+      gammaAdapter,
+      mockGammaController,
+    };
   }
 
   factory = await deployProxy(
@@ -72,7 +84,7 @@ async function getDefaultArgs(admin, owner, user) {
     { from: owner }
   );
 
-  const mockController = await MockGammaController.new(
+  mockGammaController = await MockGammaController.new(
     GAMMA_ORACLE,
     UNISWAP_ROUTER,
     WETH_ADDRESS
@@ -80,7 +92,7 @@ async function getDefaultArgs(admin, owner, user) {
 
   gammaAdapter = await GammaAdapter.new(
     OTOKEN_FACTORY,
-    mockController.address,
+    mockGammaController.address,
     WETH_ADDRESS,
     ZERO_EX_EXCHANGE,
     UNISWAP_ROUTER,
@@ -98,6 +110,7 @@ async function getDefaultArgs(admin, owner, user) {
     factory,
     hegicAdapter,
     gammaAdapter,
+    mockGammaController,
     protocolAdapterLib,
   };
 }

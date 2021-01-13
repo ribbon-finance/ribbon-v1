@@ -242,13 +242,14 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
         address recipient
     ) public payable override {
         OtokenInterface otoken = OtokenInterface(options);
-        uint256 scaledAmount = amount.div(10**10);
-        uint256 profit = exerciseProfit(options, optionID, amount);
 
         require(
             block.timestamp >= otoken.expiryTimestamp(),
             "oToken not expired yet"
         );
+
+        uint256 scaledAmount = amount.div(10**10);
+        uint256 profit = exerciseProfit(options, optionID, amount);
         require(profit > 0, "Not profitable to exercise");
 
         IController.ActionArgs memory action =

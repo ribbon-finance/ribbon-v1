@@ -12,7 +12,7 @@ const {
 const helper = require("./helper.js");
 const { getDefaultArgs } = require("./utils");
 const { encodeCall } = require("@openzeppelin/upgrades");
-const DojimaVolatility = contract.fromArtifact("DojiVolatility");
+const RibbonVolatility = contract.fromArtifact("RibbonVolatility");
 const IERC20 = contract.fromArtifact("IERC20");
 const IHegicETHOptions = contract.fromArtifact("IHegicETHOptions");
 const IHegicBTCOptions = contract.fromArtifact("IHegicBTCOptions");
@@ -32,14 +32,14 @@ const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
 
-describe("DojiVolatility", () => {
+describe("RibbonVolatility", () => {
   /**
    * Current price for ETH-USD = ~$1100
    * Current price for BTC-USD = ~$38000
    */
 
   // Hegic ITM Put, Hegic OTM Call
-  behavesLikeDojiVolatility({
+  behavesLikeRibbonVolatility({
     name: "Hegic ITM Put, Hegic OTM Call",
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
@@ -56,7 +56,7 @@ describe("DojiVolatility", () => {
   });
 
   // Hegic OTM Put, Hegic ITM Call
-  behavesLikeDojiVolatility({
+  behavesLikeRibbonVolatility({
     name: "Hegic OTM Put, Hegic ITM Call",
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
@@ -72,7 +72,7 @@ describe("DojiVolatility", () => {
     actualExerciseProfit: new BN("200547181040532257"),
   });
 
-  // behavesLikeDojiVolatility({
+  // behavesLikeRibbonVolatility({
   //   name: "Hegic OTM Put, Gamma ITM Call",
   //   underlying: ETH_ADDRESS,
   //   strikeAsset: USDC_ADDRESS,
@@ -93,7 +93,7 @@ describe("DojiVolatility", () => {
   // });
 });
 
-function behavesLikeDojiVolatility(params) {
+function behavesLikeRibbonVolatility(params) {
   describe(`${params.name}`, () => {
     let snapshotId, initSnapshotId;
 
@@ -173,12 +173,12 @@ function behavesLikeDojiVolatility(params) {
       this.gammaAdapter = gammaAdapter;
       this.mockGammaController = mockGammaController;
 
-      await DojimaVolatility.detectNetwork();
-      await DojimaVolatility.link(
+      await RibbonVolatility.detectNetwork();
+      await RibbonVolatility.link(
         "ProtocolAdapter",
         protocolAdapterLib.address
       );
-      this.instrumentLogic = await DojimaVolatility.new({ from: admin });
+      this.instrumentLogic = await RibbonVolatility.new({ from: admin });
 
       if (this.underlying === ETH_ADDRESS) {
         this.hegicOptions = await IHegicETHOptions.at(HEGIC_ETH_OPTIONS);
@@ -217,7 +217,7 @@ function behavesLikeDojiVolatility(params) {
         }
       );
 
-      this.contract = await DojimaVolatility.at(
+      this.contract = await RibbonVolatility.at(
         res.logs[1].args.instrumentAddress
       );
 

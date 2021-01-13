@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0;
 
-import "../DojiFactory.sol";
+import "../RibbonFactory.sol";
 
-contract MockDojiFactory is DojiFactory {
+contract MockRibbonFactory is RibbonFactory {
     function setInstrument(address instrument) public {
         isInstrument[instrument] = true;
     }

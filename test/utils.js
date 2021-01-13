@@ -5,7 +5,7 @@ const { encodeCall } = require("@openzeppelin/upgrades");
 const AdminUpgradeabilityProxy = contract.fromArtifact(
   "AdminUpgradeabilityProxy"
 );
-const Factory = contract.fromArtifact("DojiFactory");
+const Factory = contract.fromArtifact("RibbonFactory");
 const HegicAdapter = contract.fromArtifact("HegicAdapter");
 const GammaAdapter = contract.fromArtifact("GammaAdapter");
 const MockGammaController = contract.fromArtifact("MockGammaController");

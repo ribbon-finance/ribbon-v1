@@ -5,7 +5,7 @@ import "./lib/upgrades/Initializable.sol";
 import "./lib/upgrades/AdminUpgradeabilityProxy.sol";
 import {IInstrumentStorage} from "./interfaces/InstrumentInterface.sol";
 
-contract DojiFactoryStorageV1 {
+contract RibbonFactoryStorageV1 {
     /**
      * @notice Address of contract owner
      */
@@ -31,7 +31,7 @@ contract DojiFactoryStorageV1 {
     address[] public adapters;
 }
 
-contract DojiFactory is Initializable, DojiFactoryStorageV1 {
+contract RibbonFactory is Initializable, RibbonFactoryStorageV1 {
     /**
      * @notice Emitted when a new instrument is created
      */
@@ -96,11 +96,8 @@ contract DojiFactory is Initializable, DojiFactoryStorageV1 {
         private
         returns (address)
     {
-        AdminUpgradeabilityProxy proxy = new AdminUpgradeabilityProxy(
-            _logic,
-            instrumentAdmin,
-            _initData
-        );
+        AdminUpgradeabilityProxy proxy =
+            new AdminUpgradeabilityProxy(_logic, instrumentAdmin, _initData);
         emit ProxyCreated(_logic, address(proxy), _initData);
         return address(proxy);
     }

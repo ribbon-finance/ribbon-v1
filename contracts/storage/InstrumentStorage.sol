@@ -9,15 +9,7 @@ import {Initializable} from "../lib/upgrades/Initializable.sol";
 import {IDojiFactory} from "../interfaces/IDojiFactory.sol";
 import {OptionType} from "../adapters/IProtocolAdapter.sol";
 
-contract GammaAdapterStorage {
-    mapping(bytes => address) public optionTermsToOToken;
-}
-
-contract InstrumentStorageV1 is
-    Initializable,
-    ReentrancyGuard,
-    GammaAdapterStorage
-{
+contract InstrumentStorageV1 is Initializable, ReentrancyGuard {
     address public owner;
     IDojiFactory public factory;
     address public underlying;
@@ -25,6 +17,10 @@ contract InstrumentStorageV1 is
     uint256 public expiry;
     string public name;
     string public symbol;
+
+    mapping(address => InstrumentPosition[]) public instrumentPositions;
+
+    uint256[100] private __instrumentGap;
 
     struct InstrumentPosition {
         bool exercised;
@@ -34,8 +30,6 @@ contract InstrumentStorageV1 is
         uint256[] strikePrices;
         string[] venues;
     }
-
-    mapping(address => InstrumentPosition[]) public instrumentPositions;
 
     modifier onlyOwner {
         require(msg.sender == owner, "Only owner");

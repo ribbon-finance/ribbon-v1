@@ -15,7 +15,6 @@ const MockGammaController = contract.fromArtifact("MockGammaController");
 const IERC20 = contract.fromArtifact("IERC20");
 const ZERO_EX_API_RESPONSES = require("../fixtures/GammaAdapter.json");
 
-const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";
@@ -241,7 +240,7 @@ function behavesLikeOTokens(params) {
           {
             from: user,
             gasPrice: this.apiResponse.gasPrice,
-            value: ether("10"),
+            value: calculateZeroExOrderCost(this.apiResponse),
           }
         );
 
@@ -266,6 +265,28 @@ function behavesLikeOTokens(params) {
           premium: this.premium,
           optionID: "0",
         });
+      });
+
+      it("purchases twice", async function () {
+        await this.adapter.purchaseWithZeroEx(
+          this.optionTerms,
+          this.zeroExOrder,
+          {
+            from: user,
+            gasPrice: this.apiResponse.gasPrice,
+            value: calculateZeroExOrderCost(this.apiResponse),
+          }
+        );
+
+        await this.adapter.purchaseWithZeroEx(
+          this.optionTerms,
+          this.zeroExOrder,
+          {
+            from: user,
+            gasPrice: this.apiResponse.gasPrice,
+            value: calculateZeroExOrderCost(this.apiResponse),
+          }
+        );
       });
     });
 
@@ -298,6 +319,8 @@ function behavesLikeOTokens(params) {
       });
 
       it("exercises otokens", async function () {
+        const recipientTracker = await balance.tracker(recipient);
+
         if (new BN(this.exerciseProfit).isZero()) {
           return;
         }
@@ -307,7 +330,7 @@ function behavesLikeOTokens(params) {
           this.oTokenAddress,
           0,
           this.purchaseAmount,
-          user,
+          recipient,
           { from: user }
         );
 
@@ -316,22 +339,48 @@ function behavesLikeOTokens(params) {
           options: this.oTokenAddress,
           optionID: "0",
           amount: this.purchaseAmount,
-          exerciseProfit: "0",
+          exerciseProfit: this.exerciseProfit,
         });
 
         const otoken = await IERC20.at(this.oTokenAddress);
-        const collateralToken = await IERC20.at(this.collateralAsset);
 
         assert.equal((await otoken.balanceOf(user)).toString(), "0");
         assert.equal(
           (await otoken.balanceOf(this.adapter.address)).toString(),
           "0"
         );
-        assert.equal(
-          (await collateralToken.balanceOf(user)).toString(),
-          this.exerciseProfit
-        );
+
+        if (this.collateralAsset == WETH_ADDRESS) {
+          assert.equal(
+            (await recipientTracker.delta()).toString(),
+            this.exerciseProfit
+          );
+        } else {
+          const collateralToken = await IERC20.at(this.collateralAsset);
+          assert.equal(
+            (await collateralToken.balanceOf(user)).toString(),
+            this.exerciseProfit
+          );
+        }
       });
     });
   });
+}
+
+function calculateZeroExOrderCost(apiResponse) {
+  let decimals;
+
+  if (apiResponse.sellTokenAddress === USDC_ADDRESS.toLowerCase()) {
+    decimals = 10 ** 6;
+  } else if (apiResponse.sellTokenAddress === WETH_ADDRESS.toLowerCase()) {
+    return new BN(apiResponse.sellAmount);
+  } else {
+    decimals = 10 ** 18;
+  }
+
+  const scaledSellAmount = parseInt(apiResponse.sellAmount) / decimals;
+  const totalETH =
+    scaledSellAmount / parseFloat(apiResponse.sellTokenToEthRate);
+
+  return ether(totalETH.toPrecision(6)).add(new BN(apiResponse.value));
 }

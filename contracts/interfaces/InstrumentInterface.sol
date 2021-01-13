@@ -16,7 +16,8 @@ interface IAggregatedOptionsInstrument {
         string[] calldata venues,
         OptionType[] calldata optionTypes,
         uint256[] calldata amounts,
-        uint256[] calldata strikePrices
+        uint256[] calldata strikePrices,
+        bytes[] calldata buyData
     ) external payable returns (uint256 positionID);
 
     function exercisePosition(uint256 positionID)

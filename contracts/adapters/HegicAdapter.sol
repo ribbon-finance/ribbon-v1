@@ -28,6 +28,7 @@ contract HegicAdapter is IProtocolAdapter, DebugLib {
 
     string private constant _name = "HEGIC";
     bool private constant _nonFungible = true;
+    bool private constant _isEuropean = false;
     address public immutable ethAddress;
     address public immutable wbtcAddress;
     IHegicETHOptions public immutable ethOptions;
@@ -64,6 +65,10 @@ contract HegicAdapter is IProtocolAdapter, DebugLib {
 
     function purchaseMethod() external pure override returns (PurchaseMethod) {
         return PurchaseMethod.Contract;
+    }
+
+    function isEuropean() external pure override returns (bool) {
+        return _isEuropean;
     }
 
     /**

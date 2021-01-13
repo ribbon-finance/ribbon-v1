@@ -62,6 +62,7 @@ library ProtocolAdapter {
                     optionTerms
                 )
             );
+        require(success, getRevertMsg(result));
         require(success, "getOptionsAddress staticcall failed");
         return abi.decode(result, (address));
     }
@@ -98,6 +99,7 @@ library ProtocolAdapter {
                     amount
                 )
             );
+        require(success, getRevertMsg(result));
         require(success, "exerciseProfit staticcall failed");
         return abi.decode(result, (uint256));
     }
@@ -127,7 +129,7 @@ library ProtocolAdapter {
         (bool success, bytes memory result) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
-                    "purchase((address,address,address,uint256,uint256,uint8),(address,address,address,address,uint256,uint256,uint256,bytes))",
+                    "purchaseWithZeroEx((address,address,address,uint256,uint256,uint8),(address,address,address,address,uint256,uint256,uint256,bytes))",
                     optionTerms,
                     zeroExOrder
                 )
@@ -142,7 +144,7 @@ library ProtocolAdapter {
         uint256 amount,
         address recipient
     ) external {
-        (bool success, ) =
+        (bool success, bytes memory res) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
                     "exercise(address,uint256,uint256,address)",
@@ -152,6 +154,7 @@ library ProtocolAdapter {
                     recipient
                 )
             );
+        require(success, getRevertMsg(res));
         require(success, "exercise delegatecall failed");
     }
 

@@ -1,10 +1,9 @@
-const web3 = require("./web3");
 const path = require("path");
 const fs = require("fs");
 const { promisify } = require("util");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const { sleep } = require("./utils");
-const factoryJSON = require("../../build/contracts/DojimaFactory.json");
+const factoryJSON = require("../../build/contracts/RibbonFactory.json");
 const accountAddresses = require("../../constants/accounts.json");
 const deployedAddresses = require("../../constants/deployments");
 
@@ -48,40 +47,47 @@ function encodeRibbonVolatilityData({
 const InstrumentCreatedTopic =
   "0x772afdcbda650f2713223d4a9c12ba1ff2f3c819a4faea1faf64595cb9f80595";
 
-async function newRibbonVolatility(web3, opts) {
+async function newRibbonVolatility(web3, network, opts) {
   const factory = new web3.eth.Contract(
     factoryJSON.abi,
-    deployedAddresses.kovan.DojimaFactory
+    deployedAddresses[network].RibbonFactory
   );
 
-  const initData = encodeTwinYieldData(opts);
-  const logic = deployedAddresses.kovan.TwinYieldLogic;
-  const owner = accountAddresses.kovan.owner;
+  const initData = encodeRibbonVolatilityData(opts);
+  const logic = deployedAddresses[network].RibbonVolatilityLogic;
+  const owner = accountAddresses[network].owner;
 
   const receipt = await factory.methods.newInstrument(logic, initData).send({
     from: owner,
-    gasPrice: "10000000000", // 10 Gwei
-    gasLimit: "8000000", // 5m gas limit
+    gasPrice: "60000000000", // 10 Gwei
+    gasLimit: "800000", // 5m gas limit
     value: "0",
   });
   const txhash = receipt.transactionHash;
   console.log("Txhash: " + txhash);
 
   console.log("Waiting 1 minute to complete deploy");
-  await sleep(60000);
+
+  if (network === "mainnet-sim") {
+    await sleep(1000);
+  } else {
+    await sleep(60000);
+  }
 
   const instrumentAddress = await getInstrumentAddress(web3, txhash);
   console.log(
-    `Instrument is deployed at ${instrumentAddress}, verify with https://kovan.etherscan.io/proxyContractChecker?a=${instrumentAddress}`
+    `\nInstrument is deployed at ${instrumentAddress}, verify with https://etherscan.io/proxyContractChecker?a=${instrumentAddress}\n`
   );
 
   await addNewInstrumentToConstants(
-    "kovan",
+    web3,
+    network,
     txhash,
     opts.expiry,
     opts.symbol,
     instrumentAddress
   );
+  console.log("Added new instrument to constants/instruments.json");
 }
 
 async function getInstrumentAddress(
@@ -104,6 +110,7 @@ async function getInstrumentAddress(
 }
 
 async function addNewInstrumentToConstants(
+  web3,
   network,
   txhash,
   expiry,

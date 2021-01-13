@@ -1,31 +1,37 @@
 require("dotenv").config();
 const getWeb3 = require("./helpers/web3");
+const { constants } = require("@openzeppelin/test-helpers");
 const { Command } = require("commander");
 const program = new Command();
 
-const externalAddresses = require("../constants/externalAddresses.json");
-const deployments = require("../constants/deployments.json");
+const deployments = require("../constants/deployments");
 const accountAddresses = require("../constants/accounts.json");
-
-// expiry 1 week from now
-const defaultExpirySeconds = parseInt(
-  +new Date(+new Date() + 6.048e8) / 1000,
-  10
-);
+const { newRibbonVolatility } = require("./helpers/newInstrument");
 
 program.version("0.0.1");
 program
   .option("-N, --network <network>", "Ethereum network", "mainnet-sim")
-  .option("-n, --instrumentName <name>", "name of instrument (must be unique)")
-  .option("-s, --symbol <symbol>", "symbol")
-  .option("-u, --underlying <underlying>", "underlying asset")
-  .option("-a, --strikeAsset <strikeAsset>", "strike asset")
-  .option("-c, --collateralAsset <collateralAsset>", "collateral asset")
   .requiredOption(
-    "-e, --expiry <time>",
-    "defaults to current day + 1 week",
-    defaultExpirySeconds
-  );
+    "-n, --instrumentName <instrumentName>",
+    "name of instrument (must be unique)"
+  )
+  .requiredOption("-s, --symbol <symbol>", "symbol")
+  .option(
+    "-u, --underlying <underlying>",
+    "underlying asset, defaults to ETH",
+    constants.ZERO_ADDRESS
+  )
+  .option(
+    "-a, --strikeAsset <strikeAsset>",
+    "strike asset, defaults to usdc",
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+  )
+  .option(
+    "-c, --collateralAsset <collateralAsset>",
+    "collateral asset, defaults to ETH",
+    constants.ZERO_ADDRESS
+  )
+  .requiredOption("-e, --expiry <time>", "expiry of the contract");
 
 program.parse(process.argv);
 
@@ -43,18 +49,23 @@ async function addRibbonVolatility() {
   } = program;
 
   web3 = getWeb3(network);
+  const factory = deployments[network].RibbonFactory;
+  const owner = accountAddresses[network].owner;
 
-  const factoryAddress = deployments[network].RibbonFactory;
-
-  console.log([
-    network,
-    instrumentName,
+  const opts = {
+    factory,
+    owner,
+    name: instrumentName,
     symbol,
     expiry,
     underlying,
     strikeAsset,
     collateralAsset,
-  ]);
+  };
+
+  await newRibbonVolatility(web3, network, opts);
+
+  process.exit(0);
 }
 
 addRibbonVolatility();

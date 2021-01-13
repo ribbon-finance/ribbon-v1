@@ -21,9 +21,8 @@ import {
 } from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
-import "../tests/DebugLib.sol";
 
-contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1, DebugLib {
+contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 

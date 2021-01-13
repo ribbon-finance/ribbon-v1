@@ -19,12 +19,10 @@ import {
 } from "../adapters/IProtocolAdapter.sol";
 import {IDojiFactory} from "../interfaces/IDojiFactory.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
-import "../tests/DebugLib.sol";
 
 contract DojiVolatility is
     IAggregatedOptionsInstrument,
     DSMath,
-    DebugLib,
     InstrumentStorageV1
 {
     using SafeMath for uint256;

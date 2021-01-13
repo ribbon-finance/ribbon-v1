@@ -6,5 +6,9 @@
   "mainnet": {
     "admin": "0x15FCB7d77735Eb665168901D9FbC59dF5b2EF2C6",
     "owner": "0xd4613c4f1e7f220eA43200Cc8E7D40007bed5Fe6"
+  },
+  "mainnet-sim": {
+    "admin": "0x15FCB7d77735Eb665168901D9FbC59dF5b2EF2C6",
+    "owner": "0xd4613c4f1e7f220eA43200Cc8E7D40007bed5Fe6"
   }
 }

@@ -1,4 +1,4 @@
-const Factory = artifacts.require("DojiFactory");
+const Factory = artifacts.require("RibbonFactory");
 const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const { constants } = require("@openzeppelin/test-helpers");
@@ -8,7 +8,11 @@ const {
 const ADDRESSES = require("../constants/externalAddresses.json");
 const ACCOUNTS = require("../constants/accounts.json");
 
-module.exports = async function (deployer, network) {
+let network;
+
+module.exports = async function (deployer, _network) {
+  network = _network;
+
   const { admin, owner } = ACCOUNTS[network.replace("-fork", "")];
 
   let wethAddress;
@@ -19,15 +23,11 @@ module.exports = async function (deployer, network) {
   }
 
   await deployFactory(deployer, admin, owner);
-  await updateDeployedAddresses(
-    network,
-    "DojiFactory",
-    AdminUpgradeabilityProxy.address
-  );
 };
 
 async function deployFactory(deployer, admin, owner) {
   await deployer.deploy(Factory, { from: admin });
+  await updateDeployedAddresses(network, "RibbonFactoryLogic", Factory.address);
 
   const initBytes = encodeCall(
     "initialize",
@@ -42,5 +42,10 @@ async function deployFactory(deployer, admin, owner) {
     {
       from: admin,
     }
+  );
+  await updateDeployedAddresses(
+    network,
+    "RibbonFactory",
+    AdminUpgradeabilityProxy.address
   );
 }

@@ -421,7 +421,7 @@ function behavesLikeRibbonVolatility(params) {
           }
         );
 
-        assert.isAtMost(res.receipt.gasUsed, 900000);
+        assert.isAtMost(res.receipt.gasUsed, 1200000);
       });
     });
 

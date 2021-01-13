@@ -1,4 +1,4 @@
-const DojiVolatility = artifacts.require("DojiVolatility");
+const RibbonVolatility = artifacts.require("RibbonVolatility");
 const ProtocolAdapterLib = artifacts.require("ProtocolAdapter");
 const {
   updateDeployedAddresses,
@@ -19,13 +19,13 @@ module.exports = async function (_deployer, network) {
 
   await deployer.deploy(ProtocolAdapterLib);
 
-  deployer.link(ProtocolAdapterLib, DojiVolatility);
+  deployer.link(ProtocolAdapterLib, RibbonVolatility);
 
-  await deployer.deploy(DojiVolatility, { from: admin });
+  await deployer.deploy(RibbonVolatility, { from: admin });
 
   await updateDeployedAddresses(
     network,
-    "DojiVolatilityLogic",
-    DojiVolatility.address
+    "RibbonVolatilityLogic",
+    RibbonVolatility.address
   );
 };

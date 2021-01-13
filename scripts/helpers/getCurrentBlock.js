@@ -4,11 +4,9 @@ const HDWalletProvider = require("@truffle/hdwallet-provider");
 
 const provider = new HDWalletProvider(
   process.env.MNEMONIC,
-  process.env.INFURA_MAINNET_URI
+  process.env.MAINNET_URI
 );
-const web3 = new Web3(
-  new Web3.providers.HttpProvider(process.env.INFURA_KOVAN_URI)
-);
+const web3 = new Web3(new Web3.providers.HttpProvider(process.env.MAINNET_URI));
 web3.setProvider(provider);
 
 (async function () {

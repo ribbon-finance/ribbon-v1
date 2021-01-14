@@ -22,7 +22,8 @@ const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 
 async function buyInstrument(
   { venues, optionTypes, amounts, strikePrices, buyData },
-  offchainCost
+  offchainCost,
+  gasPrice
 ) {
   const { network } = program;
   web3 = getWeb3(network);
@@ -43,7 +44,7 @@ async function buyInstrument(
   const instrumentSymbol = await instrument.methods.symbol().call();
   console.log(`Buying instrument ${instrumentSymbol}`);
 
-  const gasPrice = await getGasPrice();
+  gasPrice = gasPrice || (await getGasPrice());
   console.log(`Using gas price: ${web3.utils.fromWei(gasPrice, "gwei")} gwei`);
 
   const premium = await instrument.methods
@@ -57,10 +58,12 @@ async function buyInstrument(
   );
 
   console.log("Sending transaction...");
+
   const receipt = await instrument.methods
     .buyInstrument(venues, optionTypes, amounts, strikePrices, buyData)
     .send({
       from: owner,
+      gas: 850000,
       gasPrice: gasPrice.toString(),
       value: totalCost,
     });
@@ -77,27 +80,32 @@ async function buyHegicInstrument() {
   const strikePrices = [ether("1100"), ether("1100")];
   const buyData = ["0x", "0x"];
 
-  await buyInstrument({ venues, optionTypes, amounts, strikePrices, buyData });
+  await buyInstrument(
+    { venues, optionTypes, amounts, strikePrices, buyData },
+    new BN("0")
+  );
 }
 
 async function buyOpynInstrument() {
   const { network } = program;
   web3 = getWeb3(network);
 
-  const otokenAddress = "0xec3AF9e241aDE62Baa620B40fFd61Ee00328565D";
-  const apiResponse = await get0xQuote(otokenAddress, "1000000");
+  const otokenAddress = "0x78A36417C9f3814AE1B4367D03bfF6AC6fd631FB";
+  const apiResponse = await get0xQuote(otokenAddress, "100000");
 
   const cost = calculateZeroExOrderCost(apiResponse);
+  const gasPrice = new BN(apiResponse.gasPrice);
 
   const venues = ["HEGIC", "OPYN_GAMMA"];
   const optionTypes = [1, 2];
-  const amounts = [ether("0.01"), ether("0.01")];
-  const strikePrices = [ether("860"), ether("860")];
+  const amounts = [ether("0.001"), ether("0.001")];
+  const strikePrices = [ether("960"), ether("960")];
   const buyData = ["0x", serializeZeroExOrder(apiResponse)];
 
   await buyInstrument(
     { venues, optionTypes, amounts, strikePrices, buyData },
-    cost
+    cost,
+    gasPrice
   );
 }
 
@@ -136,7 +144,7 @@ function serializeZeroExOrder(apiResponse) {
         exchangeAddress: apiResponse.to,
         buyTokenAddress: apiResponse.buyTokenAddress,
         sellTokenAddress: apiResponse.sellTokenAddress,
-        allowanceTarget: apiResponse.to,
+        allowanceTarget: "0xdef1c0ded9bec7f1a1670819833240f027b25eff",
         protocolFee: apiResponse.protocolFee,
         makerAssetAmount: apiResponse.buyAmount,
         takerAssetAmount: apiResponse.sellAmount,

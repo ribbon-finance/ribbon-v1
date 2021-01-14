@@ -59,7 +59,7 @@ async function newRibbonVolatility(web3, network, opts) {
 
   const receipt = await factory.methods.newInstrument(logic, initData).send({
     from: owner,
-    gasPrice: "60000000000", // 10 Gwei
+    gasPrice: "70000000000", // 10 Gwei
     gasLimit: "800000", // 5m gas limit
     value: "0",
   });

@@ -6,6 +6,7 @@ const { sleep } = require("./utils");
 const factoryJSON = require("../../build/contracts/RibbonFactory.json");
 const accountAddresses = require("../../constants/accounts.json");
 const deployedAddresses = require("../../constants/deployments");
+const getGasPrice = require("./getGasPrice");
 
 module.exports = {
   newRibbonVolatility,
@@ -57,10 +58,13 @@ async function newRibbonVolatility(web3, network, opts) {
   const logic = deployedAddresses[network].RibbonVolatilityLogic;
   const owner = accountAddresses[network].owner;
 
+  const gasPrice = (await getGasPrice()).toString();
+  console.log(`Using gas price: ${web3.utils.fromWei(gasPrice, "gwei")} gwei`);
+
   const receipt = await factory.methods.newInstrument(logic, initData).send({
     from: owner,
-    gasPrice: "70000000000", // 10 Gwei
-    gasLimit: "800000", // 5m gas limit
+    gasPrice: gasPrice,
+    gasLimit: "800000",
     value: "0",
   });
   const txhash = receipt.transactionHash;

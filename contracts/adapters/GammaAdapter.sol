@@ -194,6 +194,11 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1 {
             zeroExOrder.takerAssetAmount
         );
 
+        require(
+            address(this).balance >= zeroExOrder.protocolFee,
+            "Not enough balance for protocol fee"
+        );
+
         (bool success, ) =
             zeroExOrder.exchangeAddress.call{value: zeroExOrder.protocolFee}(
                 zeroExOrder.swapData

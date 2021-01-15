@@ -34,7 +34,7 @@ async function buyInstrument(
     (i) => i.address === program.instrument
   );
   if (!instrumentDetails) {
-    throw new Error(`No instrument with address ${instrumentAddress} found`);
+    throw new Error(`No instrument with address ${program.instrument} found`);
   }
 
   const instrument = new web3.eth.Contract(
@@ -63,7 +63,7 @@ async function buyInstrument(
     .buyInstrument(venues, optionTypes, amounts, strikePrices, buyData)
     .send({
       from: owner,
-      gas: 850000,
+      gas: 2000000,
       gasPrice: gasPrice.toString(),
       value: totalCost,
     });
@@ -93,7 +93,9 @@ async function buyOpynInstrument() {
   const otokenAddress = "0x78A36417C9f3814AE1B4367D03bfF6AC6fd631FB";
   const apiResponse = await get0xQuote(otokenAddress, "100000");
 
-  const cost = calculateZeroExOrderCost(apiResponse);
+  const cost = calculateZeroExOrderCost(apiResponse).add(
+    new BN(apiResponse.value)
+  );
   const gasPrice = new BN(apiResponse.gasPrice);
 
   const venues = ["HEGIC", "OPYN_GAMMA"];
@@ -119,8 +121,14 @@ async function get0xQuote(otokenAddress, buyAmount) {
   };
   const query = new URLSearchParams(data).toString();
   const url = `${ZERO_EX_API_URI}?${query}`;
-  const response = await axios.get(url);
-  return response.data;
+
+  try {
+    const response = await axios.get(url);
+    return response.data;
+  } catch (e) {
+    console.log(e);
+    throw e;
+  }
 }
 
 function serializeZeroExOrder(apiResponse) {

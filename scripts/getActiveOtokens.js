@@ -17,11 +17,12 @@ async function getActiveOtokens() {
       query: `{
         otokens(where: {
           underlyingAsset: "${WETH_ADDRESS}",
-          collateralAsset: "${WETH_ADDRESS}"
           expiryTimestamp_gt: ${currentTimestamp}
         }) {
           id,
-          strikePrice
+          strikePrice,
+          isPut,
+          expiryTimestamp
         }
       }`,
       variables: null,
@@ -38,6 +39,8 @@ async function getActiveOtokens() {
   const otokens = rawOtokens.map((otoken) => ({
     address: otoken.id,
     strikePrice: otoken.strikePrice,
+    expiry: otoken.expiryTimestamp,
+    isPut: otoken.isPut,
   }));
 
   await updateOtokens("mainnet", otokens);

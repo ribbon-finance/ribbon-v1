@@ -3,7 +3,7 @@ const program = require("commander");
 const fs = require("fs");
 const path = require("path");
 
-const defaultDstPath = path.join("..", "dojima-frontend", "mvp", "src");
+const defaultDstPath = path.join("..", "doji-frontend", "mvp", "src");
 
 program.requiredOption(
   "-o, --output <directory>",
@@ -39,7 +39,10 @@ async function copyToPath(srcPaths, dstPath) {
 
   const artefactsPath = [
     "../constants/abis/ChainlinkAggregator.json",
+    "../constants/abis/Multicall.json",
     "../build/contracts/IAggregatedOptionsInstrument.json",
+    "../build/contracts/IProtocolAdapter.json",
+    "../build/contracts/IRibbonFactory.json",
     "../build/contracts/IERC20.json",
   ];
   await copyToPath(artefactsPath, path.join(dstPath, "constants", "abis"));

@@ -6,9 +6,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {DSMath} from "../lib/DSMath.sol";
-import {
-    IAggregatedOptionsInstrument
-} from "../interfaces/InstrumentInterface.sol";
 import {InstrumentStorageV1} from "../storage/InstrumentStorage.sol";
 import {
     OptionType,
@@ -20,11 +17,7 @@ import {
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 
-contract RibbonVolatility is
-    IAggregatedOptionsInstrument,
-    DSMath,
-    InstrumentStorageV1
-{
+contract RibbonVolatility is DSMath, InstrumentStorageV1 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using ProtocolAdapter for IProtocolAdapter;
@@ -73,7 +66,7 @@ contract RibbonVolatility is
         OptionType[] memory optionTypes,
         uint256[] memory amounts,
         uint256[] memory strikePrices
-    ) public view override returns (uint256 totalPremium) {
+    ) public view returns (uint256 totalPremium) {
         for (uint256 i = 0; i < venues.length; i++) {
             address adapterAddress = factory.getAdapter(venues[i]);
             require(adapterAddress != address(0), "Adapter does not exist");
@@ -121,7 +114,7 @@ contract RibbonVolatility is
         uint256[] memory amounts,
         uint256[] memory strikePrices,
         bytes[] memory buyData
-    ) public payable override nonReentrant returns (uint256 positionID) {
+    ) public payable nonReentrant returns (uint256 positionID) {
         // require(venues.length >= 2, "Must have at least 2 venues");
         require(block.timestamp < expiry, "Cannot purchase after expiry");
 
@@ -257,7 +250,6 @@ contract RibbonVolatility is
 
     function exercisePosition(uint256 positionID)
         public
-        override
         nonReentrant
         returns (uint256 totalProfit)
     {

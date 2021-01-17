@@ -23,6 +23,14 @@ interface IAggregatedOptionsInstrument {
     function exercisePosition(uint256 positionID)
         external
         returns (uint256 profit);
+
+    function underlying() external returns (address);
+
+    function strikeAsset() external returns (address);
+
+    function collateralAsset() external returns (address);
+
+    function expiry() external returns (uint256);
 }
 
 interface IVaultedInstrument {

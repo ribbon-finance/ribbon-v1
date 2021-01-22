@@ -4,6 +4,15 @@ pragma experimental ABIEncoderV2;
 
 import {OptionType} from "../adapters/IProtocolAdapter.sol";
 
+struct InstrumentPosition {
+    bool exercised;
+    OptionType[] optionTypes;
+    uint32[] optionIDs;
+    uint256[] amounts;
+    uint256[] strikePrices;
+    string[] venues;
+}
+
 interface IAggregatedOptionsInstrument {
     function cost(
         string[] calldata venues,
@@ -31,6 +40,11 @@ interface IAggregatedOptionsInstrument {
     function collateralAsset() external view returns (address);
 
     function expiry() external view returns (uint256);
+
+    function getInstrumentPositions(address account)
+        external
+        view
+        returns (InstrumentPosition[] memory positions);
 }
 
 interface IVaultedInstrument {

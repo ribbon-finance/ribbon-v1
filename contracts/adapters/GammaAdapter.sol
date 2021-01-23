@@ -35,7 +35,6 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1 {
 
     string private constant _name = "OPYN_GAMMA";
     bool private constant _nonFungible = false;
-    bool private constant _isEuropean = true;
 
     constructor(
         address _oTokenFactory,
@@ -63,10 +62,6 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1 {
 
     function purchaseMethod() external pure override returns (PurchaseMethod) {
         return PurchaseMethod.ZeroEx;
-    }
-
-    function isEuropean() external pure override returns (bool) {
-        return _isEuropean;
     }
 
     /**
@@ -140,6 +135,14 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1 {
         }
 
         return controller.getPayout(options, amount.div(10**10));
+    }
+
+    function canExercise(
+        address options,
+        uint256 optionID,
+        uint256 amount
+    ) public view override returns (bool) {
+        return true;
     }
 
     /**

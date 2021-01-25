@@ -142,7 +142,15 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1 {
         uint256 optionID,
         uint256 amount
     ) public view override returns (bool) {
-        return true;
+        OtokenInterface otoken = OtokenInterface(options);
+
+        if (block.timestamp < otoken.expiryTimestamp()) {
+            return false;
+        }
+        if (exerciseProfit(options, optionID, amount) > 0) {
+            return true;
+        }
+        return false;
     }
 
     /**

@@ -15,6 +15,7 @@ import {
     PurchaseMethod
 } from "./IProtocolAdapter.sol";
 import {
+    State,
     IHegicOptions,
     HegicOptionType,
     IHegicETHOptions,
@@ -191,7 +192,20 @@ contract HegicAdapter is IProtocolAdapter {
         uint256 optionID,
         uint256 amount
     ) public view override returns (bool) {
-        return true;
+        bool matchOptionsAddress =
+            options == address(ethOptions) || options == address(wbtcOptions);
+
+        (State state, address holder, , , , , uint256 expiration, ) =
+            IHegicOptions(options).options(optionID);
+        amount = 0;
+
+        uint256 profit = exerciseProfit(options, optionID, amount);
+
+        return
+            matchOptionsAddress &&
+            expiration >= block.timestamp &&
+            state == State.Active &&
+            profit > 0;
     }
 
     /**

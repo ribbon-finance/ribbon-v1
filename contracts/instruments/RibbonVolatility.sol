@@ -103,6 +103,46 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
         }
     }
 
+    function canExercise(uint256 positionID) external view returns (bool) {
+        InstrumentPosition storage position =
+            instrumentPositions[msg.sender][positionID];
+
+        if (position.exercised) return false;
+
+        bool eitherOneCanExercise = false;
+
+        for (uint256 i = 0; i < position.venues.length; i++) {
+            string memory venue = position.venues[i];
+            uint256 strikePrice = position.strikePrices[i];
+            OptionType optionType = position.optionTypes[i];
+            uint256 optionID = position.optionIDs[i];
+            uint256 amount = position.amounts[i];
+
+            address adapterAddress = factory.getAdapter(venue);
+            require(adapterAddress != address(0), "Adapter does not exist");
+            IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
+            address options =
+                adapter.delegateGetOptionsAddress(
+                    OptionTerms(
+                        underlying,
+                        strikeAsset,
+                        collateralAsset,
+                        expiry,
+                        strikePrice,
+                        optionType
+                    )
+                );
+
+            bool canExerciseOptions =
+                adapter.canExercise(options, optionID, amount);
+
+            if (canExerciseOptions) {
+                eitherOneCanExercise = true;
+            }
+        }
+        return eitherOneCanExercise;
+    }
+
     /**
      * @notice Buy instrument and create the underlying options positions
      * @param venues array of venue names, e.g. "HEGIC", "OPYN_V1"

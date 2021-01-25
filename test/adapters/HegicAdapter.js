@@ -60,12 +60,6 @@ describe("HegicAdapter", () => {
     });
   });
 
-  describe("#isEuropean", () => {
-    it("matches the isEuropean bool", async function () {
-      assert.equal(await this.adapter.isEuropean(), this.isEuropean);
-    });
-  });
-
   /**
    * Current price for ETH-USD = ~$1100
    * Current price for BTC-USD = ~$38000
@@ -547,6 +541,48 @@ describe("HegicAdapter", () => {
             ),
             "Option has expired"
           );
+        });
+      });
+
+      describe("#canExercise", () => {
+        beforeEach(async function () {
+          const snapShot = await helper.takeSnapshot();
+          snapshotId = snapShot["result"];
+
+          const purchaseRes = await this.adapter.purchase(
+            [
+              this.underlying,
+              this.strikeAsset,
+              this.collateralAsset,
+              this.expiry,
+              this.strikePrice,
+              this.optionType,
+            ],
+            this.purchaseAmount,
+            {
+              from: user,
+              value: this.premium,
+            }
+          );
+          this.optionID = purchaseRes.receipt.logs[0].args.optionID;
+        });
+
+        afterEach(async () => {
+          await helper.revertToSnapShot(snapshotId);
+        });
+
+        it("can exercise", async function () {
+          const result = await this.adapter.canExercise(
+            this.hegicOptions.address,
+            this.optionID,
+            0,
+            { from: user }
+          );
+          if (this.exerciseProfit.isZero()) {
+            assert.isFalse(result);
+          } else {
+            assert.isTrue(result);
+          }
         });
       });
     });

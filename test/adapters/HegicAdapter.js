@@ -31,7 +31,6 @@ describe("HegicAdapter", () => {
   before(async function () {
     this.protocolName = "HEGIC";
     this.nonFungible = true;
-    this.isEuropean = false;
 
     this.adapter = await HegicAdapter.new(
       HEGIC_ETH_OPTIONS,

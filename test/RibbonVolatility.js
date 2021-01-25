@@ -63,7 +63,7 @@ describe("RibbonVolatility", () => {
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [ether("1"), ether("1")],
     strikePrices: [ether("900"), ether("1300")],
-    premiums: [new BN("202190017799958796"), new BN("0")],
+    premiums: [new BN("120217234727039817"), new BN("0")],
     purchaseAmount: ether("1"),
     optionIDs: ["2353", "2354"],
     exerciseProfit: new BN("0"),
@@ -560,6 +560,17 @@ function behavesLikeRibbonVolatility(params) {
     });
 
     describe("#exerciseProfit", () => {
+      let snapshotId;
+
+      beforeEach(async () => {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+      });
+
+      afterEach(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
+
       it("returns the exercise profit", async function () {
         snapshotId = (await helper.takeSnapshot())["result"];
         await this.contract.buyInstrument(

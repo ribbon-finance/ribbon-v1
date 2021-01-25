@@ -108,7 +108,7 @@ describe("GammaAdapter", () => {
     expiry: "1614326400",
     optionType: CALL_OPTION_TYPE,
     purchaseAmount: ether("0.1"),
-    exerciseProfit: "12727272727272727",
+    exerciseProfit: new BN("12727272727272727"),
     premium: "50329523139774375",
   });
 
@@ -369,6 +369,45 @@ function behavesLikeOTokens(params) {
             this.exerciseProfit
           );
         }
+      });
+    });
+
+    describe("#canExercise", () => {
+      let snapshotId;
+
+      beforeEach(async () => {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+      });
+
+      afterEach(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
+
+      it("can exercise", async function () {
+        await time.increaseTo(this.expiry + 1);
+
+        const res = await this.adapter.canExercise(
+          this.oTokenAddress,
+          0,
+          this.purchaseAmount
+        );
+
+        if (this.exerciseProfit.isZero()) {
+          assert.isFalse(res);
+          return;
+        }
+
+        assert.isTrue(res);
+      });
+
+      it("cannot exercise before expiry", async function () {
+        const res = await this.adapter.canExercise(
+          this.oTokenAddress,
+          0,
+          this.purchaseAmount
+        );
+        assert.isFalse(res);
       });
     });
   });

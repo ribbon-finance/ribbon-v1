@@ -584,6 +584,39 @@ describe("HegicAdapter", () => {
             assert.isTrue(result);
           }
         });
+
+        it("cannot exercise twice", async function () {
+          if (!this.exerciseProfit.isZero()) {
+            await this.adapter.exercise(
+              this.hegicOptions.address,
+              this.optionID,
+              0,
+              recipient,
+              { from: user, gasPrice }
+            );
+
+            const result = await this.adapter.canExercise(
+              this.hegicOptions.address,
+              this.optionID,
+              0,
+              { from: user }
+            );
+
+            assert.isFalse(result);
+          }
+        });
+
+        it("cannot exercise after epxiry", async function () {
+          await time.increaseTo(this.expiry + 1);
+
+          const result = await this.adapter.canExercise(
+            this.hegicOptions.address,
+            this.optionID,
+            0,
+            { from: user }
+          );
+          assert.isFalse(result);
+        });
       });
     });
   }

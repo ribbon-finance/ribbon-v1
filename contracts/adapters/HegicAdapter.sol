@@ -195,7 +195,7 @@ contract HegicAdapter is IProtocolAdapter {
         bool matchOptionsAddress =
             options == address(ethOptions) || options == address(wbtcOptions);
 
-        (State state, address holder, , , , , uint256 expiration, ) =
+        (State state, , , , , , uint256 expiration, ) =
             IHegicOptions(options).options(optionID);
         amount = 0;
 

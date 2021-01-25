@@ -16,6 +16,7 @@ import {
 } from "../adapters/IProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
+import {Ownable} from "../lib/Ownable.sol";
 
 contract RibbonVolatility is DSMath, InstrumentStorageV1 {
     using SafeMath for uint256;
@@ -51,8 +52,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
     ) public initializer {
         require(block.timestamp < _expiry, "Expiry has already passed");
 
+        Ownable.initialize(_owner);
         factory = IRibbonFactory(_factory);
-        owner = _owner;
         name = _name;
         symbol = _symbol;
         expiry = _expiry;
@@ -101,6 +102,94 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
                 amounts[i]
             );
         }
+    }
+
+    function exerciseProfit(address account, uint256 positionID)
+        external
+        view
+        returns (uint256)
+    {
+        InstrumentPosition storage position =
+            instrumentPositions[account][positionID];
+
+        if (position.exercised) return 0;
+
+        uint256 profit = 0;
+
+        for (uint256 i = 0; i < position.venues.length; i++) {
+            string memory venue = position.venues[i];
+            uint256 strikePrice = position.strikePrices[i];
+            OptionType optionType = position.optionTypes[i];
+            uint256 optionID = position.optionIDs[i];
+            uint256 amount = position.amounts[i];
+
+            address adapterAddress = factory.getAdapter(venue);
+            require(adapterAddress != address(0), "Adapter does not exist");
+            IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
+            address options =
+                adapter.getOptionsAddress(
+                    OptionTerms(
+                        underlying,
+                        strikeAsset,
+                        collateralAsset,
+                        expiry,
+                        strikePrice,
+                        optionType
+                    )
+                );
+
+            bool exercisable = adapter.canExercise(options, optionID, amount);
+            if (!exercisable) {
+                continue;
+            }
+
+            profit += adapter.delegateExerciseProfit(options, optionID, amount);
+        }
+        return profit;
+    }
+
+    function canExercise(address account, uint256 positionID)
+        external
+        view
+        returns (bool)
+    {
+        InstrumentPosition storage position =
+            instrumentPositions[account][positionID];
+
+        if (position.exercised) return false;
+
+        bool eitherOneCanExercise = false;
+
+        for (uint256 i = 0; i < position.venues.length; i++) {
+            string memory venue = position.venues[i];
+            uint256 strikePrice = position.strikePrices[i];
+            OptionType optionType = position.optionTypes[i];
+            uint256 optionID = position.optionIDs[i];
+            uint256 amount = position.amounts[i];
+
+            address adapterAddress = factory.getAdapter(venue);
+            require(adapterAddress != address(0), "Adapter does not exist");
+            IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
+            address options =
+                adapter.getOptionsAddress(
+                    OptionTerms(
+                        underlying,
+                        strikeAsset,
+                        collateralAsset,
+                        expiry,
+                        strikePrice,
+                        optionType
+                    )
+                );
+
+            bool canExerciseOptions =
+                adapter.canExercise(options, optionID, amount);
+
+            if (canExerciseOptions) {
+                eitherOneCanExercise = true;
+            }
+        }
+        return eitherOneCanExercise;
     }
 
     /**
@@ -266,7 +355,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
             uint256 strikePrice = position.strikePrices[i];
 
             address optionsAddress =
-                adapter.delegateGetOptionsAddress(
+                adapter.getOptionsAddress(
                     OptionTerms(
                         underlying,
                         strikeAsset,

@@ -35,7 +35,6 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1 {
 
     string private constant _name = "OPYN_GAMMA";
     bool private constant _nonFungible = false;
-    bool private constant _isEuropean = true;
 
     constructor(
         address _oTokenFactory,
@@ -63,10 +62,6 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1 {
 
     function purchaseMethod() external pure override returns (PurchaseMethod) {
         return PurchaseMethod.ZeroEx;
-    }
-
-    function isEuropean() external pure override returns (bool) {
-        return _isEuropean;
     }
 
     /**
@@ -140,6 +135,22 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1 {
         }
 
         return controller.getPayout(options, amount.div(10**10));
+    }
+
+    function canExercise(
+        address options,
+        uint256 optionID,
+        uint256 amount
+    ) public view override returns (bool) {
+        OtokenInterface otoken = OtokenInterface(options);
+
+        if (block.timestamp < otoken.expiryTimestamp()) {
+            return false;
+        }
+        if (exerciseProfit(options, optionID, amount) > 0) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -342,20 +353,18 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1 {
 
         bool isPut = optionTerms.optionType == OptionType.Put;
         address underlying = optionTerms.underlying;
-        address collateralAsset = optionTerms.collateralAsset;
 
-        if (
-            optionTerms.underlying == address(0) ||
-            optionTerms.underlying == _weth
-        ) {
+        if (optionTerms.underlying == address(0)) {
             underlying = _weth;
         }
 
-        if (
-            optionTerms.collateralAsset == address(0) ||
-            optionTerms.collateralAsset == _weth
-        ) {
-            collateralAsset = _weth;
+        // Put otokens have USDC as the backing collateral
+        // so we can ignore the collateral asset passed in option terms
+        address collateralAsset;
+        if (isPut) {
+            collateralAsset = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        } else {
+            collateralAsset = underlying;
         }
 
         oToken = factory.getOtoken(

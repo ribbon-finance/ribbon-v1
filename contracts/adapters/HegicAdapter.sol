@@ -15,6 +15,7 @@ import {
     PurchaseMethod
 } from "./IProtocolAdapter.sol";
 import {
+    State,
     IHegicOptions,
     HegicOptionType,
     IHegicETHOptions,
@@ -27,7 +28,6 @@ contract HegicAdapter is IProtocolAdapter {
 
     string private constant _name = "HEGIC";
     bool private constant _nonFungible = true;
-    bool private constant _isEuropean = false;
     address public immutable ethAddress;
     address public immutable wbtcAddress;
     IHegicETHOptions public immutable ethOptions;
@@ -64,10 +64,6 @@ contract HegicAdapter is IProtocolAdapter {
 
     function purchaseMethod() external pure override returns (PurchaseMethod) {
         return PurchaseMethod.Contract;
-    }
-
-    function isEuropean() external pure override returns (bool) {
-        return _isEuropean;
     }
 
     /**
@@ -189,6 +185,27 @@ contract HegicAdapter is IProtocolAdapter {
             }
         }
         if (profit > lockedAmount) profit = lockedAmount;
+    }
+
+    function canExercise(
+        address options,
+        uint256 optionID,
+        uint256 amount
+    ) public view override returns (bool) {
+        bool matchOptionsAddress =
+            options == address(ethOptions) || options == address(wbtcOptions);
+
+        (State state, , , , , , uint256 expiration, ) =
+            IHegicOptions(options).options(optionID);
+        amount = 0;
+
+        uint256 profit = exerciseProfit(options, optionID, amount);
+
+        return
+            matchOptionsAddress &&
+            expiration >= block.timestamp &&
+            state == State.Active &&
+            profit > 0;
     }
 
     /**

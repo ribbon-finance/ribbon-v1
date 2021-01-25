@@ -75,7 +75,7 @@ describe("RibbonFactory", function () {
       initData,
       { from: user }
     );
-    await expectRevert(tx, "Only owner");
+    await expectRevert(tx, "Ownable: caller is not the owner");
   });
 
   describe("#setAdapter", () => {
@@ -116,7 +116,7 @@ describe("RibbonFactory", function () {
           "0x0000000000000000000000000000000000000001",
           { from: user }
         ),
-        "Only owner"
+        "Ownable: caller is not the owner"
       );
     });
   });

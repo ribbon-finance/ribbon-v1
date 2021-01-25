@@ -35,7 +35,6 @@ describe("GammaAdapter", () => {
   before(async function () {
     this.protocolName = "OPYN_GAMMA";
     this.nonFungible = false;
-    this.isEuropean = true;
 
     this.mockController = await MockGammaController.new(
       GAMMA_ORACLE,
@@ -76,23 +75,31 @@ describe("GammaAdapter", () => {
     });
   });
 
-  describe("#isEuropean", () => {
-    it("matches the isEuropean bool", async function () {
-      assert.equal(await this.adapter.isEuropean(), this.isEuropean);
-    });
-  });
-
   describe("#lookupOtoken", () => {
-    it("looks oToken correctly", async function () {
+    it("looks up call oToken correctly", async function () {
       const oTokenAddress = "0x60ad22806B89DD17B2ecfe220c3712A2c86dfFFE";
 
       const actualOTokenAddress = await this.adapter.lookupOToken([
         constants.ZERO_ADDRESS,
         USDC_ADDRESS,
-        WETH_ADDRESS,
+        constants.ZERO_ADDRESS,
         "1614326400",
         ether("800"),
         CALL_OPTION_TYPE,
+      ]);
+      assert.equal(actualOTokenAddress, oTokenAddress);
+    });
+
+    it("looks up put oToken correctly", async function () {
+      const oTokenAddress = "0x006583fEea92C695A9dE02C3AC2d4cd321f2F341";
+
+      const actualOTokenAddress = await this.adapter.lookupOToken([
+        constants.ZERO_ADDRESS,
+        USDC_ADDRESS,
+        constants.ZERO_ADDRESS,
+        "1610697600",
+        ether("800"),
+        PUT_OPTION_TYPE,
       ]);
       assert.equal(actualOTokenAddress, oTokenAddress);
     });
@@ -108,7 +115,7 @@ describe("GammaAdapter", () => {
     expiry: "1614326400",
     optionType: CALL_OPTION_TYPE,
     purchaseAmount: ether("0.1"),
-    exerciseProfit: "12727272727272727",
+    exerciseProfit: new BN("12727272727272727"),
     premium: "50329523139774375",
   });
 
@@ -369,6 +376,45 @@ function behavesLikeOTokens(params) {
             this.exerciseProfit
           );
         }
+      });
+    });
+
+    describe("#canExercise", () => {
+      let snapshotId;
+
+      beforeEach(async () => {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+      });
+
+      afterEach(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
+
+      it("can exercise", async function () {
+        await time.increaseTo(this.expiry + 1);
+
+        const res = await this.adapter.canExercise(
+          this.oTokenAddress,
+          0,
+          this.purchaseAmount
+        );
+
+        if (this.exerciseProfit.isZero()) {
+          assert.isFalse(res);
+          return;
+        }
+
+        assert.isTrue(res);
+      });
+
+      it("cannot exercise before expiry", async function () {
+        const res = await this.adapter.canExercise(
+          this.oTokenAddress,
+          0,
+          this.purchaseAmount
+        );
+        assert.isFalse(res);
       });
     });
   });

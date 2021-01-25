@@ -31,7 +31,6 @@ describe("HegicAdapter", () => {
   before(async function () {
     this.protocolName = "HEGIC";
     this.nonFungible = true;
-    this.isEuropean = false;
 
     this.adapter = await HegicAdapter.new(
       HEGIC_ETH_OPTIONS,
@@ -57,12 +56,6 @@ describe("HegicAdapter", () => {
   describe("#nonFungible", () => {
     it("matches the nonFungible bool", async function () {
       assert.equal(await this.adapter.nonFungible(), this.nonFungible);
-    });
-  });
-
-  describe("#isEuropean", () => {
-    it("matches the isEuropean bool", async function () {
-      assert.equal(await this.adapter.isEuropean(), this.isEuropean);
     });
   });
 
@@ -547,6 +540,81 @@ describe("HegicAdapter", () => {
             ),
             "Option has expired"
           );
+        });
+      });
+
+      describe("#canExercise", () => {
+        beforeEach(async function () {
+          const snapShot = await helper.takeSnapshot();
+          snapshotId = snapShot["result"];
+
+          const purchaseRes = await this.adapter.purchase(
+            [
+              this.underlying,
+              this.strikeAsset,
+              this.collateralAsset,
+              this.expiry,
+              this.strikePrice,
+              this.optionType,
+            ],
+            this.purchaseAmount,
+            {
+              from: user,
+              value: this.premium,
+            }
+          );
+          this.optionID = purchaseRes.receipt.logs[0].args.optionID;
+        });
+
+        afterEach(async () => {
+          await helper.revertToSnapShot(snapshotId);
+        });
+
+        it("can exercise", async function () {
+          const result = await this.adapter.canExercise(
+            this.hegicOptions.address,
+            this.optionID,
+            0,
+            { from: user }
+          );
+          if (this.exerciseProfit.isZero()) {
+            assert.isFalse(result);
+          } else {
+            assert.isTrue(result);
+          }
+        });
+
+        it("cannot exercise twice", async function () {
+          if (!this.exerciseProfit.isZero()) {
+            await this.adapter.exercise(
+              this.hegicOptions.address,
+              this.optionID,
+              0,
+              recipient,
+              { from: user, gasPrice }
+            );
+
+            const result = await this.adapter.canExercise(
+              this.hegicOptions.address,
+              this.optionID,
+              0,
+              { from: user }
+            );
+
+            assert.isFalse(result);
+          }
+        });
+
+        it("cannot exercise after epxiry", async function () {
+          await time.increaseTo(this.expiry + 1);
+
+          const result = await this.adapter.canExercise(
+            this.hegicOptions.address,
+            this.optionID,
+            0,
+            { from: user }
+          );
+          assert.isFalse(result);
         });
       });
     });

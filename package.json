@@ -30,7 +30,7 @@
   },
   "scripts": {
     "compile": "npx truffle compile",
-    "test": "mocha --timeout 200000 --exit --recursive test",
+    "test": "mocha --timeout 200000 --exit --recursive test --exclude test/adapters/GammaAdapter.js",
     "verify": " npx truffle run verify RibbonFactory HegicAdapter GammaAdapter ProtocolAdapter AdminUpgradeabilityProxy RibbonVolatility --network mainnet --license MIT",
     "merge-contracts": "sol-merger  --export-plugin SPDXLicenseRemovePlugin \"./contracts/**/*.sol\" ./build/merged",
     "export-artefacts": "node ./scripts/exportArtefacts.js",

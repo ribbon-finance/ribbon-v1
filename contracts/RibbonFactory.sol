@@ -4,13 +4,9 @@ pragma solidity ^0.6.2;
 import "./lib/upgrades/Initializable.sol";
 import "./lib/upgrades/AdminUpgradeabilityProxy.sol";
 import {IInstrumentStorage} from "./interfaces/InstrumentInterface.sol";
+import {Ownable} from "./lib/Ownable.sol";
 
-contract RibbonFactoryStorageV1 {
-    /**
-     * @notice Address of contract owner
-     */
-    address public owner;
-
+contract RibbonFactoryStorageV1 is Ownable {
     /**
      * @notice Address of the admin of all instruments
      */
@@ -62,7 +58,7 @@ contract RibbonFactory is Initializable, RibbonFactoryStorageV1 {
         public
         initializer
     {
-        owner = _owner;
+        Ownable.initialize(_owner);
         instrumentAdmin = _instrumentAdmin;
     }
 
@@ -113,10 +109,5 @@ contract RibbonFactory is Initializable, RibbonFactoryStorageV1 {
 
     function getAdapters() external view returns (address[] memory _adapters) {
         return adapters;
-    }
-
-    modifier onlyOwner {
-        require(msg.sender == owner, "Only owner");
-        _;
     }
 }

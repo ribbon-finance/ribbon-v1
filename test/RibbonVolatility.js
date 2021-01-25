@@ -38,7 +38,6 @@ describe("RibbonVolatility", () => {
    * Current price for BTC-USD = ~$38000
    */
 
-  // Hegic ITM Put, Hegic OTM Call
   behavesLikeRibbonVolatility({
     name: "Hegic ITM Put, Hegic OTM Call",
     underlying: ETH_ADDRESS,
@@ -55,7 +54,22 @@ describe("RibbonVolatility", () => {
     actualExerciseProfit: new BN("154765182941453405"),
   });
 
-  // Hegic OTM Put, Hegic ITM Call
+  behavesLikeRibbonVolatility({
+    name: "Hegic OTM Put, Hegic OTM Call",
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: USDC_ADDRESS,
+    venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+    amounts: [ether("1"), ether("1")],
+    strikePrices: [ether("900"), ether("1300")],
+    premiums: [new BN("120217234727039817"), new BN("0")],
+    purchaseAmount: ether("1"),
+    optionIDs: ["2353", "2354"],
+    exerciseProfit: new BN("0"),
+    actualExerciseProfit: new BN("0"),
+  });
+
   behavesLikeRibbonVolatility({
     name: "Hegic OTM Put, Hegic ITM Call",
     underlying: ETH_ADDRESS,
@@ -218,7 +232,7 @@ function behavesLikeRibbonVolatility(params) {
       );
 
       this.contract = await RibbonVolatility.at(
-        res.logs[1].args.instrumentAddress
+        res.logs[2].args.instrumentAddress
       );
 
       const snapShot = await helper.takeSnapshot();
@@ -251,6 +265,48 @@ function behavesLikeRibbonVolatility(params) {
           ).toString(),
           this.cost
         );
+      });
+    });
+
+    describe("#canExercise", () => {
+      beforeEach(async () => {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+      });
+
+      afterEach(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
+
+      it("can exercise when there's exercise profit", async function () {
+        await this.contract.buyInstrument(
+          this.venues,
+          this.optionTypes,
+          this.amounts,
+          this.strikePrices,
+          this.buyData,
+          {
+            from: user,
+            value: this.totalPremium,
+            gasPrice: this.gasPrice,
+          }
+        );
+        const positionID = 0;
+
+        const venueIndex = this.venues.findIndex((v) => v === GAMMA_PROTOCOL);
+        if (venueIndex !== -1) {
+          await time.increaseTo(this.expiry + 1);
+          await this.mockGammaController.setPrice("110000000000");
+        }
+
+        const canExercise = await this.contract.canExercise(user, positionID, {
+          from: user,
+        });
+        if (this.exerciseProfit.isZero()) {
+          assert.isFalse(canExercise);
+          return;
+        }
+        assert.isTrue(canExercise);
       });
     });
 
@@ -498,6 +554,54 @@ function behavesLikeRibbonVolatility(params) {
           assert.equal(
             (await underlying.balanceOf(user)).toString(),
             this.actualExerciseProfit
+          );
+        }
+      });
+    });
+
+    describe("#exerciseProfit", () => {
+      let snapshotId;
+
+      beforeEach(async () => {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+      });
+
+      afterEach(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
+
+      it("returns the exercise profit", async function () {
+        snapshotId = (await helper.takeSnapshot())["result"];
+        await this.contract.buyInstrument(
+          this.venues,
+          this.optionTypes,
+          this.amounts,
+          this.strikePrices,
+          this.buyData,
+          {
+            from: user,
+            value: this.totalPremium,
+            gasPrice: this.gasPrice,
+          }
+        );
+        this.positionID = 0;
+
+        const canExercise = await this.contract.canExercise(
+          user,
+          this.positionID,
+          {
+            from: user,
+          }
+        );
+        if (canExercise) {
+          assert.equal(
+            (
+              await this.contract.exerciseProfit(user, this.positionID, {
+                from: user,
+              })
+            ).toString(),
+            this.exerciseProfit
           );
         }
       });

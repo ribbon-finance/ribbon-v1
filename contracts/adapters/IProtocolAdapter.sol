@@ -79,11 +79,6 @@ interface IProtocolAdapter {
     function purchaseMethod() external pure returns (PurchaseMethod);
 
     /**
-     * @notice Returns true if the options protocol is European style options, ie only exercising after expiry
-     */
-    function isEuropean() external pure returns (bool);
-
-    /**
      * @notice Check if an options contract exist based on the passed parameters.
      * @param optionTerms is the terms of the option contract
      */
@@ -122,6 +117,12 @@ interface IProtocolAdapter {
         uint256 optionID,
         uint256 amount
     ) external view returns (uint256 profit);
+
+    function canExercise(
+        address options,
+        uint256 optionID,
+        uint256 amount
+    ) external view returns (bool);
 
     /**
      * @notice Purchases the options contract.

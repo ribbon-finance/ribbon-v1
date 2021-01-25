@@ -86,25 +86,25 @@ describe("RibbonVolatility", () => {
     actualExerciseProfit: new BN("200547181040532257"),
   });
 
-  behavesLikeRibbonVolatility({
-    name: "Hegic OTM Put, Gamma ITM Call",
-    underlying: ETH_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: ETH_ADDRESS,
-    venues: [GAMMA_PROTOCOL],
-    optionTypes: [CALL_OPTION_TYPE],
-    amounts: [ether("0.1")],
-    strikePrices: [ether("960")],
-    premiums: [new BN("0")],
-    purchaseAmount: ether("1"),
-    expiry: "1614326400",
-    optionIDs: ["0"],
-    exerciseProfit: new BN("12727272727272727"),
-    actualExerciseProfit: new BN("12727272727272727"),
-    apiResponses: [
-      ZERO_EX_API_RESPONSES["0x3cF86d40988309AF3b90C14544E1BB0673BFd439"],
-    ],
-  });
+  // behavesLikeRibbonVolatility({
+  //   name: "Hegic OTM Put, Gamma ITM Call",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: ETH_ADDRESS,
+  //   venues: [GAMMA_PROTOCOL],
+  //   optionTypes: [CALL_OPTION_TYPE],
+  //   amounts: [ether("0.1")],
+  //   strikePrices: [ether("960")],
+  //   premiums: [new BN("0")],
+  //   purchaseAmount: ether("1"),
+  //   expiry: "1614326400",
+  //   optionIDs: ["0"],
+  //   exerciseProfit: new BN("12727272727272727"),
+  //   actualExerciseProfit: new BN("12727272727272727"),
+  //   apiResponses: [
+  //     ZERO_EX_API_RESPONSES["0x3cF86d40988309AF3b90C14544E1BB0673BFd439"],
+  //   ],
+  // });
 });
 
 function behavesLikeRibbonVolatility(params) {

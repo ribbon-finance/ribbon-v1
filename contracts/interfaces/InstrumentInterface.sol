@@ -21,7 +21,15 @@ interface IAggregatedOptionsInstrument {
         uint256[] calldata strikePrices
     ) external view returns (uint256);
 
-    function canExercise(uint256 positionID) external view returns (bool);
+    function exerciseProfit(address account, uint256 positionID)
+        external
+        view
+        returns (uint256);
+
+    function canExercise(address account, uint256 positionID)
+        external
+        view
+        returns (bool);
 
     function buyInstrument(
         string[] calldata venues,

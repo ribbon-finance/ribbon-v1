@@ -299,7 +299,7 @@ function behavesLikeRibbonVolatility(params) {
           await this.mockGammaController.setPrice("110000000000");
         }
 
-        const canExercise = await this.contract.canExercise(positionID, {
+        const canExercise = await this.contract.canExercise(user, positionID, {
           from: user,
         });
         if (this.exerciseProfit.isZero()) {
@@ -554,6 +554,43 @@ function behavesLikeRibbonVolatility(params) {
           assert.equal(
             (await underlying.balanceOf(user)).toString(),
             this.actualExerciseProfit
+          );
+        }
+      });
+    });
+
+    describe("#exerciseProfit", () => {
+      it("returns the exercise profit", async function () {
+        snapshotId = (await helper.takeSnapshot())["result"];
+        await this.contract.buyInstrument(
+          this.venues,
+          this.optionTypes,
+          this.amounts,
+          this.strikePrices,
+          this.buyData,
+          {
+            from: user,
+            value: this.totalPremium,
+            gasPrice: this.gasPrice,
+          }
+        );
+        this.positionID = 0;
+
+        const canExercise = await this.contract.canExercise(
+          user,
+          this.positionID,
+          {
+            from: user,
+          }
+        );
+        if (canExercise) {
+          assert.equal(
+            (
+              await this.contract.exerciseProfit(user, this.positionID, {
+                from: user,
+              })
+            ).toString(),
+            this.exerciseProfit
           );
         }
       });

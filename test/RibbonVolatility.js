@@ -232,7 +232,7 @@ function behavesLikeRibbonVolatility(params) {
       );
 
       this.contract = await RibbonVolatility.at(
-        res.logs[1].args.instrumentAddress
+        res.logs[2].args.instrumentAddress
       );
 
       const snapShot = await helper.takeSnapshot();

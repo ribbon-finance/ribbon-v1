@@ -16,6 +16,7 @@ import {
 } from "../adapters/IProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
+import {Ownable} from "../lib/Ownable.sol";
 
 contract RibbonVolatility is DSMath, InstrumentStorageV1 {
     using SafeMath for uint256;
@@ -51,8 +52,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
     ) public initializer {
         require(block.timestamp < _expiry, "Expiry has already passed");
 
+        Ownable.initialize(_owner);
         factory = IRibbonFactory(_factory);
-        owner = _owner;
         name = _name;
         symbol = _symbol;
         expiry = _expiry;

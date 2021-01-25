@@ -8,9 +8,9 @@ import {
 import {Initializable} from "../lib/upgrades/Initializable.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {OptionType} from "../adapters/IProtocolAdapter.sol";
+import {Ownable} from "../lib/Ownable.sol";
 
-contract InstrumentStorageV1 is Initializable, ReentrancyGuard {
-    address public owner;
+contract InstrumentStorageV1 is Initializable, Ownable, ReentrancyGuard {
     IRibbonFactory public factory;
     address public underlying;
     address public strikeAsset;
@@ -29,11 +29,6 @@ contract InstrumentStorageV1 is Initializable, ReentrancyGuard {
         uint256[] amounts;
         uint256[] strikePrices;
         string[] venues;
-    }
-
-    modifier onlyOwner {
-        require(msg.sender == owner, "Only owner");
-        _;
     }
 
     /**

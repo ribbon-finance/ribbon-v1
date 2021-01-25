@@ -122,7 +122,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
             require(adapterAddress != address(0), "Adapter does not exist");
             IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
             address options =
-                adapter.delegateGetOptionsAddress(
+                adapter.getOptionsAddress(
                     OptionTerms(
                         underlying,
                         strikeAsset,
@@ -306,7 +306,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
             uint256 strikePrice = position.strikePrices[i];
 
             address optionsAddress =
-                adapter.delegateGetOptionsAddress(
+                adapter.getOptionsAddress(
                     OptionTerms(
                         underlying,
                         strikeAsset,

@@ -38,7 +38,6 @@ describe("RibbonVolatility", () => {
    * Current price for BTC-USD = ~$38000
    */
 
-  // Hegic ITM Put, Hegic OTM Call
   behavesLikeRibbonVolatility({
     name: "Hegic ITM Put, Hegic OTM Call",
     underlying: ETH_ADDRESS,
@@ -55,7 +54,22 @@ describe("RibbonVolatility", () => {
     actualExerciseProfit: new BN("154765182941453405"),
   });
 
-  // Hegic OTM Put, Hegic ITM Call
+  behavesLikeRibbonVolatility({
+    name: "Hegic OTM Put, Hegic OTM Call",
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: USDC_ADDRESS,
+    venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+    amounts: [ether("1"), ether("1")],
+    strikePrices: [ether("900"), ether("1300")],
+    premiums: [new BN("202190017799958796"), new BN("0")],
+    purchaseAmount: ether("1"),
+    optionIDs: ["2353", "2354"],
+    exerciseProfit: new BN("0"),
+    actualExerciseProfit: new BN("0"),
+  });
+
   behavesLikeRibbonVolatility({
     name: "Hegic OTM Put, Hegic ITM Call",
     underlying: ETH_ADDRESS,
@@ -72,25 +86,25 @@ describe("RibbonVolatility", () => {
     actualExerciseProfit: new BN("200547181040532257"),
   });
 
-  // behavesLikeRibbonVolatility({
-  //   name: "Hegic OTM Put, Gamma ITM Call",
-  //   underlying: ETH_ADDRESS,
-  //   strikeAsset: USDC_ADDRESS,
-  //   collateralAsset: ETH_ADDRESS,
-  //   venues: [GAMMA_PROTOCOL],
-  //   optionTypes: [CALL_OPTION_TYPE],
-  //   amounts: [ether("0.1")],
-  //   strikePrices: [ether("960")],
-  //   premiums: [new BN("0")],
-  //   purchaseAmount: ether("1"),
-  //   expiry: "1614326400",
-  //   optionIDs: ["0"],
-  //   exerciseProfit: new BN("12727272727272727"),
-  //   actualExerciseProfit: new BN("12727272727272727"),
-  //   apiResponses: [
-  //     ZERO_EX_API_RESPONSES["0x3cF86d40988309AF3b90C14544E1BB0673BFd439"],
-  //   ],
-  // });
+  behavesLikeRibbonVolatility({
+    name: "Hegic OTM Put, Gamma ITM Call",
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: ETH_ADDRESS,
+    venues: [GAMMA_PROTOCOL],
+    optionTypes: [CALL_OPTION_TYPE],
+    amounts: [ether("0.1")],
+    strikePrices: [ether("960")],
+    premiums: [new BN("0")],
+    purchaseAmount: ether("1"),
+    expiry: "1614326400",
+    optionIDs: ["0"],
+    exerciseProfit: new BN("12727272727272727"),
+    actualExerciseProfit: new BN("12727272727272727"),
+    apiResponses: [
+      ZERO_EX_API_RESPONSES["0x3cF86d40988309AF3b90C14544E1BB0673BFd439"],
+    ],
+  });
 });
 
 function behavesLikeRibbonVolatility(params) {
@@ -251,6 +265,48 @@ function behavesLikeRibbonVolatility(params) {
           ).toString(),
           this.cost
         );
+      });
+    });
+
+    describe("#canExercise", () => {
+      beforeEach(async () => {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+      });
+
+      afterEach(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
+
+      it("can exercise when there's exercise profit", async function () {
+        await this.contract.buyInstrument(
+          this.venues,
+          this.optionTypes,
+          this.amounts,
+          this.strikePrices,
+          this.buyData,
+          {
+            from: user,
+            value: this.totalPremium,
+            gasPrice: this.gasPrice,
+          }
+        );
+        const positionID = 0;
+
+        const venueIndex = this.venues.findIndex((v) => v === GAMMA_PROTOCOL);
+        if (venueIndex !== -1) {
+          await time.increaseTo(this.expiry + 1);
+          await this.mockGammaController.setPrice("110000000000");
+        }
+
+        const canExercise = await this.contract.canExercise(positionID, {
+          from: user,
+        });
+        if (this.exerciseProfit.isZero()) {
+          assert.isFalse(canExercise);
+          return;
+        }
+        assert.isTrue(canExercise);
       });
     });
 

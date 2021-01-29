@@ -1,5 +1,17 @@
 type InstrumentPosition @entity {
   id: ID!
-  cost: BigInt!
+  positionID: Int
+  account: Bytes
+  cost: BigInt
+}
+
+type OptionPurchase @entity {
+  id: ID!
+  instrumentPosition: InstrumentPosition!
   account: Bytes!
+  underlying: Bytes!
+  optionType: Int!
+  amount: BigInt!
+  premium: BigInt!
+  optionID: Int!
 }

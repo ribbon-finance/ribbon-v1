@@ -15,6 +15,7 @@ dataSources:
       file: ./src/factory.ts
       entities:
         - Instrument
+        - OptionPurchase
       abis:
         - name: RibbonFactory
           file: ./abis/RibbonFactory.json
@@ -34,12 +35,14 @@ templates:
       apiVersion: 0.0.4
       language: wasm/assemblyscript
       entities:
-        - AdminChanged
-        - Upgraded
+        - Instrument
+        - OptionPurchase
       abis:
         - name: Instrument
           file: ./abis/Instrument.json
       eventHandlers:
         - event: PositionCreated(indexed address,indexed uint256,string[],uint8[],uint256[],uint32[])
           handler: handlePositionCreated
+        - event: Purchased(indexed address,indexed string,indexed address,address,uint256,uint256,uint8,uint256,uint256,uint256)
+          handler: handleOptionPurchased
       file: ./src/instrument.ts

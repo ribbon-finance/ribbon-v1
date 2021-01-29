@@ -40,8 +40,6 @@ templates:
         - name: Instrument
           file: ./abis/Instrument.json
       eventHandlers:
-        - event: AdminChanged(address,address)
-          handler: handleAdminChanged
-        - event: Upgraded(indexed address)
-          handler: handleUpgraded
+        - event: PositionCreated(indexed address,indexed uint256,string[],uint8[],uint256[],uint32[])
+          handler: handlePositionCreated
       file: ./src/instrument.ts

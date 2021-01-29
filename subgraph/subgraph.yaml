@@ -44,4 +44,4 @@ templates:
           handler: handleAdminChanged
         - event: Upgraded(indexed address)
           handler: handleUpgraded
-      file: ./src/mapping.ts
+      file: ./src/instrument.ts

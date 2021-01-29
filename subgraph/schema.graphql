@@ -1,0 +1,5 @@
+type InstrumentPosition @entity {
+  id: ID!
+  cost: BigInt!
+  account: Bytes!
+}

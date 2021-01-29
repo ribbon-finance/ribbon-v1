@@ -84,6 +84,15 @@ export class InstrumentPosition extends Entity {
       this.set("cost", Value.fromBigInt(value as BigInt));
     }
   }
+
+  get exercised(): boolean {
+    let value = this.get("exercised");
+    return value.toBoolean();
+  }
+
+  set exercised(value: boolean) {
+    this.set("exercised", Value.fromBoolean(value));
+  }
 }
 
 export class OptionPurchase extends Entity {
@@ -177,5 +186,81 @@ export class OptionPurchase extends Entity {
 
   set optionID(value: i32) {
     this.set("optionID", Value.fromI32(value));
+  }
+}
+
+export class OptionExercise extends Entity {
+  constructor(id: string) {
+    super();
+    this.set("id", Value.fromString(id));
+  }
+
+  save(): void {
+    let id = this.get("id");
+    assert(id !== null, "Cannot save OptionExercise entity without an ID");
+    assert(
+      id.kind == ValueKind.STRING,
+      "Cannot save OptionExercise entity with non-string ID. " +
+        'Considering using .toHex() to convert the "id" to a string.'
+    );
+    store.set("OptionExercise", id.toString(), this);
+  }
+
+  static load(id: string): OptionExercise | null {
+    return store.get("OptionExercise", id) as OptionExercise | null;
+  }
+
+  get id(): string {
+    let value = this.get("id");
+    return value.toString();
+  }
+
+  set id(value: string) {
+    this.set("id", Value.fromString(value));
+  }
+
+  get instrumentPosition(): string {
+    let value = this.get("instrumentPosition");
+    return value.toString();
+  }
+
+  set instrumentPosition(value: string) {
+    this.set("instrumentPosition", Value.fromString(value));
+  }
+
+  get account(): Bytes {
+    let value = this.get("account");
+    return value.toBytes();
+  }
+
+  set account(value: Bytes) {
+    this.set("account", Value.fromBytes(value));
+  }
+
+  get optionID(): i32 {
+    let value = this.get("optionID");
+    return value.toI32();
+  }
+
+  set optionID(value: i32) {
+    this.set("optionID", Value.fromI32(value));
+  }
+
+  get exerciseProfit(): BigInt {
+    let value = this.get("exerciseProfit");
+    return value.toBigInt();
+  }
+
+  set exerciseProfit(value: BigInt) {
+    this.set("exerciseProfit", Value.fromBigInt(value));
+  }
+
+  get amount(): BigInt {
+    let value = this.get("amount");
+    return value.toBigInt();
+  }
+
+  set amount(value: BigInt) {
+    this.set("amount", Value.fromBigInt(value));
   }
 }

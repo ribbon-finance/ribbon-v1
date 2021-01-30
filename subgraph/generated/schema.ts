@@ -77,6 +77,15 @@ export class InstrumentPosition extends Entity {
   set exercised(value: boolean) {
     this.set("exercised", Value.fromBoolean(value));
   }
+
+  get amount(): BigInt {
+    let value = this.get("amount");
+    return value.toBigInt();
+  }
+
+  set amount(value: BigInt) {
+    this.set("amount", Value.fromBigInt(value));
+  }
 }
 
 export class OptionExercise extends Entity {

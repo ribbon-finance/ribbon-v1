@@ -4,6 +4,7 @@ import {
   ExercisePositionCall,
 } from "../generated/templates/Instrument/Instrument";
 import { InstrumentPosition, OptionExercise } from "../generated/schema";
+import { BigInt } from "@graphprotocol/graph-ts";
 
 export function handleBuyInstrument(call: BuyInstrumentCall): void {
   let positionID =
@@ -17,6 +18,14 @@ export function handleBuyInstrument(call: BuyInstrumentCall): void {
   position.account = call.from;
   position.cost = call.transaction.value;
   position.exercised = false;
+
+  let amounts: BigInt[] = call.inputs.amounts;
+  if (amounts.length >= 1) {
+    position.amount = amounts[0];
+  } else {
+    position.amount = BigInt.fromI32(0);
+  }
+
   position.save();
 }
 

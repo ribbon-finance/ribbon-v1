@@ -41,10 +41,11 @@ templates:
         - name: Instrument
           file: ./abis/Instrument.json
       eventHandlers:
-        - event: PositionCreated(indexed address,indexed uint256,string[],uint8[],uint256[],uint32[])
-          handler: handlePositionCreated
-        - event: Purchased(indexed address,indexed string,indexed address,address,uint256,uint256,uint8,uint256,uint256,uint256)
-          handler: handleOptionPurchased
         - event: Exercised(indexed address,indexed address,indexed uint256,uint256,uint256)
           handler: handleOptionExercise
+      callHandlers:
+        - function: buyInstrument(string[],uint256[],uint256[],bytes[])
+          handler: handleBuyInstrument
+        - function: exercisePosition(uint256)
+          handler: handleExercisePosition
       file: ./src/instrument.ts

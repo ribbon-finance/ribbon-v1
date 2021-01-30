@@ -1,60 +1,37 @@
 import {
+  BuyInstrumentCall,
   Exercised1 as Exercised,
-  PositionCreated,
-  Purchased,
+  ExercisePositionCall,
 } from "../generated/templates/Instrument/Instrument";
-import {
-  InstrumentPosition,
-  OptionPurchase,
-  OptionExercise,
-} from "../generated/schema";
+import { InstrumentPosition, OptionExercise } from "../generated/schema";
 
-export function handlePositionCreated(event: PositionCreated): void {
-  let position = new InstrumentPosition(event.transaction.hash.toHex());
-  position.positionID = event.params.positionID.toI32();
-  position.account = event.params.account;
+export function handleBuyInstrument(call: BuyInstrumentCall): void {
+  let positionID = call.from.toHex() + "-" + call.outputs.positionID.toString();
+  let position = new InstrumentPosition(positionID);
+  position.account = call.from;
+  position.cost = call.transaction.value;
   position.exercised = false;
   position.save();
 }
 
-export function handleOptionPurchased(event: Purchased): void {
-  let txhash = event.transaction.hash.toHex();
-  let purchaseID = txhash + "-" + event.logIndex.toString();
-  let purchase = new OptionPurchase(purchaseID);
-  purchase.instrumentPosition = txhash;
+export function handleExercisePosition(call: ExercisePositionCall): void {
+  let positionID = call.from.toHex() + "-" + call.inputs.positionID.toString();
+  let position = InstrumentPosition.load(positionID);
 
-  let instrumentPosition = InstrumentPosition.load(txhash);
-  if (instrumentPosition === null) {
-    instrumentPosition = new InstrumentPosition(txhash);
+  if (position !== null) {
+    position.exercised = true;
+    position.save();
   }
-  purchase.account = event.params.caller;
-  purchase.underlying = event.params.underlying;
-  purchase.optionType = event.params.optionType;
-  purchase.amount = event.params.amount;
-  purchase.premium = event.params.premium;
-  purchase.optionID = event.params.optionID.toI32();
-  purchase.save();
 
-  instrumentPosition.cost = instrumentPosition.cost.plus(event.params.premium);
-  instrumentPosition.save();
+  let optionExercise = new OptionExercise(call.transaction.hash.toHex());
+  optionExercise.instrumentPosition = positionID;
+  optionExercise.account = call.from;
 }
 
 export function handleOptionExercise(event: Exercised): void {
-  let txhash = event.transaction.hash.toHex();
-
-  let instrumentPosition = InstrumentPosition.load(txhash);
-  if (instrumentPosition === null) {
-    instrumentPosition = new InstrumentPosition(txhash);
-  }
-
-  let redemption = new OptionExercise(txhash + "-" + event.logIndex.toString());
-  redemption.instrumentPosition = instrumentPosition.id;
-  redemption.account = event.params.caller;
+  let redemption = new OptionExercise(event.transaction.hash.toHex());
   redemption.optionID = event.params.optionID.toI32();
   redemption.amount = event.params.amount;
   redemption.exerciseProfit = event.params.exerciseProfit;
   redemption.save();
-
-  instrumentPosition.exercised = true;
-  instrumentPosition.save();
 }

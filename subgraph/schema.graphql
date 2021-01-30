@@ -1,27 +1,15 @@
 type InstrumentPosition @entity {
   id: ID!
-  positionID: Int
-  account: Bytes
-  cost: BigInt
-  exercised: Boolean
-}
-
-type OptionPurchase @entity {
-  id: ID!
-  instrumentPosition: InstrumentPosition!
   account: Bytes!
-  underlying: Bytes!
-  optionType: Int!
-  amount: BigInt!
-  premium: BigInt!
-  optionID: Int!
+  cost: BigInt!
+  exercised: Boolean!
 }
 
 type OptionExercise @entity {
   id: ID!
   instrumentPosition: InstrumentPosition!
   account: Bytes!
-  optionID: Int!
-  exerciseProfit: BigInt!
-  amount: BigInt!
+  optionID: Int
+  exerciseProfit: BigInt
+  amount: BigInt
 }

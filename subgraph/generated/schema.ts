@@ -42,6 +42,15 @@ export class InstrumentPosition extends Entity {
     this.set("id", Value.fromString(value));
   }
 
+  get instrumentAddress(): Bytes {
+    let value = this.get("instrumentAddress");
+    return value.toBytes();
+  }
+
+  set instrumentAddress(value: Bytes) {
+    this.set("instrumentAddress", Value.fromBytes(value));
+  }
+
   get account(): Bytes {
     let value = this.get("account");
     return value.toBytes();

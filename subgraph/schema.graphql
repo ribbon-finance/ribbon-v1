@@ -1,5 +1,6 @@
 type InstrumentPosition @entity {
   id: ID!
+  instrumentAddress: Bytes!
   account: Bytes!
   cost: BigInt!
   exercised: Boolean!

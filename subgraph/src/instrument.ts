@@ -8,6 +8,7 @@ import { InstrumentPosition, OptionExercise } from "../generated/schema";
 export function handleBuyInstrument(call: BuyInstrumentCall): void {
   let positionID = call.from.toHex() + "-" + call.outputs.positionID.toString();
   let position = new InstrumentPosition(positionID);
+  position.instrumentAddress = call.to;
   position.account = call.from;
   position.cost = call.transaction.value;
   position.exercised = false;
@@ -26,12 +27,15 @@ export function handleExercisePosition(call: ExercisePositionCall): void {
   let optionExercise = new OptionExercise(call.transaction.hash.toHex());
   optionExercise.instrumentPosition = positionID;
   optionExercise.account = call.from;
+  optionExercise.save();
 }
 
 export function handleOptionExercise(event: Exercised): void {
-  let redemption = new OptionExercise(event.transaction.hash.toHex());
-  redemption.optionID = event.params.optionID.toI32();
-  redemption.amount = event.params.amount;
-  redemption.exerciseProfit = event.params.exerciseProfit;
-  redemption.save();
+  let optionExercise = OptionExercise.load(event.transaction.hash.toHex());
+  if (optionExercise !== null) {
+    optionExercise.optionID = event.params.optionID.toI32();
+    optionExercise.amount = event.params.amount;
+    optionExercise.exerciseProfit = event.params.exerciseProfit;
+    optionExercise.save();
+  }
 }

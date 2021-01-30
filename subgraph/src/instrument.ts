@@ -1,9 +1,8 @@
 import {
   BuyInstrumentCall,
-  Exercised1 as Exercised,
-  ExercisePositionCall,
+  Exercised,
 } from "../generated/templates/Instrument/Instrument";
-import { InstrumentPosition, OptionExercise } from "../generated/schema";
+import { InstrumentPosition } from "../generated/schema";
 import { BigInt } from "@graphprotocol/graph-ts";
 
 export function handleBuyInstrument(call: BuyInstrumentCall): void {
@@ -18,6 +17,7 @@ export function handleBuyInstrument(call: BuyInstrumentCall): void {
   position.account = call.from;
   position.cost = call.transaction.value;
   position.exercised = false;
+  position.exerciseProfit = BigInt.fromI32(0);
 
   let amounts = call.inputs.amounts;
   position.amounts = amounts;
@@ -34,32 +34,18 @@ export function handleBuyInstrument(call: BuyInstrumentCall): void {
   position.save();
 }
 
-export function handleExercisePosition(call: ExercisePositionCall): void {
+export function handleExercisePosition(event: Exercised): void {
   let positionID =
-    call.to.toHex() +
+    event.transaction.to.toHex() +
     "-" +
-    call.from.toHex() +
+    event.params.account.toHex() +
     "-" +
-    call.inputs.positionID.toString();
-  let position = InstrumentPosition.load(positionID);
+    event.params.positionID.toString();
 
+  let position = InstrumentPosition.load(positionID);
   if (position !== null) {
     position.exercised = true;
+    position.exerciseProfit = event.params.totalProfit;
     position.save();
-  }
-
-  let optionExercise = new OptionExercise(call.transaction.hash.toHex());
-  optionExercise.instrumentPosition = positionID;
-  optionExercise.account = call.from;
-  optionExercise.save();
-}
-
-export function handleOptionExercise(event: Exercised): void {
-  let optionExercise = OptionExercise.load(event.transaction.hash.toHex());
-  if (optionExercise !== null) {
-    optionExercise.optionID = event.params.optionID.toI32();
-    optionExercise.amount = event.params.amount;
-    optionExercise.exerciseProfit = event.params.exerciseProfit;
-    optionExercise.save();
   }
 }

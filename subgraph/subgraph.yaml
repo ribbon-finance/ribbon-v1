@@ -8,6 +8,7 @@ dataSources:
     source:
       address: "0x863dd8Ea9B7472c54CdE1F0e2D5B2bCC8CBf0Cd1"
       abi: RibbonFactory
+      startBlock: 11726369
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.4
@@ -43,7 +44,7 @@ templates:
         - event: Exercised(indexed address,indexed address,indexed uint256,uint256,uint256)
           handler: handleOptionExercise
       callHandlers:
-        - function: buyInstrument(string[],uint256[],uint256[],bytes[])
+        - function: buyInstrument(string[],uint8[],uint256[],uint256[],bytes[])
           handler: handleBuyInstrument
         - function: exercisePosition(uint256)
           handler: handleExercisePosition

@@ -4,7 +4,10 @@ type InstrumentPosition @entity {
   account: Bytes!
   cost: BigInt!
   exercised: Boolean!
-  amount: BigInt!
+  amounts: [BigInt!]!
+  optionTypes: [Int!]!
+  strikePrices: [BigInt!]!
+  venues: [String!]!
 }
 
 type OptionExercise @entity {

@@ -19,12 +19,17 @@ export function handleBuyInstrument(call: BuyInstrumentCall): void {
   position.cost = call.transaction.value;
   position.exercised = false;
 
-  let amounts: BigInt[] = call.inputs.amounts;
-  if (amounts.length >= 1) {
-    position.amount = amounts[0];
-  } else {
-    position.amount = BigInt.fromI32(0);
-  }
+  let amounts = call.inputs.amounts;
+  position.amounts = amounts;
+
+  let optionTypes = call.inputs.optionTypes;
+  position.optionTypes = optionTypes;
+
+  let strikePrices = call.inputs.strikePrices;
+  position.strikePrices = strikePrices;
+
+  let venues = call.inputs.venues;
+  position.venues = venues;
 
   position.save();
 }

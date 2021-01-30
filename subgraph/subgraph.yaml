@@ -15,7 +15,6 @@ dataSources:
       file: ./src/factory.ts
       entities:
         - Instrument
-        - OptionPurchase
       abis:
         - name: RibbonFactory
           file: ./abis/RibbonFactory.json
@@ -35,7 +34,7 @@ templates:
       apiVersion: 0.0.4
       language: wasm/assemblyscript
       entities:
-        - Instrument
+        - InstrumentPosition
         - OptionPurchase
       abis:
         - name: Instrument

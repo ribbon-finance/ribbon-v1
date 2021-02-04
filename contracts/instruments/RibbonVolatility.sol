@@ -391,8 +391,4 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
 
         emit Exercised(msg.sender, positionID, totalProfit, optionsExercised);
     }
-
-    function dToken() external pure returns (address) {
-        return address(0);
-    }
 }

@@ -54,37 +54,37 @@ describe("RibbonVolatility", () => {
     actualExerciseProfit: new BN("154765182941453405"),
   });
 
-  behavesLikeRibbonVolatility({
-    name: "Hegic OTM Put, Hegic OTM Call",
-    underlying: ETH_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
-    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    amounts: [ether("1"), ether("1")],
-    strikePrices: [ether("900"), ether("1300")],
-    premiums: [new BN("120217234727039817"), new BN("0")],
-    purchaseAmount: ether("1"),
-    optionIDs: ["2353", "2354"],
-    exerciseProfit: new BN("0"),
-    actualExerciseProfit: new BN("0"),
-  });
+  // behavesLikeRibbonVolatility({
+  //   name: "Hegic OTM Put, Hegic OTM Call",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   amounts: [ether("1"), ether("1")],
+  //   strikePrices: [ether("900"), ether("1300")],
+  //   premiums: [new BN("120217234727039817"), new BN("0")],
+  //   purchaseAmount: ether("1"),
+  //   optionIDs: ["2353", "2354"],
+  //   exerciseProfit: new BN("0"),
+  //   actualExerciseProfit: new BN("0"),
+  // });
 
-  behavesLikeRibbonVolatility({
-    name: "Hegic OTM Put, Hegic ITM Call",
-    underlying: ETH_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
-    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    amounts: [ether("1"), ether("1")],
-    strikePrices: [ether("900"), ether("900")],
-    premiums: [new BN("343924487476973783"), new BN("0")],
-    purchaseAmount: ether("1"),
-    optionIDs: ["2353", "2354"],
-    exerciseProfit: new BN("200547181040532257"),
-    actualExerciseProfit: new BN("200547181040532257"),
-  });
+  // behavesLikeRibbonVolatility({
+  //   name: "Hegic OTM Put, Hegic ITM Call",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   amounts: [ether("1"), ether("1")],
+  //   strikePrices: [ether("900"), ether("900")],
+  //   premiums: [new BN("343924487476973783"), new BN("0")],
+  //   purchaseAmount: ether("1"),
+  //   optionIDs: ["2353", "2354"],
+  //   exerciseProfit: new BN("200547181040532257"),
+  //   actualExerciseProfit: new BN("200547181040532257"),
+  // });
 
   // behavesLikeRibbonVolatility({
   //   name: "Hegic OTM Put, Gamma ITM Call",
@@ -391,6 +391,7 @@ function behavesLikeRibbonVolatility(params) {
             gasPrice: this.gasPrice,
           }
         );
+        console.log("gas used", res.receipt.gasUsed);
 
         expectEvent(res, "PositionCreated", {
           account: user,

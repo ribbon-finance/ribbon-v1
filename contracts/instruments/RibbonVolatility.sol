@@ -204,6 +204,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
         uint256[] memory strikePrices,
         bytes[] memory buyData
     ) public payable nonReentrant returns (uint256 positionID) {
+        factory.burnGasTokens();
+
         // require(venues.length >= 2, "Must have at least 2 venues");
         require(block.timestamp < expiry, "Cannot purchase after expiry");
 

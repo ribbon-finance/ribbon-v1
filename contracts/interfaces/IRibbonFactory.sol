@@ -13,4 +13,6 @@ interface IRibbonFactory {
         external
         view
         returns (address[] memory adaptersArray);
+
+    function burnGasTokens() external;
 }

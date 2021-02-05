@@ -225,6 +225,8 @@ contract HegicAdapter is IProtocolAdapter {
         );
         uint256 cost = premium(optionTerms, amount);
 
+        require(msg.value >= cost, "Value cannot cover premium");
+
         uint256 scaledStrikePrice =
             scaleDownStrikePrice(optionTerms.strikePrice);
         uint256 period = optionTerms.expiry.sub(block.timestamp);

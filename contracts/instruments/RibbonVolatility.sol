@@ -379,6 +379,8 @@ contract RibbonVolatility is
 
         bool[] memory optionsExercised = new bool[](2);
         uint8[] memory venues = new uint8[](2);
+        venues[0] = position.callVenue;
+        venues[1] = position.putVenue;
 
         for (uint256 i = 0; i < venues.length; i++) {
             string memory adapterName = getAdapterName(venues[i]);

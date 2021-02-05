@@ -242,7 +242,10 @@ contract RibbonVolatility is
         uint256[] memory strikePrices,
         bytes[] memory buyData
     ) public payable nonReentrant returns (uint256 positionID) {
-        // factory.burnGasTokens();
+        require(venues.length >= 2, "Must have 2 or more venue");
+        require(optionTypes.length >= 2, "Must have 2 or more optionTypes");
+        require(strikePrices.length >= 2, "Must have 2 or more strikePrices");
+        require(buyData.length >= 2, "Must have 2 or more buyData");
 
         require(block.timestamp < expiry, "Cannot purchase after expiry");
 
@@ -278,6 +281,8 @@ contract RibbonVolatility is
 
         positionID = instrumentPositions[msg.sender].length;
         instrumentPositions[msg.sender].push(position);
+
+        factory.burnGasTokens();
 
         emit PositionCreated(
             msg.sender,

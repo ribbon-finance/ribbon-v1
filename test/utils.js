@@ -10,7 +10,7 @@ const HegicAdapter = contract.fromArtifact("HegicAdapter");
 const GammaAdapter = contract.fromArtifact("GammaAdapter");
 const MockGammaController = contract.fromArtifact("MockGammaController");
 const ProtocolAdapter = contract.fromArtifact("ProtocolAdapter");
-const ChiToken = contract.fromArtifact("ChiToken");
+const ChiToken = contract.fromArtifact("IChiToken");
 
 module.exports = {
   getDefaultArgs,

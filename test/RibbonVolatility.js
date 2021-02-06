@@ -409,16 +409,11 @@ function behavesLikeRibbonVolatility(params) {
         const position = await this.contract.instrumentPosition(user, 0);
 
         assert.equal(position.exercised, false);
-        assert.deepEqual(position.venues, this.venues);
-        assert.deepEqual(
-          position.optionTypes.map((o) => o.toString()),
-          this.optionTypes.map((o) => o.toString())
-        );
-        assert.deepEqual(
-          position.amounts.map((a) => a.toString()),
-          this.amounts.map((a) => a.toString())
-        );
-        assert.deepEqual(position.optionIDs, this.optionIDs);
+        assert.equal(position.putVenue, this.venues[0]);
+        assert.equal(position.callVenue, this.venues[1]);
+        assert.equal(position.amount, this.amounts[0].toString());
+        assert.equal(position.putOptionID, this.optionIDs[0]);
+        assert.equal(position.callOptionID, this.optionIDs[1]);
 
         let i = 0;
         for (const venue of this.venues) {

@@ -27,8 +27,8 @@ const CALL_OPTION_TYPE = 2;
 const HEGIC_PROTOCOL = "HEGIC";
 const GAMMA_PROTOCOL = "OPYN_GAMMA";
 const protocolMap = {
-  1: HEGIC_PROTOCOL,
-  2: GAMMA_PROTOCOL,
+  [HEGIC_PROTOCOL]: 1,
+  [GAMMA_PROTOCOL]: 2,
 };
 
 const ETH_ADDRESS = constants.ZERO_ADDRESS;
@@ -414,11 +414,11 @@ function behavesLikeRibbonVolatility(params) {
         const position = await this.contract.instrumentPosition(user, 0);
 
         assert.equal(position.exercised, false);
-        assert.equal(position.putVenue, protocolMap(this.venues[0]));
-        assert.equal(position.callVenue, protocolMap(this.venues[1]));
+        assert.equal(position.putVenue, protocolMap[this.venues[0]]);
+        assert.equal(position.callVenue, protocolMap[this.venues[1]]);
         assert.equal(position.amount, this.amounts[0].toString());
-        assert.equal(position.putOptionID, this.optionIDs[0]);
-        assert.equal(position.callOptionID, this.optionIDs[1]);
+        assert.equal(position.callOptionID, this.optionIDs[0]);
+        assert.equal(position.putOptionID, this.optionIDs[1]);
 
         let i = 0;
         for (const venue of this.venues) {

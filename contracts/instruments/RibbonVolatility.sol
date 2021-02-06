@@ -23,12 +23,7 @@ import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {Ownable} from "../lib/Ownable.sol";
 import "../tests/DebugLib.sol";
 
-contract RibbonVolatility is
-    DSMath,
-    InstrumentStorageV1,
-    InstrumentStorageV2,
-    DebugLib
-{
+contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using ProtocolAdapter for IProtocolAdapter;
@@ -341,8 +336,6 @@ contract RibbonVolatility is
                 optionType
             );
 
-        uint256 premium = adapter.delegatePremium(optionTerms, amount);
-
         uint256 optionID256 = adapter.delegatePurchase(optionTerms, amount);
         optionID = uint32(optionID256);
     }
@@ -453,7 +446,7 @@ contract RibbonVolatility is
         return "";
     }
 
-    function getVenueID(string memory venueName) private returns (Venues) {
+    function getVenueID(string memory venueName) private pure returns (Venues) {
         if (keccak256(bytes(venueName)) == hegicHash) {
             return Venues.Hegic;
         } else if (keccak256(bytes(venueName)) == opynHash) {

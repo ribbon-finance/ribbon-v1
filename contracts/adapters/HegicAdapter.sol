@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.6.0;
+pragma solidity >=0.7.2;
 pragma experimental ABIEncoderV2;
 
 import {
@@ -45,7 +45,7 @@ contract HegicAdapter is IProtocolAdapter {
         address _wbtcOptions,
         address _ethAddress,
         address _wbtcAddress
-    ) public {
+    ) {
         ethOptions = IHegicETHOptions(_ethOptions);
         wbtcOptions = IHegicBTCOptions(_wbtcOptions);
         ethAddress = _ethAddress;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.6.0;
+pragma solidity >=0.7.2;
 pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
@@ -41,7 +41,7 @@ contract GammaAdapter is IProtocolAdapter {
         address weth,
         address _zeroExExchange,
         address router
-    ) public {
+    ) {
         oTokenFactory = _oTokenFactory;
         zeroExExchange = _zeroExExchange;
         gammaController = _gammaController;

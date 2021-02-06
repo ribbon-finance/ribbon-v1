@@ -24,7 +24,7 @@ contract MockGammaController is DSMath, DebugLib {
         address _oracle,
         IUniswapV2Router02 _router,
         address _weth
-    ) public {
+    ) {
         oracle = _oracle;
         router = _router;
         weth = _weth;
@@ -100,7 +100,7 @@ contract MockGammaController is DSMath, DebugLib {
         OtokenInterface otoken = OtokenInterface(_args.otoken);
 
         require(
-            now >= otoken.expiryTimestamp(),
+            block.timestamp >= otoken.expiryTimestamp(),
             "Controller: can not redeem un-expired otoken"
         );
 

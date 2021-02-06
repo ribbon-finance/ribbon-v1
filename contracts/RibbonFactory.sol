@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.8;
+pragma solidity >=0.7.2;
 
 import "./lib/upgrades/Initializable.sol";
 import "./lib/upgrades/AdminUpgradeabilityProxy.sol";

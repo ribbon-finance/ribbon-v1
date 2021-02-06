@@ -10,6 +10,7 @@ const HegicAdapter = contract.fromArtifact("HegicAdapter");
 const GammaAdapter = contract.fromArtifact("GammaAdapter");
 const MockGammaController = contract.fromArtifact("MockGammaController");
 const ProtocolAdapter = contract.fromArtifact("ProtocolAdapter");
+const ChiToken = contract.fromArtifact("IChiToken");
 
 module.exports = {
   getDefaultArgs,
@@ -38,6 +39,7 @@ async function deployProxy(
   return await LogicContract.at(proxy.address);
 }
 
+const CHI_ADDRESS = "0x0000000000004946c0e9F43F4Dee607b0eF1fA1c";
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
@@ -101,6 +103,8 @@ async function getDefaultArgs(admin, owner, user) {
     }
   );
 
+  await mintGasTokens(admin, factory.address);
+
   await factory.setAdapter("HEGIC", hegicAdapter.address, { from: owner });
   await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address, { from: owner });
 
@@ -113,6 +117,18 @@ async function getDefaultArgs(admin, owner, user) {
     mockGammaController,
     protocolAdapterLib,
   };
+}
+
+async function mintGasTokens(minter, factoryAddress) {
+  const chiToken = await ChiToken.at(CHI_ADDRESS);
+  const mintAmount = 200;
+  const receipt = await chiToken.mint(mintAmount, {
+    from: minter,
+    gas: 8000000,
+  });
+  await chiToken.transfer(factoryAddress, mintAmount, {
+    from: minter,
+  });
 }
 
 function wdiv(x, y) {

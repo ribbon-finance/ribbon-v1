@@ -12,7 +12,6 @@ import {
     ZeroExOrder,
     PurchaseMethod
 } from "./IProtocolAdapter.sol";
-import {InstrumentStorageV1} from "../storage/InstrumentStorage.sol";
 import {
     IOtokenFactory,
     OtokenInterface,
@@ -22,7 +21,7 @@ import {
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 
-contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1 {
+contract GammaAdapter is IProtocolAdapter {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -222,12 +221,6 @@ contract GammaAdapter is IProtocolAdapter, InstrumentStorageV1 {
                 zeroExOrder.makerAssetAmount,
             "Not enough buyToken balance"
         );
-
-        // if (msg.value > totalCost) {
-        //     uint256 change = msg.value.sub(totalCost);
-        //     (bool changeSuccess, ) = msg.sender.call{value: change}("");
-        //     require(changeSuccess, "Change transfer failed");
-        // }
 
         emit Purchased(
             msg.sender,

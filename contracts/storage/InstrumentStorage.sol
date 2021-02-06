@@ -18,11 +18,11 @@ contract InstrumentStorageV1 is Initializable, Ownable, ReentrancyGuard {
     uint256 public expiry;
     string public name;
     string public symbol;
-    mapping(address => InstrumentPosition[]) public instrumentPositions;
+    mapping(address => OldInstrumentPosition[]) private _instrumentPositions;
 
     uint256[100] private __instrumentGap;
 
-    struct InstrumentPosition {
+    struct OldInstrumentPosition {
         bool exercised;
         OptionType[] optionTypes;
         uint32[] optionIDs;
@@ -30,6 +30,23 @@ contract InstrumentStorageV1 is Initializable, Ownable, ReentrancyGuard {
         uint256[] strikePrices;
         string[] venues;
     }
+}
+
+enum Venues {Unknown, Hegic, OpynGamma}
+
+contract InstrumentStorageV2 {
+    struct InstrumentPosition {
+        bool exercised;
+        uint8 callVenue;
+        uint8 putVenue;
+        uint32 callOptionID;
+        uint32 putOptionID;
+        uint256 amount;
+        uint256 callStrikePrice;
+        uint256 putStrikePrice;
+    }
+
+    mapping(address => InstrumentPosition[]) instrumentPositions;
 
     /**
      * @notice Returns the symbol of the instrument

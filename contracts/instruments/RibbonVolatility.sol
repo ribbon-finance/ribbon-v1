@@ -6,7 +6,11 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {DSMath} from "../lib/DSMath.sol";
-import {InstrumentStorageV1} from "../storage/InstrumentStorage.sol";
+import {
+    InstrumentStorageV1,
+    InstrumentStorageV2,
+    Venues
+} from "../storage/InstrumentStorage.sol";
 import {
     OptionType,
     OptionTerms,
@@ -17,19 +21,27 @@ import {
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {Ownable} from "../lib/Ownable.sol";
+import "../tests/DebugLib.sol";
 
-contract RibbonVolatility is DSMath, InstrumentStorageV1 {
+contract RibbonVolatility is
+    DSMath,
+    InstrumentStorageV1,
+    InstrumentStorageV2,
+    DebugLib
+{
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using ProtocolAdapter for IProtocolAdapter;
+
+    bytes32 private constant hegicHash = keccak256(bytes("HEGIC"));
+    bytes32 private constant opynHash = keccak256(bytes("OPYN_GAMMA"));
 
     event PositionCreated(
         address indexed account,
         uint256 indexed positionID,
         string[] venues,
         OptionType[] optionTypes,
-        uint256[] amounts,
-        uint32[] optionIDs
+        uint256 amount
     );
     event Exercised(
         address indexed account,
@@ -116,12 +128,26 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
 
         uint256 profit = 0;
 
-        for (uint256 i = 0; i < position.venues.length; i++) {
-            string memory venue = position.venues[i];
-            uint256 strikePrice = position.strikePrices[i];
-            OptionType optionType = position.optionTypes[i];
-            uint256 optionID = position.optionIDs[i];
-            uint256 amount = position.amounts[i];
+        uint8[] memory venues = new uint8[](2);
+        venues[0] = position.callVenue;
+        venues[1] = position.putVenue;
+
+        for (uint256 i = 0; i < venues.length; i++) {
+            string memory venue = getAdapterName(venues[i]);
+            uint256 amount = position.amount;
+
+            OptionType optionType;
+            uint256 strikePrice;
+            uint32 optionID;
+            if (i == 0) {
+                strikePrice = position.callStrikePrice;
+                optionID = position.callOptionID;
+                optionType = OptionType.Call;
+            } else {
+                strikePrice = position.putStrikePrice;
+                optionID = position.putOptionID;
+                optionType = OptionType.Put;
+            }
 
             address adapterAddress = factory.getAdapter(venue);
             require(adapterAddress != address(0), "Adapter does not exist");
@@ -160,12 +186,24 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
 
         bool eitherOneCanExercise = false;
 
-        for (uint256 i = 0; i < position.venues.length; i++) {
-            string memory venue = position.venues[i];
-            uint256 strikePrice = position.strikePrices[i];
-            OptionType optionType = position.optionTypes[i];
-            uint256 optionID = position.optionIDs[i];
-            uint256 amount = position.amounts[i];
+        uint8[] memory venues = new uint8[](2);
+        venues[0] = position.callVenue;
+        venues[1] = position.putVenue;
+
+        for (uint256 i = 0; i < venues.length; i++) {
+            string memory venue = getAdapterName(venues[i]);
+            uint256 strikePrice;
+            uint32 optionID;
+            OptionType optionType;
+            if (i == 0) {
+                strikePrice = position.callStrikePrice;
+                optionID = position.callOptionID;
+                optionType = OptionType.Call;
+            } else {
+                strikePrice = position.putStrikePrice;
+                optionID = position.putOptionID;
+                optionType = OptionType.Put;
+            }
 
             address adapterAddress = factory.getAdapter(venue);
             require(adapterAddress != address(0), "Adapter does not exist");
@@ -183,7 +221,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
                 );
 
             bool canExerciseOptions =
-                adapter.canExercise(options, optionID, amount);
+                adapter.canExercise(options, optionID, position.amount);
 
             if (canExerciseOptions) {
                 eitherOneCanExercise = true;
@@ -195,61 +233,63 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
     /**
      * @notice Buy instrument and create the underlying options positions
      * @param venues array of venue names, e.g. "HEGIC", "OPYN_V1"
-     * @param amounts array of option purchase amounts
+     * @param amount amount of contracts to purchase
      */
     function buyInstrument(
         string[] memory venues,
         OptionType[] memory optionTypes,
-        uint256[] memory amounts,
+        uint256 amount,
         uint256[] memory strikePrices,
         bytes[] memory buyData
     ) public payable nonReentrant returns (uint256 positionID) {
-        // require(venues.length >= 2, "Must have at least 2 venues");
+        require(venues.length >= 2, "Must have 2 or more venue");
+        require(optionTypes.length >= 2, "Must have 2 or more optionTypes");
+        require(strikePrices.length >= 2, "Must have 2 or more strikePrices");
+        require(buyData.length >= 2, "Must have 2 or more buyData");
+
         require(block.timestamp < expiry, "Cannot purchase after expiry");
 
-        uint32[] memory optionIDs = new uint32[](venues.length);
         bool seenCall = false;
         bool seenPut = false;
+
+        InstrumentPosition memory position;
+        position.exercised = false;
+        position.amount = amount;
 
         for (uint256 i = 0; i < venues.length; i++) {
             uint32 optionID =
                 purchaseOptionAtVenue(
                     venues[i],
                     optionTypes[i],
-                    amounts[i],
+                    amount,
                     strikePrices[i],
                     buyData[i]
                 );
 
             if (!seenPut && optionTypes[i] == OptionType.Put) {
+                position.callVenue = uint8(getVenueID(venues[i]));
+                position.callStrikePrice = strikePrices[i];
+                position.callOptionID = optionID;
                 seenPut = true;
             } else if (!seenCall && optionTypes[i] == OptionType.Call) {
+                position.putVenue = uint8(getVenueID(venues[i]));
+                position.putStrikePrice = strikePrices[i];
+                position.putOptionID = optionID;
                 seenCall = true;
             }
-            optionIDs[i] = optionID;
         }
 
-        // require(seenCall && seenPut, "Must have both put and call options");
-
-        InstrumentPosition memory position =
-            InstrumentPosition(
-                false,
-                optionTypes,
-                optionIDs,
-                amounts,
-                strikePrices,
-                venues
-            );
         positionID = instrumentPositions[msg.sender].length;
         instrumentPositions[msg.sender].push(position);
+
+        factory.burnGasTokens();
 
         emit PositionCreated(
             msg.sender,
             positionID,
             venues,
             optionTypes,
-            amounts,
-            optionIDs
+            amount
         );
     }
 
@@ -303,17 +343,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
 
         uint256 premium = adapter.delegatePremium(optionTerms, amount);
 
-        // This only applies to ETH payments for now
-        // We have not enabled purchases using the underlying asset.
-        if (underlying == address(0)) {
-            require(
-                address(this).balance >= premium,
-                "Value cannot cover premium"
-            );
-        }
-
         uint256 optionID256 = adapter.delegatePurchase(optionTerms, amount);
-        optionID = adapter.delegateNonFungible() ? uint32(optionID256) : 0;
+        optionID = uint32(optionID256);
     }
 
     function purchaseWithZeroEx(
@@ -346,13 +377,28 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
             instrumentPositions[msg.sender][positionID];
         require(!position.exercised, "Already exercised");
 
-        bool[] memory optionsExercised = new bool[](position.venues.length);
+        bool[] memory optionsExercised = new bool[](2);
+        uint8[] memory venues = new uint8[](2);
+        venues[0] = position.callVenue;
+        venues[1] = position.putVenue;
 
-        for (uint256 i = 0; i < position.venues.length; i++) {
+        for (uint256 i = 0; i < venues.length; i++) {
+            string memory adapterName = getAdapterName(venues[i]);
             IProtocolAdapter adapter =
-                IProtocolAdapter(factory.getAdapter(position.venues[i]));
-            OptionType optionType = position.optionTypes[i];
-            uint256 strikePrice = position.strikePrices[i];
+                IProtocolAdapter(factory.getAdapter(adapterName));
+
+            OptionType optionType;
+            uint256 strikePrice;
+            uint32 optionID;
+            if (i == 0) {
+                strikePrice = position.callStrikePrice;
+                optionID = position.callOptionID;
+                optionType = OptionType.Call;
+            } else {
+                strikePrice = position.putStrikePrice;
+                optionID = position.putOptionID;
+                optionType = OptionType.Put;
+            }
 
             address optionsAddress =
                 adapter.getOptionsAddress(
@@ -368,17 +414,19 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
 
             require(optionsAddress != address(0), "Options address must exist");
 
+            uint256 amount = position.amount;
+
             uint256 profit =
                 adapter.delegateExerciseProfit(
                     optionsAddress,
-                    position.optionIDs[i],
-                    position.amounts[i]
+                    optionID,
+                    amount
                 );
             if (profit > 0) {
                 adapter.delegateExercise(
                     optionsAddress,
-                    position.optionIDs[i],
-                    position.amounts[i],
+                    optionID,
+                    amount,
                     msg.sender
                 );
                 optionsExercised[i] = true;
@@ -392,7 +440,25 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1 {
         emit Exercised(msg.sender, positionID, totalProfit, optionsExercised);
     }
 
-    function dToken() external pure returns (address) {
-        return address(0);
+    function getAdapterName(uint8 venueID)
+        private
+        pure
+        returns (string memory)
+    {
+        if (venueID == uint8(Venues.Hegic)) {
+            return "HEGIC";
+        } else if (venueID == uint8(Venues.OpynGamma)) {
+            return "OPYN_GAMMA";
+        }
+        return "";
+    }
+
+    function getVenueID(string memory venueName) private returns (Venues) {
+        if (keccak256(bytes(venueName)) == hegicHash) {
+            return Venues.Hegic;
+        } else if (keccak256(bytes(venueName)) == opynHash) {
+            return Venues.OpynGamma;
+        }
+        return Venues.Unknown;
     }
 }

@@ -138,4 +138,11 @@ describe("RibbonFactory", function () {
       );
     });
   });
+
+  describe("#burnGasTokens", () => {
+    it("cannot burn if not instrument", async function () {
+      const tx = this.factory.burnGasTokens();
+      await expectRevert(tx, "Caller is not instrument");
+    });
+  });
 });

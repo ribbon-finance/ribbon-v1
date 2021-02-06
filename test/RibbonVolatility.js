@@ -26,6 +26,11 @@ const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
 const HEGIC_PROTOCOL = "HEGIC";
 const GAMMA_PROTOCOL = "OPYN_GAMMA";
+const protocolMap = {
+  [HEGIC_PROTOCOL]: 1,
+  [GAMMA_PROTOCOL]: 2,
+};
+
 const ETH_ADDRESS = constants.ZERO_ADDRESS;
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
@@ -282,7 +287,7 @@ function behavesLikeRibbonVolatility(params) {
         await this.contract.buyInstrument(
           this.venues,
           this.optionTypes,
-          this.amounts,
+          this.amounts[0],
           this.strikePrices,
           this.buyData,
           {
@@ -365,7 +370,7 @@ function behavesLikeRibbonVolatility(params) {
           this.contract.buyInstrument(
             this.venues,
             this.optionTypes,
-            this.amounts,
+            this.amounts[0],
             this.strikePrices,
             this.buyData,
             {
@@ -382,7 +387,7 @@ function behavesLikeRibbonVolatility(params) {
         const res = await this.contract.buyInstrument(
           this.venues,
           this.optionTypes,
-          this.amounts,
+          this.amounts[0],
           this.strikePrices,
           this.buyData,
           {
@@ -391,6 +396,7 @@ function behavesLikeRibbonVolatility(params) {
             gasPrice: this.gasPrice,
           }
         );
+        console.log("gas used", res.receipt.gasUsed);
 
         expectEvent(res, "PositionCreated", {
           account: user,
@@ -398,29 +404,21 @@ function behavesLikeRibbonVolatility(params) {
           venues: this.venues,
         });
 
-        const { optionTypes, amounts } = res.logs[0].args;
+        const { optionTypes, amount } = res.logs[0].args;
         assert.deepEqual(
           optionTypes.map((o) => o.toNumber()),
           this.optionTypes
         );
-        assert.deepEqual(
-          amounts.map((a) => a.toString()),
-          this.amounts.map((a) => a.toString())
-        );
+        assert.equal(amount, this.amounts[0].toString());
 
         const position = await this.contract.instrumentPosition(user, 0);
 
         assert.equal(position.exercised, false);
-        assert.deepEqual(position.venues, this.venues);
-        assert.deepEqual(
-          position.optionTypes.map((o) => o.toString()),
-          this.optionTypes.map((o) => o.toString())
-        );
-        assert.deepEqual(
-          position.amounts.map((a) => a.toString()),
-          this.amounts.map((a) => a.toString())
-        );
-        assert.deepEqual(position.optionIDs, this.optionIDs);
+        assert.equal(position.putVenue, protocolMap[this.venues[0]]);
+        assert.equal(position.callVenue, protocolMap[this.venues[1]]);
+        assert.equal(position.amount, this.amounts[0].toString());
+        assert.equal(position.callOptionID, this.optionIDs[0]);
+        assert.equal(position.putOptionID, this.optionIDs[1]);
 
         let i = 0;
         for (const venue of this.venues) {
@@ -467,7 +465,7 @@ function behavesLikeRibbonVolatility(params) {
         const res = await this.contract.buyInstrument(
           this.venues,
           this.optionTypes,
-          this.amounts,
+          this.amounts[0],
           this.strikePrices,
           this.buyData,
           {
@@ -489,7 +487,7 @@ function behavesLikeRibbonVolatility(params) {
         await this.contract.buyInstrument(
           this.venues,
           this.optionTypes,
-          this.amounts,
+          this.amounts[0],
           this.strikePrices,
           this.buyData,
           {
@@ -576,7 +574,7 @@ function behavesLikeRibbonVolatility(params) {
         await this.contract.buyInstrument(
           this.venues,
           this.optionTypes,
-          this.amounts,
+          this.amounts[0],
           this.strikePrices,
           this.buyData,
           {
@@ -617,7 +615,7 @@ function behavesLikeRibbonVolatility(params) {
         await this.contract.buyInstrument(
           this.venues,
           this.optionTypes,
-          this.amounts,
+          this.amounts[0],
           this.strikePrices,
           this.buyData,
           {

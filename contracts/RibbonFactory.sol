@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.2;
+pragma solidity ^0.6.8;
 
 import "./lib/upgrades/Initializable.sol";
 import "./lib/upgrades/AdminUpgradeabilityProxy.sol";
 import {IInstrumentStorage} from "./interfaces/InstrumentInterface.sol";
+import {IChiToken} from "./interfaces/IChiToken.sol";
 import {Ownable} from "./lib/Ownable.sol";
 
 contract RibbonFactoryStorageV1 is Ownable {
@@ -28,14 +29,13 @@ contract RibbonFactoryStorageV1 is Ownable {
 }
 
 contract RibbonFactory is Initializable, RibbonFactoryStorageV1 {
+    address constant CHI_GAS_TOKEN = 0x0000000000004946c0e9F43F4Dee607b0eF1fA1c;
+    uint256 constant GAS_TOKEN_SUBSIDY = 30;
+
     /**
      * @notice Emitted when a new instrument is created
      */
-    event InstrumentCreated(
-        string symbol,
-        address indexed instrumentAddress,
-        address indexed dTokenAddress
-    );
+    event InstrumentCreated(string symbol, address indexed instrumentAddress);
 
     /**
      * @notice Emitted when a new instrument is created
@@ -85,7 +85,7 @@ contract RibbonFactory is Initializable, RibbonFactoryStorageV1 {
 
         instruments[symbol] = instrumentAddress;
         isInstrument[instrumentAddress] = true;
-        emit InstrumentCreated(symbol, instrumentAddress, instrument.dToken());
+        emit InstrumentCreated(symbol, instrumentAddress);
     }
 
     function createProxy(address _logic, bytes memory _initData)
@@ -96,6 +96,12 @@ contract RibbonFactory is Initializable, RibbonFactoryStorageV1 {
             new AdminUpgradeabilityProxy(_logic, instrumentAdmin, _initData);
         emit ProxyCreated(_logic, address(proxy), _initData);
         return address(proxy);
+    }
+
+    function burnGasTokens() public {
+        require(isInstrument[msg.sender], "Caller is not instrument");
+        IChiToken chiToken = IChiToken(CHI_GAS_TOKEN);
+        chiToken.freeUpTo(GAS_TOKEN_SUBSIDY);
     }
 
     function setAdapter(string memory protocolName, address adapter)

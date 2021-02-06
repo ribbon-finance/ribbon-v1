@@ -42,6 +42,23 @@ contract DebugLib {
         else return bytes1(uint8(b) + 0x57);
     }
 
+    function bytes32ToString(bytes32 x) internal pure returns (string memory) {
+        bytes memory bytesString = new bytes(32);
+        uint256 charCount = 0;
+        for (uint256 j = 0; j < 32; j++) {
+            bytes1 character = bytes1(bytes32(uint256(x) * 2**(8 * j)));
+            if (character != 0) {
+                bytesString[charCount] = character;
+                charCount++;
+            }
+        }
+        bytes memory bytesStringTrimmed = new bytes(charCount);
+        for (uint256 j = 0; j < charCount; j++) {
+            bytesStringTrimmed[j] = bytesString[j];
+        }
+        return string(bytesStringTrimmed);
+    }
+
     function getRevertMsg(bytes memory _returnData)
         internal
         pure

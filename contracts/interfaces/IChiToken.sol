@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.6.8;
+pragma solidity >=0.7.2;
 
 interface IChiToken {
     function balanceOf(address account) external view returns (uint256);

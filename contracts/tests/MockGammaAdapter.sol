@@ -13,7 +13,6 @@ contract MockGammaAdapter is GammaAdapter {
         address _zeroExExchange,
         address router
     )
-        public
         GammaAdapter(
             _oTokenFactory,
             _gammaController,

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.6.0;
+pragma solidity >=0.7.2;
 pragma experimental ABIEncoderV2;
 
 enum OptionType {Invalid, Put, Call}

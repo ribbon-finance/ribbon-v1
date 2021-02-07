@@ -3,7 +3,7 @@ const program = require("commander");
 const fs = require("fs");
 const path = require("path");
 
-const defaultDstPath = path.join("..", "doji-frontend", "mvp", "src");
+const defaultDstPath = path.join("..", "frontend", "mvp", "src");
 
 program.requiredOption(
   "-o, --output <directory>",

@@ -52,8 +52,30 @@ export class InstrumentCreated__Params {
   get instrumentAddress(): Address {
     return this._event.parameters[1].value.toAddress();
   }
+}
 
-  get dTokenAddress(): Address {
+export class InstrumentCreated1 extends ethereum.Event {
+  get params(): InstrumentCreated1__Params {
+    return new InstrumentCreated1__Params(this);
+  }
+}
+
+export class InstrumentCreated1__Params {
+  _event: InstrumentCreated1;
+
+  constructor(event: InstrumentCreated1) {
+    this._event = event;
+  }
+
+  get symbol(): string {
+    return this._event.parameters[0].value.toString();
+  }
+
+  get instrumentAddress(): Address {
+    return this._event.parameters[1].value.toAddress();
+  }
+
+  get dToken(): Address {
     return this._event.parameters[2].value.toAddress();
   }
 }
@@ -149,44 +171,6 @@ export class RibbonFactory extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toAddress());
   }
 
-  getAdapters(): Array<Address> {
-    let result = super.call("getAdapters", "getAdapters():(address[])", []);
-
-    return result[0].toAddressArray();
-  }
-
-  try_getAdapters(): ethereum.CallResult<Array<Address>> {
-    let result = super.tryCall("getAdapters", "getAdapters():(address[])", []);
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toAddressArray());
-  }
-
-  getInstrument(_name: string): Address {
-    let result = super.call(
-      "getInstrument",
-      "getInstrument(string):(address)",
-      [ethereum.Value.fromString(_name)]
-    );
-
-    return result[0].toAddress();
-  }
-
-  try_getInstrument(_name: string): ethereum.CallResult<Address> {
-    let result = super.tryCall(
-      "getInstrument",
-      "getInstrument(string):(address)",
-      [ethereum.Value.fromString(_name)]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toAddress());
-  }
-
   instrumentAdmin(): Address {
     let result = super.call(
       "instrumentAdmin",
@@ -248,6 +232,44 @@ export class RibbonFactory extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toBoolean());
   }
 
+  owner(): Address {
+    let result = super.call("owner", "owner():(address)", []);
+
+    return result[0].toAddress();
+  }
+
+  try_owner(): ethereum.CallResult<Address> {
+    let result = super.tryCall("owner", "owner():(address)", []);
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toAddress());
+  }
+
+  getInstrument(_name: string): Address {
+    let result = super.call(
+      "getInstrument",
+      "getInstrument(string):(address)",
+      [ethereum.Value.fromString(_name)]
+    );
+
+    return result[0].toAddress();
+  }
+
+  try_getInstrument(_name: string): ethereum.CallResult<Address> {
+    let result = super.tryCall(
+      "getInstrument",
+      "getInstrument(string):(address)",
+      [ethereum.Value.fromString(_name)]
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toAddress());
+  }
+
   newInstrument(_logic: Address, _initData: Bytes): Address {
     let result = super.call(
       "newInstrument",
@@ -274,19 +296,75 @@ export class RibbonFactory extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toAddress());
   }
 
-  owner(): Address {
-    let result = super.call("owner", "owner():(address)", []);
+  getAdapters(): Array<Address> {
+    let result = super.call("getAdapters", "getAdapters():(address[])", []);
 
-    return result[0].toAddress();
+    return result[0].toAddressArray();
   }
 
-  try_owner(): ethereum.CallResult<Address> {
-    let result = super.tryCall("owner", "owner():(address)", []);
+  try_getAdapters(): ethereum.CallResult<Array<Address>> {
+    let result = super.tryCall("getAdapters", "getAdapters():(address[])", []);
     if (result.reverted) {
       return new ethereum.CallResult();
     }
     let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toAddress());
+    return ethereum.CallResult.fromValue(value[0].toAddressArray());
+  }
+}
+
+export class RenounceOwnershipCall extends ethereum.Call {
+  get inputs(): RenounceOwnershipCall__Inputs {
+    return new RenounceOwnershipCall__Inputs(this);
+  }
+
+  get outputs(): RenounceOwnershipCall__Outputs {
+    return new RenounceOwnershipCall__Outputs(this);
+  }
+}
+
+export class RenounceOwnershipCall__Inputs {
+  _call: RenounceOwnershipCall;
+
+  constructor(call: RenounceOwnershipCall) {
+    this._call = call;
+  }
+}
+
+export class RenounceOwnershipCall__Outputs {
+  _call: RenounceOwnershipCall;
+
+  constructor(call: RenounceOwnershipCall) {
+    this._call = call;
+  }
+}
+
+export class TransferOwnershipCall extends ethereum.Call {
+  get inputs(): TransferOwnershipCall__Inputs {
+    return new TransferOwnershipCall__Inputs(this);
+  }
+
+  get outputs(): TransferOwnershipCall__Outputs {
+    return new TransferOwnershipCall__Outputs(this);
+  }
+}
+
+export class TransferOwnershipCall__Inputs {
+  _call: TransferOwnershipCall;
+
+  constructor(call: TransferOwnershipCall) {
+    this._call = call;
+  }
+
+  get newOwner(): Address {
+    return this._call.inputValues[0].value.toAddress();
+  }
+}
+
+export class TransferOwnershipCall__Outputs {
+  _call: TransferOwnershipCall;
+
+  constructor(call: TransferOwnershipCall) {
+    this._call = call;
   }
 }
 
@@ -392,28 +470,28 @@ export class NewInstrumentCall__Outputs {
   }
 }
 
-export class RenounceOwnershipCall extends ethereum.Call {
-  get inputs(): RenounceOwnershipCall__Inputs {
-    return new RenounceOwnershipCall__Inputs(this);
+export class BurnGasTokensCall extends ethereum.Call {
+  get inputs(): BurnGasTokensCall__Inputs {
+    return new BurnGasTokensCall__Inputs(this);
   }
 
-  get outputs(): RenounceOwnershipCall__Outputs {
-    return new RenounceOwnershipCall__Outputs(this);
+  get outputs(): BurnGasTokensCall__Outputs {
+    return new BurnGasTokensCall__Outputs(this);
   }
 }
 
-export class RenounceOwnershipCall__Inputs {
-  _call: RenounceOwnershipCall;
+export class BurnGasTokensCall__Inputs {
+  _call: BurnGasTokensCall;
 
-  constructor(call: RenounceOwnershipCall) {
+  constructor(call: BurnGasTokensCall) {
     this._call = call;
   }
 }
 
-export class RenounceOwnershipCall__Outputs {
-  _call: RenounceOwnershipCall;
+export class BurnGasTokensCall__Outputs {
+  _call: BurnGasTokensCall;
 
-  constructor(call: RenounceOwnershipCall) {
+  constructor(call: BurnGasTokensCall) {
     this._call = call;
   }
 }
@@ -448,36 +526,6 @@ export class SetAdapterCall__Outputs {
   _call: SetAdapterCall;
 
   constructor(call: SetAdapterCall) {
-    this._call = call;
-  }
-}
-
-export class TransferOwnershipCall extends ethereum.Call {
-  get inputs(): TransferOwnershipCall__Inputs {
-    return new TransferOwnershipCall__Inputs(this);
-  }
-
-  get outputs(): TransferOwnershipCall__Outputs {
-    return new TransferOwnershipCall__Outputs(this);
-  }
-}
-
-export class TransferOwnershipCall__Inputs {
-  _call: TransferOwnershipCall;
-
-  constructor(call: TransferOwnershipCall) {
-    this._call = call;
-  }
-
-  get newOwner(): Address {
-    return this._call.inputValues[0].value.toAddress();
-  }
-}
-
-export class TransferOwnershipCall__Outputs {
-  _call: TransferOwnershipCall;
-
-  constructor(call: TransferOwnershipCall) {
     this._call = call;
   }
 }

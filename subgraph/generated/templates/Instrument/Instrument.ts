@@ -91,12 +91,8 @@ export class PositionCreated__Params {
     return this._event.parameters[3].value.toI32Array();
   }
 
-  get amounts(): Array<BigInt> {
-    return this._event.parameters[4].value.toBigIntArray();
-  }
-
-  get optionIDs(): Array<BigInt> {
-    return this._event.parameters[5].value.toBigIntArray();
+  get amount(): BigInt {
+    return this._event.parameters[4].value.toBigInt();
   }
 }
 
@@ -105,24 +101,32 @@ export class Instrument__getInstrumentPositionsResultPositionsStruct extends eth
     return this[0].toBoolean();
   }
 
-  get optionTypes(): Array<i32> {
-    return this[1].toI32Array();
+  get callVenue(): i32 {
+    return this[1].toI32();
   }
 
-  get optionIDs(): Array<BigInt> {
-    return this[2].toBigIntArray();
+  get putVenue(): i32 {
+    return this[2].toI32();
   }
 
-  get amounts(): Array<BigInt> {
-    return this[3].toBigIntArray();
+  get callOptionID(): BigInt {
+    return this[3].toBigInt();
   }
 
-  get strikePrices(): Array<BigInt> {
-    return this[4].toBigIntArray();
+  get putOptionID(): BigInt {
+    return this[4].toBigInt();
   }
 
-  get venues(): Array<string> {
-    return this[5].toStringArray();
+  get amount(): BigInt {
+    return this[5].toBigInt();
+  }
+
+  get callStrikePrice(): BigInt {
+    return this[6].toBigInt();
+  }
+
+  get putStrikePrice(): BigInt {
+    return this[7].toBigInt();
   }
 }
 
@@ -131,62 +135,38 @@ export class Instrument__instrumentPositionResultPositionStruct extends ethereum
     return this[0].toBoolean();
   }
 
-  get optionTypes(): Array<i32> {
-    return this[1].toI32Array();
+  get callVenue(): i32 {
+    return this[1].toI32();
   }
 
-  get optionIDs(): Array<BigInt> {
-    return this[2].toBigIntArray();
+  get putVenue(): i32 {
+    return this[2].toI32();
   }
 
-  get amounts(): Array<BigInt> {
-    return this[3].toBigIntArray();
+  get callOptionID(): BigInt {
+    return this[3].toBigInt();
   }
 
-  get strikePrices(): Array<BigInt> {
-    return this[4].toBigIntArray();
+  get putOptionID(): BigInt {
+    return this[4].toBigInt();
   }
 
-  get venues(): Array<string> {
-    return this[5].toStringArray();
+  get amount(): BigInt {
+    return this[5].toBigInt();
+  }
+
+  get callStrikePrice(): BigInt {
+    return this[6].toBigInt();
+  }
+
+  get putStrikePrice(): BigInt {
+    return this[7].toBigInt();
   }
 }
 
 export class Instrument extends ethereum.SmartContract {
   static bind(address: Address): Instrument {
     return new Instrument("Instrument", address);
-  }
-
-  canExercise(account: Address, positionID: BigInt): boolean {
-    let result = super.call(
-      "canExercise",
-      "canExercise(address,uint256):(bool)",
-      [
-        ethereum.Value.fromAddress(account),
-        ethereum.Value.fromUnsignedBigInt(positionID)
-      ]
-    );
-
-    return result[0].toBoolean();
-  }
-
-  try_canExercise(
-    account: Address,
-    positionID: BigInt
-  ): ethereum.CallResult<boolean> {
-    let result = super.tryCall(
-      "canExercise",
-      "canExercise(address,uint256):(bool)",
-      [
-        ethereum.Value.fromAddress(account),
-        ethereum.Value.fromUnsignedBigInt(positionID)
-      ]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBoolean());
   }
 
   collateralAsset(): Address {
@@ -210,119 +190,6 @@ export class Instrument extends ethereum.SmartContract {
     }
     let value = result.value;
     return ethereum.CallResult.fromValue(value[0].toAddress());
-  }
-
-  cost(
-    venues: Array<string>,
-    optionTypes: Array<i32>,
-    amounts: Array<BigInt>,
-    strikePrices: Array<BigInt>
-  ): BigInt {
-    let result = super.call(
-      "cost",
-      "cost(string[],uint8[],uint256[],uint256[]):(uint256)",
-      [
-        ethereum.Value.fromStringArray(venues),
-        ethereum.Value.fromI32Array(optionTypes),
-        ethereum.Value.fromUnsignedBigIntArray(amounts),
-        ethereum.Value.fromUnsignedBigIntArray(strikePrices)
-      ]
-    );
-
-    return result[0].toBigInt();
-  }
-
-  try_cost(
-    venues: Array<string>,
-    optionTypes: Array<i32>,
-    amounts: Array<BigInt>,
-    strikePrices: Array<BigInt>
-  ): ethereum.CallResult<BigInt> {
-    let result = super.tryCall(
-      "cost",
-      "cost(string[],uint8[],uint256[],uint256[]):(uint256)",
-      [
-        ethereum.Value.fromStringArray(venues),
-        ethereum.Value.fromI32Array(optionTypes),
-        ethereum.Value.fromUnsignedBigIntArray(amounts),
-        ethereum.Value.fromUnsignedBigIntArray(strikePrices)
-      ]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBigInt());
-  }
-
-  dToken(): Address {
-    let result = super.call("dToken", "dToken():(address)", []);
-
-    return result[0].toAddress();
-  }
-
-  try_dToken(): ethereum.CallResult<Address> {
-    let result = super.tryCall("dToken", "dToken():(address)", []);
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toAddress());
-  }
-
-  exercisePosition(positionID: BigInt): BigInt {
-    let result = super.call(
-      "exercisePosition",
-      "exercisePosition(uint256):(uint256)",
-      [ethereum.Value.fromUnsignedBigInt(positionID)]
-    );
-
-    return result[0].toBigInt();
-  }
-
-  try_exercisePosition(positionID: BigInt): ethereum.CallResult<BigInt> {
-    let result = super.tryCall(
-      "exercisePosition",
-      "exercisePosition(uint256):(uint256)",
-      [ethereum.Value.fromUnsignedBigInt(positionID)]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBigInt());
-  }
-
-  exerciseProfit(account: Address, positionID: BigInt): BigInt {
-    let result = super.call(
-      "exerciseProfit",
-      "exerciseProfit(address,uint256):(uint256)",
-      [
-        ethereum.Value.fromAddress(account),
-        ethereum.Value.fromUnsignedBigInt(positionID)
-      ]
-    );
-
-    return result[0].toBigInt();
-  }
-
-  try_exerciseProfit(
-    account: Address,
-    positionID: BigInt
-  ): ethereum.CallResult<BigInt> {
-    let result = super.tryCall(
-      "exerciseProfit",
-      "exerciseProfit(address,uint256):(uint256)",
-      [
-        ethereum.Value.fromAddress(account),
-        ethereum.Value.fromUnsignedBigInt(positionID)
-      ]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBigInt());
   }
 
   expiry(): BigInt {
@@ -360,7 +227,7 @@ export class Instrument extends ethereum.SmartContract {
   ): Array<Instrument__getInstrumentPositionsResultPositionsStruct> {
     let result = super.call(
       "getInstrumentPositions",
-      "getInstrumentPositions(address):((bool,uint8[],uint32[],uint256[],uint256[],string[])[])",
+      "getInstrumentPositions(address):((bool,uint8,uint8,uint32,uint32,uint256,uint256,uint256)[])",
       [ethereum.Value.fromAddress(account)]
     );
 
@@ -376,7 +243,7 @@ export class Instrument extends ethereum.SmartContract {
   > {
     let result = super.tryCall(
       "getInstrumentPositions",
-      "getInstrumentPositions(address):((bool,uint8[],uint32[],uint256[],uint256[],string[])[])",
+      "getInstrumentPositions(address):((bool,uint8,uint8,uint32,uint32,uint256,uint256,uint256)[])",
       [ethereum.Value.fromAddress(account)]
     );
     if (result.reverted) {
@@ -396,7 +263,7 @@ export class Instrument extends ethereum.SmartContract {
   ): Instrument__instrumentPositionResultPositionStruct {
     let result = super.call(
       "instrumentPosition",
-      "instrumentPosition(address,uint256):((bool,uint8[],uint32[],uint256[],uint256[],string[]))",
+      "instrumentPosition(address,uint256):((bool,uint8,uint8,uint32,uint32,uint256,uint256,uint256))",
       [
         ethereum.Value.fromAddress(account),
         ethereum.Value.fromUnsignedBigInt(positionID)
@@ -412,7 +279,7 @@ export class Instrument extends ethereum.SmartContract {
   ): ethereum.CallResult<Instrument__instrumentPositionResultPositionStruct> {
     let result = super.tryCall(
       "instrumentPosition",
-      "instrumentPosition(address,uint256):((bool,uint8[],uint32[],uint256[],uint256[],string[]))",
+      "instrumentPosition(address,uint256):((bool,uint8,uint8,uint32,uint32,uint256,uint256,uint256))",
       [
         ethereum.Value.fromAddress(account),
         ethereum.Value.fromUnsignedBigInt(positionID)
@@ -425,38 +292,6 @@ export class Instrument extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(
       value[0].toTuple() as Instrument__instrumentPositionResultPositionStruct
     );
-  }
-
-  instrumentPositions(param0: Address, param1: BigInt): boolean {
-    let result = super.call(
-      "instrumentPositions",
-      "instrumentPositions(address,uint256):(bool)",
-      [
-        ethereum.Value.fromAddress(param0),
-        ethereum.Value.fromUnsignedBigInt(param1)
-      ]
-    );
-
-    return result[0].toBoolean();
-  }
-
-  try_instrumentPositions(
-    param0: Address,
-    param1: BigInt
-  ): ethereum.CallResult<boolean> {
-    let result = super.tryCall(
-      "instrumentPositions",
-      "instrumentPositions(address,uint256):(bool)",
-      [
-        ethereum.Value.fromAddress(param0),
-        ethereum.Value.fromUnsignedBigInt(param1)
-      ]
-    );
-    if (result.reverted) {
-      return new ethereum.CallResult();
-    }
-    let value = result.value;
-    return ethereum.CallResult.fromValue(value[0].toBoolean());
   }
 
   name(): string {
@@ -556,89 +391,191 @@ export class Instrument extends ethereum.SmartContract {
     let value = result.value;
     return ethereum.CallResult.fromValue(value[0].toAddress());
   }
-}
 
-export class BuyInstrumentCall extends ethereum.Call {
-  get inputs(): BuyInstrumentCall__Inputs {
-    return new BuyInstrumentCall__Inputs(this);
+  cost(
+    venues: Array<string>,
+    optionTypes: Array<i32>,
+    amounts: Array<BigInt>,
+    strikePrices: Array<BigInt>
+  ): BigInt {
+    let result = super.call(
+      "cost",
+      "cost(string[],uint8[],uint256[],uint256[]):(uint256)",
+      [
+        ethereum.Value.fromStringArray(venues),
+        ethereum.Value.fromI32Array(optionTypes),
+        ethereum.Value.fromUnsignedBigIntArray(amounts),
+        ethereum.Value.fromUnsignedBigIntArray(strikePrices)
+      ]
+    );
+
+    return result[0].toBigInt();
   }
 
-  get outputs(): BuyInstrumentCall__Outputs {
-    return new BuyInstrumentCall__Outputs(this);
+  try_cost(
+    venues: Array<string>,
+    optionTypes: Array<i32>,
+    amounts: Array<BigInt>,
+    strikePrices: Array<BigInt>
+  ): ethereum.CallResult<BigInt> {
+    let result = super.tryCall(
+      "cost",
+      "cost(string[],uint8[],uint256[],uint256[]):(uint256)",
+      [
+        ethereum.Value.fromStringArray(venues),
+        ethereum.Value.fromI32Array(optionTypes),
+        ethereum.Value.fromUnsignedBigIntArray(amounts),
+        ethereum.Value.fromUnsignedBigIntArray(strikePrices)
+      ]
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBigInt());
+  }
+
+  exerciseProfit(account: Address, positionID: BigInt): BigInt {
+    let result = super.call(
+      "exerciseProfit",
+      "exerciseProfit(address,uint256):(uint256)",
+      [
+        ethereum.Value.fromAddress(account),
+        ethereum.Value.fromUnsignedBigInt(positionID)
+      ]
+    );
+
+    return result[0].toBigInt();
+  }
+
+  try_exerciseProfit(
+    account: Address,
+    positionID: BigInt
+  ): ethereum.CallResult<BigInt> {
+    let result = super.tryCall(
+      "exerciseProfit",
+      "exerciseProfit(address,uint256):(uint256)",
+      [
+        ethereum.Value.fromAddress(account),
+        ethereum.Value.fromUnsignedBigInt(positionID)
+      ]
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBigInt());
+  }
+
+  canExercise(account: Address, positionID: BigInt): boolean {
+    let result = super.call(
+      "canExercise",
+      "canExercise(address,uint256):(bool)",
+      [
+        ethereum.Value.fromAddress(account),
+        ethereum.Value.fromUnsignedBigInt(positionID)
+      ]
+    );
+
+    return result[0].toBoolean();
+  }
+
+  try_canExercise(
+    account: Address,
+    positionID: BigInt
+  ): ethereum.CallResult<boolean> {
+    let result = super.tryCall(
+      "canExercise",
+      "canExercise(address,uint256):(bool)",
+      [
+        ethereum.Value.fromAddress(account),
+        ethereum.Value.fromUnsignedBigInt(positionID)
+      ]
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBoolean());
+  }
+
+  exercisePosition(positionID: BigInt): BigInt {
+    let result = super.call(
+      "exercisePosition",
+      "exercisePosition(uint256):(uint256)",
+      [ethereum.Value.fromUnsignedBigInt(positionID)]
+    );
+
+    return result[0].toBigInt();
+  }
+
+  try_exercisePosition(positionID: BigInt): ethereum.CallResult<BigInt> {
+    let result = super.tryCall(
+      "exercisePosition",
+      "exercisePosition(uint256):(uint256)",
+      [ethereum.Value.fromUnsignedBigInt(positionID)]
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBigInt());
   }
 }
 
-export class BuyInstrumentCall__Inputs {
-  _call: BuyInstrumentCall;
+export class RenounceOwnershipCall extends ethereum.Call {
+  get inputs(): RenounceOwnershipCall__Inputs {
+    return new RenounceOwnershipCall__Inputs(this);
+  }
 
-  constructor(call: BuyInstrumentCall) {
+  get outputs(): RenounceOwnershipCall__Outputs {
+    return new RenounceOwnershipCall__Outputs(this);
+  }
+}
+
+export class RenounceOwnershipCall__Inputs {
+  _call: RenounceOwnershipCall;
+
+  constructor(call: RenounceOwnershipCall) {
+    this._call = call;
+  }
+}
+
+export class RenounceOwnershipCall__Outputs {
+  _call: RenounceOwnershipCall;
+
+  constructor(call: RenounceOwnershipCall) {
+    this._call = call;
+  }
+}
+
+export class TransferOwnershipCall extends ethereum.Call {
+  get inputs(): TransferOwnershipCall__Inputs {
+    return new TransferOwnershipCall__Inputs(this);
+  }
+
+  get outputs(): TransferOwnershipCall__Outputs {
+    return new TransferOwnershipCall__Outputs(this);
+  }
+}
+
+export class TransferOwnershipCall__Inputs {
+  _call: TransferOwnershipCall;
+
+  constructor(call: TransferOwnershipCall) {
     this._call = call;
   }
 
-  get venues(): Array<string> {
-    return this._call.inputValues[0].value.toStringArray();
-  }
-
-  get optionTypes(): Array<i32> {
-    return this._call.inputValues[1].value.toI32Array();
-  }
-
-  get amounts(): Array<BigInt> {
-    return this._call.inputValues[2].value.toBigIntArray();
-  }
-
-  get strikePrices(): Array<BigInt> {
-    return this._call.inputValues[3].value.toBigIntArray();
-  }
-
-  get buyData(): Array<Bytes> {
-    return this._call.inputValues[4].value.toBytesArray();
+  get newOwner(): Address {
+    return this._call.inputValues[0].value.toAddress();
   }
 }
 
-export class BuyInstrumentCall__Outputs {
-  _call: BuyInstrumentCall;
+export class TransferOwnershipCall__Outputs {
+  _call: TransferOwnershipCall;
 
-  constructor(call: BuyInstrumentCall) {
+  constructor(call: TransferOwnershipCall) {
     this._call = call;
-  }
-
-  get positionID(): BigInt {
-    return this._call.outputValues[0].value.toBigInt();
-  }
-}
-
-export class ExercisePositionCall extends ethereum.Call {
-  get inputs(): ExercisePositionCall__Inputs {
-    return new ExercisePositionCall__Inputs(this);
-  }
-
-  get outputs(): ExercisePositionCall__Outputs {
-    return new ExercisePositionCall__Outputs(this);
-  }
-}
-
-export class ExercisePositionCall__Inputs {
-  _call: ExercisePositionCall;
-
-  constructor(call: ExercisePositionCall) {
-    this._call = call;
-  }
-
-  get positionID(): BigInt {
-    return this._call.inputValues[0].value.toBigInt();
-  }
-}
-
-export class ExercisePositionCall__Outputs {
-  _call: ExercisePositionCall;
-
-  constructor(call: ExercisePositionCall) {
-    this._call = call;
-  }
-
-  get totalProfit(): BigInt {
-    return this._call.outputValues[0].value.toBigInt();
   }
 }
 
@@ -730,58 +667,86 @@ export class Initialize1Call__Outputs {
   }
 }
 
-export class RenounceOwnershipCall extends ethereum.Call {
-  get inputs(): RenounceOwnershipCall__Inputs {
-    return new RenounceOwnershipCall__Inputs(this);
+export class BuyInstrumentCall extends ethereum.Call {
+  get inputs(): BuyInstrumentCall__Inputs {
+    return new BuyInstrumentCall__Inputs(this);
   }
 
-  get outputs(): RenounceOwnershipCall__Outputs {
-    return new RenounceOwnershipCall__Outputs(this);
-  }
-}
-
-export class RenounceOwnershipCall__Inputs {
-  _call: RenounceOwnershipCall;
-
-  constructor(call: RenounceOwnershipCall) {
-    this._call = call;
+  get outputs(): BuyInstrumentCall__Outputs {
+    return new BuyInstrumentCall__Outputs(this);
   }
 }
 
-export class RenounceOwnershipCall__Outputs {
-  _call: RenounceOwnershipCall;
+export class BuyInstrumentCall__Inputs {
+  _call: BuyInstrumentCall;
 
-  constructor(call: RenounceOwnershipCall) {
-    this._call = call;
-  }
-}
-
-export class TransferOwnershipCall extends ethereum.Call {
-  get inputs(): TransferOwnershipCall__Inputs {
-    return new TransferOwnershipCall__Inputs(this);
-  }
-
-  get outputs(): TransferOwnershipCall__Outputs {
-    return new TransferOwnershipCall__Outputs(this);
-  }
-}
-
-export class TransferOwnershipCall__Inputs {
-  _call: TransferOwnershipCall;
-
-  constructor(call: TransferOwnershipCall) {
+  constructor(call: BuyInstrumentCall) {
     this._call = call;
   }
 
-  get newOwner(): Address {
-    return this._call.inputValues[0].value.toAddress();
+  get venues(): Array<string> {
+    return this._call.inputValues[0].value.toStringArray();
+  }
+
+  get optionTypes(): Array<i32> {
+    return this._call.inputValues[1].value.toI32Array();
+  }
+
+  get amount(): BigInt {
+    return this._call.inputValues[2].value.toBigInt();
+  }
+
+  get strikePrices(): Array<BigInt> {
+    return this._call.inputValues[3].value.toBigIntArray();
+  }
+
+  get buyData(): Array<Bytes> {
+    return this._call.inputValues[4].value.toBytesArray();
   }
 }
 
-export class TransferOwnershipCall__Outputs {
-  _call: TransferOwnershipCall;
+export class BuyInstrumentCall__Outputs {
+  _call: BuyInstrumentCall;
 
-  constructor(call: TransferOwnershipCall) {
+  constructor(call: BuyInstrumentCall) {
     this._call = call;
+  }
+
+  get positionID(): BigInt {
+    return this._call.outputValues[0].value.toBigInt();
+  }
+}
+
+export class ExercisePositionCall extends ethereum.Call {
+  get inputs(): ExercisePositionCall__Inputs {
+    return new ExercisePositionCall__Inputs(this);
+  }
+
+  get outputs(): ExercisePositionCall__Outputs {
+    return new ExercisePositionCall__Outputs(this);
+  }
+}
+
+export class ExercisePositionCall__Inputs {
+  _call: ExercisePositionCall;
+
+  constructor(call: ExercisePositionCall) {
+    this._call = call;
+  }
+
+  get positionID(): BigInt {
+    return this._call.inputValues[0].value.toBigInt();
+  }
+}
+
+export class ExercisePositionCall__Outputs {
+  _call: ExercisePositionCall;
+
+  constructor(call: ExercisePositionCall) {
+    this._call = call;
+  }
+
+  get totalProfit(): BigInt {
+    return this._call.outputValues[0].value.toBigInt();
   }
 }

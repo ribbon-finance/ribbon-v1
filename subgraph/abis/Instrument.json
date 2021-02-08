@@ -78,114 +78,37 @@
       },
       {
         "indexed": false,
-        "internalType": "uint256[]",
-        "name": "amounts",
-        "type": "uint256[]"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint32[]",
-        "name": "optionIDs",
-        "type": "uint32[]"
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
       }
     ],
     "name": "PositionCreated",
     "type": "event"
   },
   {
-    "inputs": [
-      { "internalType": "string[]", "name": "venues", "type": "string[]" },
-      {
-        "internalType": "enum OptionType[]",
-        "name": "optionTypes",
-        "type": "uint8[]"
-      },
-      { "internalType": "uint256[]", "name": "amounts", "type": "uint256[]" },
-      {
-        "internalType": "uint256[]",
-        "name": "strikePrices",
-        "type": "uint256[]"
-      },
-      { "internalType": "bytes[]", "name": "buyData", "type": "bytes[]" }
-    ],
-    "name": "buyInstrument",
-    "outputs": [
-      { "internalType": "uint256", "name": "positionID", "type": "uint256" }
-    ],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      { "internalType": "address", "name": "account", "type": "address" },
-      { "internalType": "uint256", "name": "positionID", "type": "uint256" }
-    ],
-    "name": "canExercise",
-    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "collateralAsset",
-    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      { "internalType": "string[]", "name": "venues", "type": "string[]" },
+    "outputs": [
       {
-        "internalType": "enum OptionType[]",
-        "name": "optionTypes",
-        "type": "uint8[]"
-      },
-      { "internalType": "uint256[]", "name": "amounts", "type": "uint256[]" },
-      {
-        "internalType": "uint256[]",
-        "name": "strikePrices",
-        "type": "uint256[]"
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
-    "name": "cost",
-    "outputs": [
-      { "internalType": "uint256", "name": "totalPremium", "type": "uint256" }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "dToken",
-    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
-    "stateMutability": "pure",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      { "internalType": "uint256", "name": "positionID", "type": "uint256" }
-    ],
-    "name": "exercisePosition",
-    "outputs": [
-      { "internalType": "uint256", "name": "totalProfit", "type": "uint256" }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      { "internalType": "address", "name": "account", "type": "address" },
-      { "internalType": "uint256", "name": "positionID", "type": "uint256" }
-    ],
-    "name": "exerciseProfit",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "expiry",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
@@ -204,36 +127,58 @@
   },
   {
     "inputs": [
-      { "internalType": "address", "name": "account", "type": "address" }
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
     ],
     "name": "getInstrumentPositions",
     "outputs": [
       {
         "components": [
-          { "internalType": "bool", "name": "exercised", "type": "bool" },
           {
-            "internalType": "enum OptionType[]",
-            "name": "optionTypes",
-            "type": "uint8[]"
+            "internalType": "bool",
+            "name": "exercised",
+            "type": "bool"
           },
           {
-            "internalType": "uint32[]",
-            "name": "optionIDs",
-            "type": "uint32[]"
+            "internalType": "uint8",
+            "name": "callVenue",
+            "type": "uint8"
           },
           {
-            "internalType": "uint256[]",
-            "name": "amounts",
-            "type": "uint256[]"
+            "internalType": "uint8",
+            "name": "putVenue",
+            "type": "uint8"
           },
           {
-            "internalType": "uint256[]",
-            "name": "strikePrices",
-            "type": "uint256[]"
+            "internalType": "uint32",
+            "name": "callOptionID",
+            "type": "uint32"
           },
-          { "internalType": "string[]", "name": "venues", "type": "string[]" }
+          {
+            "internalType": "uint32",
+            "name": "putOptionID",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "callStrikePrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "putStrikePrice",
+            "type": "uint256"
+          }
         ],
-        "internalType": "struct InstrumentStorageV1.InstrumentPosition[]",
+        "internalType": "struct InstrumentStorageV2.InstrumentPosition[]",
         "name": "positions",
         "type": "tuple[]"
       }
@@ -243,66 +188,63 @@
   },
   {
     "inputs": [
-      { "internalType": "address", "name": "_owner", "type": "address" },
-      { "internalType": "address", "name": "_factory", "type": "address" },
-      { "internalType": "string", "name": "_name", "type": "string" },
-      { "internalType": "string", "name": "_symbol", "type": "string" },
-      { "internalType": "address", "name": "_underlying", "type": "address" },
-      { "internalType": "address", "name": "_strikeAsset", "type": "address" },
       {
         "internalType": "address",
-        "name": "_collateralAsset",
+        "name": "account",
         "type": "address"
       },
-      { "internalType": "uint256", "name": "_expiry", "type": "uint256" }
-    ],
-    "name": "initialize",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      { "internalType": "address", "name": "newOwner", "type": "address" }
-    ],
-    "name": "initialize",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      { "internalType": "address", "name": "account", "type": "address" },
-      { "internalType": "uint256", "name": "positionID", "type": "uint256" }
+      {
+        "internalType": "uint256",
+        "name": "positionID",
+        "type": "uint256"
+      }
     ],
     "name": "instrumentPosition",
     "outputs": [
       {
         "components": [
-          { "internalType": "bool", "name": "exercised", "type": "bool" },
           {
-            "internalType": "enum OptionType[]",
-            "name": "optionTypes",
-            "type": "uint8[]"
+            "internalType": "bool",
+            "name": "exercised",
+            "type": "bool"
           },
           {
-            "internalType": "uint32[]",
-            "name": "optionIDs",
-            "type": "uint32[]"
+            "internalType": "uint8",
+            "name": "callVenue",
+            "type": "uint8"
           },
           {
-            "internalType": "uint256[]",
-            "name": "amounts",
-            "type": "uint256[]"
+            "internalType": "uint8",
+            "name": "putVenue",
+            "type": "uint8"
           },
           {
-            "internalType": "uint256[]",
-            "name": "strikePrices",
-            "type": "uint256[]"
+            "internalType": "uint32",
+            "name": "callOptionID",
+            "type": "uint32"
           },
-          { "internalType": "string[]", "name": "venues", "type": "string[]" }
+          {
+            "internalType": "uint32",
+            "name": "putOptionID",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "callStrikePrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "putStrikePrice",
+            "type": "uint256"
+          }
         ],
-        "internalType": "struct InstrumentStorageV1.InstrumentPosition",
+        "internalType": "struct InstrumentStorageV2.InstrumentPosition",
         "name": "position",
         "type": "tuple"
       }
@@ -311,37 +253,47 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "", "type": "address" },
-      { "internalType": "uint256", "name": "", "type": "uint256" }
-    ],
-    "name": "instrumentPositions",
-    "outputs": [
-      { "internalType": "bool", "name": "exercised", "type": "bool" }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "name",
-    "outputs": [{ "internalType": "string", "name": "", "type": "string" }],
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [
-      { "internalType": "address", "name": "_account", "type": "address" }
+      {
+        "internalType": "address",
+        "name": "_account",
+        "type": "address"
+      }
     ],
     "name": "numOfPositions",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "owner",
-    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
@@ -355,20 +307,36 @@
   {
     "inputs": [],
     "name": "strikeAsset",
-    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "symbol",
-    "outputs": [{ "internalType": "string", "name": "", "type": "string" }],
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [
-      { "internalType": "address", "name": "newOwner", "type": "address" }
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
     ],
     "name": "transferOwnership",
     "outputs": [],
@@ -378,9 +346,219 @@
   {
     "inputs": [],
     "name": "underlying",
-    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
-  { "stateMutability": "payable", "type": "receive" }
+  {
+    "stateMutability": "payable",
+    "type": "receive"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_owner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_factory",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "_name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_symbol",
+        "type": "string"
+      },
+      {
+        "internalType": "address",
+        "name": "_underlying",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_strikeAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_collateralAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_expiry",
+        "type": "uint256"
+      }
+    ],
+    "name": "initialize",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "initialize",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string[]",
+        "name": "venues",
+        "type": "string[]"
+      },
+      {
+        "internalType": "enum OptionType[]",
+        "name": "optionTypes",
+        "type": "uint8[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "strikePrices",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "cost",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalPremium",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "positionID",
+        "type": "uint256"
+      }
+    ],
+    "name": "exerciseProfit",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "positionID",
+        "type": "uint256"
+      }
+    ],
+    "name": "canExercise",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string[]",
+        "name": "venues",
+        "type": "string[]"
+      },
+      {
+        "internalType": "enum OptionType[]",
+        "name": "optionTypes",
+        "type": "uint8[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "strikePrices",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "bytes[]",
+        "name": "buyData",
+        "type": "bytes[]"
+      }
+    ],
+    "name": "buyInstrument",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "positionID",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "positionID",
+        "type": "uint256"
+      }
+    ],
+    "name": "exercisePosition",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalProfit",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
 ]

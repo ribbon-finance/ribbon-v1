@@ -78,13 +78,13 @@ export class InstrumentPosition extends Entity {
     this.set("exercised", Value.fromBoolean(value));
   }
 
-  get amounts(): Array<BigInt> {
-    let value = this.get("amounts");
-    return value.toBigIntArray();
+  get amount(): BigInt {
+    let value = this.get("amount");
+    return value.toBigInt();
   }
 
-  set amounts(value: Array<BigInt>) {
-    this.set("amounts", Value.fromBigIntArray(value));
+  set amount(value: BigInt) {
+    this.set("amount", Value.fromBigInt(value));
   }
 
   get optionTypes(): Array<i32> {

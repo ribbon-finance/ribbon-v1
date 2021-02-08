@@ -19,8 +19,8 @@ export function handleBuyInstrument(call: BuyInstrumentCall): void {
   position.exercised = false;
   position.exerciseProfit = BigInt.fromI32(0);
 
-  let amounts = call.inputs.amounts;
-  position.amounts = amounts;
+  let amount = call.inputs.amount;
+  position.amount = amount;
 
   let optionTypes = call.inputs.optionTypes;
   position.optionTypes = optionTypes;

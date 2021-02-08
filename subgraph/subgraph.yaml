@@ -22,8 +22,10 @@ dataSources:
         - name: Instrument
           file: ./abis/Instrument.json
       eventHandlers:
-        - event: InstrumentCreated(string,indexed address,indexed address)
+        - event: InstrumentCreated(string,indexed address)
           handler: handleNewInstrument
+        - event: InstrumentCreated(string,indexed address,indexed address)
+          handler: deprecatedHandleNewInstrument
 templates:
   - kind: ethereum/contract
     name: Instrument
@@ -36,7 +38,6 @@ templates:
       language: wasm/assemblyscript
       entities:
         - InstrumentPosition
-        - OptionPurchase
       abis:
         - name: Instrument
           file: ./abis/Instrument.json
@@ -44,6 +45,6 @@ templates:
         - event: Exercised(indexed address,indexed uint256,uint256,bool[])
           handler: handleExercisePosition
       callHandlers:
-        - function: buyInstrument(string[],uint8[],uint256[],uint256[],bytes[])
+        - function: buyInstrument(string[],uint8[],uint256,uint256[],bytes[])
           handler: handleBuyInstrument
       file: ./src/instrument.ts

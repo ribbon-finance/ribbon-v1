@@ -6,11 +6,13 @@ import {OptionType} from "../adapters/IProtocolAdapter.sol";
 
 struct InstrumentPosition {
     bool exercised;
-    OptionType[] optionTypes;
-    uint32[] optionIDs;
-    uint256[] amounts;
-    uint256[] strikePrices;
-    string[] venues;
+    uint8 callVenue;
+    uint8 putVenue;
+    uint32 callOptionID;
+    uint32 putOptionID;
+    uint256 amount;
+    uint256 callStrikePrice;
+    uint256 putStrikePrice;
 }
 
 interface IAggregatedOptionsInstrument {
@@ -34,7 +36,7 @@ interface IAggregatedOptionsInstrument {
     function buyInstrument(
         string[] calldata venues,
         OptionType[] calldata optionTypes,
-        uint256[] calldata amounts,
+        uint256 amount,
         uint256[] calldata strikePrices,
         bytes[] calldata buyData
     ) external payable returns (uint256 positionID);

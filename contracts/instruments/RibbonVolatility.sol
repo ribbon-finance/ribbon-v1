@@ -241,8 +241,9 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         require(optionTypes.length >= 2, "Must have 2 or more optionTypes");
         require(strikePrices.length >= 2, "Must have 2 or more strikePrices");
         require(buyData.length >= 2, "Must have 2 or more buyData");
-
         require(block.timestamp < expiry, "Cannot purchase after expiry");
+
+        factory.burnGasTokens();
 
         bool seenCall = false;
         bool seenPut = false;
@@ -276,8 +277,6 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
 
         positionID = instrumentPositions[msg.sender].length;
         instrumentPositions[msg.sender].push(position);
-
-        factory.burnGasTokens();
 
         emit PositionCreated(
             msg.sender,

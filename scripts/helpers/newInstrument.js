@@ -46,7 +46,7 @@ function encodeRibbonVolatilityData({
 }
 
 const InstrumentCreatedTopic =
-  "0x772afdcbda650f2713223d4a9c12ba1ff2f3c819a4faea1faf64595cb9f80595";
+  "0x23306111e504e897dccd0f136d837ea37bdcedfb1d93ccd0369715605b7374eb";
 
 async function newRibbonVolatility(web3, network, opts) {
   const factory = new web3.eth.Contract(

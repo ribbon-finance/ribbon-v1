@@ -1,8 +1,8 @@
-# dojima-finance
+# Ribbon Finance
 
 ## Deployments
 
-Doji uses truffle for migrations and deployments.
+Ribbon uses truffle for migrations and deployments.
 
 1. First, run the truffle migrations.
 
@@ -20,12 +20,10 @@ npm run verify
 
 The command automates the contract verification process with Etherscan.
 
-3. Next, to create an instrument, run this command. The `-x` parameter specifies the strike price of the instrument contract.
+3. Next, to create an instrument, run this command. The `-e` parameter specifies the expiry of the instrument contract.
 
 ```
-node ./scripts/addTwinYield.js -x 500
+node ./scripts/addRibbonVolatility.js -e 1615507200 -n 'ETHVOL-12MAR2021' -s 'ETHVOL-12MAR2021' -N mainnet
 ```
 
-Other parameters such as `--expiry` specify the contract expiry. These parameters can be set manually. Check the `--help` for more information.
-
-After that, you will need to manually verify the instrument proxy with Etherscan, e.g. https://kovan.etherscan.io/proxyContractChecker?a=0x6bCf7bD4F09f1B556C4bD58A00EE944d9c46e2f2.
+Check the `--help` for more information on the parameters.

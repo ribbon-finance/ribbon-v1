@@ -115,7 +115,7 @@ contract HegicAdapter is IProtocolAdapter {
      * @param optionTerms is the terms of the option contract
      * @param purchaseAmount is the purchase amount in Wad units (10**18)
      */
-    function premium(OptionTerms memory optionTerms, uint256 purchaseAmount)
+    function premium(OptionTerms calldata optionTerms, uint256 purchaseAmount)
         public
         view
         override

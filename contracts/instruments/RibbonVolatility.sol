@@ -44,9 +44,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         bool[] optionsExercised
     );
 
-    event ClaimedRewards(
-        uint256 numRewards
-    );
+    event ClaimedRewards(uint256 numRewards);
 
     receive() external payable {}
 
@@ -239,8 +237,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
      * @param amount amount of contracts to purchase
      */
     function buyInstrument(
-        string[] memory venues,
-        OptionType[] memory optionTypes,
+        string[] calldata venues,
+        OptionType[] calldata optionTypes,
         uint256 amount,
         uint256[] memory strikePrices,
         bytes[] memory buyData,
@@ -290,8 +288,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         positionID = instrumentPositions[msg.sender].length;
         instrumentPositions[msg.sender].push(position);
 
-        uint balance = address(this).balance;
-        if(balance > 0) payable(msg.sender).transfer(balance);
+        uint256 balance = address(this).balance;
+        if (balance > 0) payable(msg.sender).transfer(balance);
 
         emit PositionCreated(
             msg.sender,
@@ -357,7 +355,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                 paymentToken
             );
 
-        uint256 optionID256 = adapter.delegatePurchase(optionTerms, amount, maxCost);
+        uint256 optionID256 =
+            adapter.delegatePurchase(optionTerms, amount, maxCost);
         optionID = uint32(optionID256);
     }
 
@@ -458,13 +457,13 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         emit Exercised(msg.sender, positionID, totalProfit, optionsExercised);
     }
 
-    function claimRewards(address rewardsAddress)
-        external
-    {
-      IProtocolAdapter adapter = IProtocolAdapter(factory.getAdapter("HEGIC"));
-      uint256[] memory optionIDs = getOptionIDs(msg.sender);
-      uint256 claimedRewards = adapter.delegateClaimRewards(rewardsAddress, optionIDs);
-      emit ClaimedRewards(claimedRewards);
+    function claimRewards(address rewardsAddress) external {
+        IProtocolAdapter adapter =
+            IProtocolAdapter(factory.getAdapter("HEGIC"));
+        uint256[] memory optionIDs = getOptionIDs(msg.sender);
+        uint256 claimedRewards =
+            adapter.delegateClaimRewards(rewardsAddress, optionIDs);
+        emit ClaimedRewards(claimedRewards);
     }
 
     function rewardsClaimable(address rewardsAddress)
@@ -472,9 +471,13 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         view
         returns (uint256 rewardsToClaim)
     {
-      IProtocolAdapter adapter = IProtocolAdapter(factory.getAdapter("HEGIC"));
-      uint256[] memory optionIDs = getOptionIDs(msg.sender);
-      rewardsToClaim = adapter.delegateRewardsClaimable(rewardsAddress, optionIDs);
+        IProtocolAdapter adapter =
+            IProtocolAdapter(factory.getAdapter("HEGIC"));
+        uint256[] memory optionIDs = getOptionIDs(msg.sender);
+        rewardsToClaim = adapter.delegateRewardsClaimable(
+            rewardsAddress,
+            optionIDs
+        );
     }
 
     function getOptionIDs(address user)
@@ -489,16 +492,22 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
 
         optionIDs = new uint256[](positions.length.mul(2));
 
-        while(i < positions.length){
-          if(keccak256(bytes(getAdapterName(positions[i].callVenue))) == hegicHash){
-            optionIDs[j] = positions[i].callOptionID;
-            j += 1;
-          }
-          if(keccak256(bytes(getAdapterName(positions[i].putVenue))) == hegicHash){
-            optionIDs[j] = positions[i].putOptionID;
-            j += 1;
-          }
-          i+=1;
+        while (i < positions.length) {
+            if (
+                keccak256(bytes(getAdapterName(positions[i].callVenue))) ==
+                hegicHash
+            ) {
+                optionIDs[j] = positions[i].callOptionID;
+                j += 1;
+            }
+            if (
+                keccak256(bytes(getAdapterName(positions[i].putVenue))) ==
+                hegicHash
+            ) {
+                optionIDs[j] = positions[i].putOptionID;
+                j += 1;
+            }
+            i += 1;
         }
     }
 

@@ -1,5 +1,25 @@
 # Ribbon Finance
 
+## Getting Started
+
+1. Install all the NodeJS dependencies with npm.
+
+```
+npm install
+```
+
+2. You can start compiling the Solidity code with Truffle.
+
+```
+npx truffle compile
+```
+
+3. To run the unit tests for a specific contract, run with mocha
+
+```
+mocha --timeout 200000 --exit --recursive test --exclude test/adapters/HegicAdapter.js
+```
+
 ## Deployments
 
 Ribbon uses truffle for migrations and deployments.

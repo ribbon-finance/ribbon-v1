@@ -21,6 +21,7 @@ struct OptionTerms {
     uint256 expiry;
     uint256 strikePrice;
     OptionType optionType;
+    address paymentToken;
 }
 
 struct ZeroExOrder {

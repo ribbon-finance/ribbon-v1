@@ -103,7 +103,7 @@ async function getDefaultArgs(admin, owner, user) {
     }
   );
 
-  await mintGasTokens(admin, factory.address);
+  // await mintGasTokens(admin, factory.address);
 
   await factory.setAdapter("HEGIC", hegicAdapter.address, { from: owner });
   await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address, { from: owner });

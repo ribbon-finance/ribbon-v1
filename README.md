@@ -8,6 +8,16 @@
 npm install
 ```
 
+Double check that you have the correct versions installed. The Solidity compilation will fail if you have the wrong version of Truffle.
+
+```
+> npx truffle version
+Truffle v5.1.61 (core: 5.1.61)
+Solidity - 0.7.2 (solc-js)
+Node v15.5.1
+Web3.js v1.2.9
+```
+
 2. You can start compiling the Solidity code with Truffle.
 
 ```

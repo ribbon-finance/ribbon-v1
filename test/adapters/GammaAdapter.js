@@ -209,6 +209,7 @@ function behavesLikeOTokens(params) {
       this.premium = premium;
       this.shortAmount = shortAmount;
       this.paymentToken = paymentToken || ETH_ADDRESS;
+      this.shortAmount = shortAmount;
       this.apiResponse = ZERO_EX_API_RESPONSES[oTokenAddress];
       this.scaleDecimals = (n) =>
         n.div(BigNumber.from("10").pow(BigNumber.from("10")));

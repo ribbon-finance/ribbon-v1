@@ -97,7 +97,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     /**
      * @notice Gets the premium to buy `purchaseAmount` of the option contract in ETH terms.
      */
-    function premium(OptionTerms calldata , uint256 )
+    function premium(OptionTerms calldata, uint256)
         external
         pure
         override
@@ -113,7 +113,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
      */
     function exerciseProfit(
         address options,
-        uint256 ,
+        uint256,
         uint256 amount
     ) public view override returns (uint256 profit) {
         IController controller = IController(gammaController);
@@ -157,12 +157,11 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     /**
      * @notice Purchases the options contract.
      */
-    function purchase(OptionTerms calldata , uint256 , uint256 )
-        external
-        payable
-        override
-        returns (uint256 optionID)
-    {}
+    function purchase(
+        OptionTerms calldata,
+        uint256,
+        uint256
+    ) external payable override returns (uint256 optionID) {}
 
     function purchaseWithZeroEx(
         OptionTerms calldata optionTerms,
@@ -336,7 +335,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     function createShort(
         OptionTerms calldata optionTerms,
         uint256 depositAmount
-    ) external payable override returns (uint256) {
+    ) external payable override {
         IController controller = IController(gammaController);
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);

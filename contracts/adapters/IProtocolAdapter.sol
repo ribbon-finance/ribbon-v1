@@ -130,10 +130,11 @@ interface IProtocolAdapter {
      * @param optionTerms is the terms of the option contract
      * @param amount is the purchase amount in Wad units (10**18)
      */
-    function purchase(OptionTerms calldata optionTerms, uint256 amount, uint256 maxCost)
-        external
-        payable
-        returns (uint256 optionID);
+    function purchase(
+        OptionTerms calldata optionTerms,
+        uint256 amount,
+        uint256 maxCost
+    ) external payable returns (uint256 optionID);
 
     /**
      * @notice Exercises the options contract.

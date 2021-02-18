@@ -98,6 +98,8 @@ interface IController {
 
     function operate(ActionArgs[] calldata _actions) external;
 
+    function getAccountVaultCounter(address owner) external returns (uint256);
+
     function oracle() external view returns (address);
 }
 

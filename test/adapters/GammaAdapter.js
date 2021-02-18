@@ -417,6 +417,8 @@ function behavesLikeOTokens(params) {
         assert.isFalse(res);
       });
     });
+
+    describe("#createShort", () => {});
   });
 }
 

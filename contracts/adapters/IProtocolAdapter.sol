@@ -147,4 +147,6 @@ interface IProtocolAdapter {
         uint256 amount,
         address recipient
     ) external payable;
+
+    function createShort(OptionTerms calldata optionTerms) external payable;
 }

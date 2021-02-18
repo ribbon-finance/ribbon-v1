@@ -333,6 +333,34 @@ contract GammaAdapter is IProtocolAdapter {
         }
     }
 
+    function createShort(OptionTerms memory optionTerms)
+        public
+        payable
+        override
+    {
+        IController controller = IController(gammaController);
+        uint256 newVaultID =
+            (controller.getAccountVaultCounter(address(this))).add(1);
+
+        IController.ActionArgs memory action =
+            IController.ActionArgs(
+                IController.ActionType.OpenVault,
+                address(this), // owner
+                address(this), // receiver -  we need this contract to receive so we can swap at the end
+                address(0), // asset, otoken
+                newVaultID, // vaultId
+                0, // amount
+                0, //index
+                "" //data
+            );
+
+        IController.ActionArgs[] memory actions =
+            new IController.ActionArgs[](1);
+        actions[0] = action;
+
+        controller.operate(actions);
+    }
+
     /**
      * @notice Function to lookup oToken addresses. oToken addresses are keyed by an ABI-encoded byte string
      * @param optionTerms is the terms of the option contract

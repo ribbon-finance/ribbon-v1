@@ -373,3 +373,6 @@ node_modules
 bin_output
 logs
 .vscode
+
+artifacts/
+cache/

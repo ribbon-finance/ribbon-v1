@@ -12,9 +12,13 @@ const { assert } = require("chai");
 const helper = require("../helper.js");
 const MockGammaAdapter = contract.fromArtifact("MockGammaAdapter");
 const MockGammaController = contract.fromArtifact("MockGammaController");
+const GammaAdapter = contract.fromArtifact("GammaAdapter");
+const GammaController = contract.fromArtifact("IController");
 const IERC20 = contract.fromArtifact("IERC20");
+const IWETH = contract.fromArtifact("IWETH");
 const ZERO_EX_API_RESPONSES = require("../fixtures/GammaAdapter.json");
 
+const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";
@@ -36,6 +40,8 @@ describe("GammaAdapter", () => {
     this.protocolName = "OPYN_GAMMA";
     this.nonFungible = false;
 
+    this.gammaController = await GammaController.at(GAMMA_CONTROLLER);
+
     this.mockController = await MockGammaController.new(
       GAMMA_ORACLE,
       UNISWAP_ROUTER,
@@ -44,9 +50,20 @@ describe("GammaAdapter", () => {
 
     this.mockController.setPrice("110000000000");
 
-    this.adapter = await MockGammaAdapter.new(
+    this.mockAdapter = await MockGammaAdapter.new(
       OTOKEN_FACTORY,
       this.mockController.address,
+      WETH_ADDRESS,
+      ZERO_EX_EXCHANGE,
+      UNISWAP_ROUTER,
+      {
+        from: owner,
+      }
+    );
+
+    this.adapter = await GammaAdapter.new(
+      OTOKEN_FACTORY,
+      GAMMA_CONTROLLER,
       WETH_ADDRESS,
       ZERO_EX_EXCHANGE,
       UNISWAP_ROUTER,
@@ -119,33 +136,33 @@ describe("GammaAdapter", () => {
     premium: "50329523139774375",
   });
 
-  behavesLikeOTokens({
-    name: "Call OTM",
-    oTokenAddress: "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3",
-    underlying: ETH_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: WETH_ADDRESS,
-    strikePrice: ether("1480"),
-    expiry: "1610697600",
-    optionType: CALL_OPTION_TYPE,
-    purchaseAmount: ether("0.1"),
-    exerciseProfit: new BN("0"),
-    premium: "18271767935676968",
-  });
+  // behavesLikeOTokens({
+  //   name: "Call OTM",
+  //   oTokenAddress: "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: WETH_ADDRESS,
+  //   strikePrice: ether("1480"),
+  //   expiry: "1610697600",
+  //   optionType: CALL_OPTION_TYPE,
+  //   purchaseAmount: ether("0.1"),
+  //   exerciseProfit: new BN("0"),
+  //   premium: "18271767935676968",
+  // });
 
-  behavesLikeOTokens({
-    name: "Put OTM",
-    oTokenAddress: "0x006583fEea92C695A9dE02C3AC2d4cd321f2F341",
-    underlying: ETH_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    strikePrice: ether("800"),
-    expiry: "1610697600",
-    optionType: PUT_OPTION_TYPE,
-    purchaseAmount: ether("0.1"),
-    exerciseProfit: new BN("0"),
-    premium: "16125055430257410",
-  });
+  // behavesLikeOTokens({
+  //   name: "Put OTM",
+  //   oTokenAddress: "0x006583fEea92C695A9dE02C3AC2d4cd321f2F341",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: USDC_ADDRESS,
+  //   strikePrice: ether("800"),
+  //   expiry: "1610697600",
+  //   optionType: PUT_OPTION_TYPE,
+  //   purchaseAmount: ether("0.1"),
+  //   exerciseProfit: new BN("0"),
+  //   premium: "16125055430257410",
+  // });
 });
 
 function behavesLikeOTokens(params) {
@@ -340,7 +357,7 @@ function behavesLikeOTokens(params) {
         }
         await time.increaseTo(this.expiry + 1);
 
-        const res = await this.adapter.mockedExercise(
+        const res = await this.mockAdapter.mockedExercise(
           this.oTokenAddress,
           0,
           this.purchaseAmount,
@@ -418,7 +435,33 @@ function behavesLikeOTokens(params) {
       });
     });
 
-    describe("#createShort", () => {});
+    describe("#createShort", () => {
+      let snapshotId;
+
+      beforeEach(async function () {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+
+        const wethContract = await IWETH.at(WETH_ADDRESS);
+        await wethContract.deposit({ from: owner, value: ether("10") });
+        await wethContract.transfer(this.adapter.address, ether("10"), {
+          from: owner,
+        });
+      });
+
+      afterEach(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
+
+      it("creates a short position", async function () {
+        await this.adapter.createShort(this.optionTerms, ether("1"));
+
+        const vaultID = await this.gammaController.getAccountVaultCounter(
+          this.adapter.address
+        );
+        assert.equal(vaultID, "1");
+      });
+    });
   });
 }
 

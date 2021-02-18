@@ -20,8 +20,9 @@ import {
 } from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
+import {DebugLib} from "../tests/DebugLib.sol";
 
-contract GammaAdapter is IProtocolAdapter {
+contract GammaAdapter is IProtocolAdapter, DebugLib {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -34,6 +35,8 @@ contract GammaAdapter is IProtocolAdapter {
 
     string private constant _name = "OPYN_GAMMA";
     bool private constant _nonFungible = false;
+    address private constant _marginPool =
+        0x5934807cC0654d46755eBd2848840b616256C6Ef;
 
     constructor(
         address _oTokenFactory,
@@ -96,7 +99,7 @@ contract GammaAdapter is IProtocolAdapter {
      */
     function premium(OptionTerms calldata optionTerms, uint256 purchaseAmount)
         external
-        view
+        pure
         override
         returns (uint256 cost)
     {
@@ -333,7 +336,7 @@ contract GammaAdapter is IProtocolAdapter {
         }
     }
 
-    function createShort(OptionTerms memory optionTerms)
+    function createShort(OptionTerms memory optionTerms, uint256 amount)
         public
         payable
         override
@@ -342,21 +345,37 @@ contract GammaAdapter is IProtocolAdapter {
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);
 
-        IController.ActionArgs memory action =
-            IController.ActionArgs(
-                IController.ActionType.OpenVault,
-                address(this), // owner
-                address(this), // receiver -  we need this contract to receive so we can swap at the end
-                address(0), // asset, otoken
-                newVaultID, // vaultId
-                0, // amount
-                0, //index
-                "" //data
-            );
+        address collateralAsset = optionTerms.collateralAsset;
+        if (collateralAsset == address(0)) {
+            collateralAsset = _weth;
+        }
+        IERC20 collateralToken = IERC20(collateralAsset);
+        collateralToken.safeApprove(_marginPool, amount);
 
         IController.ActionArgs[] memory actions =
-            new IController.ActionArgs[](1);
-        actions[0] = action;
+            new IController.ActionArgs[](2);
+
+        actions[0] = IController.ActionArgs(
+            IController.ActionType.OpenVault,
+            address(this), // owner
+            address(this), // receiver -  we need this contract to receive so we can swap at the end
+            address(0), // asset, otoken
+            newVaultID, // vaultId
+            amount, // amount
+            0, //index
+            "" //data
+        );
+
+        actions[1] = IController.ActionArgs(
+            IController.ActionType.DepositCollateral,
+            address(this), // owner
+            address(this), // address to transfer from
+            _weth, // deposited asset
+            newVaultID, // vaultId
+            amount, // amount
+            0, //index
+            "" //data
+        );
 
         controller.operate(actions);
     }

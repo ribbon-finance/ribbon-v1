@@ -288,7 +288,7 @@ contract HegicAdapter is IProtocolAdapter {
         emit Exercised(account, optionsAddress, optionID, amount, profit);
     }
 
-    function createShort(OptionTerms memory optionTerms)
+    function createShort(OptionTerms memory optionTerms, uint256 amount)
         public
         payable
         override

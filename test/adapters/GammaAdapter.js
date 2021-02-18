@@ -16,7 +16,9 @@ const GammaAdapter = contract.fromArtifact("GammaAdapter");
 const GammaController = contract.fromArtifact("IController");
 const IERC20 = contract.fromArtifact("IERC20");
 const IWETH = contract.fromArtifact("IWETH");
+const UniswapRouter = contract.fromArtifact("IUniswapV2Router01");
 const ZERO_EX_API_RESPONSES = require("../fixtures/GammaAdapter.json");
+const { wdiv } = require("../utils");
 
 const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
@@ -153,20 +155,20 @@ describe("GammaAdapter", () => {
     premium: "18271767935676968",
   });
 
-  // behavesLikeOTokens({
-  //   name: "Put OTM",
-  //   oTokenAddress: "0x006583fEea92C695A9dE02C3AC2d4cd321f2F341",
-  //   underlying: ETH_ADDRESS,
-  //   strikeAsset: USDC_ADDRESS,
-  //   collateralAsset: USDC_ADDRESS,
-  //   strikePrice: ether("800"),
-  //   expiry: "1610697600",
-  //   optionType: PUT_OPTION_TYPE,
-  //   purchaseAmount: ether("0.1"),
-  //   shortAmount: ether("1"),
-  //   exerciseProfit: new BN("0"),
-  //   premium: "16125055430257410",
-  // });
+  behavesLikeOTokens({
+    name: "Put OTM",
+    oTokenAddress: "0x006583fEea92C695A9dE02C3AC2d4cd321f2F341",
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: USDC_ADDRESS,
+    strikePrice: ether("800"),
+    expiry: "1610697600",
+    optionType: PUT_OPTION_TYPE,
+    purchaseAmount: ether("0.1"),
+    shortAmount: new BN("1000000000"),
+    exerciseProfit: new BN("0"),
+    premium: "16125055430257410",
+  });
 });
 
 function behavesLikeOTokens(params) {
@@ -450,22 +452,66 @@ function behavesLikeOTokens(params) {
         const snapShot = await helper.takeSnapshot();
         snapshotId = snapShot["result"];
 
-        const wethContract = await IWETH.at(WETH_ADDRESS);
-        await wethContract.deposit({ from: owner, value: ether("10") });
-        await wethContract.transfer(this.adapter.address, ether("10"), {
-          from: owner,
-        });
+        const depositAmount = ether("10");
+
+        if (this.collateralAsset === WETH_ADDRESS) {
+          const wethContract = await IWETH.at(WETH_ADDRESS);
+          await wethContract.deposit({ from: owner, value: depositAmount });
+          await wethContract.transfer(this.adapter.address, depositAmount, {
+            from: owner,
+          });
+        } else {
+          const router = await UniswapRouter.at(UNISWAP_ROUTER);
+          const collateralToken = await IERC20.at(this.collateralAsset);
+
+          const amountsOut = await router.getAmountsOut(depositAmount, [
+            WETH_ADDRESS,
+            this.collateralAsset,
+          ]);
+
+          const amountOutMin = amountsOut[1];
+
+          await router.swapExactETHForTokens(
+            amountOutMin,
+            [WETH_ADDRESS, this.collateralAsset],
+            owner,
+            Math.floor(Date.now() / 1000) + 69,
+            { from: owner, value: depositAmount }
+          );
+
+          await collateralToken.transfer(this.adapter.address, amountOutMin, {
+            from: owner,
+          });
+        }
       });
 
       afterEach(async () => {
         await helper.revertToSnapShot(snapshotId);
       });
 
-      it("reverts when depositing too little ETH", async function () {
+      it("reverts when no matched oToken", async function () {
+        const optionTerms = [
+          "0x0000000000000000000000000000000000000069",
+          "0x0000000000000000000000000000000000000069",
+          "0x0000000000000000000000000000000000000069",
+          "1614326400",
+          ether("800"),
+          CALL_OPTION_TYPE,
+        ];
+
         await expectRevert(
-          this.adapter.createShort(this.optionTerms, 1),
-          "Must deposit more than 10**8 collateral"
+          this.adapter.createShort(optionTerms, this.shortAmount),
+          "Invalid oToken"
         );
+      });
+
+      it("reverts when depositing too little collateral for ETH", async function () {
+        if (this.collateralAsset === WETH_ADDRESS) {
+          await expectRevert(
+            this.adapter.createShort(this.optionTerms, 1),
+            "Must deposit more than 10**8 collateral"
+          );
+        }
       });
 
       it("creates a short position", async function () {
@@ -476,9 +522,17 @@ function behavesLikeOTokens(params) {
 
         await this.adapter.createShort(this.optionTerms, this.shortAmount);
 
-        const oTokenMintedAmount = this.shortAmount.div(
-          new BN("10").pow(new BN("10"))
-        );
+        let oTokenMintedAmount;
+
+        if (this.optionType === CALL_OPTION_TYPE) {
+          oTokenMintedAmount = this.shortAmount.div(
+            new BN("10").pow(new BN("10"))
+          );
+        } else {
+          oTokenMintedAmount = wdiv(this.shortAmount, this.strikePrice)
+            .mul(new BN("10").pow(new BN("8")))
+            .div(new BN("10").pow(new BN("6")));
+        }
 
         const vaultID = await this.gammaController.getAccountVaultCounter(
           this.adapter.address

@@ -138,20 +138,20 @@ describe("GammaAdapter", () => {
     premium: "50329523139774375",
   });
 
-  // behavesLikeOTokens({
-  //   name: "Call OTM",
-  //   oTokenAddress: "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3",
-  //   underlying: ETH_ADDRESS,
-  //   strikeAsset: USDC_ADDRESS,
-  //   collateralAsset: WETH_ADDRESS,
-  //   strikePrice: ether("1480"),
-  //   expiry: "1610697600",
-  //   optionType: CALL_OPTION_TYPE,
-  //   purchaseAmount: ether("0.1"),
-  // shortAmount: ether('1'),
-  //   exerciseProfit: new BN("0"),
-  //   premium: "18271767935676968",
-  // });
+  behavesLikeOTokens({
+    name: "Call OTM",
+    oTokenAddress: "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3",
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: WETH_ADDRESS,
+    strikePrice: ether("1480"),
+    expiry: "1610697600",
+    optionType: CALL_OPTION_TYPE,
+    purchaseAmount: ether("0.1"),
+    shortAmount: ether("1"),
+    exerciseProfit: new BN("0"),
+    premium: "18271767935676968",
+  });
 
   // behavesLikeOTokens({
   //   name: "Put OTM",
@@ -163,7 +163,7 @@ describe("GammaAdapter", () => {
   //   expiry: "1610697600",
   //   optionType: PUT_OPTION_TYPE,
   //   purchaseAmount: ether("0.1"),
-  // shortAmount: ether('1'),
+  //   shortAmount: ether("1"),
   //   exerciseProfit: new BN("0"),
   //   premium: "16125055430257410",
   // });
@@ -459,6 +459,13 @@ function behavesLikeOTokens(params) {
 
       afterEach(async () => {
         await helper.revertToSnapShot(snapshotId);
+      });
+
+      it("reverts when depositing too little ETH", async function () {
+        await expectRevert(
+          this.adapter.createShort(this.optionTerms, 1),
+          "Must deposit more than 10**8 collateral"
+        );
       });
 
       it("creates a short position", async function () {

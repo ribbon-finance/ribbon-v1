@@ -353,9 +353,13 @@ contract GammaAdapter is IProtocolAdapter, DebugLib {
         }
         IERC20 collateralToken = IERC20(collateralAsset);
 
-        uint256 scaleBy = 10**(assetDecimals(collateralAsset) - 8); //oTokens have 8 decimals
-        uint256 mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
-        require(mintAmount > 0, "Cannot mint zero oTokens");
+        uint256 collateralDecimals = assetDecimals(collateralAsset);
+        uint256 mintAmount = depositAmount;
+        if (collateralDecimals > 8) {
+            uint256 scaleBy = 10**(collateralDecimals - 8); //oTokens have 8 decimals
+            mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
+        }
+        require(mintAmount > 0, "Must deposit more than 10**8 collateral");
 
         collateralToken.safeApprove(_marginPool, depositAmount);
 

@@ -5,7 +5,10 @@ const { parseEther } = ethers.utils;
 
 const time = require("../helpers/time.js");
 const ZERO_EX_API_RESPONSES = require("../fixtures/GammaAdapter.json");
+const { wdiv } = require("../utils");
 
+const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
+const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";
@@ -167,6 +170,7 @@ function behavesLikeOTokens(params) {
         oTokenAddress,
         purchaseAmount,
         exerciseProfit,
+        shortAmount,
         premium,
       } = params;
 
@@ -180,9 +184,12 @@ function behavesLikeOTokens(params) {
       this.purchaseAmount = purchaseAmount;
       this.exerciseProfit = exerciseProfit;
       this.premium = premium;
+      this.shortAmount = shortAmount;
       this.apiResponse = ZERO_EX_API_RESPONSES[oTokenAddress];
       this.scaleDecimals = (n) =>
         n.div(BigNumber.from("10").pow(BigNumber.from("10")));
+
+      this.oToken = await IERC20.at(oTokenAddress);
 
       this.optionTerms = [
         this.underlying,
@@ -352,7 +359,7 @@ function behavesLikeOTokens(params) {
         }
         await time.increaseTo(this.expiry + 1);
 
-        const res = await this.adapter.mockedExercise(
+        const res = await this.mockAdapter.mockedExercise(
           this.oTokenAddress,
           0,
           this.purchaseAmount,
@@ -433,6 +440,115 @@ function behavesLikeOTokens(params) {
           this.purchaseAmount
         );
         assert.isFalse(res);
+      });
+    });
+
+    describe("#createShort", () => {
+      let snapshotId;
+
+      beforeEach(async function () {
+        const snapShot = await helper.takeSnapshot();
+        snapshotId = snapShot["result"];
+
+        const depositAmount = ether("10");
+
+        if (this.collateralAsset === WETH_ADDRESS) {
+          const wethContract = await IWETH.at(WETH_ADDRESS);
+          await wethContract.deposit({ from: owner, value: depositAmount });
+          await wethContract.transfer(this.adapter.address, depositAmount, {
+            from: owner,
+          });
+        } else {
+          const router = await UniswapRouter.at(UNISWAP_ROUTER);
+          const collateralToken = await IERC20.at(this.collateralAsset);
+
+          const amountsOut = await router.getAmountsOut(depositAmount, [
+            WETH_ADDRESS,
+            this.collateralAsset,
+          ]);
+
+          const amountOutMin = amountsOut[1];
+
+          await router.swapExactETHForTokens(
+            amountOutMin,
+            [WETH_ADDRESS, this.collateralAsset],
+            owner,
+            Math.floor(Date.now() / 1000) + 69,
+            { from: owner, value: depositAmount }
+          );
+
+          await collateralToken.transfer(this.adapter.address, amountOutMin, {
+            from: owner,
+          });
+        }
+      });
+
+      afterEach(async () => {
+        await helper.revertToSnapShot(snapshotId);
+      });
+
+      it("reverts when no matched oToken", async function () {
+        const optionTerms = [
+          "0x0000000000000000000000000000000000000069",
+          "0x0000000000000000000000000000000000000069",
+          "0x0000000000000000000000000000000000000069",
+          "1614326400",
+          ether("800"),
+          CALL_OPTION_TYPE,
+        ];
+
+        await expectRevert(
+          this.adapter.createShort(optionTerms, this.shortAmount),
+          "Invalid oToken"
+        );
+      });
+
+      it("reverts when depositing too little collateral for ETH", async function () {
+        if (this.collateralAsset === WETH_ADDRESS) {
+          await expectRevert(
+            this.adapter.createShort(this.optionTerms, 1),
+            "Must deposit more than 10**8 collateral"
+          );
+        }
+      });
+
+      it("creates a short position", async function () {
+        const collateral = await IERC20.at(this.collateralAsset);
+        const initialPoolCollateralBalance = await collateral.balanceOf(
+          MARGIN_POOL
+        );
+
+        await this.adapter.createShort(this.optionTerms, this.shortAmount);
+
+        let oTokenMintedAmount;
+
+        if (this.optionType === CALL_OPTION_TYPE) {
+          oTokenMintedAmount = this.shortAmount.div(
+            new BN("10").pow(new BN("10"))
+          );
+        } else {
+          oTokenMintedAmount = wdiv(this.shortAmount, this.strikePrice)
+            .mul(new BN("10").pow(new BN("8")))
+            .div(new BN("10").pow(new BN("6")));
+        }
+
+        const vaultID = await this.gammaController.getAccountVaultCounter(
+          this.adapter.address
+        );
+        assert.equal(vaultID, "1");
+
+        assert.equal(
+          (await this.oToken.balanceOf(this.adapter.address)).toString(),
+          oTokenMintedAmount
+        );
+
+        const endPoolCollateralBalance = await collateral.balanceOf(
+          MARGIN_POOL
+        );
+        assert.equal(
+          endPoolCollateralBalance.sub(initialPoolCollateralBalance).toString(),
+          this.shortAmount
+        );
       });
     });
   });

@@ -288,6 +288,12 @@ contract HegicAdapter is IProtocolAdapter {
         emit Exercised(account, optionsAddress, optionID, amount, profit);
     }
 
+    function createShort(OptionTerms memory optionTerms, uint256 amount)
+        public
+        payable
+        override
+    {}
+
     /**
      * @notice Helper function to get the options address based on the underlying asset
      * @param underlying is the underlying asset for the options

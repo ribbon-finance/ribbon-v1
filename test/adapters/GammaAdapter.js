@@ -19,6 +19,7 @@ const IWETH = contract.fromArtifact("IWETH");
 const ZERO_EX_API_RESPONSES = require("../fixtures/GammaAdapter.json");
 
 const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
+const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";
@@ -132,6 +133,7 @@ describe("GammaAdapter", () => {
     expiry: "1614326400",
     optionType: CALL_OPTION_TYPE,
     purchaseAmount: ether("0.1"),
+    shortAmount: ether("1"),
     exerciseProfit: new BN("12727272727272727"),
     premium: "50329523139774375",
   });
@@ -146,6 +148,7 @@ describe("GammaAdapter", () => {
   //   expiry: "1610697600",
   //   optionType: CALL_OPTION_TYPE,
   //   purchaseAmount: ether("0.1"),
+  // shortAmount: ether('1'),
   //   exerciseProfit: new BN("0"),
   //   premium: "18271767935676968",
   // });
@@ -160,6 +163,7 @@ describe("GammaAdapter", () => {
   //   expiry: "1610697600",
   //   optionType: PUT_OPTION_TYPE,
   //   purchaseAmount: ether("0.1"),
+  // shortAmount: ether('1'),
   //   exerciseProfit: new BN("0"),
   //   premium: "16125055430257410",
   // });
@@ -178,6 +182,7 @@ function behavesLikeOTokens(params) {
         oTokenAddress,
         purchaseAmount,
         exerciseProfit,
+        shortAmount,
         premium,
       } = params;
 
@@ -191,8 +196,11 @@ function behavesLikeOTokens(params) {
       this.purchaseAmount = purchaseAmount;
       this.exerciseProfit = exerciseProfit;
       this.premium = premium;
+      this.shortAmount = shortAmount;
       this.apiResponse = ZERO_EX_API_RESPONSES[oTokenAddress];
       this.scaleDecimals = (n) => n.div(new BN("10").pow(new BN("10")));
+
+      this.oToken = await IERC20.at(oTokenAddress);
 
       this.optionTerms = [
         this.underlying,
@@ -454,12 +462,34 @@ function behavesLikeOTokens(params) {
       });
 
       it("creates a short position", async function () {
-        await this.adapter.createShort(this.optionTerms, ether("1"));
+        const collateral = await IERC20.at(this.collateralAsset);
+        const initialPoolCollateralBalance = await collateral.balanceOf(
+          MARGIN_POOL
+        );
+
+        await this.adapter.createShort(this.optionTerms, this.shortAmount);
+
+        const oTokenMintedAmount = this.shortAmount.div(
+          new BN("10").pow(new BN("10"))
+        );
 
         const vaultID = await this.gammaController.getAccountVaultCounter(
           this.adapter.address
         );
         assert.equal(vaultID, "1");
+
+        assert.equal(
+          (await this.oToken.balanceOf(this.adapter.address)).toString(),
+          oTokenMintedAmount
+        );
+
+        const endPoolCollateralBalance = await collateral.balanceOf(
+          MARGIN_POOL
+        );
+        assert.equal(
+          endPoolCollateralBalance.sub(initialPoolCollateralBalance).toString(),
+          this.shortAmount
+        );
       });
     });
   });

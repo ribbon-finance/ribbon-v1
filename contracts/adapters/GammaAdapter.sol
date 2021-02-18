@@ -336,7 +336,7 @@ contract GammaAdapter is IProtocolAdapter, DebugLib {
         }
     }
 
-    function createShort(OptionTerms memory optionTerms, uint256 amount)
+    function createShort(OptionTerms memory optionTerms, uint256 depositAmount)
         public
         payable
         override
@@ -345,15 +345,22 @@ contract GammaAdapter is IProtocolAdapter, DebugLib {
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);
 
+        address oToken = lookupOToken(optionTerms);
+
         address collateralAsset = optionTerms.collateralAsset;
         if (collateralAsset == address(0)) {
             collateralAsset = _weth;
         }
         IERC20 collateralToken = IERC20(collateralAsset);
-        collateralToken.safeApprove(_marginPool, amount);
+
+        uint256 scaleBy = 10**(assetDecimals(collateralAsset) - 8); //oTokens have 8 decimals
+        uint256 mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
+        require(mintAmount > 0, "Cannot mint zero oTokens");
+
+        collateralToken.safeApprove(_marginPool, depositAmount);
 
         IController.ActionArgs[] memory actions =
-            new IController.ActionArgs[](2);
+            new IController.ActionArgs[](3);
 
         actions[0] = IController.ActionArgs(
             IController.ActionType.OpenVault,
@@ -361,7 +368,7 @@ contract GammaAdapter is IProtocolAdapter, DebugLib {
             address(this), // receiver -  we need this contract to receive so we can swap at the end
             address(0), // asset, otoken
             newVaultID, // vaultId
-            amount, // amount
+            0, // amount
             0, //index
             "" //data
         );
@@ -372,12 +379,31 @@ contract GammaAdapter is IProtocolAdapter, DebugLib {
             address(this), // address to transfer from
             _weth, // deposited asset
             newVaultID, // vaultId
-            amount, // amount
+            depositAmount, // amount
+            0, //index
+            "" //data
+        );
+
+        actions[2] = IController.ActionArgs(
+            IController.ActionType.MintShortOption,
+            address(this), // owner
+            address(this), // address to transfer to
+            oToken, // deposited asset
+            newVaultID, // vaultId
+            mintAmount, // amount
             0, //index
             "" //data
         );
 
         controller.operate(actions);
+    }
+
+    function assetDecimals(address asset) private pure returns (uint256) {
+        // USDC
+        if (asset == 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48) {
+            return 6;
+        }
+        return 18;
     }
 
     /**

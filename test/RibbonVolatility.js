@@ -210,7 +210,7 @@ function behavesLikeRibbonVolatility(params) {
         "ProtocolAdapter",
         protocolAdapterLib.address
       );
-      this.instrumentLogic = await RibbonVolatility.new({ from: admin });
+      this.instrumentLogic = await RibbonVolatility.deploy({ from: admin });
 
       if (this.underlying === ETH_ADDRESS) {
         this.hegicOptions = await IHegicETHOptions.at(HEGIC_ETH_OPTIONS);

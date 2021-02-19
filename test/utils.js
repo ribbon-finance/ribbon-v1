@@ -23,10 +23,10 @@ async function deployProxy(
   initializeTypes,
   initializeArgs
 ) {
-  const logic = await LogicContract.new();
+  const logic = await LogicContract.deploy();
 
   const initBytes = encodeCall("initialize", initializeTypes, initializeArgs);
-  const proxy = await AdminUpgradeabilityProxy.new(
+  const proxy = await AdminUpgradeabilityProxy.deploy(
     logic.address,
     admin,
     initBytes,
@@ -76,7 +76,7 @@ async function getDefaultArgs(admin, owner, user) {
     [owner, admin]
   );
 
-  hegicAdapter = await HegicAdapter.new(
+  hegicAdapter = await HegicAdapter.deploy(
     HEGIC_ETH_OPTIONS,
     HEGIC_WBTC_OPTIONS,
     ETH_ADDRESS,
@@ -84,13 +84,13 @@ async function getDefaultArgs(admin, owner, user) {
     { from: owner }
   );
 
-  mockGammaController = await MockGammaController.new(
+  mockGammaController = await MockGammaController.deploy(
     GAMMA_ORACLE,
     UNISWAP_ROUTER,
     WETH_ADDRESS
   );
 
-  gammaAdapter = await GammaAdapter.new(
+  gammaAdapter = await GammaAdapter.deploy(
     OTOKEN_FACTORY,
     mockGammaController.address,
     WETH_ADDRESS,
@@ -106,7 +106,7 @@ async function getDefaultArgs(admin, owner, user) {
   await factory.setAdapter("HEGIC", hegicAdapter.address, { from: owner });
   await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address, { from: owner });
 
-  const protocolAdapterLib = await ProtocolAdapter.new();
+  const protocolAdapterLib = await ProtocolAdapter.deploy();
 
   return {
     factory,

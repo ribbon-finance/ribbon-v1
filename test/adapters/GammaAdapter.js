@@ -4,11 +4,12 @@ const {
   ether,
   constants,
   time,
-  expectRevert,
   expectEvent,
   balance,
 } = require("@openzeppelin/test-helpers");
 const { assert } = require("chai");
+const { ethers } = require("hardhat");
+
 const helper = require("../helper.js");
 // const MockGammaAdapter = artifacts.require("MockGammaAdapter");
 // const MockGammaController = artifacts.require("MockGammaController");
@@ -44,7 +45,7 @@ describe("GammaAdapter", () => {
     this.protocolName = "OPYN_GAMMA";
     this.nonFungible = false;
 
-    this.mockController = await MockGammaController.new(
+    this.mockController = await MockGammaController.deploy(
       GAMMA_ORACLE,
       UNISWAP_ROUTER,
       WETH_ADDRESS
@@ -52,7 +53,7 @@ describe("GammaAdapter", () => {
 
     this.mockController.setPrice("110000000000");
 
-    this.adapter = await MockGammaAdapter.new(
+    this.adapter = await MockGammaAdapter.deploy(
       OTOKEN_FACTORY,
       this.mockController.address,
       WETH_ADDRESS,

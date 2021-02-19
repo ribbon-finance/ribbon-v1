@@ -1,20 +1,13 @@
-const { contract } = require("@openzeppelin/test-environment");
 const { ether, BN, constants } = require("@openzeppelin/test-helpers");
 const { encodeCall } = require("@openzeppelin/upgrades");
-
-// const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
-// const Factory = artifacts.require("RibbonFactory");
-// const HegicAdapter = artifacts.require("HegicAdapter");
-// const GammaAdapter = artifacts.require("GammaAdapter");
-// const MockGammaController = artifacts.require("MockGammaController");
-// const ProtocolAdapter = artifacts.require("ProtocolAdapter");
-// const ChiToken = artifacts.require("IChiToken");
+const { ethers, artifacts } = require("hardhat");
 
 module.exports = {
   getDefaultArgs,
   deployProxy,
   wmul,
   wdiv,
+  parseLog,
 };
 
 async function deployProxy(
@@ -141,4 +134,11 @@ function wmul(x, y) {
     .mul(y)
     .add(ether("1").div(new BN("2")))
     .div(ether("1"));
+}
+
+async function parseLog(contractName, log) {
+  const abi = (await artifacts.readArtifact(contractName)).abi;
+  const iface = new ethers.utils.Interface(abi);
+  const event = iface.parseLog(log);
+  return event;
 }

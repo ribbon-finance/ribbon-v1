@@ -2,15 +2,13 @@ const { contract } = require("@openzeppelin/test-environment");
 const { ether, BN, constants } = require("@openzeppelin/test-helpers");
 const { encodeCall } = require("@openzeppelin/upgrades");
 
-const AdminUpgradeabilityProxy = contract.fromArtifact(
-  "AdminUpgradeabilityProxy"
-);
-const Factory = contract.fromArtifact("RibbonFactory");
-const HegicAdapter = contract.fromArtifact("HegicAdapter");
-const GammaAdapter = contract.fromArtifact("GammaAdapter");
-const MockGammaController = contract.fromArtifact("MockGammaController");
-const ProtocolAdapter = contract.fromArtifact("ProtocolAdapter");
-const ChiToken = contract.fromArtifact("IChiToken");
+// const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
+// const Factory = artifacts.require("RibbonFactory");
+// const HegicAdapter = artifacts.require("HegicAdapter");
+// const GammaAdapter = artifacts.require("GammaAdapter");
+// const MockGammaController = artifacts.require("MockGammaController");
+// const ProtocolAdapter = artifacts.require("ProtocolAdapter");
+// const ChiToken = artifacts.require("IChiToken");
 
 module.exports = {
   getDefaultArgs,

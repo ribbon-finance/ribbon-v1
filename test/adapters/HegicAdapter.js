@@ -10,10 +10,6 @@ const {
 } = require("@openzeppelin/test-helpers");
 const { assert } = require("chai");
 const helper = require("../helper.js");
-const HegicAdapter = contract.fromArtifact("HegicAdapter");
-const IHegicETHOptions = contract.fromArtifact("IHegicETHOptions");
-const IHegicBTCOptions = contract.fromArtifact("IHegicBTCOptions");
-const IERC20 = contract.fromArtifact("IERC20");
 
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
@@ -31,6 +27,8 @@ describe("HegicAdapter", () => {
   before(async function () {
     this.protocolName = "HEGIC";
     this.nonFungible = true;
+
+    const HegicAdapter = await ethers.getContractFactory("HegicAdapter");
 
     this.adapter = await HegicAdapter.new(
       HEGIC_ETH_OPTIONS,
@@ -165,6 +163,8 @@ describe("HegicAdapter", () => {
   function behavesLikeHegicOptions(params) {
     describe(`${params.optionName}`, () => {
       before(async function () {
+        const HegicAdapter = await ethers.getContractFactory("HegicAdapter");
+
         const {
           underlying,
           strikeAsset,
@@ -440,7 +440,7 @@ describe("HegicAdapter", () => {
             const userTracker = await balance.tracker(user);
             let token, startUserBalance;
             if (this.underlying !== ETH_ADDRESS) {
-              token = await IERC20.at(this.underlying);
+              token = await ethers.getContractAt("IERC20", this.underlying);
               startUserBalance = await token.balanceOf(user);
             }
 
@@ -487,7 +487,7 @@ describe("HegicAdapter", () => {
             const recipientTracker = await balance.tracker(recipient);
             let token, startRecipientBalance;
             if (this.underlying !== ETH_ADDRESS) {
-              token = await IERC20.at(this.underlying);
+              token = await ethers.getContractAt("IERC20", this.underlying);
               startRecipientBalance = await token.balanceOf(recipient);
             }
 
@@ -622,9 +622,9 @@ describe("HegicAdapter", () => {
 
   async function getOptionsContract(underlying) {
     if (underlying === ETH_ADDRESS) {
-      return await IHegicETHOptions.at(HEGIC_ETH_OPTIONS);
+      return await ethers.getContractAt("IHegicETHOptions", HEGIC_ETH_OPTIONS);
     } else if (underlying === WBTC_ADDRESS) {
-      return await IHegicBTCOptions.at(HEGIC_WBTC_OPTIONS);
+      return await ethers.getContractAt("IHegicBTCOptions", HEGIC_WBTC_OPTIONS);
     }
     throw new Error(`No underlying found ${underlying}`);
   }

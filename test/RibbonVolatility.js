@@ -12,10 +12,10 @@ const {
 const helper = require("./helper.js");
 const { getDefaultArgs } = require("./utils");
 const { encodeCall } = require("@openzeppelin/upgrades");
-const RibbonVolatility = contract.fromArtifact("RibbonVolatility");
-const IERC20 = contract.fromArtifact("IERC20");
-const IHegicETHOptions = contract.fromArtifact("IHegicETHOptions");
-const IHegicBTCOptions = contract.fromArtifact("IHegicBTCOptions");
+// const RibbonVolatility = artifacts.require("RibbonVolatility");
+// const IERC20 = artifacts.require("IERC20");
+// const IHegicETHOptions = artifacts.require("IHegicETHOptions");
+// const IHegicBTCOptions = artifacts.require("IHegicBTCOptions");
 const { wmul } = require("../scripts/helpers/utils");
 const ZERO_EX_API_RESPONSES = require("./fixtures/GammaAdapter.json");
 
@@ -36,6 +36,8 @@ const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
+
+let IERC20;
 
 describe("RibbonVolatility", () => {
   /**
@@ -117,6 +119,17 @@ function behavesLikeRibbonVolatility(params) {
     let snapshotId, initSnapshotId;
 
     before(async function () {
+      const RibbonVolatility = await ethers.getContractFactory(
+        "RibbonVolatility"
+      );
+      IERC20 = await ethers.getContractFactory("IERC20");
+      const IHegicETHOptions = await ethers.getContractFactory(
+        "IHegicETHOptions"
+      );
+      const IHegicBTCOptions = await ethers.getContractFactory(
+        "IHegicBTCOptions"
+      );
+
       const {
         name,
         symbol,

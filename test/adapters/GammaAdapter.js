@@ -10,9 +10,9 @@ const {
 } = require("@openzeppelin/test-helpers");
 const { assert } = require("chai");
 const helper = require("../helper.js");
-const MockGammaAdapter = contract.fromArtifact("MockGammaAdapter");
-const MockGammaController = contract.fromArtifact("MockGammaController");
-const IERC20 = contract.fromArtifact("IERC20");
+// const MockGammaAdapter = artifacts.require("MockGammaAdapter");
+// const MockGammaController = artifacts.require("MockGammaController");
+// const IERC20 = artifacts.require("IERC20");
 const ZERO_EX_API_RESPONSES = require("../fixtures/GammaAdapter.json");
 
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
@@ -27,12 +27,20 @@ const [admin, owner, user, recipient] = accounts;
 
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
+let IERC20;
 
 describe("GammaAdapter", () => {
   let initSnapshotId;
   const gasPrice = web3.utils.toWei("10", "gwei");
 
   before(async function () {
+    const MockGammaAdapter = await ethers.getContractFactory(
+      "MockGammaAdapter"
+    );
+    const MockGammaController = await ethers.getContractFactory(
+      "MockGammaController"
+    );
+
     this.protocolName = "OPYN_GAMMA";
     this.nonFungible = false;
 
@@ -258,8 +266,14 @@ function behavesLikeOTokens(params) {
           }
         );
 
-        const buyToken = await IERC20.at(this.apiResponse.buyTokenAddress);
-        const sellToken = await IERC20.at(this.apiResponse.sellTokenAddress);
+        const buyToken = await ethers.getContractAt(
+          "IERC20",
+          this.apiResponse.buyTokenAddress
+        );
+        const sellToken = await ethers.getContractAt(
+          "IERC20",
+          this.apiResponse.sellTokenAddress
+        );
 
         assert.isAtLeast(
           (await buyToken.balanceOf(this.adapter.address)).toNumber(),

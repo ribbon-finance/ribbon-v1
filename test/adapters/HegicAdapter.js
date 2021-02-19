@@ -195,17 +195,6 @@ describe("HegicAdapter", () => {
 
       describe("#premium", () => {
         it("gets premium of option", async function () {
-          console.log(
-            [
-              this.underlying,
-              this.strikeAsset,
-              this.collateralAsset,
-              this.expiry,
-              this.strikePrice,
-              this.optionType,
-            ],
-            this.purchaseAmount
-          );
           const premium = await this.adapter.premium(
             [
               this.underlying,

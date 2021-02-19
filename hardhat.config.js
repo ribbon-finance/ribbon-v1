@@ -6,6 +6,10 @@ require("@nomiclabs/hardhat-waffle");
 
 require("dotenv").config();
 
+require("@openzeppelin/test-helpers/configure")({
+  provider: "http://localhost:8545",
+});
+
 module.exports = {
   solidity: "0.7.2",
   networks: {
@@ -16,5 +20,8 @@ module.exports = {
         blockNumber: 11611333,
       },
     },
+  },
+  mocha: {
+    timeout: 50000,
   },
 };

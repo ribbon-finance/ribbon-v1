@@ -1,40 +1,43 @@
-const { accounts, contract, web3 } = require("@openzeppelin/test-environment");
 const {
-  BN,
-  ether,
   constants,
-  time,
-  expectRevert,
   expectEvent,
   balance,
 } = require("@openzeppelin/test-helpers");
-const { assert } = require("chai");
+const { assert, expect } = require("chai");
 const { ethers } = require("hardhat");
 const { provider, BigNumber } = ethers;
-const { parseEther } = ethers.utils;
-
-const helper = require("../helper.js");
+const { parseEther, formatEther } = ethers.utils;
+const time = require("../helpers/time");
 
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const ETH_ADDRESS = constants.ZERO_ADDRESS;
-const [admin, owner, user, recipient] = accounts;
+let admin, owner, user, recipient;
 
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
 
 describe("HegicAdapter", () => {
   let initSnapshotId, snapshotId;
-  const gasPrice = web3.utils.toWei("10", "gwei");
+  const gasPrice = formatEther("10", "gwei");
 
   before(async function () {
+    const [
+      adminSigner,
+      ownerSigner,
+      userSigner,
+      recipientSigner,
+    ] = await ethers.getSigners();
+    admin = adminSigner.address;
+    owner = ownerSigner.address;
+    user = userSigner.address;
+    recipient = recipientSigner.address;
+
     this.protocolName = "HEGIC";
     this.nonFungible = true;
 
     const HegicAdapter = await ethers.getContractFactory("HegicAdapter");
-
-    const blockNum = await ethers.provider.getBlockNumber();
 
     this.adapter = await HegicAdapter.deploy(
       HEGIC_ETH_OPTIONS,
@@ -42,13 +45,13 @@ describe("HegicAdapter", () => {
       ETH_ADDRESS,
       WBTC_ADDRESS
     );
+    this.adapter = this.adapter.connect(userSigner);
 
-    const snapShot = await helper.takeSnapshot();
-    initSnapshotId = snapShot["result"];
+    initSnapshotId = await time.takeSnapshot();
   });
 
   after(async () => {
-    await helper.revertToSnapShot(initSnapshotId);
+    await time.revertToSnapShot(initSnapshotId);
   });
 
   describe("#protocolName", () => {
@@ -86,11 +89,11 @@ describe("HegicAdapter", () => {
   //   underlying: ETH_ADDRESS,
   //   strikeAsset: ETH_ADDRESS,
   //   strikePrice: ether("1200"),
-  //   premium: new BN("66452674791666666"),
+  //   premium: BigNumber.from("66452674791666666"),
   //   purchaseAmount: ether("1"),
   //   optionType: CALL_OPTION_TYPE,
   //   expectedOptionID: "2353",
-  //   exerciseProfit: new BN("0"),
+  //   exerciseProfit: BigNumber.from("0"),
   // });
 
   // behavesLikeHegicOptions({
@@ -98,11 +101,11 @@ describe("HegicAdapter", () => {
   //   underlying: ETH_ADDRESS,
   //   strikeAsset: ETH_ADDRESS,
   //   strikePrice: ether("1200"),
-  //   premium: new BN("140079856453804950"),
+  //   premium: BigNumber.from("140079856453804950"),
   //   purchaseAmount: ether("1"),
   //   optionType: PUT_OPTION_TYPE,
   //   expectedOptionID: "2353",
-  //   exerciseProfit: new BN("65937091945956989"),
+  //   exerciseProfit: BigNumber.from("65937091945956989"),
   // });
 
   // behavesLikeHegicOptions({
@@ -110,11 +113,11 @@ describe("HegicAdapter", () => {
   //   underlying: ETH_ADDRESS,
   //   strikeAsset: ETH_ADDRESS,
   //   strikePrice: ether("900"),
-  //   premium: new BN("58107073380885971"),
+  //   premium: BigNumber.from("58107073380885971"),
   //   purchaseAmount: ether("1"),
   //   optionType: PUT_OPTION_TYPE,
   //   expectedOptionID: "2353",
-  //   exerciseProfit: new BN("0"),
+  //   exerciseProfit: BigNumber.from("0"),
   // });
 
   // // WBTC Options
@@ -123,11 +126,11 @@ describe("HegicAdapter", () => {
   //   underlying: WBTC_ADDRESS,
   //   strikeAsset: WBTC_ADDRESS,
   //   strikePrice: ether("34000"),
-  //   premium: new BN("5028351441863137425"),
-  //   purchaseAmount: new BN("100000000"),
+  //   premium: BigNumber.from("5028351441863137425"),
+  //   purchaseAmount: BigNumber.from("100000000"),
   //   optionType: CALL_OPTION_TYPE,
   //   expectedOptionID: "1119",
-  //   exerciseProfit: new BN("9897877"),
+  //   exerciseProfit: BigNumber.from("9897877"),
   // });
 
   // behavesLikeHegicOptions({
@@ -135,11 +138,11 @@ describe("HegicAdapter", () => {
   //   underlying: WBTC_ADDRESS,
   //   strikeAsset: WBTC_ADDRESS,
   //   strikePrice: ether("41000"),
-  //   premium: new BN("1483260273030990622"),
-  //   purchaseAmount: new BN("100000000"),
+  //   premium: BigNumber.from("1483260273030990622"),
+  //   purchaseAmount: BigNumber.from("100000000"),
   //   optionType: CALL_OPTION_TYPE,
   //   expectedOptionID: "1119",
-  //   exerciseProfit: new BN("0"),
+  //   exerciseProfit: BigNumber.from("0"),
   // });
 
   // behavesLikeHegicOptions({
@@ -147,11 +150,11 @@ describe("HegicAdapter", () => {
   //   underlying: WBTC_ADDRESS,
   //   strikeAsset: WBTC_ADDRESS,
   //   strikePrice: ether("41000"),
-  //   premium: new BN("4582950345865552024"),
-  //   purchaseAmount: new BN("100000000"),
+  //   premium: BigNumber.from("4582950345865552024"),
+  //   purchaseAmount: BigNumber.from("100000000"),
   //   optionType: PUT_OPTION_TYPE,
   //   expectedOptionID: "1119",
-  //   exerciseProfit: new BN("8652559"),
+  //   exerciseProfit: BigNumber.from("8652559"),
   // });
 
   // behavesLikeHegicOptions({
@@ -159,11 +162,11 @@ describe("HegicAdapter", () => {
   //   underlying: WBTC_ADDRESS,
   //   strikeAsset: WBTC_ADDRESS,
   //   strikePrice: ether("34000"),
-  //   premium: new BN("1459110991698151816"),
-  //   purchaseAmount: new BN("100000000"),
+  //   premium: BigNumber.from("1459110991698151816"),
+  //   purchaseAmount: BigNumber.from("100000000"),
   //   optionType: PUT_OPTION_TYPE,
   //   expectedOptionID: "1119",
-  //   exerciseProfit: new BN("0"),
+  //   exerciseProfit: BigNumber.from("0"),
   // });
 
   function behavesLikeHegicOptions(params) {
@@ -207,25 +210,21 @@ describe("HegicAdapter", () => {
             ],
             this.purchaseAmount
           );
-          console.log(this.strikePrice.toString());
-          console.log(this.expiry.toString());
-          console.log(this.purchaseAmount.toString());
           assert.equal(premium.toString(), this.premium.toString());
         });
       });
 
       describe("#purchase", () => {
         beforeEach(async () => {
-          const snapShot = await helper.takeSnapshot();
-          snapshotId = snapShot["result"];
+          snapshotId = await time.takeSnapshot();
         });
 
         afterEach(async () => {
-          await helper.revertToSnapShot(snapshotId);
+          await time.revertToSnapShot(snapshotId);
         });
 
         it("reverts when not enough value is passed", async function () {
-          await expectRevert(
+          await expect(
             this.adapter.purchase(
               [
                 this.underlying,
@@ -238,17 +237,16 @@ describe("HegicAdapter", () => {
               this.purchaseAmount,
               {
                 from: user,
-                value: this.premium.sub(new BN("1")),
+                value: this.premium.sub(BigNumber.from("1")),
               }
-            ),
-            "Value does not cover cost"
-          );
+            )
+          ).to.be.revertedWith("Value does not cover cost");
         });
 
         it("reverts when buying after expiry", async function () {
           await time.increaseTo(this.expiry + 1);
 
-          await expectRevert(
+          await expect(
             this.adapter.purchase(
               [
                 this.underlying,
@@ -263,13 +261,12 @@ describe("HegicAdapter", () => {
                 from: user,
                 value: this.premium,
               }
-            ),
-            "Cannot purchase after expiry"
-          );
+            )
+          ).to.be.revertedWith("Cannot purchase after expiry");
         });
 
         it("reverts when passing unknown underlying", async function () {
-          await expectRevert(
+          await expect(
             this.adapter.purchase(
               [
                 "0x0000000000000000000000000000000000000001",
@@ -284,9 +281,8 @@ describe("HegicAdapter", () => {
                 from: user,
                 value: this.purchaseAmount,
               }
-            ),
-            "No matching underlying"
-          );
+            )
+          ).to.be.revertedWith("No matching underlying");
         });
 
         it("creates options on hegic", async function () {
@@ -306,17 +302,19 @@ describe("HegicAdapter", () => {
             }
           );
 
-          expectEvent(res, "Purchased", {
-            protocolName: web3.utils.sha3("HEGIC"),
-            underlying: this.underlying,
-            strikeAsset: this.strikeAsset,
-            expiry: this.expiry.toString(),
-            strikePrice: this.strikePrice,
-            optionType: this.optionType.toString(),
-            amount: this.purchaseAmount,
-            premium: this.premium,
-            optionID: this.expectedOptionID,
-          });
+          expect(res)
+            .to.emit(this.adapter, "Purchased")
+            .withArgs(
+              ethers.utils.keccak256(ethers.utils.toUtf8Bytes("HEGIC")),
+              this.underlying,
+              this.strikeAsset,
+              this.expiry.toString(),
+              this.strikePrice,
+              this.optionType.toString(),
+              this.purchaseAmount,
+              this.premium,
+              this.expectedOptionID
+            );
 
           const {
             holder,
@@ -329,7 +327,9 @@ describe("HegicAdapter", () => {
           } = await this.hegicOptions.options(this.expectedOptionID);
 
           // strike price is scaled down to 10**8 from 10**18
-          const scaledStrikePrice = this.strikePrice.div(new BN("10000000000"));
+          const scaledStrikePrice = this.strikePrice.div(
+            BigNumber.from("10000000000")
+          );
 
           const { settlementFee } = await this.hegicOptions.fees(
             this.expiry - this.startTime,
@@ -357,17 +357,17 @@ describe("HegicAdapter", () => {
 
       describe("#exerciseProfit", () => {
         beforeEach(async function () {
-          const snapShot = await helper.takeSnapshot();
-          snapshotId = snapShot["result"];
+          snapshotId = await time.takeSnapshot();
         });
 
         afterEach(async () => {
-          await helper.revertToSnapShot(snapshotId);
+          await time.revertToSnapShot(snapshotId);
         });
 
         it("reverts when unknown options address passed", async function () {
-          await expectRevert(
-            this.adapter.exerciseProfit(constants.ZERO_ADDRESS, 0, 0),
+          await expect(
+            this.adapter.exerciseProfit(constants.ZERO_ADDRESS, 0, 0)
+          ).to.be.revertedWith(
             "optionsAddress must match either ETH or WBTC options"
           );
         });
@@ -404,8 +404,7 @@ describe("HegicAdapter", () => {
 
       describe("#exercise", () => {
         beforeEach(async function () {
-          const snapShot = await helper.takeSnapshot();
-          snapshotId = snapShot["result"];
+          snapshotId = await time.takeSnapshot();
 
           const purchaseRes = await this.adapter.purchase(
             [
@@ -426,19 +425,20 @@ describe("HegicAdapter", () => {
         });
 
         afterEach(async () => {
-          await helper.revertToSnapShot(snapshotId);
+          await time.revertToSnapShot(snapshotId);
         });
 
         if (params.exerciseProfit.isZero()) {
           it("reverts when not ITM", async function () {
-            await expectRevert(
+            await expect(
               this.adapter.exercise(
                 this.hegicOptions.address,
                 this.optionID,
                 0,
                 user,
                 { from: user, gasPrice }
-              ),
+              )
+            ).to.be.revertedWith(
               `Current price is too ${this.optionType === 1 ? "high" : "low"}`
             );
           });
@@ -466,7 +466,9 @@ describe("HegicAdapter", () => {
             });
 
             if (this.underlying === ETH_ADDRESS) {
-              const gasFee = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+              const gasFee = BigNumber.from(gasPrice).mul(
+                BigNumber.from(res.receipt.gasUsed)
+              );
               const profit = this.exerciseProfit.sub(gasFee);
               assert.equal(
                 (await userTracker.delta()).toString(),
@@ -535,7 +537,7 @@ describe("HegicAdapter", () => {
         it("reverts when past expiry", async function () {
           await time.increaseTo(this.expiry + 1);
 
-          await expectRevert(
+          await expect(
             this.adapter.exercise(
               this.hegicOptions.address,
               this.optionID,
@@ -544,16 +546,14 @@ describe("HegicAdapter", () => {
               {
                 from: user,
               }
-            ),
-            "Option has expired"
-          );
+            )
+          ).to.be.revertedWith("Option has expired");
         });
       });
 
       describe("#canExercise", () => {
         beforeEach(async function () {
-          const snapShot = await helper.takeSnapshot();
-          snapshotId = snapShot["result"];
+          snapshotId = await time.takeSnapshot();
 
           const purchaseRes = await this.adapter.purchase(
             [
@@ -574,7 +574,7 @@ describe("HegicAdapter", () => {
         });
 
         afterEach(async () => {
-          await helper.revertToSnapShot(snapshotId);
+          await time.revertToSnapShot(snapshotId);
         });
 
         it("can exercise", async function () {

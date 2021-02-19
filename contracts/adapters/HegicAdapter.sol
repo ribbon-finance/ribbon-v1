@@ -21,6 +21,7 @@ import {
     IHegicETHOptions,
     IHegicBTCOptions
 } from "../interfaces/HegicInterface.sol";
+import "hardhat/console.sol";
 
 contract HegicAdapter is IProtocolAdapter {
     using SafeMath for uint256;

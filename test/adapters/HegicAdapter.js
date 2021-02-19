@@ -10,7 +10,8 @@ const {
 } = require("@openzeppelin/test-helpers");
 const { assert } = require("chai");
 const { ethers } = require("hardhat");
-const { BigNumber } = ethers;
+const { provider, BigNumber } = ethers;
+const { parseEther } = ethers.utils;
 
 const helper = require("../helper.js");
 
@@ -32,6 +33,8 @@ describe("HegicAdapter", () => {
     this.nonFungible = true;
 
     const HegicAdapter = await ethers.getContractFactory("HegicAdapter");
+
+    const blockNum = await ethers.provider.getBlockNumber();
 
     this.adapter = await HegicAdapter.deploy(
       HEGIC_ETH_OPTIONS,
@@ -70,9 +73,9 @@ describe("HegicAdapter", () => {
     optionName: "ETH CALL ITM",
     underlying: ETH_ADDRESS,
     strikeAsset: ETH_ADDRESS,
-    strikePrice: ethers.utils.parseEther("900"),
+    strikePrice: parseEther("900"),
     premium: BigNumber.from("285817414096087812"),
-    purchaseAmount: ethers.utils.parseEther("1"),
+    purchaseAmount: parseEther("1"),
     optionType: CALL_OPTION_TYPE,
     expectedOptionID: "2353",
     exerciseProfit: BigNumber.from("200547181040532257"),
@@ -166,8 +169,6 @@ describe("HegicAdapter", () => {
   function behavesLikeHegicOptions(params) {
     describe(`${params.optionName}`, () => {
       before(async function () {
-        const HegicAdapter = await ethers.getContractFactory("HegicAdapter");
-
         const {
           underlying,
           strikeAsset,
@@ -182,7 +183,7 @@ describe("HegicAdapter", () => {
         this.underlying = underlying;
         this.strikeAsset = strikeAsset;
         this.collateralAsset = underlying;
-        this.startTime = (await web3.eth.getBlock("latest")).timestamp;
+        this.startTime = (await provider.getBlock()).timestamp;
         this.expiry = expiry || this.startTime + 60 * 60 * 24 * 2; // 2 days from now
         this.strikePrice = strikePrice;
         this.premium = premium;
@@ -206,6 +207,9 @@ describe("HegicAdapter", () => {
             ],
             this.purchaseAmount
           );
+          console.log(this.strikePrice.toString());
+          console.log(this.expiry.toString());
+          console.log(this.purchaseAmount.toString());
           assert.equal(premium.toString(), this.premium.toString());
         });
       });

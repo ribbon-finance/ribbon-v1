@@ -120,7 +120,12 @@ function behavesLikeRibbonVolatility(params) {
 
     before(async function () {
       const RibbonVolatility = await ethers.getContractFactory(
-        "RibbonVolatility"
+        "RibbonVolatility",
+        {
+          libraries: {
+            ProtocolAdapter: protocolAdapterLib.address,
+          },
+        }
       );
       IERC20 = await ethers.getContractFactory("IERC20");
       const IHegicETHOptions = await ethers.getContractFactory(
@@ -205,11 +210,6 @@ function behavesLikeRibbonVolatility(params) {
       this.gammaAdapter = gammaAdapter;
       this.mockGammaController = mockGammaController;
 
-      await RibbonVolatility.detectNetwork();
-      await RibbonVolatility.link(
-        "ProtocolAdapter",
-        protocolAdapterLib.address
-      );
       this.instrumentLogic = await RibbonVolatility.deploy({ from: admin });
 
       if (this.underlying === ETH_ADDRESS) {

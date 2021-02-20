@@ -1,13 +1,9 @@
-const { accounts, contract, web3 } = require("@openzeppelin/test-environment");
-const { assert } = require("chai");
+const { assert, expect } = require("chai");
+const { ethers } = require("hardhat");
+const { provider } = ethers;
 
-const {
-  ZERO_ADDRESS,
-  expectEvent,
-  expectRevert,
-} = require("@openzeppelin/test-helpers");
-const helper = require("./helper.js");
-const { getDefaultArgs } = require("./utils.js");
+const { getDefaultArgs } = require("./helpers/utils.js");
+const time = require("./helpers/time.js");
 const { encodeCall } = require("@openzeppelin/upgrades");
 
 const newInstrumentTypes = [
@@ -27,12 +23,18 @@ const newInstrumentTypes = [
 const ADMIN_SLOT =
   "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
 
-describe("RibbonFactory", function () {
-  const [admin, owner, user] = accounts;
+let admin, owner, user;
+let userSigner;
 
+describe("RibbonFactory", function () {
   before(async function () {
+    [adminSigner, ownerSigner, userSigner] = await ethers.getSigners();
+    admin = adminSigner.address;
+    owner = ownerSigner.address;
+    user = userSigner.address;
+
     const { factory, hegicAdapter, opynV1Adapter } = await getDefaultArgs();
-    this.factory = factory;
+    this.factory = factory.connect(ownerSigner);
     this.hegicAdapter = hegicAdapter;
     this.opynV1Adapter = opynV1Adapter;
   });
@@ -42,8 +44,11 @@ describe("RibbonFactory", function () {
 
     // check the storage for admin
     assert.equal(
-      web3.utils.toChecksumAddress(
-        await web3.eth.getStorageAt(this.factory.address, ADMIN_SLOT)
+      ethers.utils.getAddress(
+        "0x" +
+          (await provider.getStorageAt(this.factory.address, ADMIN_SLOT)).slice(
+            26
+          )
       ),
       admin
     );
@@ -66,24 +71,23 @@ describe("RibbonFactory", function () {
       "0x0000000000000000000000000000000000000002",
     ]);
 
-    const tx = this.factory.newInstrument(
-      "0x0000000000000000000000000000000000000002",
-      initData,
-      { from: user }
-    );
-    await expectRevert(tx, "Ownable: caller is not the owner");
+    const tx = this.factory
+      .connect(userSigner)
+      .newInstrument("0x0000000000000000000000000000000000000002", initData, {
+        from: user,
+      });
+    await expect(tx).to.be.revertedWith("Ownable: caller is not the owner");
   });
 
   describe("#setAdapter", () => {
     let snapshotId;
 
     beforeEach(async () => {
-      const snapShot = await helper.takeSnapshot();
-      snapshotId = snapShot["result"];
+      snapshotId = await time.takeSnapshot();
     });
 
     afterEach(async () => {
-      await helper.revertToSnapShot(snapshotId);
+      await time.revertToSnapShot(snapshotId);
     });
 
     it("sets the adapter", async function () {
@@ -93,10 +97,12 @@ describe("RibbonFactory", function () {
         { from: owner }
       );
 
-      expectEvent(res, "AdapterSet", {
-        protocolName: web3.utils.sha3("TEST"),
-        adapterAddress: "0x0000000000000000000000000000000000000001",
-      });
+      expect(res)
+        .to.emit(this.factory, "AdapterSet")
+        .withArgs(
+          ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TEST")),
+          "0x0000000000000000000000000000000000000001"
+        );
 
       assert.equal(
         await this.factory.getAdapter("TEST"),
@@ -106,14 +112,13 @@ describe("RibbonFactory", function () {
     });
 
     it("reverts when not owner", async function () {
-      await expectRevert(
-        this.factory.setAdapter(
-          "TEST",
-          "0x0000000000000000000000000000000000000001",
-          { from: user }
-        ),
-        "Ownable: caller is not the owner"
-      );
+      await expect(
+        this.factory
+          .connect(userSigner)
+          .setAdapter("TEST", "0x0000000000000000000000000000000000000001", {
+            from: user,
+          })
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
   });
 
@@ -138,7 +143,7 @@ describe("RibbonFactory", function () {
   describe("#burnGasTokens", () => {
     it("cannot burn if not instrument", async function () {
       const tx = this.factory.burnGasTokens();
-      await expectRevert(tx, "Caller is not instrument");
+      await expect(tx).to.be.revertedWith("Caller is not instrument");
     });
   });
 });

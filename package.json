@@ -42,6 +42,7 @@
     "merge-contracts": "sol-merger  --export-plugin SPDXLicenseRemovePlugin \"./contracts/**/*.sol\" ./build/merged",
     "export-artefacts": "node ./scripts/exportArtefacts.js",
     "upgrade-instrument": "node ./scripts/upgradeInstrument.js",
-    "ganache": "ganache-cli --fork \"`node scripts/helpers/printTestURI.js`@`node scripts/helpers/getCurrentBlock.js`\" --forkCacheSize '-1'"
+    "ganache": "ganache-cli --fork \"`node scripts/helpers/printTestURI.js`@`node scripts/helpers/getCurrentBlock.js`\" --forkCacheSize '-1'",
+    "clean-logs": "yarn run hardhat remove-logs"
   }
 }

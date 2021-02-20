@@ -1,20 +1,15 @@
-const {
-  constants,
-  expectEvent,
-  balance,
-} = require("@openzeppelin/test-helpers");
 const { assert, expect } = require("chai");
 const { ethers } = require("hardhat");
-const { provider, BigNumber } = ethers;
-const { parseEther, formatEther } = ethers.utils;
+const { constants, provider, BigNumber } = ethers;
+const { parseEther } = ethers.utils;
 const time = require("../helpers/time");
 const { parseLog } = require("../utils");
 
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
-const ETH_ADDRESS = constants.ZERO_ADDRESS;
-let admin, owner, user, recipient;
+const ETH_ADDRESS = constants.AddressZero;
+let user, recipient;
 
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
@@ -24,14 +19,7 @@ describe("HegicAdapter", () => {
   const gasPrice = ethers.utils.parseUnits("10", "gwei");
 
   before(async function () {
-    const [
-      adminSigner,
-      ownerSigner,
-      userSigner,
-      recipientSigner,
-    ] = await ethers.getSigners();
-    admin = adminSigner.address;
-    owner = ownerSigner.address;
+    const [, , userSigner, recipientSigner] = await ethers.getSigners();
     user = userSigner.address;
     recipient = recipientSigner.address;
 
@@ -85,90 +73,90 @@ describe("HegicAdapter", () => {
     exerciseProfit: BigNumber.from("200547181040532257"),
   });
 
-  // behavesLikeHegicOptions({
-  //   optionName: "ETH CALL OTM",
-  //   underlying: ETH_ADDRESS,
-  //   strikeAsset: ETH_ADDRESS,
-  //   strikePrice: ether("1200"),
-  //   premium: BigNumber.from("66452674791666666"),
-  //   purchaseAmount: ether("1"),
-  //   optionType: CALL_OPTION_TYPE,
-  //   expectedOptionID: "2353",
-  //   exerciseProfit: BigNumber.from("0"),
-  // });
+  behavesLikeHegicOptions({
+    optionName: "ETH CALL OTM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: ETH_ADDRESS,
+    strikePrice: parseEther("1200"),
+    premium: BigNumber.from("66452674791666666"),
+    purchaseAmount: parseEther("1"),
+    optionType: CALL_OPTION_TYPE,
+    expectedOptionID: "2353",
+    exerciseProfit: BigNumber.from("0"),
+  });
 
-  // behavesLikeHegicOptions({
-  //   optionName: "ETH PUT ITM",
-  //   underlying: ETH_ADDRESS,
-  //   strikeAsset: ETH_ADDRESS,
-  //   strikePrice: ether("1200"),
-  //   premium: BigNumber.from("140079856453804950"),
-  //   purchaseAmount: ether("1"),
-  //   optionType: PUT_OPTION_TYPE,
-  //   expectedOptionID: "2353",
-  //   exerciseProfit: BigNumber.from("65937091945956989"),
-  // });
+  behavesLikeHegicOptions({
+    optionName: "ETH PUT ITM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: ETH_ADDRESS,
+    strikePrice: parseEther("1200"),
+    premium: BigNumber.from("140079856453804950"),
+    purchaseAmount: parseEther("1"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "2353",
+    exerciseProfit: BigNumber.from("65937091945956989"),
+  });
 
-  // behavesLikeHegicOptions({
-  //   optionName: "ETH PUT OTM",
-  //   underlying: ETH_ADDRESS,
-  //   strikeAsset: ETH_ADDRESS,
-  //   strikePrice: ether("900"),
-  //   premium: BigNumber.from("58107073380885971"),
-  //   purchaseAmount: ether("1"),
-  //   optionType: PUT_OPTION_TYPE,
-  //   expectedOptionID: "2353",
-  //   exerciseProfit: BigNumber.from("0"),
-  // });
+  behavesLikeHegicOptions({
+    optionName: "ETH PUT OTM",
+    underlying: ETH_ADDRESS,
+    strikeAsset: ETH_ADDRESS,
+    strikePrice: parseEther("900"),
+    premium: BigNumber.from("58107073380885971"),
+    purchaseAmount: parseEther("1"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "2353",
+    exerciseProfit: BigNumber.from("0"),
+  });
 
-  // // WBTC Options
-  // behavesLikeHegicOptions({
-  //   optionName: "WBTC CALL ITM",
-  //   underlying: WBTC_ADDRESS,
-  //   strikeAsset: WBTC_ADDRESS,
-  //   strikePrice: ether("34000"),
-  //   premium: BigNumber.from("5028351441863137425"),
-  //   purchaseAmount: BigNumber.from("100000000"),
-  //   optionType: CALL_OPTION_TYPE,
-  //   expectedOptionID: "1119",
-  //   exerciseProfit: BigNumber.from("9897877"),
-  // });
+  // WBTC Options
+  behavesLikeHegicOptions({
+    optionName: "WBTC CALL ITM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: WBTC_ADDRESS,
+    strikePrice: parseEther("34000"),
+    premium: BigNumber.from("5028351441863137425"),
+    purchaseAmount: BigNumber.from("100000000"),
+    optionType: CALL_OPTION_TYPE,
+    expectedOptionID: "1119",
+    exerciseProfit: BigNumber.from("9897877"),
+  });
 
-  // behavesLikeHegicOptions({
-  //   optionName: "WBTC CALL OTM",
-  //   underlying: WBTC_ADDRESS,
-  //   strikeAsset: WBTC_ADDRESS,
-  //   strikePrice: ether("41000"),
-  //   premium: BigNumber.from("1483260273030990622"),
-  //   purchaseAmount: BigNumber.from("100000000"),
-  //   optionType: CALL_OPTION_TYPE,
-  //   expectedOptionID: "1119",
-  //   exerciseProfit: BigNumber.from("0"),
-  // });
+  behavesLikeHegicOptions({
+    optionName: "WBTC CALL OTM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: WBTC_ADDRESS,
+    strikePrice: parseEther("41000"),
+    premium: BigNumber.from("1483260273030990622"),
+    purchaseAmount: BigNumber.from("100000000"),
+    optionType: CALL_OPTION_TYPE,
+    expectedOptionID: "1119",
+    exerciseProfit: BigNumber.from("0"),
+  });
 
-  // behavesLikeHegicOptions({
-  //   optionName: "WBTC PUT ITM",
-  //   underlying: WBTC_ADDRESS,
-  //   strikeAsset: WBTC_ADDRESS,
-  //   strikePrice: ether("41000"),
-  //   premium: BigNumber.from("4582950345865552024"),
-  //   purchaseAmount: BigNumber.from("100000000"),
-  //   optionType: PUT_OPTION_TYPE,
-  //   expectedOptionID: "1119",
-  //   exerciseProfit: BigNumber.from("8652559"),
-  // });
+  behavesLikeHegicOptions({
+    optionName: "WBTC PUT ITM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: WBTC_ADDRESS,
+    strikePrice: parseEther("41000"),
+    premium: BigNumber.from("4582950345865552024"),
+    purchaseAmount: BigNumber.from("100000000"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "1119",
+    exerciseProfit: BigNumber.from("8652559"),
+  });
 
-  // behavesLikeHegicOptions({
-  //   optionName: "WBTC PUT OTM",
-  //   underlying: WBTC_ADDRESS,
-  //   strikeAsset: WBTC_ADDRESS,
-  //   strikePrice: ether("34000"),
-  //   premium: BigNumber.from("1459110991698151816"),
-  //   purchaseAmount: BigNumber.from("100000000"),
-  //   optionType: PUT_OPTION_TYPE,
-  //   expectedOptionID: "1119",
-  //   exerciseProfit: BigNumber.from("0"),
-  // });
+  behavesLikeHegicOptions({
+    optionName: "WBTC PUT OTM",
+    underlying: WBTC_ADDRESS,
+    strikeAsset: WBTC_ADDRESS,
+    strikePrice: parseEther("34000"),
+    premium: BigNumber.from("1459110991698151816"),
+    purchaseAmount: BigNumber.from("100000000"),
+    optionType: PUT_OPTION_TYPE,
+    expectedOptionID: "1119",
+    exerciseProfit: BigNumber.from("0"),
+  });
 
   function behavesLikeHegicOptions(params) {
     describe(`${params.optionName}`, () => {
@@ -306,12 +294,13 @@ describe("HegicAdapter", () => {
           expect(res)
             .to.emit(this.adapter, "Purchased")
             .withArgs(
+              user,
               ethers.utils.keccak256(ethers.utils.toUtf8Bytes("HEGIC")),
               this.underlying,
               this.strikeAsset,
               this.expiry.toString(),
               this.strikePrice,
-              this.optionType.toString(),
+              this.optionType,
               this.purchaseAmount,
               this.premium,
               this.expectedOptionID
@@ -367,7 +356,7 @@ describe("HegicAdapter", () => {
 
         it("reverts when unknown options address passed", async function () {
           await expect(
-            this.adapter.exerciseProfit(constants.ZERO_ADDRESS, 0, 0)
+            this.adapter.exerciseProfit(constants.AddressZero, 0, 0)
           ).to.be.revertedWith(
             "optionsAddress must match either ETH or WBTC options"
           );
@@ -390,8 +379,12 @@ describe("HegicAdapter", () => {
             }
           );
           const receipt = await provider.waitForTransaction(purchaseRes.hash);
-          const optionID = (await parseLog("HegicAdapter", receipt.logs[2]))
-            .args[9];
+          const optionID = (
+            await parseLog(
+              "HegicAdapter",
+              receipt.logs[receipt.logs.length - 1]
+            )
+          ).args[9];
 
           assert.equal(
             (
@@ -426,7 +419,10 @@ describe("HegicAdapter", () => {
           );
           const receipt = await provider.waitForTransaction(purchaseRes.hash);
           this.optionID = (
-            await parseLog("HegicAdapter", receipt.logs[2])
+            await parseLog(
+              "HegicAdapter",
+              receipt.logs[receipt.logs.length - 1]
+            )
           ).args[9];
         });
 
@@ -468,7 +464,13 @@ describe("HegicAdapter", () => {
 
             expect(res)
               .to.emit(this.adapter, "Exercised")
-              .withArgs(user, this.expectedOptionID, "0", this.exerciseProfit);
+              .withArgs(
+                user,
+                this.hegicOptions.address,
+                this.expectedOptionID,
+                "0",
+                this.exerciseProfit
+              );
 
             if (this.underlying === ETH_ADDRESS) {
               const gasFee = BigNumber.from(gasPrice).mul(
@@ -582,7 +584,10 @@ describe("HegicAdapter", () => {
           );
           const receipt = await provider.waitForTransaction(purchaseRes.hash);
           this.optionID = (
-            await parseLog("HegicAdapter", receipt.logs[2])
+            await parseLog(
+              "HegicAdapter",
+              receipt.logs[receipt.logs.length - 1]
+            )
           ).args[9];
         });
 

@@ -4,6 +4,8 @@
 
 require("@nomiclabs/hardhat-waffle");
 
+require("hardhat-log-remover");
+
 require("dotenv").config();
 
 module.exports = {

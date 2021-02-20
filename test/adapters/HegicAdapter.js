@@ -3,7 +3,7 @@ const { ethers } = require("hardhat");
 const { constants, provider, BigNumber } = ethers;
 const { parseEther } = ethers.utils;
 const time = require("../helpers/time");
-const { parseLog } = require("../utils");
+const { parseLog } = require("../helpers/utils");
 
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";

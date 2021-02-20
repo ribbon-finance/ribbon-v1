@@ -31,11 +31,7 @@ describe("RibbonFactory", function () {
   const [admin, owner, user] = accounts;
 
   before(async function () {
-    const { factory, hegicAdapter, opynV1Adapter } = await getDefaultArgs(
-      admin,
-      owner,
-      user
-    );
+    const { factory, hegicAdapter, opynV1Adapter } = await getDefaultArgs();
     this.factory = factory;
     this.hegicAdapter = hegicAdapter;
     this.opynV1Adapter = opynV1Adapter;

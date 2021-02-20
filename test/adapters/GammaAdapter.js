@@ -1,5 +1,3 @@
-const { web3 } = require("@openzeppelin/test-environment");
-const { expectEvent, balance } = require("@openzeppelin/test-helpers");
 const { assert, expect } = require("chai");
 const { ethers } = require("hardhat");
 const { provider, BigNumber, constants } = ethers;
@@ -20,11 +18,9 @@ let owner, user, recipient;
 
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
-let IERC20;
 
 describe("GammaAdapter", () => {
   let initSnapshotId;
-  const gasPrice = ethers.utils.parseUnits("10", "gwei");
 
   before(async function () {
     const [

@@ -1,26 +1,18 @@
-const { accounts, contract, web3 } = require("@openzeppelin/test-environment");
-const { assert } = require("chai");
-const {
-  ether,
-  BN,
-  time,
-  constants,
-  expectEvent, // Assertions for emitted events
-  expectRevert, // Assertions for transactions that should fail
-  balance,
-} = require("@openzeppelin/test-helpers");
-const helper = require("./helper.js");
-const { getDefaultArgs } = require("./utils");
+const { web3 } = require("@openzeppelin/test-environment");
+const { assert, expect } = require("chai");
+const { balance } = require("@openzeppelin/test-helpers");
+
+const { ethers } = require("hardhat");
+const { provider, constants, BigNumber } = ethers;
+const { parseEther, parseUnits } = ethers.utils;
+
+const time = require("./helpers/time");
+const { getDefaultArgs, parseLog } = require("./helpers/utils");
 const { encodeCall } = require("@openzeppelin/upgrades");
-// const RibbonVolatility = artifacts.require("RibbonVolatility");
-// const IERC20 = artifacts.require("IERC20");
-// const IHegicETHOptions = artifacts.require("IHegicETHOptions");
-// const IHegicBTCOptions = artifacts.require("IHegicBTCOptions");
-const { wmul } = require("../scripts/helpers/utils");
 const ZERO_EX_API_RESPONSES = require("./fixtures/GammaAdapter.json");
 
-const [admin, owner, user] = accounts;
-const gasPrice = web3.utils.toWei("10", "gwei");
+let owner, user;
+const gasPrice = parseUnits("10", "gwei");
 
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
@@ -31,13 +23,11 @@ const protocolMap = {
   [GAMMA_PROTOCOL]: 2,
 };
 
-const ETH_ADDRESS = constants.ZERO_ADDRESS;
+const ETH_ADDRESS = constants.AddressZero;
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
-
-let IERC20;
 
 describe("RibbonVolatility", () => {
   /**
@@ -52,13 +42,13 @@ describe("RibbonVolatility", () => {
     collateralAsset: USDC_ADDRESS,
     venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    amounts: [ether("1"), ether("1")],
-    strikePrices: [ether("1300"), ether("1300")],
-    premiums: [new BN("296363339171109209"), new BN("0")],
-    purchaseAmount: ether("1"),
+    amounts: [parseEther("1"), parseEther("1")],
+    strikePrices: [parseEther("1300"), parseEther("1300")],
+    premiums: [BigNumber.from("296363339171109209"), BigNumber.from("0")],
+    purchaseAmount: parseEther("1"),
     optionIDs: ["2353", "2354"],
-    exerciseProfit: new BN("154765182941453405"),
-    actualExerciseProfit: new BN("154765182941453405"),
+    exerciseProfit: BigNumber.from("154765182941453405"),
+    actualExerciseProfit: BigNumber.from("154765182941453405"),
   });
 
   behavesLikeRibbonVolatility({
@@ -68,13 +58,13 @@ describe("RibbonVolatility", () => {
     collateralAsset: USDC_ADDRESS,
     venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    amounts: [ether("1"), ether("1")],
-    strikePrices: [ether("900"), ether("1300")],
-    premiums: [new BN("120217234727039817"), new BN("0")],
-    purchaseAmount: ether("1"),
+    amounts: [parseEther("1"), parseEther("1")],
+    strikePrices: [parseEther("900"), parseEther("1300")],
+    premiums: [BigNumber.from("120217234727039817"), BigNumber.from("0")],
+    purchaseAmount: parseEther("1"),
     optionIDs: ["2353", "2354"],
-    exerciseProfit: new BN("0"),
-    actualExerciseProfit: new BN("0"),
+    exerciseProfit: BigNumber.from("0"),
+    actualExerciseProfit: BigNumber.from("0"),
   });
 
   behavesLikeRibbonVolatility({
@@ -84,13 +74,13 @@ describe("RibbonVolatility", () => {
     collateralAsset: USDC_ADDRESS,
     venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    amounts: [ether("1"), ether("1")],
-    strikePrices: [ether("900"), ether("900")],
-    premiums: [new BN("343924487476973783"), new BN("0")],
-    purchaseAmount: ether("1"),
+    amounts: [parseEther("1"), parseEther("1")],
+    strikePrices: [parseEther("900"), parseEther("900")],
+    premiums: [BigNumber.from("343924487476973783"), BigNumber.from("0")],
+    purchaseAmount: parseEther("1"),
     optionIDs: ["2353", "2354"],
-    exerciseProfit: new BN("200547181040532257"),
-    actualExerciseProfit: new BN("200547181040532257"),
+    exerciseProfit: BigNumber.from("200547181040532257"),
+    actualExerciseProfit: BigNumber.from("200547181040532257"),
   });
 
   // behavesLikeRibbonVolatility({
@@ -100,14 +90,14 @@ describe("RibbonVolatility", () => {
   //   collateralAsset: ETH_ADDRESS,
   //   venues: [GAMMA_PROTOCOL],
   //   optionTypes: [CALL_OPTION_TYPE],
-  //   amounts: [ether("0.1")],
-  //   strikePrices: [ether("960")],
-  //   premiums: [new BN("0")],
-  //   purchaseAmount: ether("1"),
+  //   amounts: [parseEther("0.1")],
+  //   strikePrices: [parseEther("960")],
+  //   premiums: [BigNumber.from("0")],
+  //   purchaseAmount: parseEther("1"),
   //   expiry: "1614326400",
   //   optionIDs: ["0"],
-  //   exerciseProfit: new BN("12727272727272727"),
-  //   actualExerciseProfit: new BN("12727272727272727"),
+  //   exerciseProfit: BigNumber.from("12727272727272727"),
+  //   actualExerciseProfit: BigNumber.from("12727272727272727"),
   //   apiResponses: [
   //     ZERO_EX_API_RESPONSES["0x3cF86d40988309AF3b90C14544E1BB0673BFd439"],
   //   ],
@@ -119,21 +109,10 @@ function behavesLikeRibbonVolatility(params) {
     let snapshotId, initSnapshotId;
 
     before(async function () {
-      const RibbonVolatility = await ethers.getContractFactory(
-        "RibbonVolatility",
-        {
-          libraries: {
-            ProtocolAdapter: protocolAdapterLib.address,
-          },
-        }
-      );
-      IERC20 = await ethers.getContractFactory("IERC20");
-      const IHegicETHOptions = await ethers.getContractFactory(
-        "IHegicETHOptions"
-      );
-      const IHegicBTCOptions = await ethers.getContractFactory(
-        "IHegicBTCOptions"
-      );
+      const [adminSigner, ownerSigner, userSigner] = await ethers.getSigners();
+      admin = adminSigner.address;
+      owner = ownerSigner.address;
+      user = userSigner.address;
 
       const {
         name,
@@ -185,9 +164,12 @@ function behavesLikeRibbonVolatility(params) {
         )
       );
 
-      this.totalPremium = this.premiums.reduce((a, b) => a.add(b), new BN("0"));
+      this.totalPremium = this.premiums.reduce(
+        (a, b) => a.add(b),
+        BigNumber.from("0")
+      );
 
-      this.cost = new BN("0");
+      this.cost = BigNumber.from("0");
       venues.forEach((venue, index) => {
         if (venue === "OPYN_GAMMA") {
           return;
@@ -195,7 +177,7 @@ function behavesLikeRibbonVolatility(params) {
         this.cost = this.cost.add(premiums[index]);
       });
 
-      this.startTime = (await web3.eth.getBlock("latest")).timestamp;
+      this.startTime = (await provider.getBlock()).timestamp;
       this.expiry = expiry || this.startTime + 60 * 60 * 24 * 2; // 2 days from now
 
       const {
@@ -204,18 +186,32 @@ function behavesLikeRibbonVolatility(params) {
         gammaAdapter,
         protocolAdapterLib,
         mockGammaController,
-      } = await getDefaultArgs(admin, owner, user);
+      } = await getDefaultArgs();
       this.factory = factory;
       this.hegicAdapter = hegicAdapter;
       this.gammaAdapter = gammaAdapter;
       this.mockGammaController = mockGammaController;
 
-      this.instrumentLogic = await RibbonVolatility.deploy({ from: admin });
+      const RibbonVolatility = await ethers.getContractFactory(
+        "RibbonVolatility",
+        {
+          libraries: {
+            ProtocolAdapter: protocolAdapterLib.address,
+          },
+        }
+      );
+      this.instrumentLogic = await RibbonVolatility.deploy();
 
       if (this.underlying === ETH_ADDRESS) {
-        this.hegicOptions = await IHegicETHOptions.at(HEGIC_ETH_OPTIONS);
+        this.hegicOptions = await ethers.getContractAt(
+          "IHegicETHOptions",
+          HEGIC_ETH_OPTIONS
+        );
       } else if (underlying === WBTC_ADDRESS) {
-        this.hegicOptions = await IHegicBTCOptions.at(HEGIC_WBTC_OPTIONS);
+        this.hegicOptions = await ethers.getContractAt(
+          "IHegicBTCOptions",
+          HEGIC_WBTC_OPTIONS
+        );
       } else {
         throw new Error(`No underlying found ${this.underlying}`);
       }
@@ -248,27 +244,30 @@ function behavesLikeRibbonVolatility(params) {
           from: owner,
         }
       );
+      const receipt = await provider.waitForTransaction(res.hash);
 
-      this.contract = await RibbonVolatility.at(
-        res.logs[2].args.instrumentAddress
-      );
+      const instrumentAddress = (
+        await parseLog("RibbonFactory", receipt.logs[2])
+      ).args.instrumentAddress;
 
-      const snapShot = await helper.takeSnapshot();
-      initSnapshotId = snapShot["result"];
+      this.contract = (
+        await ethers.getContractAt("RibbonVolatility", instrumentAddress)
+      ).connect(userSigner);
+
+      initSnapshotId = await time.takeSnapshot();
     });
 
     after(async () => {
-      await helper.revertToSnapShot(initSnapshotId);
+      await time.revertToSnapShot(initSnapshotId);
     });
 
     describe("#cost", () => {
       beforeEach(async () => {
-        const snapShot = await helper.takeSnapshot();
-        snapshotId = snapShot["result"];
+        snapshotId = await time.takeSnapshot();
       });
 
       afterEach(async () => {
-        await helper.revertToSnapShot(snapshotId);
+        await time.revertToSnapShot(snapshotId);
       });
 
       it("returns the total cost of the position", async function () {
@@ -288,12 +287,11 @@ function behavesLikeRibbonVolatility(params) {
 
     describe("#canExercise", () => {
       beforeEach(async () => {
-        const snapShot = await helper.takeSnapshot();
-        snapshotId = snapShot["result"];
+        snapshotId = await time.takeSnapshot();
       });
 
       afterEach(async () => {
-        await helper.revertToSnapShot(snapshotId);
+        await time.revertToSnapShot(snapshotId);
       });
 
       it("can exercise when there's exercise profit", async function () {
@@ -332,12 +330,11 @@ function behavesLikeRibbonVolatility(params) {
       let snapshotId;
 
       beforeEach(async () => {
-        const snapShot = await helper.takeSnapshot();
-        snapshotId = snapShot["result"];
+        snapshotId = await time.takeSnapshot();
       });
 
       afterEach(async () => {
-        await helper.revertToSnapShot(snapshotId);
+        await time.revertToSnapShot(snapshotId);
       });
 
       // it("reverts when passed less than 2 venues", async function () {
@@ -368,7 +365,7 @@ function behavesLikeRibbonVolatility(params) {
       //       this.buyData,
       //       {
       //         from: user,
-      //         value: this.premiums[0].mul(new BN("3")), // just multiply premium by 3 because doubling the premiums sometimes doesnt work
+      //         value: this.premiums[0].mul(BigNumber.from("3")), // just multiply premium by 3 because doubling the premiums sometimes doesnt work
       //         gasPrice: this.gasPrice,
       //       }
       //     ),
@@ -379,7 +376,7 @@ function behavesLikeRibbonVolatility(params) {
       it("reverts when buying after expiry", async function () {
         await time.increaseTo(this.expiry + 1);
 
-        await expectRevert(
+        await expect(
           this.contract.buyInstrument(
             this.venues,
             this.optionTypes,
@@ -391,9 +388,8 @@ function behavesLikeRibbonVolatility(params) {
               value: this.totalPremium,
               gasPrice: this.gasPrice,
             }
-          ),
-          "Cannot purchase after expiry"
-        );
+          )
+        ).to.be.revertedWith("Cannot purchase after expiry");
       });
 
       it("buys instrument", async function () {
@@ -409,19 +405,19 @@ function behavesLikeRibbonVolatility(params) {
             gasPrice: this.gasPrice,
           }
         );
-        console.log("gas used", res.receipt.gasUsed);
+        const receipt = await provider.waitForTransaction(res.hash);
+        console.log("gas used", receipt.gasUsed.toString());
 
-        expectEvent(res, "PositionCreated", {
-          account: user,
-          positionID: "0",
-          venues: this.venues,
-        });
+        expect(res).to.emit("PositionCreated").withArgs(user, "0", this.venues);
 
-        const { optionTypes, amount } = res.logs[0].args;
-        assert.deepEqual(
-          optionTypes.map((o) => o.toNumber()),
-          this.optionTypes
-        );
+        const { optionTypes, amount } = (
+          await parseLog(
+            "RibbonVolatility",
+            receipt.logs[receipt.logs.length - 1]
+          )
+        ).args;
+
+        assert.deepEqual(optionTypes, this.optionTypes);
         assert.equal(amount, this.amounts[0].toString());
 
         const position = await this.contract.instrumentPosition(user, 0);
@@ -437,7 +433,9 @@ function behavesLikeRibbonVolatility(params) {
         for (const venue of this.venues) {
           const expectedOptionType = this.optionTypes[i];
           const strikePrice = this.strikePrices[i];
-          const hegicScaledStrikePrice = strikePrice.div(new BN("10000000000"));
+          const hegicScaledStrikePrice = strikePrice.div(
+            BigNumber.from("10000000000")
+          );
           const purchaseAmount = this.amounts[i];
 
           if (venue === HEGIC_PROTOCOL) {
@@ -459,8 +457,14 @@ function behavesLikeRibbonVolatility(params) {
           } else if (venue === GAMMA_PROTOCOL) {
             const apiResponse = this.apiResponses[i];
 
-            const buyToken = await IERC20.at(apiResponse.buyTokenAddress);
-            const sellToken = await IERC20.at(apiResponse.sellTokenAddress);
+            const buyToken = await ethers.getContractAt(
+              "IERC20",
+              apiResponse.buyTokenAddress
+            );
+            const sellToken = await ethers.getContractAt(
+              "IERC20",
+              apiResponse.sellTokenAddress
+            );
 
             assert.isAtLeast(
               (await buyToken.balanceOf(this.contract.address)).toNumber(),
@@ -487,8 +491,9 @@ function behavesLikeRibbonVolatility(params) {
             gasPrice: this.gasPrice,
           }
         );
+        const receipt = await provider.waitForTransaction(res.hash);
 
-        assert.isAtMost(res.receipt.gasUsed, 1200000);
+        assert.isAtMost(receipt.gasUsed, 1200000);
       });
     });
 
@@ -496,7 +501,7 @@ function behavesLikeRibbonVolatility(params) {
       let snapshotId;
 
       beforeEach(async function () {
-        snapshotId = (await helper.takeSnapshot())["result"];
+        snapshotId = await time.takeSnapshot();
         await this.contract.buyInstrument(
           this.venues,
           this.optionTypes,
@@ -523,21 +528,20 @@ function behavesLikeRibbonVolatility(params) {
           // load the contract with collateralAsset
           await this.mockGammaController.buyCollateral(oTokenAddress, {
             from: owner,
-            value: ether("10"),
+            value: parseEther("10"),
           });
         }
       });
 
       afterEach(async () => {
-        await helper.revertToSnapShot(snapshotId);
+        await time.revertToSnapShot(snapshotId);
       });
 
       it("reverts when exercising twice", async function () {
         await this.contract.exercisePosition(this.positionID, { from: user });
-        await expectRevert(
-          this.contract.exercisePosition(this.positionID, { from: user }),
-          "Already exercised"
-        );
+        await expect(
+          this.contract.exercisePosition(this.positionID, { from: user })
+        ).to.be.revertedWith("Already exercised");
       });
 
       it("exercises one of the options", async function () {
@@ -547,21 +551,24 @@ function behavesLikeRibbonVolatility(params) {
           from: user,
           gasPrice,
         });
-        const gasUsed = new BN(gasPrice).mul(new BN(res.receipt.gasUsed));
+        const gasUsed = BigNumber.from(gasPrice).mul(
+          BigNumber.from(res.receipt.gasUsed)
+        );
 
-        expectEvent(res, "Exercised", {
-          account: user,
-          positionID: this.positionID.toString(),
-          totalProfit: this.exerciseProfit,
-        });
+        expect(res)
+          .to.emit("Exercised")
+          .withArgs(user, this.positionID.toString(), this.exerciseProfit);
 
-        if (this.underlying == constants.ZERO_ADDRESS) {
+        if (this.underlying == constants.AddressZero) {
           assert.equal(
             (await userTracker.delta()).toString(),
             this.actualExerciseProfit.sub(gasUsed).toString()
           );
         } else {
-          const underlying = await IERC20.at(this.underlying);
+          const underlying = await ethers.getContractAt(
+            "IERC20",
+            this.underlying
+          );
           assert.equal(
             (await underlying.balanceOf(user)).toString(),
             this.actualExerciseProfit
@@ -574,16 +581,15 @@ function behavesLikeRibbonVolatility(params) {
       let snapshotId;
 
       beforeEach(async () => {
-        const snapShot = await helper.takeSnapshot();
-        snapshotId = snapShot["result"];
+        snapshotId = await time.takeSnapshot();
       });
 
       afterEach(async () => {
-        await helper.revertToSnapShot(snapshotId);
+        await time.revertToSnapShot(snapshotId);
       });
 
       it("returns the exercise profit", async function () {
-        snapshotId = (await helper.takeSnapshot())["result"];
+        snapshotId = await time.takeSnapshot();
         await this.contract.buyInstrument(
           this.venues,
           this.optionTypes,
@@ -622,8 +628,7 @@ function behavesLikeRibbonVolatility(params) {
       let snapshotId;
 
       beforeEach(async function () {
-        const snapShot = await helper.takeSnapshot();
-        snapshotId = snapShot["result"];
+        snapshotId = await time.takeSnapshot();
 
         await this.contract.buyInstrument(
           this.venues,
@@ -640,7 +645,7 @@ function behavesLikeRibbonVolatility(params) {
       });
 
       afterEach(async () => {
-        await helper.revertToSnapShot(initSnapshotId);
+        await time.revertToSnapShot(initSnapshotId);
       });
 
       it("gets the number of positions", async function () {
@@ -687,7 +692,7 @@ function calculateZeroExOrderCost(apiResponse) {
   if (apiResponse.sellTokenAddress === USDC_ADDRESS.toLowerCase()) {
     decimals = 10 ** 6;
   } else if (apiResponse.sellTokenAddress === WETH_ADDRESS.toLowerCase()) {
-    return new BN(apiResponse.sellAmount);
+    return BigNumber.from(apiResponse.sellAmount);
   } else {
     decimals = 10 ** 18;
   }
@@ -696,5 +701,7 @@ function calculateZeroExOrderCost(apiResponse) {
   const totalETH =
     scaledSellAmount / parseFloat(apiResponse.sellTokenToEthRate);
 
-  return ether(totalETH.toPrecision(6)).add(new BN(apiResponse.value));
+  return parseEther(totalETH.toPrecision(6)).add(
+    BigNumber.from(apiResponse.value)
+  );
 }

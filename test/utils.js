@@ -1,6 +1,7 @@
-const { ether, BN, constants } = require("@openzeppelin/test-helpers");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const { ethers, artifacts } = require("hardhat");
+const { BigNumber, constants } = ethers;
+const { parseEther } = ethers.utils;
 
 module.exports = {
   getDefaultArgs,
@@ -34,7 +35,7 @@ const CHI_ADDRESS = "0x0000000000004946c0e9F43F4Dee607b0eF1fA1c";
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
-const ETH_ADDRESS = constants.ZERO_ADDRESS;
+const ETH_ADDRESS = constants.AddressZero;
 
 const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
@@ -124,16 +125,16 @@ async function mintGasTokens(minter, factoryAddress) {
 
 function wdiv(x, y) {
   return x
-    .mul(ether("1"))
-    .add(y.div(new BN("2")))
+    .mul(parseEther("1"))
+    .add(y.div(BigNumber.from("2")))
     .div(y);
 }
 
 function wmul(x, y) {
   return x
     .mul(y)
-    .add(ether("1").div(new BN("2")))
-    .div(ether("1"));
+    .add(parseEther("1").div(BigNumber.from("2")))
+    .div(parseEther("1"));
 }
 
 async function parseLog(contractName, log) {

@@ -291,7 +291,7 @@ function behavesLikeOTokens(params) {
             this.strikeAsset,
             this.expiry,
             this.strikePrice,
-            this.optionType.toString(),
+            this.optionType,
             this.scaleDecimals(this.purchaseAmount),
             this.premium,
             "0"

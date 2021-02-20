@@ -25,7 +25,7 @@ jobs:
             ${{ runner.OS }}-node-
             ${{ runner.OS }}-
       - run: npm ci
-      - run: npx truffle compile
+      - run: npx hardhat compile compile
       - run: npm run build --if-present
       - run: npm test
         env:

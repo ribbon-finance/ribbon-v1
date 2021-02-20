@@ -1,18 +1,9 @@
-const { accounts, contract, web3 } = require("@openzeppelin/test-environment");
-const {
-  BN,
-  ether,
-  constants,
-  time,
-  expectRevert,
-  expectEvent,
-  balance,
-} = require("@openzeppelin/test-helpers");
-const { assert } = require("chai");
-const helper = require("../helper.js");
-const MockGammaAdapter = contract.fromArtifact("MockGammaAdapter");
-const MockGammaController = contract.fromArtifact("MockGammaController");
-const IERC20 = contract.fromArtifact("IERC20");
+const { assert, expect } = require("chai");
+const { ethers } = require("hardhat");
+const { provider, BigNumber, constants } = ethers;
+const { parseEther } = ethers.utils;
+
+const time = require("../helpers/time.js");
 const ZERO_EX_API_RESPONSES = require("../fixtures/GammaAdapter.json");
 
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
@@ -22,21 +13,39 @@ const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
-const ETH_ADDRESS = constants.ZERO_ADDRESS;
-const [admin, owner, user, recipient] = accounts;
+const ETH_ADDRESS = constants.AddressZero;
+let owner, user, recipient;
 
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
 
 describe("GammaAdapter", () => {
   let initSnapshotId;
-  const gasPrice = web3.utils.toWei("10", "gwei");
 
   before(async function () {
+    const [
+      ,
+      ownerSigner,
+      userSigner,
+      recipientSigner,
+    ] = await ethers.getSigners();
+    owner = ownerSigner.address;
+    user = userSigner.address;
+    recipient = recipientSigner.address;
+
+    const MockGammaAdapter = await ethers.getContractFactory(
+      "MockGammaAdapter",
+      ownerSigner
+    );
+    const MockGammaController = await ethers.getContractFactory(
+      "MockGammaController",
+      ownerSigner
+    );
+
     this.protocolName = "OPYN_GAMMA";
     this.nonFungible = false;
 
-    this.mockController = await MockGammaController.new(
+    this.mockController = await MockGammaController.deploy(
       GAMMA_ORACLE,
       UNISWAP_ROUTER,
       WETH_ADDRESS
@@ -44,23 +53,20 @@ describe("GammaAdapter", () => {
 
     this.mockController.setPrice("110000000000");
 
-    this.adapter = await MockGammaAdapter.new(
+    this.adapter = await MockGammaAdapter.deploy(
       OTOKEN_FACTORY,
       this.mockController.address,
       WETH_ADDRESS,
       ZERO_EX_EXCHANGE,
-      UNISWAP_ROUTER,
-      {
-        from: owner,
-      }
+      UNISWAP_ROUTER
     );
+    this.adapter = this.adapter.connect(userSigner);
 
-    const snapShot = await helper.takeSnapshot();
-    initSnapshotId = snapShot["result"];
+    initSnapshotId = await time.takeSnapshot();
   });
 
   after(async () => {
-    await helper.revertToSnapShot(initSnapshotId);
+    await time.revertToSnapShot(initSnapshotId);
   });
 
   describe("#protocolName", () => {
@@ -80,11 +86,11 @@ describe("GammaAdapter", () => {
       const oTokenAddress = "0x60ad22806B89DD17B2ecfe220c3712A2c86dfFFE";
 
       const actualOTokenAddress = await this.adapter.lookupOToken([
-        constants.ZERO_ADDRESS,
+        constants.AddressZero,
         USDC_ADDRESS,
-        constants.ZERO_ADDRESS,
+        constants.AddressZero,
         "1614326400",
-        ether("800"),
+        parseEther("800"),
         CALL_OPTION_TYPE,
       ]);
       assert.equal(actualOTokenAddress, oTokenAddress);
@@ -94,11 +100,11 @@ describe("GammaAdapter", () => {
       const oTokenAddress = "0x006583fEea92C695A9dE02C3AC2d4cd321f2F341";
 
       const actualOTokenAddress = await this.adapter.lookupOToken([
-        constants.ZERO_ADDRESS,
+        constants.AddressZero,
         USDC_ADDRESS,
-        constants.ZERO_ADDRESS,
+        constants.AddressZero,
         "1610697600",
-        ether("800"),
+        parseEther("800"),
         PUT_OPTION_TYPE,
       ]);
       assert.equal(actualOTokenAddress, oTokenAddress);
@@ -111,11 +117,11 @@ describe("GammaAdapter", () => {
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: WETH_ADDRESS,
-    strikePrice: ether("960"),
+    strikePrice: parseEther("960"),
     expiry: "1614326400",
     optionType: CALL_OPTION_TYPE,
-    purchaseAmount: ether("0.1"),
-    exerciseProfit: new BN("12727272727272727"),
+    purchaseAmount: parseEther("0.1"),
+    exerciseProfit: BigNumber.from("12727272727272727"),
     premium: "50329523139774375",
   });
 
@@ -125,11 +131,11 @@ describe("GammaAdapter", () => {
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: WETH_ADDRESS,
-    strikePrice: ether("1480"),
+    strikePrice: parseEther("1480"),
     expiry: "1610697600",
     optionType: CALL_OPTION_TYPE,
-    purchaseAmount: ether("0.1"),
-    exerciseProfit: new BN("0"),
+    purchaseAmount: parseEther("0.1"),
+    exerciseProfit: BigNumber.from("0"),
     premium: "18271767935676968",
   });
 
@@ -139,11 +145,11 @@ describe("GammaAdapter", () => {
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: USDC_ADDRESS,
-    strikePrice: ether("800"),
+    strikePrice: parseEther("800"),
     expiry: "1610697600",
     optionType: PUT_OPTION_TYPE,
-    purchaseAmount: ether("0.1"),
-    exerciseProfit: new BN("0"),
+    purchaseAmount: parseEther("0.1"),
+    exerciseProfit: BigNumber.from("0"),
     premium: "16125055430257410",
   });
 });
@@ -175,7 +181,8 @@ function behavesLikeOTokens(params) {
       this.exerciseProfit = exerciseProfit;
       this.premium = premium;
       this.apiResponse = ZERO_EX_API_RESPONSES[oTokenAddress];
-      this.scaleDecimals = (n) => n.div(new BN("10").pow(new BN("10")));
+      this.scaleDecimals = (n) =>
+        n.div(BigNumber.from("10").pow(BigNumber.from("10")));
 
       this.optionTerms = [
         this.underlying,
@@ -211,12 +218,11 @@ function behavesLikeOTokens(params) {
       let snapshotId;
 
       beforeEach(async () => {
-        const snapShot = await helper.takeSnapshot();
-        snapshotId = snapShot["result"];
+        snapshotId = await time.takeSnapshot();
       });
 
       afterEach(async () => {
-        await helper.revertToSnapShot(snapshotId);
+        await time.revertToSnapShot(snapshotId);
       });
 
       it("gets exercise profit", async function () {
@@ -239,12 +245,11 @@ function behavesLikeOTokens(params) {
       let snapshotId;
 
       beforeEach(async () => {
-        const snapShot = await helper.takeSnapshot();
-        snapshotId = snapShot["result"];
+        snapshotId = await time.takeSnapshot();
       });
 
       afterEach(async () => {
-        await helper.revertToSnapShot(snapshotId);
+        await time.revertToSnapShot(snapshotId);
       });
 
       it("purchases with 0x exchange", async function () {
@@ -258,8 +263,14 @@ function behavesLikeOTokens(params) {
           }
         );
 
-        const buyToken = await IERC20.at(this.apiResponse.buyTokenAddress);
-        const sellToken = await IERC20.at(this.apiResponse.sellTokenAddress);
+        const buyToken = await ethers.getContractAt(
+          "IERC20",
+          this.apiResponse.buyTokenAddress
+        );
+        const sellToken = await ethers.getContractAt(
+          "IERC20",
+          this.apiResponse.sellTokenAddress
+        );
 
         assert.isAtLeast(
           (await buyToken.balanceOf(this.adapter.address)).toNumber(),
@@ -267,18 +278,20 @@ function behavesLikeOTokens(params) {
         );
         assert.equal(await sellToken.balanceOf(this.adapter.address), "0");
 
-        expectEvent(res, "Purchased", {
-          caller: user,
-          protocolName: web3.utils.sha3(this.protocolName),
-          underlying: this.underlying,
-          strikeAsset: this.strikeAsset,
-          expiry: this.expiry,
-          strikePrice: this.strikePrice,
-          optionType: this.optionType.toString(),
-          amount: this.scaleDecimals(this.purchaseAmount),
-          premium: this.premium,
-          optionID: "0",
-        });
+        expect(res)
+          .to.emit(this.adapter, "Purchased")
+          .withArgs(
+            user,
+            ethers.utils.keccak256(ethers.utils.toUtf8Bytes(this.protocolName)),
+            this.underlying,
+            this.strikeAsset,
+            this.expiry,
+            this.strikePrice,
+            this.optionType,
+            this.scaleDecimals(this.purchaseAmount),
+            this.premium,
+            "0"
+          );
       });
 
       it("purchases twice", async function () {
@@ -308,13 +321,12 @@ function behavesLikeOTokens(params) {
       let snapshotId;
 
       beforeEach(async function () {
-        const snapShot = await helper.takeSnapshot();
-        snapshotId = snapShot["result"];
+        snapshotId = await time.takeSnapshot();
 
         // load the contract with collateralAsset
         await this.mockController.buyCollateral(this.oTokenAddress, {
           from: owner,
-          value: ether("10"),
+          value: parseEther("10"),
         });
 
         await this.adapter.purchaseWithZeroEx(
@@ -323,19 +335,19 @@ function behavesLikeOTokens(params) {
           {
             from: user,
             gasPrice: this.apiResponse.gasPrice,
-            value: ether("5"),
+            value: parseEther("5"),
           }
         );
       });
 
       afterEach(async () => {
-        await helper.revertToSnapShot(snapshotId);
+        await time.revertToSnapShot(snapshotId);
       });
 
       it("exercises otokens", async function () {
-        const recipientTracker = await balance.tracker(recipient);
+        const recipientStartBalance = await provider.getBalance(recipient);
 
-        if (new BN(this.exerciseProfit).isZero()) {
+        if (BigNumber.from(this.exerciseProfit).isZero()) {
           return;
         }
         await time.increaseTo(this.expiry + 1);
@@ -348,15 +360,17 @@ function behavesLikeOTokens(params) {
           { from: user }
         );
 
-        expectEvent(res, "Exercised", {
-          caller: user,
-          options: this.oTokenAddress,
-          optionID: "0",
-          amount: this.purchaseAmount,
-          exerciseProfit: this.exerciseProfit,
-        });
+        expect(res)
+          .to.emit(this.adapter, "Exercised")
+          .withArgs(
+            user,
+            this.oTokenAddress,
+            "0",
+            this.purchaseAmount,
+            this.exerciseProfit
+          );
 
-        const otoken = await IERC20.at(this.oTokenAddress);
+        const otoken = await ethers.getContractAt("IERC20", this.oTokenAddress);
 
         assert.equal((await otoken.balanceOf(user)).toString(), "0");
         assert.equal(
@@ -366,11 +380,16 @@ function behavesLikeOTokens(params) {
 
         if (this.collateralAsset == WETH_ADDRESS) {
           assert.equal(
-            (await recipientTracker.delta()).toString(),
+            (await provider.getBalance(recipient))
+              .sub(recipientStartBalance)
+              .toString(),
             this.exerciseProfit
           );
         } else {
-          const collateralToken = await IERC20.at(this.collateralAsset);
+          const collateralToken = await ethers.getContractAt(
+            "IERC20",
+            this.collateralAsset
+          );
           assert.equal(
             (await collateralToken.balanceOf(user)).toString(),
             this.exerciseProfit
@@ -383,12 +402,11 @@ function behavesLikeOTokens(params) {
       let snapshotId;
 
       beforeEach(async () => {
-        const snapShot = await helper.takeSnapshot();
-        snapshotId = snapShot["result"];
+        snapshotId = await time.takeSnapshot();
       });
 
       afterEach(async () => {
-        await helper.revertToSnapShot(snapshotId);
+        await time.revertToSnapShot(snapshotId);
       });
 
       it("can exercise", async function () {
@@ -426,7 +444,7 @@ function calculateZeroExOrderCost(apiResponse) {
   if (apiResponse.sellTokenAddress === USDC_ADDRESS.toLowerCase()) {
     decimals = 10 ** 6;
   } else if (apiResponse.sellTokenAddress === WETH_ADDRESS.toLowerCase()) {
-    return new BN(apiResponse.sellAmount);
+    return BigNumber.from(apiResponse.sellAmount);
   } else {
     decimals = 10 ** 18;
   }
@@ -435,5 +453,7 @@ function calculateZeroExOrderCost(apiResponse) {
   const totalETH =
     scaledSellAmount / parseFloat(apiResponse.sellTokenToEthRate);
 
-  return ether(totalETH.toPrecision(6)).add(new BN(apiResponse.value));
+  return parseEther(totalETH.toPrecision(6)).add(
+    BigNumber.from(apiResponse.value)
+  );
 }

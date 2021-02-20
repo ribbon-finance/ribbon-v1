@@ -9,9 +9,8 @@ import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {OtokenInterface, IController} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {DSMath} from "../lib/DSMath.sol";
-import {DebugLib} from "../tests/DebugLib.sol";
 
-contract MockGammaController is DSMath, DebugLib {
+contract MockGammaController is DSMath {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 

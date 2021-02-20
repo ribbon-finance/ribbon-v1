@@ -21,7 +21,6 @@ import {
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {Ownable} from "../lib/Ownable.sol";
-import "../tests/DebugLib.sol";
 
 contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
     using SafeMath for uint256;

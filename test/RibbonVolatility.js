@@ -1,6 +1,5 @@
 const { web3 } = require("@openzeppelin/test-environment");
 const { assert, expect } = require("chai");
-const { balance } = require("@openzeppelin/test-helpers");
 
 const { ethers } = require("hardhat");
 const { provider, constants, BigNumber } = ethers;
@@ -43,6 +42,7 @@ describe("RibbonVolatility", () => {
     venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [parseEther("1"), parseEther("1")],
+    optionsExercised: [true, false],
     strikePrices: [parseEther("1300"), parseEther("1300")],
     premiums: [BigNumber.from("296363339171109209"), BigNumber.from("0")],
     purchaseAmount: parseEther("1"),
@@ -59,6 +59,7 @@ describe("RibbonVolatility", () => {
     venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [parseEther("1"), parseEther("1")],
+    optionsExercised: [false, false],
     strikePrices: [parseEther("900"), parseEther("1300")],
     premiums: [BigNumber.from("120217234727039817"), BigNumber.from("0")],
     purchaseAmount: parseEther("1"),
@@ -75,6 +76,7 @@ describe("RibbonVolatility", () => {
     venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
     optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
     amounts: [parseEther("1"), parseEther("1")],
+    optionsExercised: [false, true],
     strikePrices: [parseEther("900"), parseEther("900")],
     premiums: [BigNumber.from("343924487476973783"), BigNumber.from("0")],
     purchaseAmount: parseEther("1"),
@@ -131,6 +133,7 @@ function behavesLikeRibbonVolatility(params) {
         expiry,
         apiResponses,
         collateralAsset,
+        optionsExercised,
       } = params;
       this.name = name;
       this.symbol = symbol;
@@ -145,6 +148,7 @@ function behavesLikeRibbonVolatility(params) {
       this.optionIDs = optionIDs;
       this.exerciseProfit = exerciseProfit;
       this.actualExerciseProfit = actualExerciseProfit;
+      this.optionsExercised = optionsExercised;
 
       this.apiResponses = apiResponses;
 
@@ -405,10 +409,12 @@ function behavesLikeRibbonVolatility(params) {
             gasPrice: this.gasPrice,
           }
         );
-        const receipt = await provider.waitForTransaction(res.hash);
+        const receipt = await res.wait();
         console.log("gas used", receipt.gasUsed.toString());
 
-        expect(res).to.emit("PositionCreated").withArgs(user, "0", this.venues);
+        expect(res)
+          .to.emit(this.contract, "PositionCreated")
+          .withArgs(user, "0", this.venues, this.optionTypes, this.amounts[0]);
 
         const { optionTypes, amount } = (
           await parseLog(
@@ -545,23 +551,29 @@ function behavesLikeRibbonVolatility(params) {
       });
 
       it("exercises one of the options", async function () {
-        const userTracker = await balance.tracker(user, "wei");
+        const startUserBalance = await provider.getBalance(user);
 
         const res = await this.contract.exercisePosition(this.positionID, {
           from: user,
           gasPrice,
         });
+        const receipt = await provider.waitForTransaction(res.hash);
         const gasUsed = BigNumber.from(gasPrice).mul(
-          BigNumber.from(res.receipt.gasUsed)
+          BigNumber.from(receipt.gasUsed)
         );
 
         expect(res)
-          .to.emit("Exercised")
-          .withArgs(user, this.positionID.toString(), this.exerciseProfit);
+          .to.emit(this.contract, "Exercised")
+          .withArgs(
+            user,
+            this.positionID.toString(),
+            this.exerciseProfit,
+            this.optionsExercised
+          );
 
         if (this.underlying == constants.AddressZero) {
           assert.equal(
-            (await userTracker.delta()).toString(),
+            (await provider.getBalance(user)).sub(startUserBalance).toString(),
             this.actualExerciseProfit.sub(gasUsed).toString()
           );
         } else {
@@ -625,11 +637,7 @@ function behavesLikeRibbonVolatility(params) {
     });
 
     describe("#numOfPositions", () => {
-      let snapshotId;
-
       beforeEach(async function () {
-        snapshotId = await time.takeSnapshot();
-
         await this.contract.buyInstrument(
           this.venues,
           this.optionTypes,

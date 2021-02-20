@@ -2,32 +2,30 @@
 
 ## Getting Started
 
-1. Install all the NodeJS dependencies with npm.
+We use Hardhat for compiling and testing, and currently use Truffle for running migrations & deployments. We are planning to move to doing deployments using Hardhat scripts in the future.
+
+1. Install all the NodeJS dependencies with yarn.
 
 ```
-npm install
+yarn install
 ```
 
-Double check that you have the correct versions installed. The Solidity compilation will fail if you have the wrong version of Truffle.
+2. You can start compiling the Solidity code with Hardhat.
 
 ```
-> npx truffle version
-Truffle v5.1.61 (core: 5.1.61)
-Solidity - 0.7.2 (solc-js)
-Node v15.5.1
-Web3.js v1.2.9
+npx hardhat compile
 ```
 
-2. You can start compiling the Solidity code with Truffle.
+3. Run the unit tests with the command:
 
 ```
-npx truffle compile
+npx hardhat test
 ```
 
-3. To run the unit tests for a specific contract, run with mocha
+To run the unit tests for a specific unit test, you can run the tests directly with mocha
 
 ```
-mocha --timeout 200000 --exit --recursive test --exclude test/adapters/HegicAdapter.js
+npx mocha --timeout 20000 --exit test/adapters/HegicAdapter.js -g 'purchase'
 ```
 
 ## Deployments

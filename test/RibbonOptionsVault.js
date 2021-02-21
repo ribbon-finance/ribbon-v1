@@ -55,6 +55,16 @@ describe("RibbonOptionsVault", () => {
   });
 
   describe("#depositETH", () => {
+    let snapshotId;
+
+    beforeEach(async function () {
+      snapshotId = await time.takeSnapshot();
+    });
+
+    afterEach(async () => {
+      await time.revertToSnapShot(snapshotId);
+    });
+
     it("deposits successfully", async function () {
       const depositAmount = parseEther("1");
       await this.vault.depositETH({ value: depositAmount });
@@ -65,8 +75,9 @@ describe("RibbonOptionsVault", () => {
 
   describe("#writeOptions", () => {
     let snapshotId;
+
     beforeEach(async function () {
-      snapshotId = time.takeSnapshot();
+      snapshotId = await time.takeSnapshot();
       this.depositAmount = parseEther("1");
       await this.vault.depositETH({ value: this.depositAmount });
     });

@@ -21,6 +21,7 @@ import {
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {DSMath} from "../lib/DSMath.sol";
+import "hardhat/console.sol";
 
 contract GammaAdapter is IProtocolAdapter, DSMath {
     using SafeMath for uint256;
@@ -342,6 +343,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         uint256 depositAmount
     ) external payable override {
         IController controller = IController(gammaController);
+        console.log("address %", gammaController);
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);
 

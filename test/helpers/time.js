@@ -6,6 +6,7 @@ module.exports = {
   increaseTo,
   takeSnapshot,
   revertToSnapShot,
+  revertToSnapshotAfterTest,
 };
 
 // Increases ganache time by the passed duration in seconds
@@ -50,44 +51,17 @@ async function takeSnapshot() {
   return snapshotId;
 }
 
-// takeSnapshot = () => {
-//   return new Promise((resolve, reject) => {
-//     ethers.provider.
-//     web3.currentProvider.send(
-//       {
-//         jsonrpc: "2.0",
-//         method: "evm_snapshot",
-//         id: new Date().getTime(),
-//       },
-//       (err, snapshotId) => {
-//         if (err) {
-//           return reject(err);
-//         }
-//         return resolve(snapshotId);
-//       }
-//     );
-//   });
-// };
-
 async function revertToSnapShot(id) {
   await ethers.provider.send("evm_revert", [id]);
 }
 
-// revertToSnapShot = (id) => {
-//   return new Promise((resolve, reject) => {
-//     web3.currentProvider.send(
-//       {
-//         jsonrpc: "2.0",
-//         method: "evm_revert",
-//         params: [id],
-//         id: new Date().getTime(),
-//       },
-//       (err, result) => {
-//         if (err) {
-//           return reject(err);
-//         }
-//         return resolve(result);
-//       }
-//     );
-//   });
-// };
+function revertToSnapshotAfterTest() {
+  let snapshotId;
+
+  before(async () => {
+    snapshotId = await takeSnapshot();
+  });
+  after(async () => {
+    await revertToSnapShot(snapshotId);
+  });
+}

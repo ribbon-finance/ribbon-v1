@@ -255,14 +255,16 @@ function behavesLikeRibbonVolatility(params) {
       const {
         factory,
         hegicAdapter,
-        gammaAdapter,
+        mockGammaAdapter,
         protocolAdapterLib,
         mockGammaController,
       } = await getDefaultArgs();
       this.factory = factory;
       this.hegicAdapter = hegicAdapter;
-      this.gammaAdapter = gammaAdapter;
+      this.gammaAdapter = mockGammaAdapter;
       this.mockGammaController = mockGammaController;
+
+      await factory.setAdapter("OPYN_GAMMA", mockGammaAdapter.address);
 
       const RibbonVolatility = await ethers.getContractFactory(
         "RibbonVolatility",

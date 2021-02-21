@@ -45,10 +45,6 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
         _swapContract.authorizeSigner(_manager);
     }
 
-    function revokeOptionsSale() public onlyOwner {
-        _swapContract.revokeSigner(manager);
-    }
-
     function depositETH() public payable {
         require(msg.value > 0, "No value passed");
         require(asset == _WETH, "Asset is not WETH");

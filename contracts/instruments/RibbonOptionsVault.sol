@@ -35,11 +35,18 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
     }
 
     function setManager(address _manager) public onlyOwner {
+        require(_manager != address(0), "New manager cannot be 0x0");
+        address currentManager = manager;
+        if (currentManager != address(0)) {
+            _swapContract.revokeSigner(manager);
+        }
+
         manager = _manager;
+        _swapContract.authorizeSigner(_manager);
     }
 
-    function authorizeOptionsSale() public onlyOwner {
-        _swapContract.authorizeSigner(manager);
+    function revokeOptionsSale() public onlyOwner {
+        _swapContract.revokeSigner(manager);
     }
 
     function depositETH() public payable {

@@ -1,6 +1,6 @@
 const { expect, assert } = require("chai");
 const { ethers } = require("hardhat");
-const { getContractAt } = ethers;
+const { constants, getContractAt } = ethers;
 const { parseEther } = ethers.utils;
 
 const time = require("./helpers/time");
@@ -87,24 +87,21 @@ describe("RibbonOptionsVault", () => {
       );
     });
 
-    it("sets the manager", async function () {
+    it("sets the first manager", async function () {
       await this.vault.connect(ownerSigner).setManager(manager);
       assert.equal(await this.vault.manager(), manager);
-    });
-  });
-
-  describe("#authorizeOptionsSale", () => {
-    time.revertToSnapshotAfterTest();
-
-    it("reverts when not owner call", async function () {
-      await expect(this.vault.authorizeOptionsSale()).to.be.revertedWith(
-        "caller is not the owner"
+      assert.isTrue(
+        await this.swap.signerAuthorizations(this.vault.address, manager)
       );
     });
 
-    it("gives authorization to the manager to perform options sales", async function () {
+    it("changes the manager", async function () {
+      await this.vault.connect(ownerSigner).setManager(owner);
       await this.vault.connect(ownerSigner).setManager(manager);
-      await this.vault.connect(ownerSigner).authorizeOptionsSale();
+      assert.equal(await this.vault.manager(), manager);
+      assert.isFalse(
+        await this.swap.signerAuthorizations(this.vault.address, owner)
+      );
       assert.isTrue(
         await this.swap.signerAuthorizations(this.vault.address, manager)
       );

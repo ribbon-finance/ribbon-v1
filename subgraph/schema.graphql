@@ -8,5 +8,6 @@ type InstrumentPosition @entity {
   optionTypes: [Int!]!
   strikePrices: [BigInt!]!
   venues: [String!]!
+  expiry: BigInt!
   exerciseProfit: BigInt
 }

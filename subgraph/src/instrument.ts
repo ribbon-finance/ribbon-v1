@@ -1,11 +1,15 @@
 import {
   BuyInstrumentCall,
   Exercised,
+  Instrument,
 } from "../generated/templates/Instrument/Instrument";
 import { InstrumentPosition } from "../generated/schema";
 import { BigInt } from "@graphprotocol/graph-ts";
 
 export function handleBuyInstrument(call: BuyInstrumentCall): void {
+  let instrument = Instrument.bind(call.to);
+  let expiry = instrument.expiry();
+
   let positionID =
     call.to.toHex() +
     "-" +
@@ -18,6 +22,7 @@ export function handleBuyInstrument(call: BuyInstrumentCall): void {
   position.cost = call.transaction.value;
   position.exercised = false;
   position.exerciseProfit = BigInt.fromI32(0);
+  position.expiry = expiry;
 
   let amount = call.inputs.amount;
   position.amount = amount;

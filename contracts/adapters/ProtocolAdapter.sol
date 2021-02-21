@@ -158,6 +158,22 @@ library ProtocolAdapter {
         require(success, "exercise delegatecall failed");
     }
 
+    function delegateCreateShort(
+        IProtocolAdapter adapter,
+        OptionTerms calldata optionTerms,
+        uint256 amount
+    ) external {
+        (bool success, bytes memory res) =
+            address(adapter).delegatecall(
+                abi.encodeWithSignature(
+                    "createShort((address,address,address,uint256,uint256,uint8),uint256)",
+                    optionTerms,
+                    amount
+                )
+            );
+        require(success, getRevertMsg(res));
+    }
+
     function getRevertMsg(bytes memory _returnData)
         internal
         pure

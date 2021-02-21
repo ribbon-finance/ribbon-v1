@@ -12,6 +12,7 @@ let userSigner, ownerSigner, managerSigner;
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
+const SWAP_ADDRESS = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
 
 describe("RibbonOptionsVault", () => {
   let initSnapshotId;
@@ -69,6 +70,8 @@ describe("RibbonOptionsVault", () => {
     this.oToken = await getContractAt("IERC20", this.oTokenAddress);
 
     this.weth = await getContractAt("IERC20", WETH_ADDRESS);
+
+    this.swap = await getContractAt("ISwap", SWAP_ADDRESS);
   });
 
   after(async () => {
@@ -96,6 +99,14 @@ describe("RibbonOptionsVault", () => {
     it("reverts when not owner call", async function () {
       await expect(this.vault.authorizeOptionsSale()).to.be.revertedWith(
         "caller is not the owner"
+      );
+    });
+
+    it("gives authorization to the manager to perform options sales", async function () {
+      await this.vault.connect(ownerSigner).setManager(manager);
+      await this.vault.connect(ownerSigner).authorizeOptionsSale();
+      assert.isTrue(
+        await this.swap.signerAuthorizations(this.vault.address, manager)
       );
     });
   });

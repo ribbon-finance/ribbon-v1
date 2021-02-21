@@ -1,5 +1,6 @@
 const { expect, assert } = require("chai");
 const { ethers } = require("hardhat");
+const { signOrderForSwap } = require("./helpers/signature");
 const { constants, getContractAt } = ethers;
 const { parseEther } = ethers.utils;
 
@@ -7,7 +8,7 @@ const time = require("./helpers/time");
 const { deployProxy, getDefaultArgs } = require("./helpers/utils");
 
 let owner, user;
-let userSigner, ownerSigner, managerSigner;
+let userSigner, ownerSigner, managerSigner, counterpartySigner;
 
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
@@ -25,10 +26,12 @@ describe("RibbonOptionsVault", () => {
       ownerSigner,
       userSigner,
       managerSigner,
+      counterpartySigner,
     ] = await ethers.getSigners();
     owner = ownerSigner.address;
     user = userSigner.address;
     manager = managerSigner.address;
+    counterparty = counterpartySigner.address;
 
     const {
       factory,
@@ -69,7 +72,7 @@ describe("RibbonOptionsVault", () => {
 
     this.oToken = await getContractAt("IERC20", this.oTokenAddress);
 
-    this.weth = await getContractAt("IERC20", WETH_ADDRESS);
+    this.weth = await getContractAt("IWETH", WETH_ADDRESS);
 
     this.swap = await getContractAt("ISwap", SWAP_ADDRESS);
   });
@@ -178,6 +181,46 @@ describe("RibbonOptionsVault", () => {
       );
 
       assert.equal(await this.vault.currentOption(), this.oTokenAddress);
+    });
+  });
+
+  describe("signing an order message", () => {
+    time.revertToSnapshotAfterTest();
+
+    before(async function () {
+      this.premium = parseEther("0.1");
+      this.sellAmount = "100000000";
+
+      const weth = this.weth.connect(counterpartySigner);
+
+      await weth.deposit({ value: this.premium });
+
+      await weth.approve(SWAP_ADDRESS, this.premium);
+    });
+
+    it("signs an order message", async function () {
+      const sellToken = this.oTokenAddress;
+      const buyToken = WETH_ADDRESS;
+
+      const signedOrder = await signOrderForSwap({
+        vaultAddress: this.vault.address,
+        counterpartyAddress: counterparty,
+        signer: managerSigner,
+        sellToken,
+        buyToken,
+        sellAmount: this.sellAmount,
+        buyAmount: this.premium.toString(),
+      });
+
+      const { signatory, validator } = signedOrder.signature;
+      const { wallet: signerWallet, token: signerToken } = signedOrder.signer;
+      const { wallet: senderWallet, token: senderToken } = signedOrder.sender;
+      assert.equal(ethers.utils.getAddress(signatory), manager);
+      assert.equal(ethers.utils.getAddress(validator), SWAP_ADDRESS);
+      assert.equal(ethers.utils.getAddress(signerWallet), this.vault.address);
+      assert.equal(ethers.utils.getAddress(signerToken), this.oTokenAddress);
+      assert.equal(ethers.utils.getAddress(senderWallet), counterparty);
+      assert.equal(ethers.utils.getAddress(senderToken), WETH_ADDRESS);
     });
   });
 });

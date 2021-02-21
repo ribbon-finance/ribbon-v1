@@ -74,7 +74,10 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
         currentOption = options;
     }
 
-    function sellOptions() public {}
+    function sellOptions() public onlyManager {
+        IERC20 optionToken = IERC20(currentOption);
+        optionToken.approve(address(_swapContract), this.totalSupply());
+    }
 
     modifier onlyManager {
         require(msg.sender == manager, "Only manager");

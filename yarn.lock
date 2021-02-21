@@ -2,6 +2,30 @@
 # yarn lockfile v1
 
 
+"@airswap/constants@0.3.10":
+  version "0.3.10"
+  resolved "https://registry.yarnpkg.com/@airswap/constants/-/constants-0.3.10.tgz#29d4d44dbdd36c98034f8b76ba21a779da5c5051"
+  integrity sha512-74kT4lncU++lyXDUJC6j1V8uasMshyhRDhiSKnV/88Ll6S0d2MyvjARaKkCfp8JqFnMbcbWl5zUyzMmSoimuIA==
+
+"@airswap/types@3.5.14":
+  version "3.5.14"
+  resolved "https://registry.yarnpkg.com/@airswap/types/-/types-3.5.14.tgz#43577a25643010aab3e67f916939616e3e43aaee"
+  integrity sha512-OFPCfMbBXGjjfEYl+3IW134ANgYXTQX7Wr45wK88PjpyNtTBsVp3Zkv2KqCYW3QN1ezHrK7yHHGfUvYU74zB/w==
+  dependencies:
+    openzeppelin-solidity "2.4"
+
+"@airswap/utils@^0.3.21":
+  version "0.3.21"
+  resolved "https://registry.yarnpkg.com/@airswap/utils/-/utils-0.3.21.tgz#3660e695909cefc5c0f17546d19927af86e2c5f6"
+  integrity sha512-7AWGtW2znmhVrucntyVNtNIg7wW8RrRjbkHxg/dQr2cEroDE6zx6FZx8h0mECln1oRmqrzjCx8rQDGO7yGU/7g==
+  dependencies:
+    "@airswap/constants" "0.3.10"
+    "@airswap/types" "3.5.14"
+    "@types/ethereumjs-util" "^6.1.0"
+    eth-sig-util "^3.0.0"
+    ethereumjs-util "^6.2.0"
+    ethers "^5.0.25"
+
 "@babel/code-frame@^7.0.0":
   version "7.12.13"
   resolved "https://registry.yarnpkg.com/@babel/code-frame/-/code-frame-7.12.13.tgz#dcfc826beef65e75c50e21d3837d7d95798dd658"
@@ -1084,6 +1108,13 @@
   version "4.2.15"
   resolved "https://registry.yarnpkg.com/@types/chai/-/chai-4.2.15.tgz#b7a6d263c2cecf44b6de9a051cf496249b154553"
   integrity sha512-rYff6FI+ZTKAPkJUoyz7Udq3GaoDZnxYDEvdEdFZASiA7PoErltHezDishqQiSDWrGxvxmplH304jyzQmjp0AQ==
+
+"@types/ethereumjs-util@^6.1.0":
+  version "6.1.0"
+  resolved "https://registry.yarnpkg.com/@types/ethereumjs-util/-/ethereumjs-util-6.1.0.tgz#9dabd7302ec9728a7d99be15f4143977c33cd5ac"
+  integrity sha512-5N0RJldhKCKwDksdnuNHbEJuwO5pjEdtwdHj/kZLxaS84s5R1NLgYfAuDF/VZ4whYABJJvv+o0O8TXLm+F/Byw==
+  dependencies:
+    ethereumjs-util "*"
 
 "@types/lru-cache@^5.1.0":
   version "5.1.0"
@@ -4025,6 +4056,16 @@ eth-sig-util@^2.5.2:
     tweetnacl "^1.0.3"
     tweetnacl-util "^0.15.0"
 
+eth-sig-util@^3.0.0:
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/eth-sig-util/-/eth-sig-util-3.0.1.tgz#8753297c83a3f58346bd13547b59c4b2cd110c96"
+  integrity sha512-0Us50HiGGvZgjtWTyAI/+qTzYPMLy5Q451D0Xy68bxq1QMWdoOddDwGvsqcFT27uohKgalM9z/yxplyt+mY2iQ==
+  dependencies:
+    ethereumjs-abi "^0.6.8"
+    ethereumjs-util "^5.1.1"
+    tweetnacl "^1.0.3"
+    tweetnacl-util "^0.15.0"
+
 eth-tx-summary@^3.1.2:
   version "3.2.4"
   resolved "https://registry.yarnpkg.com/eth-tx-summary/-/eth-tx-summary-3.2.4.tgz#e10eb95eb57cdfe549bf29f97f1e4f1db679035c"
@@ -4222,6 +4263,18 @@ ethereumjs-tx@^1.0.0, ethereumjs-tx@^1.1.1, ethereumjs-tx@^1.2.0, ethereumjs-tx@
     ethereum-common "^0.0.18"
     ethereumjs-util "^5.0.0"
 
+ethereumjs-util@*, ethereumjs-util@^7.0.2:
+  version "7.0.8"
+  resolved "https://registry.yarnpkg.com/ethereumjs-util/-/ethereumjs-util-7.0.8.tgz#5258762b7b17e3d828e41834948363ff0a703ffd"
+  integrity sha512-JJt7tDpCAmDPw/sGoFYeq0guOVqT3pTE9xlEbBmc/nlCij3JRCoS2c96SQ6kXVHOT3xWUNLDm5QCJLQaUnVAtQ==
+  dependencies:
+    "@types/bn.js" "^4.11.3"
+    bn.js "^5.1.2"
+    create-hash "^1.1.2"
+    ethereum-cryptography "^0.1.3"
+    ethjs-util "0.1.6"
+    rlp "^2.2.4"
+
 ethereumjs-util@6.2.1, ethereumjs-util@^6.0.0, ethereumjs-util@^6.1.0, ethereumjs-util@^6.2.0:
   version "6.2.1"
   resolved "https://registry.yarnpkg.com/ethereumjs-util/-/ethereumjs-util-6.2.1.tgz#fcb4e4dd5ceacb9d2305426ab1a5cd93e3163b69"
@@ -4258,18 +4311,6 @@ ethereumjs-util@^5.0.0, ethereumjs-util@^5.0.1, ethereumjs-util@^5.1.1, ethereum
     ethjs-util "^0.1.3"
     rlp "^2.0.0"
     safe-buffer "^5.1.1"
-
-ethereumjs-util@^7.0.2:
-  version "7.0.8"
-  resolved "https://registry.yarnpkg.com/ethereumjs-util/-/ethereumjs-util-7.0.8.tgz#5258762b7b17e3d828e41834948363ff0a703ffd"
-  integrity sha512-JJt7tDpCAmDPw/sGoFYeq0guOVqT3pTE9xlEbBmc/nlCij3JRCoS2c96SQ6kXVHOT3xWUNLDm5QCJLQaUnVAtQ==
-  dependencies:
-    "@types/bn.js" "^4.11.3"
-    bn.js "^5.1.2"
-    create-hash "^1.1.2"
-    ethereum-cryptography "^0.1.3"
-    ethjs-util "0.1.6"
-    rlp "^2.2.4"
 
 ethereumjs-vm@4.2.0:
   version "4.2.0"
@@ -4369,7 +4410,7 @@ ethers@^4.0.20, ethers@^4.0.32, ethers@^4.0.45:
     uuid "2.0.1"
     xmlhttprequest "1.8.0"
 
-ethers@^5.0.0, ethers@^5.0.1, ethers@^5.0.31:
+ethers@^5.0.0, ethers@^5.0.1, ethers@^5.0.25, ethers@^5.0.31:
   version "5.0.31"
   resolved "https://registry.yarnpkg.com/ethers/-/ethers-5.0.31.tgz#60e3b1425864fe5d2babc147ede01be8382a7d2a"
   integrity sha512-zpq0YbNFLFn+t+ibS8UkVWFeK5w6rVMSvbSHrHAQslfazovLnQ/mc2gdN5+6P45/k8fPgHrfHrYvJ4XvyK/S1A==
@@ -7222,6 +7263,11 @@ opencollective-postinstall@^2.0.2:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/opencollective-postinstall/-/opencollective-postinstall-2.0.3.tgz#7a0fff978f6dbfa4d006238fbac98ed4198c3259"
   integrity sha512-8AV/sCtuzUeTo8gQK5qDZzARrulB3egtLzFgteqB2tcT4Mw7B8Kt7JcDHmltjz6FOAHsvTevk70gZEbhM4ZS9Q==
+
+openzeppelin-solidity@2.4:
+  version "2.4.0"
+  resolved "https://registry.yarnpkg.com/openzeppelin-solidity/-/openzeppelin-solidity-2.4.0.tgz#5f0a7b30571c45493449166e57b947203415349d"
+  integrity sha512-533gc5jkspxW5YT0qJo02Za5q1LHwXK9CJCc48jNj/22ncNM/3M/3JfWLqfpB90uqLwOKOovpl0JfaMQTR+gXQ==
 
 optionator@^0.8.1:
   version "0.8.3"

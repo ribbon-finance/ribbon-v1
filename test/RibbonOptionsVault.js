@@ -78,6 +78,24 @@ describe("RibbonOptionsVault", () => {
     await time.revertToSnapShot(initSnapshotId);
   });
 
+  describe("#asset", () => {
+    it("returns the asset", async function () {
+      assert.equal(await this.vault.asset(), WETH_ADDRESS);
+    });
+  });
+
+  describe("#exchangeMechanism", () => {
+    it("returns the exchange mechanism", async function () {
+      assert.equal(await this.vault.exchangeMechanism(), 1);
+    });
+  });
+
+  describe("#owner", () => {
+    it("returns the owner", async function () {
+      assert.equal(await this.vault.owner(), owner);
+    });
+  });
+
   describe("#setManager", () => {
     time.revertToSnapshotAfterTest();
 

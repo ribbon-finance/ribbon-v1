@@ -20,12 +20,16 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
     using ProtocolAdapter for IProtocolAdapter;
     using SafeERC20 for IERC20;
 
+    enum ExchangeMechanism {Unknown, AirSwap}
+
     string private constant _adapterName = "OPYN_GAMMA";
     address private constant _WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     ISwap private constant _swapContract =
         ISwap(0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA);
 
     address public constant asset = _WETH;
+    ExchangeMechanism public constant exchangeMechanism =
+        ExchangeMechanism.AirSwap;
 
     constructor() VaultToken("VaultToken", "VLT") {}
 

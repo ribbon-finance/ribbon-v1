@@ -13,6 +13,7 @@ import {IWETH} from "../interfaces/IWETH.sol";
 import {Ownable} from "../lib/Ownable.sol";
 import {VaultToken} from "./VaultToken.sol";
 import {OptionsVaultStorageV1} from "../storage/OptionsVaultStorage.sol";
+import "hardhat/console.sol";
 
 contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
     using ProtocolAdapter for IProtocolAdapter;
@@ -22,8 +23,6 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
     address private constant _WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     address public constant asset = _WETH;
-    IRibbonFactory public ribbonFactory =
-        IRibbonFactory(0x863dd8Ea9B7472c54CdE1F0e2D5B2bCC8CBf0Cd1);
 
     constructor() VaultToken("VaultToken", "VLT") {}
 
@@ -47,9 +46,9 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
         this.mint(msg.sender, amount);
     }
 
-    function writeOptions(OptionTerms memory optionTerms) public {
+    function writeOptions(OptionTerms memory optionTerms) public onlyOwner {
         IProtocolAdapter adapter =
-            IProtocolAdapter(ribbonFactory.getAdapter(_adapterName));
+            IProtocolAdapter(factory.getAdapter(_adapterName));
 
         adapter.delegateCreateShort(optionTerms, this.totalSupply());
     }

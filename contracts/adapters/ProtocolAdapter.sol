@@ -162,7 +162,7 @@ library ProtocolAdapter {
         IProtocolAdapter adapter,
         address rewardsAddress,
         uint256[] calldata optionIDs
-    ) external returns (uint256) {
+    ) external {
         (bool success, bytes memory result) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
@@ -172,8 +172,6 @@ library ProtocolAdapter {
                 )
             );
         require(success, getRevertMsg(result));
-        require(success, "claimRewards delegatecall failed");
-        return abi.decode(result, (uint256));
     }
 
     function getRevertMsg(bytes memory _returnData)

@@ -4,7 +4,7 @@ const deployments = require("../constants/deployments.json");
 const accounts = require("../constants/accounts.json");
 const volatilityJSON = require("../build/contracts/RibbonVolatility.json");
 const hegicOptionsJSON = require("../build/contracts/IHegicOptions.json");
-const getGasPrice = require("./helpers/getMedGasPrice");
+const getGasPrice = require("./helpers/getGasPrice");
 const { BN, ether } = require("@openzeppelin/test-helpers");
 const { ethers } = require("hardhat");
 
@@ -28,7 +28,7 @@ async function claimRewards() {
   const { network } = program;
   web3 = getWeb3(network);
 
-  const gasPrice = await getGasPrice();
+  const gasPrice = await getGasPrice(false);
   const { owner } = accounts[network];
   const volatilityContract = new web3.eth.Contract(volatilityJSON.abi, deployments[network].RibbonVolatilityLogic);
 

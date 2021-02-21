@@ -296,16 +296,13 @@ contract HegicAdapter is IProtocolAdapter {
      */
     function claimRewards(address rewardsAddress, uint256[] calldata optionIDs)
         external
-        returns (uint256)
     {
         IHegicRewards rewardsContract = IHegicRewards(rewardsAddress);
         uint256 i = 0;
-        uint256 j = 0;
         while (i < optionIDs.length) {
-          try rewardsContract.getReward(optionIDs[i]) {} catch {j+=1;}
+          rewardsContract.getReward(optionIDs[i]);
           i += 1;
         }
-        return i.sub(j);
     }
 
     /**

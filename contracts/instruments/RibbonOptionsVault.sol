@@ -74,9 +74,12 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
         currentOption = options;
     }
 
-    function sellOptions() public onlyManager {
+    function approveOptionsSale() public onlyManager {
         IERC20 optionToken = IERC20(currentOption);
-        optionToken.approve(address(_swapContract), this.totalSupply());
+        optionToken.approve(
+            address(_swapContract),
+            optionToken.balanceOf(address(this))
+        );
     }
 
     modifier onlyManager {

@@ -185,19 +185,6 @@ describe("RibbonOptionsVault", () => {
   });
 
   describe("signing an order message", () => {
-    time.revertToSnapshotAfterTest();
-
-    before(async function () {
-      this.premium = parseEther("0.1");
-      this.sellAmount = "100000000";
-
-      const weth = this.weth.connect(counterpartySigner);
-
-      await weth.deposit({ value: this.premium });
-
-      await weth.approve(SWAP_ADDRESS, this.premium);
-    });
-
     it("signs an order message", async function () {
       const sellToken = this.oTokenAddress;
       const buyToken = WETH_ADDRESS;
@@ -221,6 +208,42 @@ describe("RibbonOptionsVault", () => {
       assert.equal(ethers.utils.getAddress(signerToken), this.oTokenAddress);
       assert.equal(ethers.utils.getAddress(senderWallet), counterparty);
       assert.equal(ethers.utils.getAddress(senderToken), WETH_ADDRESS);
+    });
+  });
+
+  describe("#approveOptionsSale", () => {
+    let snapshotId;
+
+    beforeEach(async function () {
+      snapshotId = await time.takeSnapshot();
+
+      this.premium = parseEther("0.1");
+      this.depositAmount = parseEther("1");
+      this.sellAmount = "100000000";
+
+      const weth = this.weth.connect(counterpartySigner);
+      await weth.deposit({ value: this.premium });
+      await weth.approve(SWAP_ADDRESS, this.premium);
+
+      await this.vault.depositETH({ value: this.depositAmount });
+      await this.vault
+        .connect(managerSigner)
+        .writeOptions(this.optionTerms, { from: manager });
+    });
+
+    afterEach(async function () {
+      await time.revertToSnapShot(snapshotId);
+    });
+
+    it("creates approval for swap contract", async function () {
+      await this.vault.connect(managerSigner).approveOptionsSale();
+
+      assert.equal(
+        (
+          await this.oToken.allowance(this.vault.address, SWAP_ADDRESS)
+        ).toString(),
+        this.sellAmount
+      );
     });
   });
 });

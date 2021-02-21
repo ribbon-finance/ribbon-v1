@@ -21,7 +21,12 @@ describe("RibbonOptionsVault", () => {
     owner = ownerSigner.address;
     user = userSigner.address;
 
-    const { factory, protocolAdapterLib } = await getDefaultArgs();
+    const {
+      factory,
+      protocolAdapterLib,
+      gammaAdapter,
+    } = await getDefaultArgs();
+    await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address);
 
     const initializeTypes = ["address", "address"];
     const initializeArgs = [owner, factory.address];

@@ -44,6 +44,7 @@ const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const ETH_ADDRESS = constants.AddressZero;
 
 const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";
+const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
 const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
@@ -73,7 +74,6 @@ async function getDefaultArgs() {
   const admin = adminSigner.address;
   const owner = ownerSigner.address;
 
-  const Factory = await ethers.getContractFactory("RibbonFactory", owner);
   const HegicAdapter = await ethers.getContractFactory(
     "HegicAdapter",
     ownerSigner
@@ -110,9 +110,17 @@ async function getDefaultArgs() {
     WETH_ADDRESS
   );
 
-  gammaAdapter = await GammaAdapter.deploy(
+  let mockGammaAdapter = await GammaAdapter.deploy(
     OTOKEN_FACTORY,
     mockGammaController.address,
+    WETH_ADDRESS,
+    ZERO_EX_EXCHANGE,
+    UNISWAP_ROUTER
+  );
+
+  let gammaAdapter = await GammaAdapter.deploy(
+    OTOKEN_FACTORY,
+    GAMMA_CONTROLLER,
     WETH_ADDRESS,
     ZERO_EX_EXCHANGE,
     UNISWAP_ROUTER
@@ -128,6 +136,7 @@ async function getDefaultArgs() {
   return {
     factory,
     hegicAdapter,
+    mockGammaAdapter,
     gammaAdapter,
     mockGammaController,
     protocolAdapterLib,

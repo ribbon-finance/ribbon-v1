@@ -343,7 +343,6 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         uint256 depositAmount
     ) external payable override {
         IController controller = IController(gammaController);
-        console.log("address %", gammaController);
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);
 

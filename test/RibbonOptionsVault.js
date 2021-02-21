@@ -1,5 +1,6 @@
 const { expect, assert } = require("chai");
 const { ethers } = require("hardhat");
+const { getContractAt } = ethers;
 const { parseEther } = ethers.utils;
 
 const time = require("./helpers/time");
@@ -10,6 +11,7 @@ let userSigner, ownerSigner;
 
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 
 describe("RibbonOptionsVault", () => {
   let initSnapshotId;
@@ -53,6 +55,12 @@ describe("RibbonOptionsVault", () => {
       parseEther("960"),
       2,
     ];
+
+    this.oTokenAddress = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
+
+    this.oToken = await getContractAt("IERC20", this.oTokenAddress);
+
+    this.weth = await getContractAt("IERC20", WETH_ADDRESS);
   });
 
   after(async () => {
@@ -99,10 +107,24 @@ describe("RibbonOptionsVault", () => {
       ).to.be.revertedWith("caller is not the owner");
     });
 
-    it("mints oTokens", async function () {
+    it("mints oTokens and deposits collateral into vault", async function () {
+      const startMarginBalance = await this.weth.balanceOf(MARGIN_POOL);
+
       await this.vault
         .connect(ownerSigner)
         .writeOptions(this.optionTerms, { from: owner });
+
+      assert.equal(
+        (await this.weth.balanceOf(MARGIN_POOL))
+          .sub(startMarginBalance)
+          .toString(),
+        parseEther("1")
+      );
+
+      assert.equal(
+        await this.oToken.balanceOf(this.vault.address),
+        "100000000"
+      );
     });
   });
 });

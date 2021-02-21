@@ -38,7 +38,7 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
         require(_manager != address(0), "New manager cannot be 0x0");
         address currentManager = manager;
         if (currentManager != address(0)) {
-            _swapContract.revokeSigner(manager);
+            _swapContract.revokeSigner(currentManager);
         }
 
         manager = _manager;

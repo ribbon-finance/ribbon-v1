@@ -10,4 +10,6 @@ import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 
 contract OptionsVaultStorageV1 is Initializable, Ownable {
     IRibbonFactory public factory;
+    address public manager;
+    address public currentOption;
 }

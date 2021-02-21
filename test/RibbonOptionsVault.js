@@ -7,7 +7,7 @@ const time = require("./helpers/time");
 const { deployProxy, getDefaultArgs } = require("./helpers/utils");
 
 let owner, user;
-let userSigner, ownerSigner;
+let userSigner, ownerSigner, managerSigner;
 
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
@@ -19,9 +19,15 @@ describe("RibbonOptionsVault", () => {
   before(async function () {
     initSnapshotId = await time.takeSnapshot();
 
-    [adminSigner, ownerSigner, userSigner] = await ethers.getSigners();
+    [
+      adminSigner,
+      ownerSigner,
+      userSigner,
+      managerSigner,
+    ] = await ethers.getSigners();
     owner = ownerSigner.address;
     user = userSigner.address;
+    manager = managerSigner.address;
 
     const {
       factory,
@@ -47,6 +53,8 @@ describe("RibbonOptionsVault", () => {
       )
     ).connect(userSigner);
 
+    await this.vault.connect(ownerSigner).setManager(manager);
+
     this.optionTerms = [
       WETH_ADDRESS,
       USDC_ADDRESS,
@@ -65,6 +73,19 @@ describe("RibbonOptionsVault", () => {
 
   after(async () => {
     await time.revertToSnapShot(initSnapshotId);
+  });
+
+  describe("#setManager", () => {
+    it("reverts when not owner call", async function () {
+      await expect(this.vault.setManager(manager)).to.be.revertedWith(
+        "caller is not the owner"
+      );
+    });
+
+    it("sets the manager", async function () {
+      await this.vault.connect(ownerSigner).setManager(manager);
+      assert.equal(await this.vault.manager(), manager);
+    });
   });
 
   describe("#depositETH", () => {
@@ -111,8 +132,8 @@ describe("RibbonOptionsVault", () => {
       const startMarginBalance = await this.weth.balanceOf(MARGIN_POOL);
 
       await this.vault
-        .connect(ownerSigner)
-        .writeOptions(this.optionTerms, { from: owner });
+        .connect(managerSigner)
+        .writeOptions(this.optionTerms, { from: manager });
 
       assert.equal(
         (await this.weth.balanceOf(MARGIN_POOL))
@@ -125,6 +146,8 @@ describe("RibbonOptionsVault", () => {
         await this.oToken.balanceOf(this.vault.address),
         "100000000"
       );
+
+      assert.equal(await this.vault.currentOption(), this.oTokenAddress);
     });
   });
 });

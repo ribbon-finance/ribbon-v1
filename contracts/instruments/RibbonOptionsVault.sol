@@ -31,6 +31,12 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
         factory = IRibbonFactory(_factory);
     }
 
+    function setManager(address _manager) public onlyOwner {
+        manager = _manager;
+    }
+
+    function authorizeSales() public onlyOwner {}
+
     function depositETH() public payable {
         require(msg.value > 0, "No value passed");
         require(asset == _WETH, "Asset is not WETH");
@@ -46,10 +52,20 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
         this.mint(msg.sender, amount);
     }
 
-    function writeOptions(OptionTerms memory optionTerms) public onlyOwner {
+    function writeOptions(OptionTerms memory optionTerms) public onlyManager {
         IProtocolAdapter adapter =
             IProtocolAdapter(factory.getAdapter(_adapterName));
 
         adapter.delegateCreateShort(optionTerms, this.totalSupply());
+
+        address options = adapter.getOptionsAddress(optionTerms);
+        currentOption = options;
+    }
+
+    function sellOptions() public {}
+
+    modifier onlyManager {
+        require(msg.sender == manager, "Only manager");
+        _;
     }
 }

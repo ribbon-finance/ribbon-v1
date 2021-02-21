@@ -15,13 +15,17 @@ async function deployProxy(
   logicContractName,
   adminSigner,
   initializeTypes,
-  initializeArgs
+  initializeArgs,
+  factoryOptions
 ) {
   const AdminUpgradeabilityProxy = await ethers.getContractFactory(
     "AdminUpgradeabilityProxy",
     adminSigner
   );
-  const LogicContract = await ethers.getContractFactory(logicContractName);
+  const LogicContract = await ethers.getContractFactory(
+    logicContractName,
+    factoryOptions || {}
+  );
   const logic = await LogicContract.deploy();
 
   const initBytes = encodeCall("initialize", initializeTypes, initializeArgs);

@@ -462,7 +462,7 @@ function behavesLikeOTokens(params) {
       });
     });
 
-    describe.only("#createShort", () => {
+    describe("#createShort", () => {
       let snapshotId;
 
       beforeEach(async function () {

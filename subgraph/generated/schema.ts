@@ -114,6 +114,15 @@ export class InstrumentPosition extends Entity {
     this.set("venues", Value.fromStringArray(value));
   }
 
+  get expiry(): BigInt {
+    let value = this.get("expiry");
+    return value.toBigInt();
+  }
+
+  set expiry(value: BigInt) {
+    this.set("expiry", Value.fromBigInt(value));
+  }
+
   get exerciseProfit(): BigInt | null {
     let value = this.get("exerciseProfit");
     if (value === null || value.kind == ValueKind.NULL) {

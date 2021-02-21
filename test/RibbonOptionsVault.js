@@ -1,3 +1,4 @@
+const { assert } = require("chai");
 const { ethers } = require("hardhat");
 const { parseEther } = ethers.utils;
 
@@ -40,9 +41,12 @@ describe("RibbonOptionsVault", () => {
     await time.revertToSnapShot(initSnapshotId);
   });
 
-  describe("#deposit", () => {
+  describe("#depositETH", () => {
     it("deposits successfully", async function () {
-      await this.vault.deposit({ value: parseEther("1") });
+      const depositAmount = parseEther("1");
+      await this.vault.depositETH({ value: depositAmount });
+
+      assert.equal((await this.vault.totalSupply()).toString(), depositAmount);
     });
   });
 });

@@ -10,6 +10,7 @@ import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {GammaAdapter} from "../adapters/GammaAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
+import {ISwap} from "../interfaces/ISwap.sol";
 import {Ownable} from "../lib/Ownable.sol";
 import {VaultToken} from "./VaultToken.sol";
 import {OptionsVaultStorageV1} from "../storage/OptionsVaultStorage.sol";
@@ -21,6 +22,8 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
 
     string private constant _adapterName = "OPYN_GAMMA";
     address private constant _WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    ISwap private constant _swapContract =
+        ISwap(0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA);
 
     address public constant asset = _WETH;
 
@@ -35,7 +38,9 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
         manager = _manager;
     }
 
-    function authorizeSales() public onlyOwner {}
+    function authorizeOptionsSale() public onlyOwner {
+        _swapContract.authorizeSigner(manager);
+    }
 
     function depositETH() public payable {
         require(msg.value > 0, "No value passed");

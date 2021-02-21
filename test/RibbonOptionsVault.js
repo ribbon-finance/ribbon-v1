@@ -76,6 +76,8 @@ describe("RibbonOptionsVault", () => {
   });
 
   describe("#setManager", () => {
+    time.revertToSnapshotAfterTest();
+
     it("reverts when not owner call", async function () {
       await expect(this.vault.setManager(manager)).to.be.revertedWith(
         "caller is not the owner"
@@ -88,16 +90,18 @@ describe("RibbonOptionsVault", () => {
     });
   });
 
+  describe("#authorizeOptionsSale", () => {
+    time.revertToSnapshotAfterTest();
+
+    it("reverts when not owner call", async function () {
+      await expect(this.vault.authorizeOptionsSale()).to.be.revertedWith(
+        "caller is not the owner"
+      );
+    });
+  });
+
   describe("#depositETH", () => {
-    let snapshotId;
-
-    beforeEach(async function () {
-      snapshotId = await time.takeSnapshot();
-    });
-
-    afterEach(async () => {
-      await time.revertToSnapShot(snapshotId);
-    });
+    time.revertToSnapshotAfterTest();
 
     it("deposits successfully", async function () {
       const depositAmount = parseEther("1");
@@ -120,12 +124,12 @@ describe("RibbonOptionsVault", () => {
       await time.revertToSnapShot(snapshotId);
     });
 
-    it("reverts when not called with owner", async function () {
+    it("reverts when not called with manager", async function () {
       await expect(
         this.vault
           .connect(userSigner)
           .writeOptions(this.optionTerms, { from: user })
-      ).to.be.revertedWith("caller is not the owner");
+      ).to.be.revertedWith("Only manager");
     });
 
     it("mints oTokens and deposits collateral into vault", async function () {

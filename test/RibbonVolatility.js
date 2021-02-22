@@ -666,16 +666,18 @@ function behavesLikeRibbonVolatility(params) {
     });
 
      //REMOVE .skip to run
+     // Block Nbr used: 11896180
+
     describe.skip("#claimRewards", () => {
       let snapshotId;
       let rhegicContract;
-      let withSinger;
+      let withSigner;
       let prov = ethers.getDefaultProvider();
 
       beforeEach(async function () {
         snapshotId = await time.takeSnapshot();
         rhegicContract = new ethers.Contract(rHEGICJSON.address, rHEGICJSON.abi, prov);
-        withSinger = await rhegicContract.connect(await ethers.provider.getSigner(user));
+        withSigner = await rhegicContract.connect(await ethers.provider.getSigner(user));
       });
 
       afterEach(async () => {
@@ -683,31 +685,31 @@ function behavesLikeRibbonVolatility(params) {
       });
 
       it("can claim valid ETH rewards", async function () {
-        let balanceBefore1 = await withSinger.balanceOf("0x390df0394ef2930eae1e3a610202d644fc21127c");
-        let balanceBefore2 = await withSinger.balanceOf("0x0c1f3df3524c4a5c4d9e1471003800f9595a05d0");
+        let balanceBefore1 = await withSigner.balanceOf("0x390df0394ef2930eae1e3a610202d644fc21127c");
+        let balanceBefore2 = await withSigner.balanceOf("0x0c1f3df3524c4a5c4d9e1471003800f9595a05d0");
         const res = await this.contract.claimRewards(
                       HEGIC_PROTOCOL,
                       HEGIC_ETH_REWARDS,
                       [BigNumber.from("2975"), BigNumber.from("2974")]
                     )
         const receipt = await res.wait();
-        let balanceAfter1 = await withSinger.balanceOf("0x390df0394ef2930eae1e3a610202d644fc21127c");
-        let balanceAfter2 = await withSinger.balanceOf("0x0c1f3df3524c4a5c4d9e1471003800f9595a05d0");
+        let balanceAfter1 = await withSigner.balanceOf("0x390df0394ef2930eae1e3a610202d644fc21127c");
+        let balanceAfter2 = await withSigner.balanceOf("0x0c1f3df3524c4a5c4d9e1471003800f9595a05d0");
         assert.isAtLeast(balanceAfter1 - balanceBefore1, 1000000000000000000);
         assert.isAtLeast(balanceAfter2 - balanceBefore2, 1000000000000000000);
       });
 
       it("can claim valid WBTC rewards", async function () {
-        let balanceBefore1 = await withSinger.balanceOf("0x37f32c51882e2b7f5195d948cc386d925892d49b");
-        let balanceBefore2 = await withSinger.balanceOf("0x6b0bde6174bf2f10ed64bef05ec1df4ee4f1187b");
+        let balanceBefore1 = await withSigner.balanceOf("0x37f32c51882e2b7f5195d948cc386d925892d49b");
+        let balanceBefore2 = await withSigner.balanceOf("0x6b0bde6174bf2f10ed64bef05ec1df4ee4f1187b");
         const res = await this.contract.claimRewards(
                       HEGIC_PROTOCOL,
                       HEGIC_WBTC_REWARDS,
                       [BigNumber.from("1399"), BigNumber.from("1400")]
                     )
         const receipt = await res.wait();
-        let balanceAfter1 = await withSinger.balanceOf("0x37f32c51882e2b7f5195d948cc386d925892d49b");
-        let balanceAfter2 = await withSinger.balanceOf("0x6b0bde6174bf2f10ed64bef05ec1df4ee4f1187b");
+        let balanceAfter1 = await withSigner.balanceOf("0x37f32c51882e2b7f5195d948cc386d925892d49b");
+        let balanceAfter2 = await withSigner.balanceOf("0x6b0bde6174bf2f10ed64bef05ec1df4ee4f1187b");
         assert.isAtLeast(balanceAfter1 - balanceBefore1, 1000000000000000000);
         assert.isAtLeast(balanceAfter2 - balanceBefore2, 1000000000000000000);
       });
@@ -716,35 +718,35 @@ function behavesLikeRibbonVolatility(params) {
       // revert error matches what is expected
 
       it("reverts on invalid ETH optionid", async function () {
-        await expect(await this.contract.claimRewards(
+        await expect(this.contract.claimRewards(
                       HEGIC_PROTOCOL,
                       HEGIC_ETH_REWARDS,
                       [BigNumber.from("101")]
-                    )).to.be.reverted
+                    )).to.be.revertedWith("Wrong Option ID");
       });
 
       it("reverts on exercised ETH optionid", async function () {
-        await expect(await this.contract.claimRewards(
+        await expect(this.contract.claimRewards(
                       HEGIC_PROTOCOL,
                       HEGIC_ETH_REWARDS,
                       [BigNumber.from("2724")]
-                    )).to.be.reverted
+                    )).to.be.revertedWith("The option was rewarded");
       });
 
       it("reverts on invalid WBTC optionid", async function () {
-        await expect(await this.contract.claimRewards(
+        await expect(this.contract.claimRewards(
                       HEGIC_PROTOCOL,
                       HEGIC_WBTC_REWARDS,
                       [BigNumber.from("101")]
-                    )).to.be.reverted
+                    )).to.be.revertedWith("Wrong Option ID");
       });
 
       it("reverts on exercised WBTC optionid", async function () {
-        await expect(await this.contract.claimRewards(
+        await expect(this.contract.claimRewards(
                       HEGIC_PROTOCOL,
                       HEGIC_WBTC_REWARDS,
                       [BigNumber.from("1368")]
-                    )).to.be.reverted
+                    )).to.be.revertedWith("The option was rewarded");
       });
     });
   });

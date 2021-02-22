@@ -91,10 +91,8 @@ contract GammaAdapter is IProtocolAdapter {
 
     /**
      * @notice Gets the premium to buy `purchaseAmount` of the option contract in ETH terms.
-     * @param optionTerms is the terms of the option contract
-     * @param purchaseAmount is the purchase amount in Wad units (10**18)
      */
-    function premium(OptionTerms calldata optionTerms, uint256 purchaseAmount)
+    function premium(OptionTerms calldata , uint256 )
         external
         view
         override
@@ -154,10 +152,8 @@ contract GammaAdapter is IProtocolAdapter {
 
     /**
      * @notice Purchases the options contract.
-     * @param optionTerms is the terms of the option contract
-     * @param amount is the purchase amount in Wad units (10**18)
      */
-    function purchase(OptionTerms calldata optionTerms, uint256 amount)
+    function purchase(OptionTerms calldata , uint256 , uint256 )
         external
         payable
         override

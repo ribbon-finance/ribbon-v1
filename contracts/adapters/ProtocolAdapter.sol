@@ -43,7 +43,7 @@ library ProtocolAdapter {
         (bool success, bytes memory result) =
             address(adapter).staticcall(
                 abi.encodeWithSignature(
-                    "optionsExist((address,address,address,uint256,uint256,uint8))",
+                    "optionsExist((address,address,address,uint256,uint256,uint8,address))",
                     optionTerms
                 )
             );
@@ -58,7 +58,7 @@ library ProtocolAdapter {
         (bool success, bytes memory result) =
             address(adapter).staticcall(
                 abi.encodeWithSignature(
-                    "getOptionsAddress((address,address,address,uint256,uint256,uint8))",
+                    "getOptionsAddress((address,address,address,uint256,uint256,uint8,address))",
                     optionTerms
                 )
             );
@@ -75,7 +75,7 @@ library ProtocolAdapter {
         (bool success, bytes memory result) =
             address(adapter).staticcall(
                 abi.encodeWithSignature(
-                    "premium((address,address,address,uint256,uint256,uint8),uint256)",
+                    "premium((address,address,address,uint256,uint256,uint8,address),uint256)",
                     optionTerms,
                     purchaseAmount
                 )
@@ -107,14 +107,16 @@ library ProtocolAdapter {
     function delegatePurchase(
         IProtocolAdapter adapter,
         OptionTerms calldata optionTerms,
-        uint256 purchaseAmount
+        uint256 purchaseAmount,
+        uint256 maxCost
     ) external returns (uint256) {
         (bool success, bytes memory result) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
-                    "purchase((address,address,address,uint256,uint256,uint8),uint256)",
+                    "purchase((address,address,address,uint256,uint256,uint8,address),uint256,uint256)",
                     optionTerms,
-                    purchaseAmount
+                    purchaseAmount,
+                    maxCost
                 )
             );
         require(success, getRevertMsg(result));
@@ -129,7 +131,7 @@ library ProtocolAdapter {
         (bool success, bytes memory result) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
-                    "purchaseWithZeroEx((address,address,address,uint256,uint256,uint8),(address,address,address,address,uint256,uint256,uint256,bytes))",
+                    "purchaseWithZeroEx((address,address,address,uint256,uint256,uint8,address),(address,address,address,address,uint256,uint256,uint256,bytes))",
                     optionTerms,
                     zeroExOrder
                 )

@@ -665,7 +665,8 @@ function behavesLikeRibbonVolatility(params) {
       });
     });
 
-    describe("#claimRewards", () => {
+     //REMOVE .skip to run
+    describe.skip("#claimRewards", () => {
       let snapshotId;
       let rhegicContract;
       let withSinger;

@@ -37,7 +37,7 @@
   },
   "scripts": {
     "compile": "npx hardhat compile",
-    "test": "npx mocha --exit --recursive test/ --exclude test/RibbonVolatility.js -ig 'claimRewards'",
+    "test": "npx hardhat test",
     "verify": " npx truffle run verify RibbonFactory HegicAdapter GammaAdapter ProtocolAdapter AdminUpgradeabilityProxy RibbonVolatility --network mainnet --license MIT",
     "merge-contracts": "sol-merger  --export-plugin SPDXLicenseRemovePlugin \"./contracts/**/*.sol\" ./build/merged",
     "export-artefacts": "node ./scripts/exportArtefacts.js",

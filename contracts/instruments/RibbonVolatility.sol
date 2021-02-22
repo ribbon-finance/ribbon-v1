@@ -73,7 +73,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         string[] memory venues,
         OptionType[] memory optionTypes,
         uint256[] memory amounts,
-        uint256[] memory strikePrices
+        uint256[] memory strikePrices,
+        address paymentToken
     ) public view returns (uint256 totalPremium) {
         for (uint256 i = 0; i < venues.length; i++) {
             address adapterAddress = factory.getAdapter(venues[i]);
@@ -92,7 +93,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                         collateralAsset,
                         expiry,
                         strikePrices[i],
-                        optionTypes[i]
+                        optionTypes[i],
+                        paymentToken
                     )
                 );
             require(exists, "Options does not exist");
@@ -104,7 +106,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                     collateralAsset,
                     expiry,
                     strikePrices[i],
-                    optionTypes[i]
+                    optionTypes[i],
+                    paymentToken
                 ),
                 amounts[i]
             );
@@ -155,7 +158,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                         collateralAsset,
                         expiry,
                         strikePrice,
-                        optionType
+                        optionType,
+                        address(0) // paymentToken is not used at all nor stored in storage
                     )
                 );
 
@@ -211,7 +215,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                         collateralAsset,
                         expiry,
                         strikePrice,
-                        optionType
+                        optionType,
+                        address(0) // paymentToken is not used nor stored in storage
                     )
                 );
 
@@ -235,7 +240,9 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         OptionType[] memory optionTypes,
         uint256 amount,
         uint256[] memory strikePrices,
-        bytes[] memory buyData
+        bytes[] memory buyData,
+        address paymentToken, 
+        uint256[] memory maxCosts
     ) public payable nonReentrant returns (uint256 positionID) {
         require(venues.length >= 2, "Must have 2 or more venue");
         require(optionTypes.length >= 2, "Must have 2 or more optionTypes");
@@ -259,7 +266,9 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                     optionTypes[i],
                     amount,
                     strikePrices[i],
-                    buyData[i]
+                    buyData[i],
+                    paymentToken,
+                    maxCosts[i]
                 );
 
             if (!seenPut && optionTypes[i] == OptionType.Put) {
@@ -292,7 +301,9 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         OptionType optionType,
         uint256 amount,
         uint256 strikePrice,
-        bytes memory buyData
+        bytes memory buyData,
+        address paymentToken,
+        uint256 maxCost
     ) private returns (uint32 optionID) {
         address adapterAddress = factory.getAdapter(venue);
         require(adapterAddress != address(0), "Adapter does not exist");
@@ -312,10 +323,12 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                 adapter,
                 optionType,
                 amount,
-                strikePrice
+                strikePrice,
+                paymentToken,
+                maxCost
             );
         } else if (purchaseMethod == PurchaseMethod.ZeroEx) {
-            purchaseWithZeroEx(adapter, optionType, strikePrice, buyData);
+            purchaseWithZeroEx(adapter, optionType, strikePrice, buyData, paymentToken);
         }
     }
 
@@ -323,7 +336,9 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         IProtocolAdapter adapter,
         OptionType optionType,
         uint256 amount,
-        uint256 strikePrice
+        uint256 strikePrice,
+        address paymentToken,
+        uint256 maxCost
     ) private returns (uint32 optionID) {
         OptionTerms memory optionTerms =
             OptionTerms(
@@ -332,10 +347,11 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                 collateralAsset,
                 expiry,
                 strikePrice,
-                optionType
+                optionType,
+                paymentToken
             );
 
-        uint256 optionID256 = adapter.delegatePurchase(optionTerms, amount);
+        uint256 optionID256 = adapter.delegatePurchase(optionTerms, amount, maxCost);
         optionID = uint32(optionID256);
     }
 
@@ -343,7 +359,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         IProtocolAdapter adapter,
         OptionType optionType,
         uint256 strikePrice,
-        bytes memory buyData
+        bytes memory buyData,
+        address paymentToken
     ) private {
         OptionTerms memory optionTerms =
             OptionTerms(
@@ -352,7 +369,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                 collateralAsset,
                 expiry,
                 strikePrice,
-                optionType
+                optionType,
+                paymentToken
             );
 
         ZeroExOrder memory zeroExOrder = abi.decode(buyData, (ZeroExOrder));
@@ -391,6 +409,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                 optionID = position.putOptionID;
                 optionType = OptionType.Put;
             }
+            
+            address paymentToken = address(0); // it is irrelevant at this stage 
 
             address optionsAddress =
                 adapter.getOptionsAddress(
@@ -400,7 +420,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                         collateralAsset,
                         expiry,
                         strikePrice,
-                        optionType
+                        optionType,
+                        paymentToken
                     )
                 );
 

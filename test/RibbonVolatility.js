@@ -24,9 +24,12 @@ const protocolMap = {
 
 const ETH_ADDRESS = constants.AddressZero;
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
+
+const ONE_BTC = "100000000";
 
 describe("RibbonVolatility", () => {
   /**
@@ -36,7 +39,7 @@ describe("RibbonVolatility", () => {
 
   behavesLikeRibbonVolatility({
     name: "Hegic ITM Put, Hegic OTM Call",
-    underlying: ETH_ADDRESS,
+    underlying: WBTC_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: USDC_ADDRESS,
     venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
@@ -134,6 +137,8 @@ function behavesLikeRibbonVolatility(params) {
         apiResponses,
         collateralAsset,
         optionsExercised,
+        paymentToken,
+        maxCosts
       } = params;
       this.name = name;
       this.symbol = symbol;
@@ -149,7 +154,8 @@ function behavesLikeRibbonVolatility(params) {
       this.exerciseProfit = exerciseProfit;
       this.actualExerciseProfit = actualExerciseProfit;
       this.optionsExercised = optionsExercised;
-
+      this.paymentToken = paymentToken || ETH_ADDRESS;
+      this.maxCosts = maxCosts || [parseEther('9999999'), parseEther('999999')];
       this.apiResponses = apiResponses;
 
       this.premiums = venues.map((venue, i) => {
@@ -172,6 +178,7 @@ function behavesLikeRibbonVolatility(params) {
         (a, b) => a.add(b),
         BigNumber.from("0")
       );
+      if(this.paymentToken == WBTC_ADDRESS) this.totalPremium = new BN("0");
 
       this.cost = BigNumber.from("0");
       venues.forEach((venue, index) => {
@@ -281,7 +288,8 @@ function behavesLikeRibbonVolatility(params) {
               this.venues,
               this.optionTypes,
               this.amounts,
-              this.strikePrices
+              this.strikePrices,
+              this.paymentToken,
             )
           ).toString(),
           this.cost
@@ -305,6 +313,8 @@ function behavesLikeRibbonVolatility(params) {
           this.amounts[0],
           this.strikePrices,
           this.buyData,
+          this.paymentToken,
+          this.maxCosts,
           {
             from: user,
             value: this.totalPremium,
@@ -387,6 +397,8 @@ function behavesLikeRibbonVolatility(params) {
             this.amounts[0],
             this.strikePrices,
             this.buyData,
+            this.paymentToken,
+            this.maxCosts,
             {
               from: user,
               value: this.totalPremium,
@@ -403,6 +415,8 @@ function behavesLikeRibbonVolatility(params) {
           this.amounts[0],
           this.strikePrices,
           this.buyData,
+          this.paymentToken,
+          this.maxCosts,
           {
             from: user,
             value: this.totalPremium,
@@ -491,6 +505,8 @@ function behavesLikeRibbonVolatility(params) {
           this.amounts[0],
           this.strikePrices,
           this.buyData,
+          this.paymentToken,
+          this.maxCosts,
           {
             from: user,
             value: this.totalPremium,
@@ -514,6 +530,8 @@ function behavesLikeRibbonVolatility(params) {
           this.amounts[0],
           this.strikePrices,
           this.buyData,
+          this.paymentToken,
+          this.maxCosts,
           {
             from: user,
             value: this.totalPremium,
@@ -608,6 +626,8 @@ function behavesLikeRibbonVolatility(params) {
           this.amounts[0],
           this.strikePrices,
           this.buyData,
+          this.paymentToken,
+          this.maxCosts,
           {
             from: user,
             value: this.totalPremium,
@@ -644,6 +664,8 @@ function behavesLikeRibbonVolatility(params) {
           this.amounts[0],
           this.strikePrices,
           this.buyData,
+          this.paymentToken,
+          this.maxCosts,
           {
             from: user,
             value: this.totalPremium,

@@ -22,6 +22,12 @@ import {
     IHegicBTCOptions
 } from "../interfaces/HegicInterface.sol";
 
+import {
+    ISwapPair
+} from "../interfaces/ISwapPair.sol";
+
+import { IWETH } from "../interfaces/IWETH.sol";
+
 contract HegicAdapter is IProtocolAdapter {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -114,10 +120,12 @@ contract HegicAdapter is IProtocolAdapter {
         override
         returns (uint256 cost)
     {
+        require(optionTerms.paymentToken == address(0) || optionTerms.paymentToken == ethAddress || optionTerms.paymentToken == wbtcAddress, "invalid paymentToken");
         require(
             block.timestamp < optionTerms.expiry,
             "Cannot purchase after expiry"
         );
+        
         uint256 period = optionTerms.expiry.sub(block.timestamp);
         uint256 scaledStrikePrice =
             scaleDownStrikePrice(optionTerms.strikePrice);
@@ -136,11 +144,12 @@ contract HegicAdapter is IProtocolAdapter {
                 scaledStrikePrice,
                 HegicOptionType(uint8(optionTerms.optionType))
             );
-            if(optionTerms.paymentToken == wbtcAddress){
-                cost = _getAmountsIn(cost);
-            }
         } else {
             require(false, "No matching underlying");
+        }
+        // covering ETH options being paid in WBTC (it does not make much sense but covers all cases without extra logic) 
+        if(optionTerms.paymentToken == wbtcAddress){
+            cost = _getAmountsIn(cost);
         }
     }
 
@@ -148,7 +157,7 @@ contract HegicAdapter is IProtocolAdapter {
         // custom sortTokens + getReserves
         uint reserveIn;
         uint reserveOut;
-        (uint reserve0, uint reserve1) = ethWbtcPair.getReserves();
+        (uint reserve0, uint reserve1, ) = ethWbtcPair.getReserves();
         (reserveIn, reserveOut) = ethAddress < wbtcAddress ? (reserve1, reserve0) : (reserve0, reserve1);
 
         // getAmountIn
@@ -247,24 +256,32 @@ contract HegicAdapter is IProtocolAdapter {
             block.timestamp < optionTerms.expiry,
             "Cannot purchase after expiry"
         );
-        uint256 cost = premium(optionTerms, amount);
+        
+        uint256 cost = premium(
+            OptionTerms(
+                optionTerms.underlying,
+                optionTerms.strikeAsset,
+                optionTerms.collateralAsset,
+                optionTerms.expiry,
+                optionTerms.strikePrice,
+                optionTerms.optionType,
+                address(0) // to receive the cost in ETH (address(0) is cheaper than address(ethAddress)) 
+            ), amount);
 
         uint256 scaledStrikePrice =
             scaleDownStrikePrice(optionTerms.strikePrice);
         uint256 period = optionTerms.expiry.sub(block.timestamp);
         IHegicOptions options = getHegicOptions(optionTerms.underlying);
-        require(msg.value >= cost, "Value does not cover cost");
 
         // swap for ETH if ETH has not been provided as paymentToken
-        if(optionTerms.paymentToken == wbtcAddress){ // gas optimisation: gascost of loading a immutable vs loading msg.value?
-            require(msg.value == 0, "Invalid paymentToken");
-            require(maxCost <= cost, "Cost too high");
-            IERC20(optionTerms.paymentToken).safeTransferFrom(msg.sender, address(ethWbtcPair), cost);
-            uint amount0Out;
-            uint amount1Out;
-            (amount0Out, amount1Out) = ethAddress < optionTerms.paymentToken ? (0, cost) : (cost, 0);
-            ethWbtcPair.swap(amount0Out, amount1Out, address(this), "");
-            IWETH(ethAddress).withdraw(cost); // if using WETH this will not be needed
+        if(optionTerms.paymentToken == wbtcAddress) { // potential gas optimisation: gascost of loading an immutable vs loading msg.value?
+            require(msg.value == 0, "Invalid paymentToken or msg.value");
+            uint costWBTC = _getAmountsIn(cost);
+            require(maxCost >= costWBTC, "MaxCost too low");
+            _swapWBTCToETH(costWBTC, cost);
+        } else {
+            require(msg.value >= cost, "Value does not cover cost");
+            //if(msg.value > cost) payable(msg.sender).transfer(msg.value.sub(cost)); // in case the user sends more ETH than required
         }
 
         optionID = options.create{value: cost}(
@@ -286,6 +303,15 @@ contract HegicAdapter is IProtocolAdapter {
             cost,
             optionID
         );
+    }
+
+    function _swapWBTCToETH(uint costWBTC, uint costETH) internal {
+        IERC20(wbtcAddress).safeTransferFrom(msg.sender, address(ethWbtcPair), costWBTC);
+        uint amount0Out;
+        uint amount1Out;
+        (amount0Out, amount1Out) = ethAddress < wbtcAddress ? (uint(0), costETH) : (costETH, uint(0)); // this could be fixed as we know wbtcAddress and ethAddress addresses BUT would change if these change
+        ethWbtcPair.swap(amount0Out, amount1Out, address(this), ""); 
+        IWETH(ethAddress).withdraw(costETH); // if using WETH to pay Hegic this will not be needed
     }
 
     /**

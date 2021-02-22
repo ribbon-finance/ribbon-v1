@@ -37,6 +37,60 @@ describe("RibbonVolatility", () => {
    * Current price for BTC-USD = ~$38000
    */
 
+  // behavesLikeRibbonVolatility({
+  //   name: "Hegic ITM Put, Hegic OTM Call (ETH)",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   amounts: [ether("1"), ether("1")],
+  //   strikePrices: [ether("1300"), ether("1300")],
+  //   paymentToken: ETH_ADDRESS,
+  //   maxCosts: [ether("9999999"), ether("9999999")],
+  //   premiums: [new BN("296363339171109209"), new BN("0")],
+  //   purchaseAmount: ether("1"),
+  //   optionIDs: ["2353", "2354"],
+  //   exerciseProfit: new BN("154765182941453405"),
+  //   actualExerciseProfit: new BN("154765182941453405"),
+  // });
+
+  // behavesLikeRibbonVolatility({
+  //   name: "Hegic OTM Put, Hegic OTM Call (ETH)",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   amounts: [ether("1"), ether("1")],
+  //   strikePrices: [ether("900"), ether("1300")],
+  //   paymentToken: ETH_ADDRESS,
+  //   maxCosts: [ether("9999999"), ether("9999999")],
+  //   premiums: [new BN("120217234727039817"), new BN("0")],
+  //   purchaseAmount: ether("1"),
+  //   optionIDs: ["2353", "2354"],
+  //   exerciseProfit: new BN("0"),
+  //   actualExerciseProfit: new BN("0"),
+  // });
+
+  // behavesLikeRibbonVolatility({
+  //   name: "Hegic OTM Put, Hegic ITM Call (ETH)",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   amounts: [ether("1"), ether("1")],
+  //   strikePrices: [ether("900"), ether("900")],
+  //   paymentToken: ETH_ADDRESS,
+  //   maxCosts: [ether("9999999"), ether("9999999")],
+  //   premiums: [new BN("343924487476973783"), new BN("0")],
+  //   purchaseAmount: ether("1"),
+  //   optionIDs: ["2353", "2354"],
+  //   exerciseProfit: new BN("200547181040532257"),
+  //   actualExerciseProfit: new BN("200547181040532257"),
+  // });
+
   behavesLikeRibbonVolatility({
     name: "Hegic ITM Put, Hegic OTM Call (ETH)",
     underlying: ETH_ADDRESS,

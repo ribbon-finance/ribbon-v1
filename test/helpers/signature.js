@@ -1,4 +1,4 @@
-const { createOrder, signOrder } = require("@airswap/utils");
+const { createOrder, signOrder, getOrderHash } = require("@airswap/utils");
 
 module.exports = {
   signOrderForSwap,
@@ -15,18 +15,17 @@ async function signOrderForSwap({
   buyAmount,
   signer,
 }) {
-  const order = createOrder({
+  let order = createOrder({
     signer: {
       wallet: vaultAddress,
       token: sellToken,
-      amount: sellAmount,
     },
     sender: {
       wallet: counterpartyAddress,
       token: buyToken,
-      amount: buyAmount,
     },
   });
+
   const signedOrder = await signOrder(order, signer, SWAP_CONTRACT);
   return signedOrder;
 }

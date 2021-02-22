@@ -1,4 +1,5 @@
 const { expect, assert } = require("chai");
+const { BigNumber } = require("ethers");
 const { ethers } = require("hardhat");
 const { signOrderForSwap } = require("./helpers/signature");
 const { constants, getContractAt } = ethers;
@@ -74,7 +75,7 @@ describe("RibbonOptionsVault", () => {
 
     this.weth = await getContractAt("IWETH", WETH_ADDRESS);
 
-    this.swap = await getContractAt("ISwap", SWAP_ADDRESS);
+    this.airswap = await getContractAt("ISwap", SWAP_ADDRESS);
   });
 
   after(async () => {
@@ -112,7 +113,7 @@ describe("RibbonOptionsVault", () => {
       await this.vault.connect(ownerSigner).setManager(manager);
       assert.equal(await this.vault.manager(), manager);
       assert.isTrue(
-        await this.swap.signerAuthorizations(this.vault.address, manager)
+        await this.airswap.signerAuthorizations(this.vault.address, manager)
       );
     });
 
@@ -121,10 +122,10 @@ describe("RibbonOptionsVault", () => {
       await this.vault.connect(ownerSigner).setManager(manager);
       assert.equal(await this.vault.manager(), manager);
       assert.isFalse(
-        await this.swap.signerAuthorizations(this.vault.address, owner)
+        await this.airswap.signerAuthorizations(this.vault.address, owner)
       );
       assert.isTrue(
-        await this.swap.signerAuthorizations(this.vault.address, manager)
+        await this.airswap.signerAuthorizations(this.vault.address, manager)
       );
     });
   });
@@ -219,7 +220,7 @@ describe("RibbonOptionsVault", () => {
 
       this.premium = parseEther("0.1");
       this.depositAmount = parseEther("1");
-      this.sellAmount = "100000000";
+      this.sellAmount = BigNumber.from("100000000");
 
       const weth = this.weth.connect(counterpartySigner);
       await weth.deposit({ value: this.premium });
@@ -244,6 +245,24 @@ describe("RibbonOptionsVault", () => {
         ).toString(),
         this.sellAmount
       );
+    });
+
+    it("completes the trade with the counterparty", async function () {
+      const signedOrder = await signOrderForSwap({
+        vaultAddress: this.vault.address,
+        counterpartyAddress: counterparty,
+        signer: managerSigner,
+        sellToken: this.oTokenAddress,
+        buyToken: WETH_ADDRESS,
+        sellAmount: this.sellAmount.toString(),
+        buyAmount: this.premium.toString(),
+      });
+
+      console.log(signedOrder);
+
+      await this.vault.connect(managerSigner).approveOptionsSale();
+
+      await this.airswap.connect(counterpartySigner).swap(order);
     });
   });
 });

@@ -19,10 +19,12 @@ async function signOrderForSwap({
     signer: {
       wallet: vaultAddress,
       token: sellToken,
+      amount: sellAmount,
     },
     sender: {
       wallet: counterpartyAddress,
       token: buyToken,
+      amount: buyAmount,
     },
   });
 

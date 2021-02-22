@@ -14,10 +14,10 @@
   dependencies:
     openzeppelin-solidity "2.4"
 
-"@airswap/utils@^0.3.21":
-  version "0.3.21"
-  resolved "https://registry.yarnpkg.com/@airswap/utils/-/utils-0.3.21.tgz#3660e695909cefc5c0f17546d19927af86e2c5f6"
-  integrity sha512-7AWGtW2znmhVrucntyVNtNIg7wW8RrRjbkHxg/dQr2cEroDE6zx6FZx8h0mECln1oRmqrzjCx8rQDGO7yGU/7g==
+"@airswap/utils@^0.4.0":
+  version "0.4.0"
+  resolved "https://registry.yarnpkg.com/@airswap/utils/-/utils-0.4.0.tgz#5c0b97be748a356cd25cd6b83d298e4f13e2aae9"
+  integrity sha512-WHoflfpqXUNk4i7Nu3rJHhi3GkZgWc6gKbtVdffBKlx50qyxzqQYrdUDxwnRuUhBDI1tCAUL1fMMIH6AO0TwQA==
   dependencies:
     "@airswap/constants" "0.3.10"
     "@airswap/types" "3.5.14"

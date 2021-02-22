@@ -189,6 +189,8 @@ describe("RibbonOptionsVault", () => {
     it("signs an order message", async function () {
       const sellToken = this.oTokenAddress;
       const buyToken = WETH_ADDRESS;
+      const buyAmount = parseEther("0.1");
+      const sellAmount = BigNumber.from("100000000");
 
       const signedOrder = await signOrderForSwap({
         vaultAddress: this.vault.address,
@@ -196,19 +198,29 @@ describe("RibbonOptionsVault", () => {
         signer: managerSigner,
         sellToken,
         buyToken,
-        sellAmount: this.sellAmount,
-        buyAmount: this.premium.toString(),
+        sellAmount: sellAmount.toString(),
+        buyAmount: buyAmount.toString(),
       });
 
       const { signatory, validator } = signedOrder.signature;
-      const { wallet: signerWallet, token: signerToken } = signedOrder.signer;
-      const { wallet: senderWallet, token: senderToken } = signedOrder.sender;
+      const {
+        wallet: signerWallet,
+        token: signerToken,
+        amount: signerAmount,
+      } = signedOrder.signer;
+      const {
+        wallet: senderWallet,
+        token: senderToken,
+        amount: senderAmount,
+      } = signedOrder.sender;
       assert.equal(ethers.utils.getAddress(signatory), manager);
       assert.equal(ethers.utils.getAddress(validator), SWAP_ADDRESS);
       assert.equal(ethers.utils.getAddress(signerWallet), this.vault.address);
       assert.equal(ethers.utils.getAddress(signerToken), this.oTokenAddress);
       assert.equal(ethers.utils.getAddress(senderWallet), counterparty);
       assert.equal(ethers.utils.getAddress(senderToken), WETH_ADDRESS);
+      assert.equal(signerAmount, sellAmount);
+      assert.equal(senderAmount, buyAmount.toString());
     });
   });
 
@@ -257,12 +269,11 @@ describe("RibbonOptionsVault", () => {
         sellAmount: this.sellAmount.toString(),
         buyAmount: this.premium.toString(),
       });
-
       console.log(signedOrder);
 
       await this.vault.connect(managerSigner).approveOptionsSale();
 
-      await this.airswap.connect(counterpartySigner).swap(order);
+      await this.airswap.connect(counterpartySigner).swap(signedOrder);
     });
   });
 });

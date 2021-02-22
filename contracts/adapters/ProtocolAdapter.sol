@@ -146,6 +146,22 @@ library ProtocolAdapter {
         return abi.decode(res, (uint256));
     }
 
+    function delegateClaimRewards(
+        IProtocolAdapter adapter,
+        address rewardsAddress,
+        uint256[] calldata optionIDs
+    ) external {
+        (bool success, bytes memory result) =
+            address(adapter).delegatecall(
+                abi.encodeWithSignature(
+                    "claimRewards(address,uint256[])",
+                    rewardsAddress,
+                    optionIDs
+                )
+            );
+        require(success, getRevertMsg(result));
+    }
+
     function getRevertMsg(bytes memory _returnData)
         internal
         pure

@@ -38,8 +38,8 @@ describe("RibbonVolatility", () => {
    */
 
   behavesLikeRibbonVolatility({
-    name: "Hegic ITM Put, Hegic OTM Call",
-    underlying: WBTC_ADDRESS,
+    name: "Hegic ITM Put, Hegic OTM Call (ETH)",
+    underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: USDC_ADDRESS,
     venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
@@ -55,7 +55,7 @@ describe("RibbonVolatility", () => {
   });
 
   behavesLikeRibbonVolatility({
-    name: "Hegic OTM Put, Hegic OTM Call",
+    name: "Hegic OTM Put, Hegic OTM Call (ETH)",
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: USDC_ADDRESS,
@@ -72,7 +72,7 @@ describe("RibbonVolatility", () => {
   });
 
   behavesLikeRibbonVolatility({
-    name: "Hegic OTM Put, Hegic ITM Call",
+    name: "Hegic OTM Put, Hegic ITM Call (ETH)",
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: USDC_ADDRESS,

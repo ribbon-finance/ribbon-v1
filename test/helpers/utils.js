@@ -99,8 +99,7 @@ async function getDefaultArgs() {
     HEGIC_WBTC_OPTIONS,
     ETH_ADDRESS,
     WBTC_ADDRESS,
-    ETH_WBTC_PAIR_ADDRESS,
-    { from: owner }
+    ETH_WBTC_PAIR_ADDRESS
   );
 
   mockGammaController = await MockGammaController.deploy(

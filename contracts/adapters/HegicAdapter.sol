@@ -19,7 +19,8 @@ import {
     IHegicOptions,
     HegicOptionType,
     IHegicETHOptions,
-    IHegicBTCOptions
+    IHegicBTCOptions,
+    IHegicRewards
 } from "../interfaces/HegicInterface.sol";
 
 contract HegicAdapter is IProtocolAdapter {
@@ -286,6 +287,22 @@ contract HegicAdapter is IProtocolAdapter {
         }
 
         emit Exercised(account, optionsAddress, optionID, amount, profit);
+    }
+
+    /**
+     * @notice Function to bulk claim rHEGIC2 rewards from liquidity utilization
+     * @param rewardsAddress is the address of the rewards contract (either for eth or wbtc)
+     * @param optionIDs is an array of all the option ids we want to claim rewards for
+     */
+    function claimRewards(address rewardsAddress, uint256[] calldata optionIDs)
+        external
+    {
+        IHegicRewards rewardsContract = IHegicRewards(rewardsAddress);
+        uint256 i = 0;
+        while (i < optionIDs.length) {
+          rewardsContract.getReward(optionIDs[i]);
+          i += 1;
+        }
     }
 
     /**

@@ -150,5 +150,6 @@ interface IProtocolAdapter {
 
     function createShort(OptionTerms calldata optionTerms, uint256 amount)
         external
-        payable;
+        payable
+        returns (uint256);
 }

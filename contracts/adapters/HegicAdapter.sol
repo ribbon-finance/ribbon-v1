@@ -292,7 +292,10 @@ contract HegicAdapter is IProtocolAdapter {
         public
         payable
         override
-    {}
+        returns (uint256)
+    {
+        return 0;
+    }
 
     /**
      * @notice Helper function to get the options address based on the underlying asset

@@ -1,5 +1,7 @@
 const { expect, assert } = require("chai");
+const { BigNumber } = require("ethers");
 const { ethers } = require("hardhat");
+const { signOrderForSwap } = require("./helpers/signature");
 const { constants, getContractAt } = ethers;
 const { parseEther } = ethers.utils;
 
@@ -7,7 +9,7 @@ const time = require("./helpers/time");
 const { deployProxy, getDefaultArgs } = require("./helpers/utils");
 
 let owner, user;
-let userSigner, ownerSigner, managerSigner;
+let userSigner, ownerSigner, managerSigner, counterpartySigner;
 
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
@@ -25,10 +27,17 @@ describe("RibbonOptionsVault", () => {
       ownerSigner,
       userSigner,
       managerSigner,
+      counterpartySigner,
     ] = await ethers.getSigners();
     owner = ownerSigner.address;
     user = userSigner.address;
     manager = managerSigner.address;
+    counterparty = counterpartySigner.address;
+
+    this.managerWallet = ethers.Wallet.fromMnemonic(
+      process.env.TEST_MNEMONIC,
+      "m/44'/60'/0'/0/3"
+    );
 
     const {
       factory,
@@ -69,9 +78,9 @@ describe("RibbonOptionsVault", () => {
 
     this.oToken = await getContractAt("IERC20", this.oTokenAddress);
 
-    this.weth = await getContractAt("IERC20", WETH_ADDRESS);
+    this.weth = await getContractAt("IWETH", WETH_ADDRESS);
 
-    this.swap = await getContractAt("ISwap", SWAP_ADDRESS);
+    this.airswap = await getContractAt("ISwap", SWAP_ADDRESS);
   });
 
   after(async () => {
@@ -109,7 +118,7 @@ describe("RibbonOptionsVault", () => {
       await this.vault.connect(ownerSigner).setManager(manager);
       assert.equal(await this.vault.manager(), manager);
       assert.isTrue(
-        await this.swap.signerAuthorizations(this.vault.address, manager)
+        await this.airswap.signerAuthorizations(this.vault.address, manager)
       );
     });
 
@@ -118,10 +127,10 @@ describe("RibbonOptionsVault", () => {
       await this.vault.connect(ownerSigner).setManager(manager);
       assert.equal(await this.vault.manager(), manager);
       assert.isFalse(
-        await this.swap.signerAuthorizations(this.vault.address, owner)
+        await this.airswap.signerAuthorizations(this.vault.address, owner)
       );
       assert.isTrue(
-        await this.swap.signerAuthorizations(this.vault.address, manager)
+        await this.airswap.signerAuthorizations(this.vault.address, manager)
       );
     });
   });
@@ -178,6 +187,123 @@ describe("RibbonOptionsVault", () => {
       );
 
       assert.equal(await this.vault.currentOption(), this.oTokenAddress);
+    });
+  });
+
+  describe("signing an order message", () => {
+    it("signs an order message", async function () {
+      const sellToken = this.oTokenAddress;
+      const buyToken = WETH_ADDRESS;
+      const buyAmount = parseEther("0.1");
+      const sellAmount = BigNumber.from("100000000");
+
+      const signedOrder = await signOrderForSwap({
+        vaultAddress: this.vault.address,
+        counterpartyAddress: counterparty,
+        signerPrivateKey: this.managerWallet.privateKey,
+        sellToken,
+        buyToken,
+        sellAmount: sellAmount.toString(),
+        buyAmount: buyAmount.toString(),
+      });
+
+      const { signatory, validator } = signedOrder.signature;
+      const {
+        wallet: signerWallet,
+        token: signerToken,
+        amount: signerAmount,
+      } = signedOrder.signer;
+      const {
+        wallet: senderWallet,
+        token: senderToken,
+        amount: senderAmount,
+      } = signedOrder.sender;
+      assert.equal(ethers.utils.getAddress(signatory), manager);
+      assert.equal(ethers.utils.getAddress(validator), SWAP_ADDRESS);
+      assert.equal(ethers.utils.getAddress(signerWallet), this.vault.address);
+      assert.equal(ethers.utils.getAddress(signerToken), this.oTokenAddress);
+      assert.equal(ethers.utils.getAddress(senderWallet), counterparty);
+      assert.equal(ethers.utils.getAddress(senderToken), WETH_ADDRESS);
+      assert.equal(signerAmount, sellAmount);
+      assert.equal(senderAmount, buyAmount.toString());
+    });
+  });
+
+  describe("#approveOptionsSale", () => {
+    let snapshotId;
+
+    beforeEach(async function () {
+      snapshotId = await time.takeSnapshot();
+
+      this.premium = parseEther("0.1");
+      this.depositAmount = parseEther("1");
+      this.sellAmount = BigNumber.from("100000000");
+
+      const weth = this.weth.connect(counterpartySigner);
+      await weth.deposit({ value: this.premium });
+      await weth.approve(SWAP_ADDRESS, this.premium);
+
+      await this.vault.depositETH({ value: this.depositAmount });
+      await this.vault
+        .connect(managerSigner)
+        .writeOptions(this.optionTerms, { from: manager });
+    });
+
+    afterEach(async function () {
+      await time.revertToSnapShot(snapshotId);
+    });
+
+    it("creates approval for swap contract", async function () {
+      await this.vault.connect(managerSigner).approveOptionsSale();
+
+      assert.equal(
+        (
+          await this.oToken.allowance(this.vault.address, SWAP_ADDRESS)
+        ).toString(),
+        this.sellAmount
+      );
+    });
+
+    it("completes the trade with the counterparty", async function () {
+      const startSellTokenBalance = await this.oToken.balanceOf(
+        this.vault.address
+      );
+      const startBuyTokenBalance = await this.weth.balanceOf(
+        this.vault.address
+      );
+
+      const signedOrder = await signOrderForSwap({
+        vaultAddress: this.vault.address,
+        counterpartyAddress: counterparty,
+        signerPrivateKey: this.managerWallet.privateKey,
+        sellToken: this.oTokenAddress,
+        buyToken: WETH_ADDRESS,
+        sellAmount: this.sellAmount.toString(),
+        buyAmount: this.premium.toString(),
+      });
+
+      await this.vault.connect(managerSigner).approveOptionsSale();
+
+      const res = await this.airswap
+        .connect(counterpartySigner)
+        .swap(signedOrder);
+
+      expect(res)
+        .to.emit(this.oToken, "Transfer")
+        .withArgs(this.vault.address, counterparty, this.sellAmount);
+
+      expect(res)
+        .to.emit(this.weth, "Transfer")
+        .withArgs(counterparty, this.vault.address, this.premium);
+
+      assert.deepEqual(
+        await this.oToken.balanceOf(this.vault.address),
+        startSellTokenBalance.sub(this.sellAmount)
+      );
+      assert.deepEqual(
+        await this.weth.balanceOf(this.vault.address),
+        startBuyTokenBalance.add(this.premium)
+      );
     });
   });
 });

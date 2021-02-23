@@ -323,6 +323,7 @@ contract HegicAdapter is IProtocolAdapter {
         external
     {
         IHegicRewards rewardsContract = IHegicRewards(rewardsAddress);
+<<<<<<< HEAD
 
         uint256 i = 0;
 
@@ -336,6 +337,13 @@ contract HegicAdapter is IProtocolAdapter {
         uint256 balanceAfter = rewardsContract.hegic().balanceOf(address(this));
 
         rewardsContract.hegic().safeTransfer(msg.sender, balanceAfter.sub(balanceBefore));
+=======
+        uint256 i = 0;
+        while (i < optionIDs.length) {
+          rewardsContract.getReward(optionIDs[i]);
+          i += 1;
+        }
+>>>>>>> 5bb452020fe5b71e487f03e64409d8c51ac39f75
     }
 
     /**

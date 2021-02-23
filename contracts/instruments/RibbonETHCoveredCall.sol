@@ -33,6 +33,15 @@ contract RibbonETHCoveredCall is ERC20, OptionsVaultStorageV1 {
     ExchangeMechanism public constant exchangeMechanism =
         ExchangeMechanism.AirSwap;
 
+    // 5 basis points for an instant withdrawal
+    uint256 public constant instantWithdrawalFee = 0.0005 ether;
+
+    // Users can withdraw for free but have to wait for 7 days
+    uint256 public constant freeWithdrawPeriod = 7 days;
+
+    // Contract which holds the fees
+    address public feeTo;
+
     event ManagerChanged(address oldManager, address newManager);
 
     event Deposited(address account, uint256 amouunt);
@@ -50,6 +59,7 @@ contract RibbonETHCoveredCall is ERC20, OptionsVaultStorageV1 {
     function initialize(address _owner, address _factory) public initializer {
         Ownable.initialize(_owner);
         factory = IRibbonFactory(_factory);
+        feeTo = address(this);
     }
 
     function setManager(address _manager) public onlyOwner {
@@ -85,25 +95,20 @@ contract RibbonETHCoveredCall is ERC20, OptionsVaultStorageV1 {
             IProtocolAdapter(factory.getAdapter(_adapterName));
 
         uint256 shortAmount = this.totalSupply();
-        adapter.delegateCreateShort(optionTerms, shortAmount);
+        uint256 shortBalance =
+            adapter.delegateCreateShort(optionTerms, shortAmount);
 
         address options = adapter.getOptionsAddress(optionTerms);
+
+        IERC20 optionToken = IERC20(options);
+        optionToken.approve(address(_swapContract), shortBalance);
+
         currentOption = options;
 
         emit WriteOptions(msg.sender, options, shortAmount);
     }
 
-    function approveOptionsSale() public onlyManager {
-        IERC20 optionToken = IERC20(currentOption);
-        uint256 optionBalance = optionToken.balanceOf(address(this));
-        optionToken.approve(address(_swapContract), optionBalance);
-
-        emit OptionsSaleApproved(
-            msg.sender,
-            address(optionToken),
-            optionBalance
-        );
-    }
+    function mint(address account, uint256 amount) public {}
 
     function name() public pure override returns (string memory) {
         return _tokenName;

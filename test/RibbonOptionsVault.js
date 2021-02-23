@@ -146,50 +146,6 @@ describe("RibbonETHCoveredCall", () => {
     });
   });
 
-  describe("#writeOptions", () => {
-    let snapshotId;
-
-    beforeEach(async function () {
-      snapshotId = await time.takeSnapshot();
-      this.depositAmount = parseEther("1");
-      await this.vault.depositETH({ value: this.depositAmount });
-    });
-
-    afterEach(async () => {
-      await time.revertToSnapShot(snapshotId);
-    });
-
-    it("reverts when not called with manager", async function () {
-      await expect(
-        this.vault
-          .connect(userSigner)
-          .writeOptions(this.optionTerms, { from: user })
-      ).to.be.revertedWith("Only manager");
-    });
-
-    it("mints oTokens and deposits collateral into vault", async function () {
-      const startMarginBalance = await this.weth.balanceOf(MARGIN_POOL);
-
-      await this.vault
-        .connect(managerSigner)
-        .writeOptions(this.optionTerms, { from: manager });
-
-      assert.equal(
-        (await this.weth.balanceOf(MARGIN_POOL))
-          .sub(startMarginBalance)
-          .toString(),
-        parseEther("1")
-      );
-
-      assert.equal(
-        await this.oToken.balanceOf(this.vault.address),
-        "100000000"
-      );
-
-      assert.equal(await this.vault.currentOption(), this.oTokenAddress);
-    });
-  });
-
   describe("signing an order message", () => {
     it("signs an order message", async function () {
       const sellToken = this.oTokenAddress;
@@ -229,7 +185,61 @@ describe("RibbonETHCoveredCall", () => {
     });
   });
 
-  describe("#approveOptionsSale", () => {
+  describe("#writeOptions", () => {
+    let snapshotId;
+
+    beforeEach(async function () {
+      snapshotId = await time.takeSnapshot();
+      this.depositAmount = parseEther("1");
+      this.expectedMintAmount = BigNumber.from("100000000");
+      await this.vault.depositETH({ value: this.depositAmount });
+    });
+
+    afterEach(async () => {
+      await time.revertToSnapShot(snapshotId);
+    });
+
+    it("reverts when not called with manager", async function () {
+      await expect(
+        this.vault
+          .connect(userSigner)
+          .writeOptions(this.optionTerms, { from: user })
+      ).to.be.revertedWith("Only manager");
+    });
+
+    it("mints oTokens and deposits collateral into vault", async function () {
+      const startMarginBalance = await this.weth.balanceOf(MARGIN_POOL);
+
+      const res = await this.vault
+        .connect(managerSigner)
+        .writeOptions(this.optionTerms, { from: manager });
+
+      expect(res)
+        .to.emit(this.vault, "WriteOptions")
+        .withArgs(manager, this.oTokenAddress, this.expectedMintAmount);
+
+      assert.equal(
+        (await this.weth.balanceOf(MARGIN_POOL))
+          .sub(startMarginBalance)
+          .toString(),
+        parseEther("1")
+      );
+
+      assert.deepEqual(
+        await this.oToken.balanceOf(this.vault.address),
+        this.expectedMintAmount
+      );
+
+      assert.equal(await this.vault.currentOption(), this.oTokenAddress);
+
+      assert.deepEqual(
+        await this.oToken.allowance(this.vault.address, SWAP_ADDRESS),
+        this.expectedMintAmount
+      );
+    });
+  });
+
+  describe("Swapping with counterparty", () => {
     let snapshotId;
 
     beforeEach(async function () {
@@ -253,17 +263,6 @@ describe("RibbonETHCoveredCall", () => {
       await time.revertToSnapShot(snapshotId);
     });
 
-    it("creates approval for swap contract", async function () {
-      await this.vault.connect(managerSigner).approveOptionsSale();
-
-      assert.equal(
-        (
-          await this.oToken.allowance(this.vault.address, SWAP_ADDRESS)
-        ).toString(),
-        this.sellAmount
-      );
-    });
-
     it("completes the trade with the counterparty", async function () {
       const startSellTokenBalance = await this.oToken.balanceOf(
         this.vault.address
@@ -281,8 +280,6 @@ describe("RibbonETHCoveredCall", () => {
         sellAmount: this.sellAmount.toString(),
         buyAmount: this.premium.toString(),
       });
-
-      await this.vault.connect(managerSigner).approveOptionsSale();
 
       const res = await this.airswap
         .connect(counterpartySigner)

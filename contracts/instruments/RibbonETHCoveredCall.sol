@@ -91,8 +91,20 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     }
 
     function _deposit(uint256 amount) private {
-        this.mint(msg.sender, amount);
+        _mint(msg.sender, amount);
         emit Deposited(msg.sender, amount);
+    }
+
+    function withdraw(uint256 amount) external {
+        uint256 feeAmount = wdiv(amount, instantWithdrawalFee);
+        uint256 burnAmount = sub(amount, feeAmount);
+
+        _burn(msg.sender, burnAmount);
+
+        require(
+            transferFrom(msg.sender, feeTo, feeAmount),
+            "transferFrom failed"
+        );
     }
 
     function writeOptions(OptionTerms calldata optionTerms)
@@ -118,10 +130,6 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         emit WriteOptions(msg.sender, options, shortAmount);
     }
 
-    function mint(address account, uint256 amount) public {
-        _mint(account, amount);
-    }
-
     function availableToWithdraw() external view returns (uint256) {
         return
             _availableToWithdraw(
@@ -135,6 +143,11 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         pure
         returns (uint256)
     {
+        if (lockedBalance <= freeBalance) {
+            return sub(freeBalance, lockedBalance);
+        }
+
+        // add a case here for lockedBalance < freeBalance, return freeBalance
         uint256 reserve = wdiv(lockedBalance, lockedRatio);
 
         // console.log("supply %s, reserve %s", this.totalSupply(), reserve);
@@ -146,7 +159,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     }
 
     function symbol() public pure override returns (string memory) {
-        return _tokenName;
+        return _tokenSymbol;
     }
 
     modifier onlyManager {

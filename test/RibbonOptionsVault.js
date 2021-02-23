@@ -89,6 +89,18 @@ describe("RibbonETHCoveredCall", () => {
     await time.revertToSnapShot(initSnapshotId);
   });
 
+  describe("#name", () => {
+    it("returns the name", async function () {
+      assert.equal(await this.vault.name(), "Ribbon ETH Covered Call Vault");
+    });
+  });
+
+  describe("#symbol", () => {
+    it("returns the symbol", async function () {
+      assert.equal(await this.vault.symbol(), "rETH-COVCALL");
+    });
+  });
+
   describe("#asset", () => {
     it("returns the asset", async function () {
       assert.equal(await this.vault.asset(), WETH_ADDRESS);
@@ -142,7 +154,10 @@ describe("RibbonETHCoveredCall", () => {
 
     it("deposits successfully", async function () {
       const depositAmount = parseEther("1");
-      await this.vault.depositETH({ value: depositAmount });
+      const res = await this.vault.depositETH({ value: depositAmount });
+      const receipt = await res.wait();
+
+      assert.isAtMost(receipt.gasUsed.toNumber(), 150000);
 
       assert.equal((await this.vault.totalSupply()).toString(), depositAmount);
     });
@@ -318,11 +333,12 @@ describe("RibbonETHCoveredCall", () => {
   });
 
   describe("#availableToWithdraw", () => {
+    let snapshotId;
+
     beforeEach(async function () {
       snapshotId = await time.takeSnapshot();
 
       this.depositAmount = parseEther("1");
-      // this.mintAm = BigNumber.from("100000000");
 
       await this.vault.depositETH({ value: this.depositAmount });
 
@@ -336,7 +352,7 @@ describe("RibbonETHCoveredCall", () => {
         .writeOptions(this.optionTerms, { from: manager });
     });
 
-    afterEach(async function () {
+    afterEach(async () => {
       await time.revertToSnapShot(snapshotId);
     });
 
@@ -344,6 +360,22 @@ describe("RibbonETHCoveredCall", () => {
       assert.equal(
         (await this.vault.availableToWithdraw()).toString(),
         wmul(this.depositAmount, parseEther("0.1")).toString()
+      );
+    });
+
+    it("returns the free balance - locked, if free > locked", async function () {
+      await this.vault.availableToWithdraw();
+
+      await this.vault.depositETH({ value: parseEther("10") });
+
+      const lockedAmount = wmul(this.depositAmount, parseEther("0.9"));
+      const freeAmount = parseEther("10").add(
+        wmul(this.depositAmount, parseEther("0.1"))
+      );
+
+      assert.equal(
+        (await this.vault.availableToWithdraw()).toString(),
+        freeAmount.sub(lockedAmount)
       );
     });
   });

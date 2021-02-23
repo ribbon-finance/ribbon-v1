@@ -336,7 +336,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     function createShort(
         OptionTerms calldata optionTerms,
         uint256 depositAmount
-    ) external payable override {
+    ) external payable override returns (uint256) {
         IController controller = IController(gammaController);
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);
@@ -408,6 +408,8 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         );
 
         controller.operate(actions);
+
+        return mintAmount;
     }
 
     function assetDecimals(address asset) private pure returns (uint256) {

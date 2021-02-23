@@ -31,6 +31,18 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
     ExchangeMechanism public constant exchangeMechanism =
         ExchangeMechanism.AirSwap;
 
+    event ManagerChanged(address oldManager, address newManager);
+
+    event Deposited(address account, uint256 amouunt);
+
+    event WriteOptions(address manager, address options, uint256 amount);
+
+    event OptionsSaleApproved(
+        address manager,
+        address options,
+        uint256 approveAmount
+    );
+
     constructor() VaultToken("VaultToken", "VLT") {}
 
     function initialize(address _owner, address _factory) public initializer {
@@ -40,13 +52,14 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
 
     function setManager(address _manager) public onlyOwner {
         require(_manager != address(0), "New manager cannot be 0x0");
-        address currentManager = manager;
-        if (currentManager != address(0)) {
-            _swapContract.revokeSigner(currentManager);
+        address oldManager = manager;
+        if (oldManager != address(0)) {
+            _swapContract.revokeSigner(oldManager);
         }
-
         manager = _manager;
         _swapContract.authorizeSigner(_manager);
+
+        emit ManagerChanged(oldManager, _manager);
     }
 
     function depositETH() public payable {
@@ -62,23 +75,31 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
         IERC20 assetToken = IERC20(asset);
         assetToken.safeTransferFrom(msg.sender, address(this), amount);
         this.mint(msg.sender, amount);
+        emit Deposited(msg.sender, amount);
     }
 
     function writeOptions(OptionTerms memory optionTerms) public onlyManager {
         IProtocolAdapter adapter =
             IProtocolAdapter(factory.getAdapter(_adapterName));
 
-        adapter.delegateCreateShort(optionTerms, this.totalSupply());
+        uint256 shortAmount = this.totalSupply();
+        adapter.delegateCreateShort(optionTerms, shortAmount);
 
         address options = adapter.getOptionsAddress(optionTerms);
         currentOption = options;
+
+        emit WriteOptions(msg.sender, options, shortAmount);
     }
 
     function approveOptionsSale() public onlyManager {
         IERC20 optionToken = IERC20(currentOption);
-        optionToken.approve(
-            address(_swapContract),
-            optionToken.balanceOf(address(this))
+        uint256 optionBalance = optionToken.balanceOf(address(this));
+        optionToken.approve(address(_swapContract), optionBalance);
+
+        emit OptionsSaleApproved(
+            msg.sender,
+            address(optionToken),
+            optionBalance
         );
     }
 

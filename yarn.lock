@@ -7,20 +7,20 @@
   resolved "https://registry.yarnpkg.com/@airswap/constants/-/constants-0.3.10.tgz#29d4d44dbdd36c98034f8b76ba21a779da5c5051"
   integrity sha512-74kT4lncU++lyXDUJC6j1V8uasMshyhRDhiSKnV/88Ll6S0d2MyvjARaKkCfp8JqFnMbcbWl5zUyzMmSoimuIA==
 
-"@airswap/types@3.5.14":
-  version "3.5.14"
-  resolved "https://registry.yarnpkg.com/@airswap/types/-/types-3.5.14.tgz#43577a25643010aab3e67f916939616e3e43aaee"
-  integrity sha512-OFPCfMbBXGjjfEYl+3IW134ANgYXTQX7Wr45wK88PjpyNtTBsVp3Zkv2KqCYW3QN1ezHrK7yHHGfUvYU74zB/w==
+"@airswap/types@3.5.15":
+  version "3.5.15"
+  resolved "https://registry.yarnpkg.com/@airswap/types/-/types-3.5.15.tgz#9e62051449a9a48ec9d6d4d442e8ec3ef9529540"
+  integrity sha512-ZfdlJWqVY6czPBH1gc13bx6Fg7vr8UGn5d159tDBZ0zS4VmHoJR4A+P/XPGyX1H+eiTX4R5JvMlxiTIIMSWdqA==
   dependencies:
     openzeppelin-solidity "2.4"
 
-"@airswap/utils@^0.4.0":
-  version "0.4.0"
-  resolved "https://registry.yarnpkg.com/@airswap/utils/-/utils-0.4.0.tgz#5c0b97be748a356cd25cd6b83d298e4f13e2aae9"
-  integrity sha512-WHoflfpqXUNk4i7Nu3rJHhi3GkZgWc6gKbtVdffBKlx50qyxzqQYrdUDxwnRuUhBDI1tCAUL1fMMIH6AO0TwQA==
+"@airswap/utils@0.4.2":
+  version "0.4.2"
+  resolved "https://registry.yarnpkg.com/@airswap/utils/-/utils-0.4.2.tgz#8870332f0e8c5092c4ef77c7f7a3cec71c812bfd"
+  integrity sha512-GMV09EozLigecXqcMEKpSNqT69VfB9CbnT1NukUS5RkEHjvyfXyLVb9ci71kpm2sYKF1zlA8kPS9yWI3s+TIvQ==
   dependencies:
     "@airswap/constants" "0.3.10"
-    "@airswap/types" "3.5.14"
+    "@airswap/types" "3.5.15"
     "@types/ethereumjs-util" "^6.1.0"
     eth-sig-util "^3.0.0"
     ethereumjs-util "^6.2.0"

@@ -34,6 +34,11 @@ describe("RibbonOptionsVault", () => {
     manager = managerSigner.address;
     counterparty = counterpartySigner.address;
 
+    this.managerWallet = ethers.Wallet.fromMnemonic(
+      process.env.TEST_MNEMONIC,
+      "m/44'/60'/0'/0/3"
+    );
+
     const {
       factory,
       protocolAdapterLib,
@@ -195,7 +200,7 @@ describe("RibbonOptionsVault", () => {
       const signedOrder = await signOrderForSwap({
         vaultAddress: this.vault.address,
         counterpartyAddress: counterparty,
-        signer: managerSigner,
+        signerPrivateKey: this.managerWallet.privateKey,
         sellToken,
         buyToken,
         sellAmount: sellAmount.toString(),
@@ -260,20 +265,45 @@ describe("RibbonOptionsVault", () => {
     });
 
     it("completes the trade with the counterparty", async function () {
+      const startSellTokenBalance = await this.oToken.balanceOf(
+        this.vault.address
+      );
+      const startBuyTokenBalance = await this.weth.balanceOf(
+        this.vault.address
+      );
+
       const signedOrder = await signOrderForSwap({
         vaultAddress: this.vault.address,
         counterpartyAddress: counterparty,
-        signer: managerSigner,
+        signerPrivateKey: this.managerWallet.privateKey,
         sellToken: this.oTokenAddress,
         buyToken: WETH_ADDRESS,
         sellAmount: this.sellAmount.toString(),
         buyAmount: this.premium.toString(),
       });
-      console.log(signedOrder);
 
       await this.vault.connect(managerSigner).approveOptionsSale();
 
-      await this.airswap.connect(counterpartySigner).swap(signedOrder);
+      const res = await this.airswap
+        .connect(counterpartySigner)
+        .swap(signedOrder);
+
+      expect(res)
+        .to.emit(this.oToken, "Transfer")
+        .withArgs(this.vault.address, counterparty, this.sellAmount);
+
+      expect(res)
+        .to.emit(this.weth, "Transfer")
+        .withArgs(counterparty, this.vault.address, this.premium);
+
+      assert.deepEqual(
+        await this.oToken.balanceOf(this.vault.address),
+        startSellTokenBalance.sub(this.sellAmount)
+      );
+      assert.deepEqual(
+        await this.weth.balanceOf(this.vault.address),
+        startBuyTokenBalance.add(this.premium)
+      );
     });
   });
 });

@@ -8,7 +8,7 @@
     "test": "test"
   },
   "dependencies": {
-    "@airswap/utils": "^0.4.0",
+    "@airswap/utils": "0.4.2",
     "@chainlink/contracts": "0.0.10",
     "@openzeppelin/contracts": "^3.2.0",
     "@openzeppelin/upgrades": "^2.8.0",

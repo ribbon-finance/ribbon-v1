@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {OptionTerms, IProtocolAdapter} from "../adapters/IProtocolAdapter.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
@@ -12,16 +13,17 @@ import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {ISwap} from "../interfaces/ISwap.sol";
 import {Ownable} from "../lib/Ownable.sol";
-import {VaultToken} from "./VaultToken.sol";
 import {OptionsVaultStorageV1} from "../storage/OptionsVaultStorage.sol";
 import "hardhat/console.sol";
 
-contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
+contract RibbonOptionsVault is ERC20, OptionsVaultStorageV1 {
     using ProtocolAdapter for IProtocolAdapter;
     using SafeERC20 for IERC20;
 
     enum ExchangeMechanism {Unknown, AirSwap}
 
+    string private constant _tokenName = "Ribbon ETH Covered Call Vault";
+    string private constant _tokenSymbol = "rETH-COVCALL";
     string private constant _adapterName = "OPYN_GAMMA";
     address private constant _WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     ISwap private constant _swapContract =
@@ -43,7 +45,7 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
         uint256 approveAmount
     );
 
-    constructor() VaultToken("VaultToken", "VLT") {}
+    constructor() ERC20(_tokenName, _tokenSymbol) {}
 
     function initialize(address _owner, address _factory) public initializer {
         Ownable.initialize(_owner);
@@ -68,13 +70,13 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
 
         IWETH weth = IWETH(_WETH);
         weth.deposit{value: msg.value}();
-        this.mint(msg.sender, msg.value);
+        _mint(msg.sender, msg.value);
     }
 
     function deposit(uint256 amount) public {
         IERC20 assetToken = IERC20(asset);
         assetToken.safeTransferFrom(msg.sender, address(this), amount);
-        this.mint(msg.sender, amount);
+        _mint(msg.sender, amount);
         emit Deposited(msg.sender, amount);
     }
 
@@ -101,6 +103,14 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
             address(optionToken),
             optionBalance
         );
+    }
+
+    function name() public pure override returns (string memory) {
+        return _tokenName;
+    }
+
+    function symbol() public pure override returns (string memory) {
+        return _tokenName;
     }
 
     modifier onlyManager {

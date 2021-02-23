@@ -22,8 +22,6 @@ import {
     IHegicBTCOptions
 } from "../interfaces/HegicInterface.sol";
 
-import "hardhat/console.sol";
-
 import {
     ISwapPair
 } from "../interfaces/ISwapPair.sol";

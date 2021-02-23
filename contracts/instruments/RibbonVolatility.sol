@@ -331,7 +331,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                 maxCost
             );
         } else if (purchaseMethod == PurchaseMethod.ZeroEx) {
-            purchaseWithZeroEx(adapter, optionType, strikePrice, buyData, paymentToken);
+            purchaseWithZeroEx(adapter, optionType, strikePrice, buyData);
         }
     }
 
@@ -373,7 +373,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                 expiry,
                 strikePrice,
                 optionType,
-                paymentToken
+                address(0)
             );
 
         ZeroExOrder memory zeroExOrder = abi.decode(buyData, (ZeroExOrder));

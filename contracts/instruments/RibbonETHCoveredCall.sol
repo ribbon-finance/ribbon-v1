@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {OptionTerms, IProtocolAdapter} from "../adapters/IProtocolAdapter.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
@@ -12,16 +13,17 @@ import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {ISwap} from "../interfaces/ISwap.sol";
 import {Ownable} from "../lib/Ownable.sol";
-import {VaultToken} from "./VaultToken.sol";
 import {OptionsVaultStorageV1} from "../storage/OptionsVaultStorage.sol";
 import "hardhat/console.sol";
 
-contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
+contract RibbonETHCoveredCall is ERC20, OptionsVaultStorageV1 {
     using ProtocolAdapter for IProtocolAdapter;
     using SafeERC20 for IERC20;
 
     enum ExchangeMechanism {Unknown, AirSwap}
 
+    string private constant _tokenName = "Ribbon ETH Covered Call Vault";
+    string private constant _tokenSymbol = "rETH-COVCALL";
     string private constant _adapterName = "OPYN_GAMMA";
     address private constant _WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     ISwap private constant _swapContract =
@@ -31,7 +33,19 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
     ExchangeMechanism public constant exchangeMechanism =
         ExchangeMechanism.AirSwap;
 
-    constructor() VaultToken("VaultToken", "VLT") {}
+    event ManagerChanged(address oldManager, address newManager);
+
+    event Deposited(address account, uint256 amouunt);
+
+    event WriteOptions(address manager, address options, uint256 amount);
+
+    event OptionsSaleApproved(
+        address manager,
+        address options,
+        uint256 approveAmount
+    );
+
+    constructor() ERC20(_tokenName, _tokenSymbol) {}
 
     function initialize(address _owner, address _factory) public initializer {
         Ownable.initialize(_owner);
@@ -40,13 +54,14 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
 
     function setManager(address _manager) public onlyOwner {
         require(_manager != address(0), "New manager cannot be 0x0");
-        address currentManager = manager;
-        if (currentManager != address(0)) {
-            _swapContract.revokeSigner(currentManager);
+        address oldManager = manager;
+        if (oldManager != address(0)) {
+            _swapContract.revokeSigner(oldManager);
         }
-
         manager = _manager;
         _swapContract.authorizeSigner(_manager);
+
+        emit ManagerChanged(oldManager, _manager);
     }
 
     function depositETH() public payable {
@@ -55,31 +70,47 @@ contract RibbonOptionsVault is VaultToken, OptionsVaultStorageV1 {
 
         IWETH weth = IWETH(_WETH);
         weth.deposit{value: msg.value}();
-        this.mint(msg.sender, msg.value);
+        _mint(msg.sender, msg.value);
     }
 
     function deposit(uint256 amount) public {
         IERC20 assetToken = IERC20(asset);
         assetToken.safeTransferFrom(msg.sender, address(this), amount);
-        this.mint(msg.sender, amount);
+        _mint(msg.sender, amount);
+        emit Deposited(msg.sender, amount);
     }
 
     function writeOptions(OptionTerms memory optionTerms) public onlyManager {
         IProtocolAdapter adapter =
             IProtocolAdapter(factory.getAdapter(_adapterName));
 
-        adapter.delegateCreateShort(optionTerms, this.totalSupply());
+        uint256 shortAmount = this.totalSupply();
+        adapter.delegateCreateShort(optionTerms, shortAmount);
 
         address options = adapter.getOptionsAddress(optionTerms);
         currentOption = options;
+
+        emit WriteOptions(msg.sender, options, shortAmount);
     }
 
     function approveOptionsSale() public onlyManager {
         IERC20 optionToken = IERC20(currentOption);
-        optionToken.approve(
-            address(_swapContract),
-            optionToken.balanceOf(address(this))
+        uint256 optionBalance = optionToken.balanceOf(address(this));
+        optionToken.approve(address(_swapContract), optionBalance);
+
+        emit OptionsSaleApproved(
+            msg.sender,
+            address(optionToken),
+            optionBalance
         );
+    }
+
+    function name() public pure override returns (string memory) {
+        return _tokenName;
+    }
+
+    function symbol() public pure override returns (string memory) {
+        return _tokenName;
     }
 
     modifier onlyManager {

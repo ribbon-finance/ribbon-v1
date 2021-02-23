@@ -16,7 +16,7 @@ import {Ownable} from "../lib/Ownable.sol";
 import {OptionsVaultStorageV1} from "../storage/OptionsVaultStorage.sol";
 import "hardhat/console.sol";
 
-contract RibbonOptionsVault is ERC20, OptionsVaultStorageV1 {
+contract RibbonETHCoveredCall is ERC20, OptionsVaultStorageV1 {
     using ProtocolAdapter for IProtocolAdapter;
     using SafeERC20 for IERC20;
 

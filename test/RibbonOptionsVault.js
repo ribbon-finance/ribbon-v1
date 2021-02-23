@@ -2,7 +2,7 @@ const { expect, assert } = require("chai");
 const { BigNumber } = require("ethers");
 const { ethers } = require("hardhat");
 const { signOrderForSwap } = require("./helpers/signature");
-const { constants, getContractAt } = ethers;
+const { getContractAt } = ethers;
 const { parseEther } = ethers.utils;
 
 const time = require("./helpers/time");
@@ -16,7 +16,7 @@ const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const SWAP_ADDRESS = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
 
-describe("RibbonOptionsVault", () => {
+describe("RibbonETHCoveredCall", () => {
   let initSnapshotId;
 
   before(async function () {
@@ -51,7 +51,7 @@ describe("RibbonOptionsVault", () => {
 
     this.vault = (
       await deployProxy(
-        "RibbonOptionsVault",
+        "RibbonETHCoveredCall",
         adminSigner,
         initializeTypes,
         initializeArgs,

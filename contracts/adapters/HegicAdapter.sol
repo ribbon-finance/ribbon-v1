@@ -22,6 +22,8 @@ import {
     IHegicBTCOptions
 } from "../interfaces/HegicInterface.sol";
 
+import "hardhat/console.sol";
+
 import {
     ISwapPair
 } from "../interfaces/ISwapPair.sol";
@@ -138,19 +140,20 @@ contract HegicAdapter is IProtocolAdapter {
                 HegicOptionType(uint8(optionTerms.optionType))
             );
         } else if (optionTerms.underlying == wbtcAddress) {
-            (, cost, , , ) = wbtcOptions.fees(
+            uint costWBTC;
+            (costWBTC, cost, , , ) = wbtcOptions.fees(
                 period,
                 purchaseAmount,
                 scaledStrikePrice,
                 HegicOptionType(uint8(optionTerms.optionType))
             );
+            if(optionTerms.paymentToken == wbtcAddress) {
+                cost = costWBTC;
+            }
         } else {
             require(false, "No matching underlying");
         }
-        // covering ETH options being paid in WBTC (it does not make much sense but covers all cases without extra logic) 
-        if(optionTerms.paymentToken == wbtcAddress){
-            cost = _getAmountsIn(cost);
-        }
+
     }
 
     function _getAmountsIn(uint amountOut) internal view returns (uint amountIn){
@@ -158,8 +161,7 @@ contract HegicAdapter is IProtocolAdapter {
         uint reserveIn;
         uint reserveOut;
         (uint reserve0, uint reserve1, ) = ethWbtcPair.getReserves();
-        (reserveIn, reserveOut) = ethAddress < wbtcAddress ? (reserve1, reserve0) : (reserve0, reserve1);
-
+        (reserveIn, reserveOut) = (reserve0, reserve1);
         // getAmountIn
         require(amountOut > 0, 'UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT');
         require(reserveIn > 0 && reserveOut > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY');
@@ -309,9 +311,9 @@ contract HegicAdapter is IProtocolAdapter {
         IERC20(wbtcAddress).safeTransferFrom(msg.sender, address(ethWbtcPair), costWBTC);
         uint amount0Out;
         uint amount1Out;
-        (amount0Out, amount1Out) = ethAddress < wbtcAddress ? (uint(0), costETH) : (costETH, uint(0)); // this could be fixed as we know wbtcAddress and ethAddress addresses BUT would change if these change
+        (amount0Out, amount1Out) = (uint(0), costETH);
         ethWbtcPair.swap(amount0Out, amount1Out, address(this), ""); 
-        IWETH(ethAddress).withdraw(costETH); // if using WETH to pay Hegic this will not be needed
+        IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).withdraw(costETH); // if using WETH to pay Hegic this will not be needed
     }
 
     /**

@@ -12,4 +12,10 @@ contract OptionsVaultStorageV1 is Initializable, Ownable {
     IRibbonFactory public factory;
     address public manager;
     address public currentOption;
+
+    // Address where fees are sent to
+    address public feeTo;
+
+    // Amount that is currently locked for selling options
+    uint256 public lockedAmount;
 }

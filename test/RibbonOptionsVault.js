@@ -6,7 +6,7 @@ const { getContractAt } = ethers;
 const { parseEther } = ethers.utils;
 
 const time = require("./helpers/time");
-const { deployProxy, getDefaultArgs } = require("./helpers/utils");
+const { deployProxy, getDefaultArgs, wmul } = require("./helpers/utils");
 
 let owner, user;
 let userSigner, ownerSigner, managerSigner, counterpartySigner;
@@ -15,6 +15,8 @@ const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const SWAP_ADDRESS = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
+
+const LOCKED_RATIO = parseEther("0.9");
 
 describe("RibbonETHCoveredCall", () => {
   let initSnapshotId;
@@ -191,7 +193,7 @@ describe("RibbonETHCoveredCall", () => {
     beforeEach(async function () {
       snapshotId = await time.takeSnapshot();
       this.depositAmount = parseEther("1");
-      this.expectedMintAmount = BigNumber.from("100000000");
+      this.expectedMintAmount = BigNumber.from("90000000");
       await this.vault.depositETH({ value: this.depositAmount });
     });
 
@@ -218,11 +220,22 @@ describe("RibbonETHCoveredCall", () => {
         .to.emit(this.vault, "WriteOptions")
         .withArgs(manager, this.oTokenAddress, this.expectedMintAmount);
 
+      const lockedAmount = wmul(this.depositAmount, LOCKED_RATIO);
+      const availableAmount = wmul(
+        this.depositAmount,
+        parseEther("1").sub(LOCKED_RATIO)
+      );
+
+      assert.equal(
+        (await this.vault.availableToWithdraw()).toString(),
+        availableAmount
+      );
+
       assert.equal(
         (await this.weth.balanceOf(MARGIN_POOL))
           .sub(startMarginBalance)
           .toString(),
-        parseEther("1")
+        lockedAmount.toString()
       );
 
       assert.deepEqual(
@@ -247,7 +260,7 @@ describe("RibbonETHCoveredCall", () => {
 
       this.premium = parseEther("0.1");
       this.depositAmount = parseEther("1");
-      this.sellAmount = BigNumber.from("100000000");
+      this.sellAmount = BigNumber.from("90000000");
 
       const weth = this.weth.connect(counterpartySigner);
       await weth.deposit({ value: this.premium });
@@ -300,6 +313,37 @@ describe("RibbonETHCoveredCall", () => {
       assert.deepEqual(
         await this.weth.balanceOf(this.vault.address),
         startBuyTokenBalance.add(this.premium)
+      );
+    });
+  });
+
+  describe("#availableToWithdraw", () => {
+    beforeEach(async function () {
+      snapshotId = await time.takeSnapshot();
+
+      this.depositAmount = parseEther("1");
+      // this.mintAm = BigNumber.from("100000000");
+
+      await this.vault.depositETH({ value: this.depositAmount });
+
+      assert.equal(
+        (await this.vault.totalSupply()).toString(),
+        this.depositAmount
+      );
+
+      await this.vault
+        .connect(managerSigner)
+        .writeOptions(this.optionTerms, { from: manager });
+    });
+
+    afterEach(async function () {
+      await time.revertToSnapShot(snapshotId);
+    });
+
+    it("returns the 10% reserve amount", async function () {
+      assert.equal(
+        (await this.vault.availableToWithdraw()).toString(),
+        wmul(this.depositAmount, parseEther("0.1")).toString()
       );
     });
   });

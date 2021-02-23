@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {DSMath} from "../lib/DSMath.sol";
 
 import {OptionTerms, IProtocolAdapter} from "../adapters/IProtocolAdapter.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
@@ -16,7 +17,7 @@ import {Ownable} from "../lib/Ownable.sol";
 import {OptionsVaultStorageV1} from "../storage/OptionsVaultStorage.sol";
 import "hardhat/console.sol";
 
-contract RibbonETHCoveredCall is ERC20, OptionsVaultStorageV1 {
+contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     using ProtocolAdapter for IProtocolAdapter;
     using SafeERC20 for IERC20;
 
@@ -39,8 +40,8 @@ contract RibbonETHCoveredCall is ERC20, OptionsVaultStorageV1 {
     // Users can withdraw for free but have to wait for 7 days
     uint256 public constant freeWithdrawPeriod = 7 days;
 
-    // Contract which holds the fees
-    address public feeTo;
+    // 90% locked in options protocol, 10% of the pool reserved for withdrawals
+    uint256 public constant lockedRatio = 0.9 ether;
 
     event ManagerChanged(address oldManager, address newManager);
 
@@ -74,27 +75,35 @@ contract RibbonETHCoveredCall is ERC20, OptionsVaultStorageV1 {
         emit ManagerChanged(oldManager, _manager);
     }
 
-    function depositETH() public payable {
+    function depositETH() external payable {
         require(msg.value > 0, "No value passed");
         require(asset == _WETH, "Asset is not WETH");
 
         IWETH weth = IWETH(_WETH);
         weth.deposit{value: msg.value}();
-        _mint(msg.sender, msg.value);
+        _deposit(msg.value);
     }
 
-    function deposit(uint256 amount) public {
+    function deposit(uint256 amount) external {
         IERC20 assetToken = IERC20(asset);
         assetToken.safeTransferFrom(msg.sender, address(this), amount);
-        _mint(msg.sender, amount);
+        _deposit(amount);
+    }
+
+    function _deposit(uint256 amount) private {
+        this.mint(msg.sender, amount);
         emit Deposited(msg.sender, amount);
     }
 
-    function writeOptions(OptionTerms memory optionTerms) public onlyManager {
+    function writeOptions(OptionTerms calldata optionTerms)
+        external
+        onlyManager
+    {
         IProtocolAdapter adapter =
             IProtocolAdapter(factory.getAdapter(_adapterName));
 
-        uint256 shortAmount = this.totalSupply();
+        uint256 currentBalance = IERC20(asset).balanceOf(address(this));
+        uint256 shortAmount = wmul(currentBalance, lockedRatio);
         uint256 shortBalance =
             adapter.delegateCreateShort(optionTerms, shortAmount);
 
@@ -104,11 +113,33 @@ contract RibbonETHCoveredCall is ERC20, OptionsVaultStorageV1 {
         optionToken.approve(address(_swapContract), shortBalance);
 
         currentOption = options;
+        lockedAmount = shortAmount;
 
         emit WriteOptions(msg.sender, options, shortAmount);
     }
 
-    function mint(address account, uint256 amount) public {}
+    function mint(address account, uint256 amount) public {
+        _mint(account, amount);
+    }
+
+    function availableToWithdraw() external view returns (uint256) {
+        return
+            _availableToWithdraw(
+                lockedAmount,
+                IERC20(asset).balanceOf(address(this))
+            );
+    }
+
+    function _availableToWithdraw(uint256 lockedBalance, uint256 freeBalance)
+        private
+        pure
+        returns (uint256)
+    {
+        uint256 reserve = wdiv(lockedBalance, lockedRatio);
+
+        // console.log("supply %s, reserve %s", this.totalSupply(), reserve);
+        return min(reserve, freeBalance);
+    }
 
     function name() public pure override returns (string memory) {
         return _tokenName;

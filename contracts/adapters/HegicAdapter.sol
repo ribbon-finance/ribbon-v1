@@ -290,7 +290,32 @@ contract HegicAdapter is IProtocolAdapter {
     }
 
     /**
-     * @notice Function to bulk claim rHEGIC2 rewards from liquidity utilization
+     * @notice Function to get rHEGIC2 rewards claimable from liquidity utilization
+     * @param rewardsAddress is the address of the rewards contract (either for eth or wbtc)
+     * @param optionIDs is an array of all the option ids we want to claim rewards for
+     */
+    function rewardsClaimable(address rewardsAddress, uint256[] calldata optionIDs)
+        external
+        view
+        returns (uint256 rewardsAmount)
+    {
+        IHegicRewards rewardsContract = IHegicRewards(rewardsAddress);
+
+        uint256 i = 0;
+
+        while (i < optionIDs.length && optionIDs[i] > 0) {
+          (, , , uint _amount, , uint _premium, , ) = rewardsContract.hegicOptions().options(optionIDs[i]);
+          if(!rewardsContract.rewardedOptions(optionIDs[i])){
+            rewardsAmount.add(_amount.div(100).add(_premium)
+            .mul(rewardsContract.rewardsRate())
+            .div(1e8));
+          }
+          i += 1;
+        }
+    }
+
+    /**
+     * @notice Function to get rHEGIC2 rewards claimable from liquidity utilization
      * @param rewardsAddress is the address of the rewards contract (either for eth or wbtc)
      * @param optionIDs is an array of all the option ids we want to claim rewards for
      */
@@ -298,11 +323,19 @@ contract HegicAdapter is IProtocolAdapter {
         external
     {
         IHegicRewards rewardsContract = IHegicRewards(rewardsAddress);
+
         uint256 i = 0;
-        while (i < optionIDs.length) {
-          rewardsContract.getReward(optionIDs[i]);
+
+        uint256 balanceBefore = rewardsContract.hegic().balanceOf(address(this));
+
+        while (i < optionIDs.length && optionIDs[i] > 0) {
+          try rewardsContract.getReward(optionIDs[i]) {} catch {}
           i += 1;
         }
+
+        uint256 balanceAfter = rewardsContract.hegic().balanceOf(address(this));
+
+        rewardsContract.hegic().safeTransfer(msg.sender, balanceAfter.sub(balanceBefore));
     }
 
     /**

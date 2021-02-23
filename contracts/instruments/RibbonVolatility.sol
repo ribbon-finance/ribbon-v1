@@ -45,6 +45,10 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         bool[] optionsExercised
     );
 
+    event ClaimedRewards(
+        uint256 numRewards
+    );
+
     receive() external payable {}
 
     function initialize(
@@ -454,6 +458,14 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         position.exercised = true;
 
         emit Exercised(msg.sender, positionID, totalProfit, optionsExercised);
+    }
+
+    function claimRewards(string calldata adapterName, address rewardsAddress, uint256[] calldata optionIDs)
+        external
+    {
+      IProtocolAdapter adapter = IProtocolAdapter(factory.getAdapter(adapterName));
+      adapter.delegateClaimRewards(rewardsAddress, optionIDs);
+      emit ClaimedRewards(optionIDs.length);
     }
 
     function getAdapterName(uint8 venueID)

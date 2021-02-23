@@ -87,3 +87,7 @@ interface IHegicBTCOptions is IHegicOptions {
             uint256 periodFee
         );
 }
+
+interface IHegicRewards {
+  function getReward(uint optionId) external;
+}

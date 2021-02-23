@@ -10,6 +10,8 @@ const { getDefaultArgs, parseLog, mintAndApprove } = require("./helpers/utils");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const ZERO_EX_API_RESPONSES = require("./fixtures/GammaAdapter.json");
 
+const rHEGICJSON = require("../constants/abis/rHEGIC2.json");
+
 let owner, user;
 const gasPrice = parseUnits("10", "gwei");
 
@@ -28,6 +30,8 @@ const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
+const HEGIC_ETH_REWARDS = "0x7c83Ed5eeC3370CcC98FC43ce871c7416bD7B803";
+const HEGIC_WBTC_REWARDS = "0xBae7BE4e4a5c376950B8DB86D9D0DD1BaFc7C318";
 
 describe("RibbonVolatility", () => {
   /**
@@ -744,6 +748,91 @@ function behavesLikeRibbonVolatility(params) {
 
       it("gets the number of positions", async function () {
         assert.equal(await this.contract.numOfPositions(user), 1);
+      });
+    });
+
+     //REMOVE .skip to run
+     // Block Nbr used: 11896180
+
+    describe.skip("#claimRewards", () => {
+      let snapshotId;
+      let rhegicContract;
+      let withSigner;
+      let prov = ethers.getDefaultProvider();
+
+      beforeEach(async function () {
+        snapshotId = await time.takeSnapshot();
+        rhegicContract = new ethers.Contract(rHEGICJSON.address, rHEGICJSON.abi, prov);
+        withSigner = await rhegicContract.connect(await ethers.provider.getSigner(user));
+      });
+
+      afterEach(async () => {
+        await time.revertToSnapShot(snapshotId);
+      });
+
+      it("can claim valid ETH rewards", async function () {
+        let balanceBefore1 = await withSigner.balanceOf("0x390df0394ef2930eae1e3a610202d644fc21127c");
+        let balanceBefore2 = await withSigner.balanceOf("0x0c1f3df3524c4a5c4d9e1471003800f9595a05d0");
+        const res = await this.contract.claimRewards(
+                      HEGIC_PROTOCOL,
+                      HEGIC_ETH_REWARDS,
+                      [BigNumber.from("2975"), BigNumber.from("2974")]
+                    )
+        const receipt = await res.wait();
+        let balanceAfter1 = await withSigner.balanceOf("0x390df0394ef2930eae1e3a610202d644fc21127c");
+        let balanceAfter2 = await withSigner.balanceOf("0x0c1f3df3524c4a5c4d9e1471003800f9595a05d0");
+        assert.isAtLeast(balanceAfter1 - balanceBefore1, 1000000000000000000);
+        assert.isAtLeast(balanceAfter2 - balanceBefore2, 1000000000000000000);
+      });
+
+      it("can claim valid WBTC rewards", async function () {
+        let balanceBefore1 = await withSigner.balanceOf("0x37f32c51882e2b7f5195d948cc386d925892d49b");
+        let balanceBefore2 = await withSigner.balanceOf("0x6b0bde6174bf2f10ed64bef05ec1df4ee4f1187b");
+        const res = await this.contract.claimRewards(
+                      HEGIC_PROTOCOL,
+                      HEGIC_WBTC_REWARDS,
+                      [BigNumber.from("1399"), BigNumber.from("1400")]
+                    )
+        const receipt = await res.wait();
+        let balanceAfter1 = await withSigner.balanceOf("0x37f32c51882e2b7f5195d948cc386d925892d49b");
+        let balanceAfter2 = await withSigner.balanceOf("0x6b0bde6174bf2f10ed64bef05ec1df4ee4f1187b");
+        assert.isAtLeast(balanceAfter1 - balanceBefore1, 1000000000000000000);
+        assert.isAtLeast(balanceAfter2 - balanceBefore2, 1000000000000000000);
+      });
+
+      // Something with hardhat cant recognize reversion expect: it will show as error but you will see
+      // revert error matches what is expected
+
+      it("reverts on invalid ETH optionid", async function () {
+        await expect(this.contract.claimRewards(
+                      HEGIC_PROTOCOL,
+                      HEGIC_ETH_REWARDS,
+                      [BigNumber.from("101")]
+                    )).to.be.revertedWith("Wrong Option ID");
+      });
+
+      it("reverts on exercised ETH optionid", async function () {
+        await expect(this.contract.claimRewards(
+                      HEGIC_PROTOCOL,
+                      HEGIC_ETH_REWARDS,
+                      [BigNumber.from("2724")]
+                    )).to.be.revertedWith("The option was rewarded");
+      });
+
+      it("reverts on invalid WBTC optionid", async function () {
+        await expect(this.contract.claimRewards(
+                      HEGIC_PROTOCOL,
+                      HEGIC_WBTC_REWARDS,
+                      [BigNumber.from("101")]
+                    )).to.be.revertedWith("Wrong Option ID");
+      });
+
+      it("reverts on exercised WBTC optionid", async function () {
+        await expect(this.contract.claimRewards(
+                      HEGIC_PROTOCOL,
+                      HEGIC_WBTC_REWARDS,
+                      [BigNumber.from("1368")]
+                    )).to.be.revertedWith("The option was rewarded");
       });
     });
   });

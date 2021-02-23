@@ -37,6 +37,7 @@ contract HegicAdapter is IProtocolAdapter {
     string private constant _name = "HEGIC";
     bool private constant _nonFungible = true;
     address public immutable ethAddress;
+    address public constant wethAddress = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2); 
     address public immutable wbtcAddress;
     IHegicETHOptions public immutable ethOptions;
     IHegicBTCOptions public immutable wbtcOptions;
@@ -122,7 +123,6 @@ contract HegicAdapter is IProtocolAdapter {
         override
         returns (uint256 cost)
     {
-        require(optionTerms.paymentToken == address(0) || optionTerms.paymentToken == ethAddress || optionTerms.paymentToken == wbtcAddress, "invalid paymentToken");
         require(
             block.timestamp < optionTerms.expiry,
             "Cannot purchase after expiry"
@@ -133,6 +133,7 @@ contract HegicAdapter is IProtocolAdapter {
             scaleDownStrikePrice(optionTerms.strikePrice);
 
         if (optionTerms.underlying == ethAddress) {
+            require(optionTerms.underlying == optionTerms.paymentToken, "!invalid paymentToken");
             (cost, , , ) = ethOptions.fees(
                 period,
                 purchaseAmount,
@@ -154,21 +155,6 @@ contract HegicAdapter is IProtocolAdapter {
             require(false, "No matching underlying");
         }
 
-    }
-
-    function _getAmountsIn(uint amountOut) internal view returns (uint amountIn){
-        // custom sortTokens + getReserves
-        uint reserveIn;
-        uint reserveOut;
-        (uint reserve0, uint reserve1, ) = ethWbtcPair.getReserves();
-        (reserveIn, reserveOut) = (reserve0, reserve1);
-        // getAmountIn
-        require(amountOut > 0, 'UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT');
-        require(reserveIn > 0 && reserveOut > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY');
-
-        uint numerator = reserveIn.mul(amountOut).mul(1000);
-        uint denominator = reserveOut.sub(amountOut).mul(997);
-        amountIn = (numerator / denominator).add(1);
     }
 
     /**
@@ -267,7 +253,7 @@ contract HegicAdapter is IProtocolAdapter {
                 optionTerms.expiry,
                 optionTerms.strikePrice,
                 optionTerms.optionType,
-                address(0) // to receive the cost in ETH (address(0) is cheaper than address(ethAddress)) 
+                ethAddress // force total cost to be in ETH
             ), amount);
 
         uint256 scaledStrikePrice =
@@ -276,14 +262,13 @@ contract HegicAdapter is IProtocolAdapter {
         IHegicOptions options = getHegicOptions(optionTerms.underlying);
 
         // swap for ETH if ETH has not been provided as paymentToken
-        if(optionTerms.paymentToken == wbtcAddress) { // potential gas optimisation: gascost of loading an immutable vs loading msg.value?
-            require(msg.value == 0, "Invalid paymentToken or msg.value");
+        if(msg.value == 0) {
+            require(optionTerms.paymentToken == wbtcAddress, "Invalid paymentToken or msg.value");
             uint costWBTC = _getAmountsIn(cost);
-            require(maxCost >= costWBTC, "MaxCost too low");
+            require(maxCost >= costWBTC, "MaxCost is too low");
             _swapWBTCToETH(costWBTC, cost);
         } else {
             require(msg.value >= cost, "Value does not cover cost");
-            //if(msg.value > cost) payable(msg.sender).transfer(msg.value.sub(cost)); // in case the user sends more ETH than required
         }
 
         optionID = options.create{value: cost}(
@@ -305,15 +290,6 @@ contract HegicAdapter is IProtocolAdapter {
             cost,
             optionID
         );
-    }
-
-    function _swapWBTCToETH(uint costWBTC, uint costETH) internal {
-        IERC20(wbtcAddress).safeTransferFrom(msg.sender, address(ethWbtcPair), costWBTC);
-        uint amount0Out;
-        uint amount1Out;
-        (amount0Out, amount1Out) = (uint(0), costETH);
-        ethWbtcPair.swap(amount0Out, amount1Out, address(this), ""); 
-        IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).withdraw(costETH); // if using WETH to pay Hegic this will not be needed
     }
 
     /**
@@ -350,6 +326,31 @@ contract HegicAdapter is IProtocolAdapter {
         }
 
         emit Exercised(account, optionsAddress, optionID, amount, profit);
+    }
+
+
+    function _swapWBTCToETH(uint costWBTC, uint costETH) internal {
+        IERC20(wbtcAddress).safeTransferFrom(msg.sender, address(ethWbtcPair), costWBTC); // send WBTC directly to the Uniswap Pair (requires approval of WBTC)
+        uint amount0Out;
+        uint amount1Out;
+        (amount0Out, amount1Out) = (uint(0), costETH); // in case we change tokens (currently using WETH<>WBTC pair) this should be reviewed
+        ethWbtcPair.swap(amount0Out, amount1Out, address(this), ""); 
+        IWETH(wethAddress).withdraw(costETH); // unwrapping ETH. It would not be required if options are paid using WETH
+    }
+
+    // from UniswapV2Library
+    function _getAmountsIn(uint amountOut) internal view returns (uint amountIn){
+        uint reserveIn;
+        uint reserveOut;
+        (uint reserve0, uint reserve1, ) = ethWbtcPair.getReserves();
+        (reserveIn, reserveOut) = (reserve0, reserve1);
+        // getAmountIn
+        require(amountOut > 0, 'UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT');
+        require(reserveIn > 0 && reserveOut > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY');
+
+        uint numerator = reserveIn.mul(amountOut).mul(1000);
+        uint denominator = reserveOut.sub(amountOut).mul(997);
+        amountIn = (numerator / denominator).add(1);
     }
 
     /**

@@ -287,6 +287,9 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         positionID = instrumentPositions[msg.sender].length;
         instrumentPositions[msg.sender].push(position);
 
+        uint balance = address(this).balance;
+        if(balance > 0) payable(msg.sender).transfer(balance);
+
         emit PositionCreated(
             msg.sender,
             positionID,

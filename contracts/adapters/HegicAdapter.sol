@@ -160,12 +160,11 @@ contract HegicAdapter is IProtocolAdapter {
      * @notice Amount of profit made from exercising an option contract (current price - strike price). 0 if exercising out-the-money.
      * @param optionsAddress is the address of the options contract
      * @param optionID is the ID of the option position in non fungible protocols like Hegic.
-     * @param exerciseAmount is the amount of tokens or options contract to exercise. Only relevant for fungle protocols like Opyn
      */
     function exerciseProfit(
         address optionsAddress,
         uint256 optionID,
-        uint256 exerciseAmount
+        uint256 
     ) public view override returns (uint256 profit) {
         require(
             optionsAddress == address(ethOptions) ||

@@ -366,8 +366,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         IProtocolAdapter adapter,
         OptionType optionType,
         uint256 strikePrice,
-        bytes memory buyData,
-        address paymentToken
+        bytes memory buyData
     ) private {
         OptionTerms memory optionTerms =
             OptionTerms(

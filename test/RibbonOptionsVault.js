@@ -449,7 +449,7 @@ describe("RibbonETHCoveredCall", () => {
       // Fee is left behind
       assert.equal(
         (await this.weth.balanceOf(this.vault.address)).toString(),
-        parseEther("0.9005").toString()
+        parseEther("0.901").toString()
       );
 
       assert.equal(
@@ -457,7 +457,7 @@ describe("RibbonETHCoveredCall", () => {
           .add(gasFee)
           .sub(startETHBalance)
           .toString(),
-        parseEther("0.0995").toString()
+        parseEther("0.099").toString()
       );
 
       // Share amount is burned
@@ -494,16 +494,36 @@ describe("RibbonETHCoveredCall", () => {
       await this.vault.withdrawETH(parseEther("0.1"));
     });
 
-    it("should withdraw more collateral when the balance increases", async function () {
-      await this.vault.depositETH({ value: parseEther("1") });
+    // it("should withdraw more collateral when the balance increases", async function () {
+    //   await this.vault.depositETH({ value: parseEther("1") });
 
-      await this.weth.connect(userSigner).deposit({ value: parseEther("10") });
-      await this.weth
-        .connect(userSigner)
-        .transfer(this.vault.address, parseEther("10"));
+    //   const startETHBalance = await provider.getBalance(user);
 
-      // As the pool expands, using 1 pool share will redeem more amount of collateral
-      await this.vault.withdrawETH(parseEther("1"));
-    });
+    //   await this.vault
+    //     .connect(counterpartySigner)
+    //     .depositETH({ value: parseEther("10") });
+
+    //   await this.weth
+    //     .connect(counterpartySigner)
+    //     .deposit({ value: parseEther("10") });
+    //   await this.weth
+    //     .connect(counterpartySigner)
+    //     .transfer(this.vault.address, parseEther("10"));
+
+    //   // As the pool expands, using 1 pool share will redeem more amount of collateral
+    //   const res = await this.vault.withdrawETH(parseEther("1"), { gasPrice });
+    //   const receipt = await res.wait();
+
+    //   const gasUsed = receipt.gasUsed.mul(gasPrice);
+    //   assert.equal(
+    //     (await provider.getBalance(user))
+    //       .add(gasUsed)
+    //       .sub(startETHBalance)
+    //       .toString(),
+    //     parseEther("1")
+    //   );
+    // });
+
+    // it("should revert if not enough shares", async function () {});
   });
 });

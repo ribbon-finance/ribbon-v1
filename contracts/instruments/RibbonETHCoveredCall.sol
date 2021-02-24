@@ -35,8 +35,8 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     ExchangeMechanism public constant exchangeMechanism =
         ExchangeMechanism.AirSwap;
 
-    // 0.5% for an instant withdrawal
-    uint256 public constant instantWithdrawalFee = 0.005 ether;
+    // 1% for an instant withdrawal
+    uint256 public constant instantWithdrawalFee = 0.01 ether;
 
     // Users can withdraw for free but have to wait for 7 days
     uint256 public constant freeWithdrawPeriod = 7 days;
@@ -160,7 +160,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
 
     function _availableToWithdraw(uint256 lockedBalance, uint256 freeBalance)
         private
-        pure
+        view
         returns (uint256)
     {
         uint256 total = lockedBalance.add(freeBalance);

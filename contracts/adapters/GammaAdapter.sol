@@ -91,12 +91,10 @@ contract GammaAdapter is IProtocolAdapter {
 
     /**
      * @notice Gets the premium to buy `purchaseAmount` of the option contract in ETH terms.
-     * @param optionTerms is the terms of the option contract
-     * @param purchaseAmount is the purchase amount in Wad units (10**18)
      */
-    function premium(OptionTerms calldata optionTerms, uint256 purchaseAmount)
+    function premium(OptionTerms calldata , uint256 )
         external
-        view
+        pure
         override
         returns (uint256 cost)
     {
@@ -106,12 +104,11 @@ contract GammaAdapter is IProtocolAdapter {
     /**
      * @notice Amount of profit made from exercising an option contract (current price - strike price). 0 if exercising out-the-money.
      * @param options is the address of the options contract
-     * @param optionID is the ID of the option position in non fungible protocols like Hegic.
      * @param amount is the amount of tokens or options contract to exercise. Only relevant for fungle protocols like Opyn
      */
     function exerciseProfit(
         address options,
-        uint256 optionID,
+        uint256 ,
         uint256 amount
     ) public view override returns (uint256 profit) {
         IController controller = IController(gammaController);
@@ -154,10 +151,8 @@ contract GammaAdapter is IProtocolAdapter {
 
     /**
      * @notice Purchases the options contract.
-     * @param optionTerms is the terms of the option contract
-     * @param amount is the purchase amount in Wad units (10**18)
      */
-    function purchase(OptionTerms calldata optionTerms, uint256 amount)
+    function purchase(OptionTerms calldata , uint256 , uint256 )
         external
         payable
         override

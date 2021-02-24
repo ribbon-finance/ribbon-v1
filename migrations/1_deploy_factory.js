@@ -12,7 +12,7 @@ let network;
 
 module.exports = async function (deployer, _network) {
   network = _network;
-
+  console.log(network)
   const { admin, owner } = ACCOUNTS[network.replace("-fork", "")];
 
   let wethAddress;

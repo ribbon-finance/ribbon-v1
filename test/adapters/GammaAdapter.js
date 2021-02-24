@@ -111,7 +111,9 @@ describe("GammaAdapter", () => {
         "1614326400",
         parseEther("800"),
         CALL_OPTION_TYPE,
+        constants.AddressZero,
       ]);
+
       assert.equal(actualOTokenAddress, oTokenAddress);
     });
 
@@ -125,6 +127,7 @@ describe("GammaAdapter", () => {
         "1610697600",
         parseEther("800"),
         PUT_OPTION_TYPE,
+        constants.AddressZero,
       ]);
       assert.equal(actualOTokenAddress, oTokenAddress);
     });
@@ -184,6 +187,7 @@ function behavesLikeOTokens(params) {
         strikeAsset,
         collateralAsset,
         strikePrice,
+        paymentToken,
         expiry,
         optionType,
         oTokenAddress,
@@ -204,6 +208,7 @@ function behavesLikeOTokens(params) {
       this.exerciseProfit = exerciseProfit;
       this.premium = premium;
       this.shortAmount = shortAmount;
+      this.paymentToken = paymentToken || ETH_ADDRESS;
       this.apiResponse = ZERO_EX_API_RESPONSES[oTokenAddress];
       this.scaleDecimals = (n) =>
         n.div(BigNumber.from("10").pow(BigNumber.from("10")));
@@ -217,6 +222,7 @@ function behavesLikeOTokens(params) {
         this.expiry,
         this.strikePrice,
         this.optionType,
+        this.paymentToken,
       ];
 
       this.zeroExOrder = [

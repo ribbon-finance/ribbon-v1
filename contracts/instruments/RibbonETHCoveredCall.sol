@@ -77,7 +77,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         emit ManagerChanged(oldManager, _manager);
     }
 
-    function depositETH() external payable {
+    function depositETH() external payable nonReentrant {
         require(msg.value > 0, "No value passed");
         require(asset == _WETH, "Asset is not WETH");
 
@@ -86,7 +86,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         _deposit(msg.value);
     }
 
-    function deposit(uint256 amount) external {
+    function deposit(uint256 amount) external nonReentrant {
         IERC20 assetToken = IERC20(asset);
         assetToken.safeTransferFrom(msg.sender, address(this), amount);
         _deposit(amount);
@@ -100,7 +100,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         emit Deposited(msg.sender, share);
     }
 
-    function withdrawETH(uint256 share) external {
+    function withdrawETH(uint256 share) external nonReentrant {
         uint256 amount = share.mul(totalBalance()).div(totalSupply());
         uint256 feeAmount = wdiv(amount, instantWithdrawalFee);
         uint256 amountAfterFee = amount.sub(feeAmount);
@@ -114,6 +114,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     function writeOptions(OptionTerms calldata optionTerms)
         external
         onlyManager
+        nonReentrant
     {
         IProtocolAdapter adapter =
             IProtocolAdapter(factory.getAdapter(_adapterName));
@@ -135,7 +136,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     }
 
     function totalBalance() public view returns (uint256) {
-        return lockedAmount + IERC20(asset).balanceOf(address(this));
+        return lockedAmount.add(IERC20(asset).balanceOf(address(this)));
     }
 
     function availableToWithdraw() external view returns (uint256) {

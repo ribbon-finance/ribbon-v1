@@ -165,6 +165,65 @@ describe("RibbonETHCoveredCall", () => {
         depositAmount
       );
     });
+
+    it("returns the correct number of shares back", async function () {
+      // first user gets 3 shares
+      await this.vault
+        .connect(userSigner)
+        .depositETH({ value: parseEther("3") });
+      assert.equal(
+        (await this.vault.balanceOf(user)).toString(),
+        parseEther("3")
+      );
+
+      // simulate the vault accumulating more WETH
+      await this.weth.connect(userSigner).deposit({ value: parseEther("1") });
+      await this.weth
+        .connect(userSigner)
+        .transfer(this.vault.address, parseEther("1"));
+
+      assert.equal(
+        (await this.vault.totalBalance()).toString(),
+        parseEther("4")
+      );
+
+      // formula:
+      // (depositAmount * totalSupply) / total
+      // (1 * 3) / 4 = 0.75 shares
+      await this.vault
+        .connect(counterpartySigner)
+        .depositETH({ value: parseEther("1") });
+      assert.equal(
+        (await this.vault.balanceOf(counterparty)).toString(),
+        parseEther("0.75")
+      );
+    });
+
+    it("accounts for the amounts that are locked", async function () {
+      // first user gets 3 shares
+      await this.vault
+        .connect(userSigner)
+        .depositETH({ value: parseEther("3") });
+
+      // simulate the vault accumulating more WETH
+      await this.weth.connect(userSigner).deposit({ value: parseEther("1") });
+      await this.weth
+        .connect(userSigner)
+        .transfer(this.vault.address, parseEther("1"));
+
+      await this.vault.connect(managerSigner).writeOptions(this.optionTerms);
+
+      // formula:
+      // (depositAmount * totalSupply) / total
+      // (1 * 3) / 4 = 0.75 shares
+      await this.vault
+        .connect(counterpartySigner)
+        .depositETH({ value: parseEther("1") });
+      assert.equal(
+        (await this.vault.balanceOf(counterparty)).toString(),
+        parseEther("0.75")
+      );
+    });
   });
 
   describe("signing an order message", () => {
@@ -244,6 +303,8 @@ describe("RibbonETHCoveredCall", () => {
         this.depositAmount,
         parseEther("1").sub(LOCKED_RATIO)
       );
+
+      assert.equal((await this.vault.lockedAmount()).toString(), lockedAmount);
 
       assert.equal(
         (await this.vault.availableToWithdraw()).toString(),

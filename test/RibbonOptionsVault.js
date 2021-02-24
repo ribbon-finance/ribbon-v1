@@ -160,6 +160,10 @@ describe("RibbonETHCoveredCall", () => {
       assert.isAtMost(receipt.gasUsed.toNumber(), 150000);
 
       assert.equal((await this.vault.totalSupply()).toString(), depositAmount);
+      assert.equal(
+        (await this.vault.balanceOf(user)).toString(),
+        depositAmount
+      );
     });
   });
 

@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {DSMath} from "../lib/DSMath.sol";
 
 import {OptionTerms, IProtocolAdapter} from "../adapters/IProtocolAdapter.sol";
@@ -20,6 +21,7 @@ import "hardhat/console.sol";
 contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     using ProtocolAdapter for IProtocolAdapter;
     using SafeERC20 for IERC20;
+    using SafeMath for uint256;
 
     enum ExchangeMechanism {Unknown, AirSwap}
 
@@ -91,20 +93,22 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     }
 
     function _deposit(uint256 amount) private {
-        _mint(msg.sender, amount);
-        emit Deposited(msg.sender, amount);
+        uint256 total = totalBalance().sub(amount);
+        uint256 share =
+            total == 0 ? amount : amount.mul(totalSupply()).div(total);
+        _mint(msg.sender, share);
+        emit Deposited(msg.sender, share);
     }
 
-    function withdraw(uint256 amount) external {
+    function withdrawETH(uint256 share) external {
+        uint256 amount = share.mul(totalBalance()).div(totalSupply());
         uint256 feeAmount = wdiv(amount, instantWithdrawalFee);
-        uint256 burnAmount = sub(amount, feeAmount);
+        uint256 amountAfterFee = amount.sub(feeAmount);
 
-        _burn(msg.sender, burnAmount);
+        _burn(msg.sender, share);
 
-        require(
-            transferFrom(msg.sender, feeTo, feeAmount),
-            "transferFrom failed"
-        );
+        (bool success, ) = msg.sender.call{value: amountAfterFee}("");
+        require(success, "ETH transfer failed");
     }
 
     function writeOptions(OptionTerms calldata optionTerms)
@@ -130,6 +134,10 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         emit WriteOptions(msg.sender, options, shortAmount);
     }
 
+    function totalBalance() public view returns (uint256) {
+        return lockedAmount + IERC20(asset).balanceOf(address(this));
+    }
+
     function availableToWithdraw() external view returns (uint256) {
         return
             _availableToWithdraw(
@@ -144,7 +152,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         returns (uint256)
     {
         if (lockedBalance <= freeBalance) {
-            return sub(freeBalance, lockedBalance);
+            return freeBalance.sub(lockedBalance);
         }
 
         // add a case here for lockedBalance < freeBalance, return freeBalance

@@ -7,6 +7,7 @@ module.exports = {
   takeSnapshot,
   revertToSnapShot,
   revertToSnapshotAfterTest,
+  revertToSnapshotAfterEach,
 };
 
 // Increases ganache time by the passed duration in seconds
@@ -62,6 +63,24 @@ function revertToSnapshotAfterTest() {
     snapshotId = await takeSnapshot();
   });
   after(async () => {
+    await revertToSnapShot(snapshotId);
+  });
+}
+
+function revertToSnapshotAfterEach(
+  beforeEachCallback = async () => {},
+  afterEachCallback = async () => {}
+) {
+  let snapshotId;
+
+  beforeEach(async function () {
+    snapshotId = await takeSnapshot();
+
+    await beforeEachCallback.bind(this)();
+  });
+  afterEach(async () => {
+    await afterEachCallback.bind(this)();
+
     await revertToSnapShot(snapshotId);
   });
 }

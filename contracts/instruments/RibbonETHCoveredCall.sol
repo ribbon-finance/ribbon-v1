@@ -160,7 +160,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
 
     function _availableToWithdraw(uint256 lockedBalance, uint256 freeBalance)
         private
-        view
+        pure
         returns (uint256)
     {
         uint256 total = lockedBalance.add(freeBalance);

@@ -494,36 +494,70 @@ describe("RibbonETHCoveredCall", () => {
       await this.vault.withdrawETH(parseEther("0.1"));
     });
 
-    // it("should withdraw more collateral when the balance increases", async function () {
-    //   await this.vault.depositETH({ value: parseEther("1") });
+    it("should only withdraw original deposit amount minus fees if vault doesn't expand", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
 
-    //   const startETHBalance = await provider.getBalance(user);
+      const startETHBalance = await provider.getBalance(user);
 
-    //   await this.vault
-    //     .connect(counterpartySigner)
-    //     .depositETH({ value: parseEther("10") });
+      await this.vault
+        .connect(counterpartySigner)
+        .depositETH({ value: parseEther("10") });
 
-    //   await this.weth
-    //     .connect(counterpartySigner)
-    //     .deposit({ value: parseEther("10") });
-    //   await this.weth
-    //     .connect(counterpartySigner)
-    //     .transfer(this.vault.address, parseEther("10"));
+      // As the pool expands, using 1 pool share will redeem more amount of collateral
+      const res = await this.vault.withdrawETH(parseEther("1"), { gasPrice });
+      const receipt = await res.wait();
 
-    //   // As the pool expands, using 1 pool share will redeem more amount of collateral
-    //   const res = await this.vault.withdrawETH(parseEther("1"), { gasPrice });
-    //   const receipt = await res.wait();
+      // 0.99 ETH because 1% paid to fees
+      const gasUsed = receipt.gasUsed.mul(gasPrice);
+      assert.equal(
+        (await provider.getBalance(user))
+          .add(gasUsed)
+          .sub(startETHBalance)
+          .toString(),
+        parseEther("0.99").toString()
+      );
+    });
 
-    //   const gasUsed = receipt.gasUsed.mul(gasPrice);
-    //   assert.equal(
-    //     (await provider.getBalance(user))
-    //       .add(gasUsed)
-    //       .sub(startETHBalance)
-    //       .toString(),
-    //     parseEther("1")
-    //   );
-    // });
+    it("should withdraw more collateral when the balance increases", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
 
-    // it("should revert if not enough shares", async function () {});
+      const startETHBalance = await provider.getBalance(user);
+
+      await this.vault
+        .connect(counterpartySigner)
+        .depositETH({ value: parseEther("10") });
+
+      await this.weth
+        .connect(counterpartySigner)
+        .deposit({ value: parseEther("10") });
+      await this.weth
+        .connect(counterpartySigner)
+        .transfer(this.vault.address, parseEther("10"));
+
+      // As the pool expands, using 1 pool share will redeem more amount of collateral
+      const res = await this.vault.withdrawETH(parseEther("1"), { gasPrice });
+      const receipt = await res.wait();
+
+      const gasUsed = receipt.gasUsed.mul(gasPrice);
+      assert.equal(
+        (await provider.getBalance(user))
+          .add(gasUsed)
+          .sub(startETHBalance)
+          .toString(),
+        BigNumber.from("1889999999999999999")
+      );
+    });
+
+    it("should revert if not enough shares", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      await this.vault
+        .connect(counterpartySigner)
+        .depositETH({ value: parseEther("10") });
+
+      await expect(
+        this.vault.withdrawETH(parseEther("1").add(BigNumber.from("1")))
+      ).to.be.revertedWith("ERC20: burn amount exceeds balance");
+    });
   });
 });

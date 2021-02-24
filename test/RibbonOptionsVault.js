@@ -451,6 +451,7 @@ describe("RibbonETHCoveredCall", () => {
         (await this.weth.balanceOf(this.vault.address)).toString(),
         parseEther("0.9005").toString()
       );
+
       assert.equal(
         (await provider.getBalance(user))
           .add(gasFee)
@@ -458,6 +459,51 @@ describe("RibbonETHCoveredCall", () => {
           .toString(),
         parseEther("0.0995").toString()
       );
+
+      // Share amount is burned
+      assert.equal(
+        (await this.vault.balanceOf(user)).toString(),
+        parseEther("0.9")
+      );
+
+      assert.equal(
+        (await this.vault.totalSupply()).toString(),
+        parseEther("0.9")
+      );
+    });
+
+    it("should withdraw funds up to 10% of pool", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      // simulate the vault accumulating more WETH
+      await this.weth.connect(userSigner).deposit({ value: parseEther("1") });
+      await this.weth
+        .connect(userSigner)
+        .transfer(this.vault.address, parseEther("1"));
+
+      assert.equal(
+        (await this.vault.availableToWithdraw()).toString(),
+        parseEther("0.2")
+      );
+
+      // reverts when withdrawing >0.2 ETH
+      await expect(
+        this.vault.withdrawETH(parseEther("0.2").add(BigNumber.from("1")))
+      ).to.be.revertedWith("Cannot withdraw more than available");
+
+      await this.vault.withdrawETH(parseEther("0.1"));
+    });
+
+    it("should withdraw more collateral when the balance increases", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      await this.weth.connect(userSigner).deposit({ value: parseEther("10") });
+      await this.weth
+        .connect(userSigner)
+        .transfer(this.vault.address, parseEther("10"));
+
+      // As the pool expands, using 1 pool share will redeem more amount of collateral
+      await this.vault.withdrawETH(parseEther("1"));
     });
   });
 });

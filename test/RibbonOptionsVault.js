@@ -150,7 +150,7 @@ describe("RibbonETHCoveredCall", () => {
   });
 
   describe("#depositETH", () => {
-    time.revertToSnapshotAfterTest();
+    time.revertToSnapshotAfterEach();
 
     it("deposits successfully", async function () {
       const depositAmount = parseEther("1");
@@ -266,17 +266,10 @@ describe("RibbonETHCoveredCall", () => {
   });
 
   describe("#writeOptions", () => {
-    let snapshotId;
-
-    beforeEach(async function () {
-      snapshotId = await time.takeSnapshot();
+    time.revertToSnapshotAfterEach(async function () {
       this.depositAmount = parseEther("1");
       this.expectedMintAmount = BigNumber.from("90000000");
       await this.vault.depositETH({ value: this.depositAmount });
-    });
-
-    afterEach(async () => {
-      await time.revertToSnapShot(snapshotId);
     });
 
     it("reverts when not called with manager", async function () {
@@ -333,11 +326,7 @@ describe("RibbonETHCoveredCall", () => {
   });
 
   describe("Swapping with counterparty", () => {
-    let snapshotId;
-
-    beforeEach(async function () {
-      snapshotId = await time.takeSnapshot();
-
+    time.revertToSnapshotAfterEach(async function () {
       this.premium = parseEther("0.1");
       this.depositAmount = parseEther("1");
       this.sellAmount = BigNumber.from("90000000");
@@ -350,10 +339,6 @@ describe("RibbonETHCoveredCall", () => {
       await this.vault
         .connect(managerSigner)
         .writeOptions(this.optionTerms, { from: manager });
-    });
-
-    afterEach(async function () {
-      await time.revertToSnapShot(snapshotId);
     });
 
     it("completes the trade with the counterparty", async function () {
@@ -398,11 +383,7 @@ describe("RibbonETHCoveredCall", () => {
   });
 
   describe("#availableToWithdraw", () => {
-    let snapshotId;
-
-    beforeEach(async function () {
-      snapshotId = await time.takeSnapshot();
-
+    time.revertToSnapshotAfterEach(async function () {
       this.depositAmount = parseEther("1");
 
       await this.vault.depositETH({ value: this.depositAmount });
@@ -415,10 +396,6 @@ describe("RibbonETHCoveredCall", () => {
       await this.vault
         .connect(managerSigner)
         .writeOptions(this.optionTerms, { from: manager });
-    });
-
-    afterEach(async () => {
-      await time.revertToSnapShot(snapshotId);
     });
 
     it("returns the 10% reserve amount", async function () {

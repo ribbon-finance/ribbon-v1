@@ -5,23 +5,25 @@ pragma experimental ABIEncoderV2;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {DSMath} from "../lib/DSMath.sol";
 
 import {OptionTerms, IProtocolAdapter} from "../adapters/IProtocolAdapter.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
-import {GammaAdapter} from "../adapters/GammaAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {ISwap} from "../interfaces/ISwap.sol";
 import {Ownable} from "../lib/Ownable.sol";
+
 import {OptionsVaultStorageV1} from "../storage/OptionsVaultStorage.sol";
 import "hardhat/console.sol";
 
-contract RibbonETHCoveredCall is ERC20, OptionsVaultStorageV1 {
+contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     using ProtocolAdapter for IProtocolAdapter;
     using SafeERC20 for IERC20;
+    using SafeMath for uint256;
 
     enum ExchangeMechanism {Unknown, AirSwap}
-
     string private constant _tokenName = "Ribbon ETH Covered Call Vault";
     string private constant _tokenSymbol = "rETH-COVCALL";
     string private constant _adapterName = "OPYN_GAMMA";
@@ -32,6 +34,15 @@ contract RibbonETHCoveredCall is ERC20, OptionsVaultStorageV1 {
     address public constant asset = _WETH;
     ExchangeMechanism public constant exchangeMechanism =
         ExchangeMechanism.AirSwap;
+
+    // 1% for an instant withdrawal
+    uint256 public constant instantWithdrawalFee = 0.01 ether;
+
+    // Users can withdraw for free but have to wait for 7 days
+    uint256 public constant freeWithdrawPeriod = 7 days;
+
+    // 90% locked in options protocol, 10% of the pool reserved for withdrawals
+    uint256 public constant lockedRatio = 0.9 ether;
 
     event ManagerChanged(address oldManager, address newManager);
 
@@ -50,6 +61,7 @@ contract RibbonETHCoveredCall is ERC20, OptionsVaultStorageV1 {
     function initialize(address _owner, address _factory) public initializer {
         Ownable.initialize(_owner);
         factory = IRibbonFactory(_factory);
+        feeTo = address(this);
     }
 
     function setManager(address _manager) public onlyOwner {
@@ -64,45 +76,98 @@ contract RibbonETHCoveredCall is ERC20, OptionsVaultStorageV1 {
         emit ManagerChanged(oldManager, _manager);
     }
 
-    function depositETH() public payable {
+    function depositETH() external payable nonReentrant {
         require(msg.value > 0, "No value passed");
         require(asset == _WETH, "Asset is not WETH");
 
         IWETH weth = IWETH(_WETH);
         weth.deposit{value: msg.value}();
-        _mint(msg.sender, msg.value);
+        _deposit(msg.value);
     }
 
-    function deposit(uint256 amount) public {
+    function deposit(uint256 amount) external nonReentrant {
         IERC20 assetToken = IERC20(asset);
         assetToken.safeTransferFrom(msg.sender, address(this), amount);
-        _mint(msg.sender, amount);
-        emit Deposited(msg.sender, amount);
+        _deposit(amount);
     }
 
-    function writeOptions(OptionTerms memory optionTerms) public onlyManager {
+    function _deposit(uint256 amount) private {
+        uint256 total = totalBalance().sub(amount);
+        uint256 share =
+            total == 0 ? amount : amount.mul(totalSupply()).div(total);
+        _mint(msg.sender, share);
+        emit Deposited(msg.sender, share);
+    }
+
+    function withdrawETH(uint256 share) external nonReentrant {
+        uint256 _lockedAmount = lockedAmount;
+        uint256 currentAssetBalance = IERC20(asset).balanceOf(address(this));
+        uint256 total = _lockedAmount.add(currentAssetBalance);
+        uint256 availableForWithdrawal =
+            _availableToWithdraw(_lockedAmount, currentAssetBalance);
+
+        uint256 withdrawAmount = share.mul(total).div(totalSupply());
+        require(
+            withdrawAmount <= availableForWithdrawal,
+            "Cannot withdraw more than available"
+        );
+
+        uint256 feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
+        uint256 amountAfterFee = withdrawAmount.sub(feeAmount);
+
+        _burn(msg.sender, share);
+
+        IWETH(_WETH).withdraw(amountAfterFee);
+        (bool success, ) = msg.sender.call{value: amountAfterFee}("");
+        require(success, "ETH transfer failed");
+    }
+
+    function writeOptions(OptionTerms calldata optionTerms)
+        external
+        onlyManager
+        nonReentrant
+    {
         IProtocolAdapter adapter =
             IProtocolAdapter(factory.getAdapter(_adapterName));
 
-        uint256 shortAmount = this.totalSupply();
-        adapter.delegateCreateShort(optionTerms, shortAmount);
+        uint256 currentBalance = IERC20(asset).balanceOf(address(this));
+        uint256 shortAmount = wmul(currentBalance, lockedRatio);
+        uint256 shortBalance =
+            adapter.delegateCreateShort(optionTerms, shortAmount);
 
         address options = adapter.getOptionsAddress(optionTerms);
+
+        IERC20 optionToken = IERC20(options);
+        optionToken.approve(address(_swapContract), shortBalance);
+
         currentOption = options;
+        lockedAmount = shortAmount;
 
         emit WriteOptions(msg.sender, options, shortAmount);
     }
 
-    function approveOptionsSale() public onlyManager {
-        IERC20 optionToken = IERC20(currentOption);
-        uint256 optionBalance = optionToken.balanceOf(address(this));
-        optionToken.approve(address(_swapContract), optionBalance);
+    function totalBalance() public view returns (uint256) {
+        return lockedAmount.add(IERC20(asset).balanceOf(address(this)));
+    }
 
-        emit OptionsSaleApproved(
-            msg.sender,
-            address(optionToken),
-            optionBalance
-        );
+    function availableToWithdraw() external view returns (uint256) {
+        return
+            _availableToWithdraw(
+                lockedAmount,
+                IERC20(asset).balanceOf(address(this))
+            );
+    }
+
+    function _availableToWithdraw(uint256 lockedBalance, uint256 freeBalance)
+        private
+        pure
+        returns (uint256)
+    {
+        uint256 total = lockedBalance.add(freeBalance);
+        uint256 reserveRatio = uint256(1 ether).sub(lockedRatio);
+        uint256 reserve = wmul(total, reserveRatio);
+
+        return min(reserve, freeBalance);
     }
 
     function name() public pure override returns (string memory) {
@@ -110,7 +175,7 @@ contract RibbonETHCoveredCall is ERC20, OptionsVaultStorageV1 {
     }
 
     function symbol() public pure override returns (string memory) {
-        return _tokenName;
+        return _tokenSymbol;
     }
 
     modifier onlyManager {

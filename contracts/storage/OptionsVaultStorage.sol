@@ -8,8 +8,14 @@ import {Initializable} from "../lib/upgrades/Initializable.sol";
 import {Ownable} from "../lib/Ownable.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 
-contract OptionsVaultStorageV1 is Initializable, Ownable {
+contract OptionsVaultStorageV1 is Initializable, Ownable, ReentrancyGuard {
     IRibbonFactory public factory;
     address public manager;
     address public currentOption;
+
+    // Address where fees are sent to
+    address public feeTo;
+
+    // Amount that is currently locked for selling options
+    uint256 public lockedAmount;
 }

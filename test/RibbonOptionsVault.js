@@ -1,8 +1,9 @@
 const { expect, assert } = require("chai");
 const { BigNumber } = require("ethers");
+const { parseUnits } = require("ethers/lib/utils");
 const { ethers } = require("hardhat");
 const { signOrderForSwap } = require("./helpers/signature");
-const { getContractAt } = ethers;
+const { provider, getContractAt } = ethers;
 const { parseEther } = ethers.utils;
 
 const time = require("./helpers/time");
@@ -17,6 +18,8 @@ const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const SWAP_ADDRESS = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
 
 const LOCKED_RATIO = parseEther("0.9");
+const WITHDRAWAL_FEE = parseEther("0.005");
+const gasPrice = parseUnits("10", "gwei");
 
 describe("RibbonETHCoveredCall", () => {
   let initSnapshotId;
@@ -281,6 +284,12 @@ describe("RibbonETHCoveredCall", () => {
     });
 
     it("mints oTokens and deposits collateral into vault", async function () {
+      const lockedAmount = wmul(this.depositAmount, LOCKED_RATIO);
+      const availableAmount = wmul(
+        this.depositAmount,
+        parseEther("1").sub(LOCKED_RATIO)
+      );
+
       const startMarginBalance = await this.weth.balanceOf(MARGIN_POOL);
 
       const res = await this.vault
@@ -289,13 +298,7 @@ describe("RibbonETHCoveredCall", () => {
 
       expect(res)
         .to.emit(this.vault, "WriteOptions")
-        .withArgs(manager, this.oTokenAddress, this.expectedMintAmount);
-
-      const lockedAmount = wmul(this.depositAmount, LOCKED_RATIO);
-      const availableAmount = wmul(
-        this.depositAmount,
-        parseEther("1").sub(LOCKED_RATIO)
-      );
+        .withArgs(manager, this.oTokenAddress, lockedAmount);
 
       assert.equal((await this.vault.lockedAmount()).toString(), lockedAmount);
 
@@ -367,8 +370,10 @@ describe("RibbonETHCoveredCall", () => {
         .to.emit(this.oToken, "Transfer")
         .withArgs(this.vault.address, counterparty, this.sellAmount);
 
+      const wethERC20 = await getContractAt("IERC20", this.weth.address);
+
       expect(res)
-        .to.emit(this.weth, "Transfer")
+        .to.emit(wethERC20, "Transfer")
         .withArgs(counterparty, this.vault.address, this.premium);
 
       assert.deepEqual(
@@ -410,14 +415,48 @@ describe("RibbonETHCoveredCall", () => {
 
       await this.vault.depositETH({ value: parseEther("10") });
 
-      const lockedAmount = wmul(this.depositAmount, parseEther("0.9"));
-      const freeAmount = parseEther("10").add(
-        wmul(this.depositAmount, parseEther("0.1"))
+      const freeAmount = wmul(
+        parseEther("10").add(this.depositAmount),
+        parseEther("0.1")
       );
 
       assert.equal(
         (await this.vault.availableToWithdraw()).toString(),
-        freeAmount.sub(lockedAmount)
+        freeAmount
+      );
+    });
+  });
+
+  describe("#withdraw", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("reverts when withdrawing more than 10%", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      await expect(this.vault.withdrawETH(parseEther("1"))).to.be.revertedWith(
+        "Cannot withdraw more than available"
+      );
+    });
+
+    it("should withdraw funds, leaving behind withdrawal fee if <10%", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+      const startETHBalance = await provider.getBalance(user);
+
+      const res = await this.vault.withdrawETH(parseEther("0.1"), { gasPrice });
+      const receipt = await res.wait();
+      const gasFee = gasPrice.mul(receipt.gasUsed);
+
+      // Fee is left behind
+      assert.equal(
+        (await this.weth.balanceOf(this.vault.address)).toString(),
+        parseEther("0.9005").toString()
+      );
+      assert.equal(
+        (await provider.getBalance(user))
+          .add(gasFee)
+          .sub(startETHBalance)
+          .toString(),
+        parseEther("0.0995").toString()
       );
     });
   });

@@ -10,11 +10,11 @@ import {DSMath} from "../lib/DSMath.sol";
 
 import {OptionTerms, IProtocolAdapter} from "../adapters/IProtocolAdapter.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
-import {GammaAdapter} from "../adapters/GammaAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {ISwap} from "../interfaces/ISwap.sol";
 import {Ownable} from "../lib/Ownable.sol";
+
 import {OptionsVaultStorageV1} from "../storage/OptionsVaultStorage.sol";
 import "hardhat/console.sol";
 
@@ -24,7 +24,6 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     using SafeMath for uint256;
 
     enum ExchangeMechanism {Unknown, AirSwap}
-
     string private constant _tokenName = "Ribbon ETH Covered Call Vault";
     string private constant _tokenSymbol = "rETH-COVCALL";
     string private constant _adapterName = "OPYN_GAMMA";
@@ -36,8 +35,8 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     ExchangeMechanism public constant exchangeMechanism =
         ExchangeMechanism.AirSwap;
 
-    // 5 basis points for an instant withdrawal
-    uint256 public constant instantWithdrawalFee = 0.0005 ether;
+    // 0.5% for an instant withdrawal
+    uint256 public constant instantWithdrawalFee = 0.005 ether;
 
     // Users can withdraw for free but have to wait for 7 days
     uint256 public constant freeWithdrawPeriod = 7 days;
@@ -101,12 +100,24 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     }
 
     function withdrawETH(uint256 share) external nonReentrant {
-        uint256 amount = share.mul(totalBalance()).div(totalSupply());
-        uint256 feeAmount = wdiv(amount, instantWithdrawalFee);
-        uint256 amountAfterFee = amount.sub(feeAmount);
+        uint256 _lockedAmount = lockedAmount;
+        uint256 currentAssetBalance = IERC20(asset).balanceOf(address(this));
+        uint256 total = _lockedAmount.add(currentAssetBalance);
+        uint256 availableForWithdrawal =
+            _availableToWithdraw(_lockedAmount, currentAssetBalance);
+
+        uint256 withdrawAmount = share.mul(total).div(totalSupply());
+        require(
+            withdrawAmount <= availableForWithdrawal,
+            "Cannot withdraw more than available"
+        );
+
+        uint256 feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
+        uint256 amountAfterFee = withdrawAmount.sub(feeAmount);
 
         _burn(msg.sender, share);
 
+        IWETH(_WETH).withdraw(amountAfterFee);
         (bool success, ) = msg.sender.call{value: amountAfterFee}("");
         require(success, "ETH transfer failed");
     }
@@ -152,14 +163,10 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         pure
         returns (uint256)
     {
-        if (lockedBalance <= freeBalance) {
-            return freeBalance.sub(lockedBalance);
-        }
+        uint256 total = lockedBalance.add(freeBalance);
+        uint256 reserveRatio = uint256(1 ether).sub(lockedRatio);
+        uint256 reserve = wmul(total, reserveRatio);
 
-        // add a case here for lockedBalance < freeBalance, return freeBalance
-        uint256 reserve = wdiv(lockedBalance, lockedRatio);
-
-        // console.log("supply %s, reserve %s", this.totalSupply(), reserve);
         return min(reserve, freeBalance);
     }
 

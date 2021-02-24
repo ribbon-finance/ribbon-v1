@@ -131,23 +131,6 @@ library ProtocolAdapter {
         require(success, getRevertMsg(res));
     }
 
-    function delegateCreateShort(
-        IProtocolAdapter adapter,
-        OptionTerms calldata optionTerms,
-        uint256 amount
-    ) external returns (uint256) {
-        (bool success, bytes memory res) =
-            address(adapter).delegatecall(
-                abi.encodeWithSignature(
-                    "createShort((address,address,address,uint256,uint256,uint8),uint256)",
-                    optionTerms,
-                    amount
-                )
-            );
-        require(success, getRevertMsg(res));
-        return abi.decode(res, (uint256));
-    }
-
     function delegateClaimRewards(
         IProtocolAdapter adapter,
         address rewardsAddress,
@@ -168,7 +151,7 @@ library ProtocolAdapter {
         IProtocolAdapter adapter,
         OptionTerms calldata optionTerms,
         uint256 amount
-    ) external {
+    ) external returns (uint256) {
         (bool success, bytes memory res) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
@@ -178,6 +161,7 @@ library ProtocolAdapter {
                 )
             );
         require(success, getRevertMsg(res));
+        return abi.decode(res, (uint256));
     }
 
     function getRevertMsg(bytes memory _returnData)

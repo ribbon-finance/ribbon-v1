@@ -786,7 +786,7 @@ function behavesLikeRibbonVolatility(params) {
 
       async function claimRewards(c, optionBuyerAddress) {
         let balanceBefore = await withSigner.balanceOf(optionBuyerAddress);
-        const res = await c.claimRewards(HEGIC_PROTOCOL, underlying_address);
+        const res = await c.claimRewards(underlying_address);
         let balanceAfter = await withSigner.balanceOf(optionBuyerAddress);
         return balanceAfter - balanceBefore;
       }
@@ -797,15 +797,15 @@ function behavesLikeRibbonVolatility(params) {
       });
 
       it("claimRewards() sends same amount as rewardsClaimable() returns", async function () {
-        const rewardsClaimable = (await this.contract.rewardsClaimable(HEGIC_PROTOCOL, underlying_address)).toString();
+        const rewardsClaimable = (await this.contract.rewardsClaimable(underlying_address)).toString();
         const claimedRewards = await claimRewards(this.contract, user);
         assert.equal(claimedRewards, parseInt(rewardsClaimable));
       });
 
       it("rewardsClaimable() shows less when optionIDs claimed", async function () {
-        const rewardsClaimable = (await this.contract.rewardsClaimable(HEGIC_PROTOCOL, underlying_address)).toString();
+        const rewardsClaimable = (await this.contract.rewardsClaimable(underlying_address)).toString();
         const claimedRewards = await claimRewards(this.contract, user);
-        const rewardsClaimable2 = (await this.contract.rewardsClaimable(HEGIC_PROTOCOL, underlying_address)).toString();
+        const rewardsClaimable2 = (await this.contract.rewardsClaimable(underlying_address)).toString();
         assert.isAbove(claimedRewards, parseInt(rewardsClaimable2));
       });
 
@@ -834,7 +834,7 @@ function behavesLikeRibbonVolatility(params) {
 
       it("claimRewards() reverts as there are no rewards to claim", async function () {
         const claimedRewards = await claimRewards(this.contract, user);
-        await expect(this.contract.claimRewards(HEGIC_PROTOCOL, underlying_address)).to.be.revertedWith("No rewards to claim");
+        await expect(this.contract.claimRewards(underlying_address)).to.be.revertedWith("No rewards to claim");
       });
     });
   });

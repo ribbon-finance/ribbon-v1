@@ -459,21 +459,21 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         emit Exercised(msg.sender, positionID, totalProfit, optionsExercised);
     }
 
-    function claimRewards(string calldata adapterName, address rewardsAddress)
+    function claimRewards(address rewardsAddress)
         external
     {
-      IProtocolAdapter adapter = IProtocolAdapter(factory.getAdapter(adapterName));
+      IProtocolAdapter adapter = IProtocolAdapter(factory.getAdapter("HEGIC"));
       uint256[] memory optionIDs = getOptionIDs(msg.sender);
       uint256 claimedRewards = adapter.delegateClaimRewards(rewardsAddress, optionIDs);
       emit ClaimedRewards(claimedRewards);
     }
 
-    function rewardsClaimable(string calldata adapterName, address rewardsAddress)
+    function rewardsClaimable(address rewardsAddress)
         external
         view
         returns (uint256 rewardsToClaim)
     {
-      IProtocolAdapter adapter = IProtocolAdapter(factory.getAdapter(adapterName));
+      IProtocolAdapter adapter = IProtocolAdapter(factory.getAdapter("HEGIC"));
       uint256[] memory optionIDs = getOptionIDs(msg.sender);
       rewardsToClaim = adapter.delegateRewardsClaimable(rewardsAddress, optionIDs);
     }

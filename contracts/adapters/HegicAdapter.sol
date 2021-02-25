@@ -430,6 +430,8 @@ contract HegicAdapter is IProtocolAdapter {
         return 0;
     }
 
+    function closeShort() external override {}
+
     /**
      * @notice Helper function to get the options address based on the underlying asset
      * @param underlying is the underlying asset for the options

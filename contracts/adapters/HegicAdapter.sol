@@ -306,7 +306,7 @@ contract HegicAdapter is IProtocolAdapter {
         while (i < optionIDs.length && optionIDs[i] > 0) {
           (, , , uint _amount, , uint _premium, , ) = rewardsContract.hegicOptions().options(optionIDs[i]);
           if(!rewardsContract.rewardedOptions(optionIDs[i])){
-            rewardsAmount.add(_amount.div(100).add(_premium)
+            rewardsAmount = rewardsAmount.add(_amount.div(100).add(_premium)
             .mul(rewardsContract.rewardsRate())
             .div(1e8));
           }
@@ -321,6 +321,7 @@ contract HegicAdapter is IProtocolAdapter {
      */
     function claimRewards(address rewardsAddress, uint256[] calldata optionIDs)
         external
+        returns (uint256 rewardsAmount)
     {
         IHegicRewards rewardsContract = IHegicRewards(rewardsAddress);
 
@@ -335,7 +336,9 @@ contract HegicAdapter is IProtocolAdapter {
 
         uint256 balanceAfter = rewardsContract.hegic().balanceOf(address(this));
 
-        rewardsContract.hegic().safeTransfer(msg.sender, balanceAfter.sub(balanceBefore));
+        rewardsAmount = balanceAfter.sub(balanceBefore);
+        require(rewardsAmount > 0, "No rewards to claim");
+        rewardsContract.hegic().safeTransfer(msg.sender, rewardsAmount);
     }
 
     /**

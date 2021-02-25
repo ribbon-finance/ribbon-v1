@@ -89,10 +89,10 @@ interface IHegicBTCOptions is IHegicOptions {
         );
 }
 
-abstract contract IHegicRewards {
-  IERC20 public hegic;
-  IHegicOptions public hegicOptions;
-  mapping(uint => bool) public rewardedOptions;
-  uint256 public rewardsRate;
-  function getReward(uint optionId) external virtual;
+interface IHegicRewards {
+  function hegic() external view returns (IERC20);
+  function hegicOptions() external view returns (IHegicOptions);
+  function rewardsRate() external view returns (uint256);
+  function rewardedOptions(uint optionId) external view returns(bool);
+  function getReward(uint optionId) external;
 }

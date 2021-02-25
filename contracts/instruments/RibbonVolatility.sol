@@ -441,8 +441,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
     {
       IProtocolAdapter adapter = IProtocolAdapter(factory.getAdapter(adapterName));
       uint256[] memory optionIDs = getOptionIDs(msg.sender);
-      adapter.delegateClaimRewards(rewardsAddress, optionIDs);
-      emit ClaimedRewards(optionIDs.length);
+      uint256 claimedRewards = adapter.delegateClaimRewards(rewardsAddress, optionIDs);
+      emit ClaimedRewards(claimedRewards);
     }
 
     function rewardsClaimable(string calldata adapterName, address rewardsAddress)
@@ -462,8 +462,11 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
     {
         uint256 i = 0;
         uint256 j = 0;
+
         InstrumentPosition[] memory positions = instrumentPositions[user];
-        optionIDs = new uint256[](positions.length * 2);
+
+        optionIDs = new uint256[](positions.length.mul(2));
+
         while(i < positions.length){
           if(keccak256(bytes(getAdapterName(positions[i].callVenue))) == hegicHash){
             optionIDs[j] = positions[i].callOptionID;

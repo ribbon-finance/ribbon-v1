@@ -31,7 +31,7 @@ const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
 const HEGIC_ETH_REWARDS = "0x957A65705E0aafbb305ab73174203b2E4b77BbFC";
-//const HEGIC_WBTC_REWARDS = "0xb639BfFa2DA65112654BdAA23B72E0aae604b7bf";
+const HEGIC_WBTC_REWARDS = "0xb639BfFa2DA65112654BdAA23B72E0aae604b7bf";
 
 describe("RibbonVolatility", () => {
   /**
@@ -325,7 +325,7 @@ function behavesLikeRibbonVolatility(params) {
       this.contract = (
         await ethers.getContractAt("RibbonVolatility", instrumentAddress)
       ).connect(userSigner);
-      
+
       if(this.paymentToken == WBTC_ADDRESS) await mintAndApprove(WBTC_ADDRESS, userSigner, this.contract.address, parseUnits('10', 8));
 
       this.contractv2 = (
@@ -755,19 +755,18 @@ function behavesLikeRibbonVolatility(params) {
       });
     });
 
-     //REMOVE .skip to run
-     // Block Nbr used: 11896180
-
     describe("#claimRewards", () => {
       let snapshotId;
       let rhegicContract;
       let withSigner;
+      let underlying_address;
       let prov = ethers.getDefaultProvider();
 
       beforeEach(async function () {
         snapshotId = await time.takeSnapshot();
         rhegicContract = new ethers.Contract(rHEGICJSON.address, rHEGICJSON.abi, prov);
         withSigner = await rhegicContract.connect(await ethers.provider.getSigner(user));
+        underlying_address = this.underlying == ETH_ADDRESS ? HEGIC_ETH_REWARDS : HEGIC_WBTC_REWARDS;
       });
 
       afterEach(async () => {
@@ -776,7 +775,7 @@ function behavesLikeRibbonVolatility(params) {
 
       async function claimRewards(c, optionBuyerAddress) {
         let balanceBefore = await withSigner.balanceOf(optionBuyerAddress);
-        const res = await c.claimRewards(HEGIC_PROTOCOL, HEGIC_ETH_REWARDS);
+        const res = await c.claimRewards(HEGIC_PROTOCOL, underlying_address);
         let balanceAfter = await withSigner.balanceOf(optionBuyerAddress);
         return balanceAfter - balanceBefore;
       }
@@ -788,6 +787,8 @@ function behavesLikeRibbonVolatility(params) {
           this.amounts[0],
           this.strikePrices,
           this.buyData,
+          this.paymentToken,
+          this.maxCosts,
           {
             from: user,
             value: this.totalPremium,
@@ -805,6 +806,8 @@ function behavesLikeRibbonVolatility(params) {
           this.amounts[0],
           this.strikePrices,
           this.buyData,
+          this.paymentToken,
+          this.maxCosts,
           {
             from: user,
             value: this.totalPremium,
@@ -812,7 +815,7 @@ function behavesLikeRibbonVolatility(params) {
           }
         );
 
-        const rewardsClaimable = (await this.contract.rewardsClaimable(HEGIC_PROTOCOL, HEGIC_ETH_REWARDS)).toString();
+        const rewardsClaimable = (await this.contract.rewardsClaimable(HEGIC_PROTOCOL, underlying_address)).toString();
         const claimedRewards = await claimRewards(this.contract, user);
         assert.equal(claimedRewards, parseInt(rewardsClaimable));
       });
@@ -824,6 +827,8 @@ function behavesLikeRibbonVolatility(params) {
           this.amounts[0],
           this.strikePrices,
           this.buyData,
+          this.paymentToken,
+          this.maxCosts,
           {
             from: user,
             value: this.totalPremium,
@@ -831,14 +836,14 @@ function behavesLikeRibbonVolatility(params) {
           }
         );
 
-        const rewardsClaimable = (await this.contract.rewardsClaimable(HEGIC_PROTOCOL, HEGIC_ETH_REWARDS)).toString();
+        const rewardsClaimable = (await this.contract.rewardsClaimable(HEGIC_PROTOCOL, underlying_address)).toString();
         const claimedRewards = await claimRewards(this.contract, user);
-        const rewardsClaimable2 = (await this.contract.rewardsClaimable(HEGIC_PROTOCOL, HEGIC_ETH_REWARDS)).toString();
+        const rewardsClaimable2 = (await this.contract.rewardsClaimable(HEGIC_PROTOCOL, underlying_address)).toString();
         assert.isAbove(claimedRewards, parseInt(rewardsClaimable2));
       });
 
       it("claimRewards() reverts as there are no rewards to claim", async function () {
-        await expect(this.contract.claimRewards(HEGIC_PROTOCOL, HEGIC_ETH_REWARDS)).to.be.revertedWith("No rewards to claim");
+        await expect(this.contract.claimRewards(HEGIC_PROTOCOL, underlying_address)).to.be.revertedWith("No rewards to claim");
       });
     });
   });

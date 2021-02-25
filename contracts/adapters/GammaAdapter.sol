@@ -21,7 +21,6 @@ import {
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {DSMath} from "../lib/DSMath.sol";
-import "hardhat/console.sol";
 
 contract GammaAdapter is IProtocolAdapter, DSMath {
     using SafeMath for uint256;
@@ -341,7 +340,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     function createShort(
         OptionTerms calldata optionTerms,
         uint256 depositAmount
-    ) external payable override returns (uint256) {
+    ) external override returns (uint256) {
         IController controller = IController(gammaController);
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);
@@ -415,6 +414,29 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         controller.operate(actions);
 
         return mintAmount;
+    }
+
+    function closeShort() external override {
+        IController controller = IController(gammaController);
+
+        // gets the currently active vault ID
+        uint256 vaultID = controller.getAccountVaultCounter(address(this));
+
+        IController.ActionArgs[] memory actions =
+            new IController.ActionArgs[](1);
+
+        actions[0] = IController.ActionArgs(
+            IController.ActionType.SettleVault,
+            address(this), // owner
+            address(this), // address to transfer to
+            address(0), // not used
+            vaultID, // vaultId
+            0, // not used
+            0, // not used
+            "" // not used
+        );
+
+        controller.operate(actions);
     }
 
     function assetDecimals(address asset) private pure returns (uint256) {

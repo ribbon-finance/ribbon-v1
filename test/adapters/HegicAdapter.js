@@ -9,6 +9,7 @@ const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const ETH_ADDRESS = constants.AddressZero;
+const ETH_WBTC_PAIR_ADDRESS = "0xbb2b8038a1640196fbe3e38816f3e67cba72d940";
 let user, recipient;
 
 const PUT_OPTION_TYPE = 1;
@@ -32,7 +33,8 @@ describe("HegicAdapter", () => {
       HEGIC_ETH_OPTIONS,
       HEGIC_WBTC_OPTIONS,
       ETH_ADDRESS,
-      WBTC_ADDRESS
+      WBTC_ADDRESS,
+      ETH_WBTC_PAIR_ADDRESS
     );
     this.adapter = this.adapter.connect(userSigner);
 
@@ -109,7 +111,7 @@ describe("HegicAdapter", () => {
     exerciseProfit: BigNumber.from("0"),
   });
 
-  // WBTC Options
+  // WBTC Options (Paid in WBTC)
   behavesLikeHegicOptions({
     optionName: "WBTC CALL ITM",
     underlying: WBTC_ADDRESS,
@@ -166,6 +168,8 @@ describe("HegicAdapter", () => {
           strikeAsset,
           expiry,
           strikePrice,
+          paymentToken,
+          maxCost,
           premium,
           purchaseAmount,
           optionType,
@@ -178,6 +182,8 @@ describe("HegicAdapter", () => {
         this.startTime = (await provider.getBlock()).timestamp;
         this.expiry = expiry || this.startTime + 60 * 60 * 24 * 2; // 2 days from now
         this.strikePrice = strikePrice;
+        this.paymentToken = paymentToken || ETH_ADDRESS;
+        this.maxCost = maxCost || parseEther("9999999999");
         this.premium = premium;
         this.purchaseAmount = purchaseAmount;
         this.optionType = optionType;
@@ -196,6 +202,7 @@ describe("HegicAdapter", () => {
               this.expiry,
               this.strikePrice,
               this.optionType,
+              this.paymentToken
             ],
             this.purchaseAmount
           );
@@ -222,8 +229,10 @@ describe("HegicAdapter", () => {
                 this.expiry,
                 this.strikePrice,
                 this.optionType,
+                this.paymentToken
               ],
               this.purchaseAmount,
+              this.maxCost,
               {
                 from: user,
                 value: this.premium.sub(BigNumber.from("1")),
@@ -244,8 +253,10 @@ describe("HegicAdapter", () => {
                 this.expiry,
                 this.strikePrice,
                 this.optionType,
+                this.paymentToken,
               ],
               this.purchaseAmount,
+              this.maxCost,
               {
                 from: user,
                 value: this.premium,
@@ -264,8 +275,10 @@ describe("HegicAdapter", () => {
                 this.expiry,
                 this.strikePrice,
                 this.optionType,
+                this.paymentToken,
               ],
               this.purchaseAmount,
+              this.maxCost,
               {
                 from: user,
                 value: this.purchaseAmount,
@@ -283,8 +296,10 @@ describe("HegicAdapter", () => {
               this.expiry,
               this.strikePrice,
               this.optionType,
+              this.paymentToken,
             ],
             this.purchaseAmount,
+            this.maxCost,
             {
               from: user,
               value: this.premium,
@@ -371,8 +386,10 @@ describe("HegicAdapter", () => {
               this.expiry,
               this.strikePrice,
               this.optionType,
+              this.paymentToken,
             ],
             this.purchaseAmount,
+            this.maxCost,
             {
               from: user,
               value: this.premium,
@@ -410,8 +427,10 @@ describe("HegicAdapter", () => {
               this.expiry,
               this.strikePrice,
               this.optionType,
+              this.paymentToken,
             ],
             this.purchaseAmount,
+            this.maxCost,
             {
               from: user,
               value: this.premium,
@@ -575,8 +594,10 @@ describe("HegicAdapter", () => {
               this.expiry,
               this.strikePrice,
               this.optionType,
+              this.paymentToken,
             ],
             this.purchaseAmount,
+            this.maxCost,
             {
               from: user,
               value: this.premium,

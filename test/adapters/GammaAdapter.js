@@ -6,7 +6,7 @@ const { parseEther } = ethers.utils;
 const time = require("../helpers/time.js");
 const ZERO_EX_API_RESPONSES = require("../fixtures/GammaAdapter.json");
 const ORACLE_ABI = require("../../constants/abis/OpynOracle.json");
-const { wdiv } = require("../helpers/utils");
+const { wmul, wdiv } = require("../helpers/utils");
 
 const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
@@ -16,6 +16,7 @@ const ORACLE_OWNER = "0x638E5DA0EEbbA58c67567bcEb4Ab2dc8D34853FB";
 
 const ORACLE_DISPUTE_PERIOD = 7200;
 const ORACLE_LOCKING_PERIOD = 300;
+const WAD = BigNumber.from("10").pow(BigNumber.from("18"));
 
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";
@@ -620,13 +621,50 @@ function behavesLikeOTokens(params) {
       });
 
       it("settles the vault and withdraws collateral", async function () {
-        // We just avoid testing for sell puts right now
-        // because it's not the priority
-        if (this.optionType == PUT_OPTION_TYPE) {
-          return;
-        }
+        const collateralToken = await ethers.getContractAt(
+          "IERC20",
+          this.collateralAsset
+        );
+
+        const startWETHBalance = await collateralToken.balanceOf(
+          this.adapter.address
+        );
 
         await this.adapter.closeShort();
+
+        const strike = this.strikePrice;
+        const shortAmount = this.shortAmount;
+
+        const settlePrice = BigNumber.from(this.settlePrice).mul(
+          BigNumber.from("10").pow(BigNumber.from("10"))
+        );
+
+        const inTheMoney =
+          this.optionType === CALL_OPTION_TYPE
+            ? settlePrice.gt(strike)
+            : settlePrice.lt(strike);
+
+        let shortOutcome;
+
+        if (inTheMoney) {
+          // lose money when short option and ITM
+          // settlePrice = 1200, strikePrice = 9600
+          // loss = (1200-960)/1200
+          // shortOutcome = shortAmount - loss = 0.8 ETH
+
+          const loss = settlePrice.sub(strike).mul(WAD).div(settlePrice);
+          shortOutcome = shortAmount.sub(wmul(shortAmount, loss));
+        } else {
+          // If it's OTM, you will get back 100% of the collateral deposited
+          shortOutcome = shortAmount;
+        }
+
+        assert.equal(
+          (await collateralToken.balanceOf(this.adapter.address))
+            .sub(startWETHBalance)
+            .toString(),
+          shortOutcome
+        );
       });
     });
   });

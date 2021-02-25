@@ -728,7 +728,27 @@ function behavesLikeRibbonVolatility(params) {
 
         const rewardsClaimable = (await this.contract.rewardsClaimable(HEGIC_PROTOCOL, HEGIC_ETH_REWARDS)).toString();
         const claimedRewards = await claimRewards(this.contract, user);
-        assert.equal(claimedRewards, rewardsClaimable);
+        assert.equal(claimedRewards, parseInt(rewardsClaimable));
+      });
+
+      it("rewardsClaimable() shows less when optionIDs claimed", async function () {
+        const res = await this.contract.buyInstrument(
+          this.venues,
+          this.optionTypes,
+          this.amounts[0],
+          this.strikePrices,
+          this.buyData,
+          {
+            from: user,
+            value: this.totalPremium,
+            gasPrice: this.gasPrice,
+          }
+        );
+
+        const rewardsClaimable = (await this.contract.rewardsClaimable(HEGIC_PROTOCOL, HEGIC_ETH_REWARDS)).toString();
+        const claimedRewards = await claimRewards(this.contract, user);
+        const rewardsClaimable2 = (await this.contract.rewardsClaimable(HEGIC_PROTOCOL, HEGIC_ETH_REWARDS)).toString();
+        assert.isAbove(claimedRewards, parseInt(rewardsClaimable2));
       });
 
       it("claimRewards() reverts as there are no rewards to claim", async function () {

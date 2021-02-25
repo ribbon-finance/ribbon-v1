@@ -332,9 +332,9 @@ contract HegicAdapter is IProtocolAdapter {
         emit Exercised(account, optionsAddress, optionID, amount, profit);
     }
 
-    function createShort(OptionTerms memory optionTerms, uint256 amount)
-        public
-        payable
+    function createShort(OptionTerms memory, uint256)
+        external
+        pure
         override
         returns (uint256)
     {
@@ -391,12 +391,6 @@ contract HegicAdapter is IProtocolAdapter {
             i += 1;
         }
     }
-
-    function createShort(OptionTerms memory, uint256)
-        external
-        pure
-        override
-    {}
 
     function closeShort() external override {}
 

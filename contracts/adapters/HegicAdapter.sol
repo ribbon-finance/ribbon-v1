@@ -424,7 +424,6 @@ contract HegicAdapter is IProtocolAdapter {
 
     function createShort(OptionTerms memory optionTerms, uint256 amount)
         public
-        payable
         override
         returns (uint256)
     {

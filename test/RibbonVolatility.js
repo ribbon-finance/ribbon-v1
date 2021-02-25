@@ -328,10 +328,6 @@ function behavesLikeRibbonVolatility(params) {
 
       if(this.paymentToken == WBTC_ADDRESS) await mintAndApprove(WBTC_ADDRESS, userSigner, this.contract.address, parseUnits('10', 8));
 
-      this.contractv2 = (
-        await ethers.getContractAt("RibbonVolatility", instrumentAddress)
-      )
-
       initSnapshotId = await time.takeSnapshot();
     });
 

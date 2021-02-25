@@ -12,13 +12,17 @@ const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
 const CHAINLINK_PRICER = "0xAC05f5147566Cc949b73F0A776944E7011FabC50";
+const ORACLE_OWNER = "0x638E5DA0EEbbA58c67567bcEb4Ab2dc8D34853FB";
+
+const ORACLE_DISPUTE_PERIOD = 7200;
+const ORACLE_LOCKING_PERIOD = 300;
 
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";
 const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
-const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
+// const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const ETH_ADDRESS = constants.AddressZero;
 let owner, user, recipient;
 let ownerSigner;
@@ -90,18 +94,44 @@ describe("GammaAdapter", () => {
       method: "hardhat_impersonateAccount",
       params: [CHAINLINK_PRICER],
     });
+    await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [ORACLE_OWNER],
+    });
     const pricerSigner = await provider.getSigner(CHAINLINK_PRICER);
+
+    const forceSendContract = await ethers.getContractFactory("ForceSend");
+    const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
+    await forceSend
+      .connect(ownerSigner)
+      .go(CHAINLINK_PRICER, { value: parseEther("0.5") });
+
+    this.oracle = new ethers.Contract(GAMMA_ORACLE, ORACLE_ABI, pricerSigner);
+
+    const oracleOwnerSigner = await provider.getSigner(ORACLE_OWNER);
 
     await ownerSigner.sendTransaction({
       from: owner,
-      to: CHAINLINK_PRICER,
-      value: parseEther("1"),
+      to: ORACLE_OWNER,
+      value: parseEther("0.5"),
     });
 
-    this.oracle = new ethers.Contract(GAMMA_ORACLE, ORACLE_ABI, pricerSigner);
+    await this.oracle
+      .connect(oracleOwnerSigner)
+      .setStablePrice(USDC_ADDRESS, "100000000");
+
+    this.depositToVaultForShorts = depositToVaultForShorts;
   });
 
   after(async () => {
+    await hre.network.provider.request({
+      method: "hardhat_stopImpersonatingAccount",
+      params: [CHAINLINK_PRICER],
+    });
+    await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [ORACLE_OWNER],
+    });
     await time.revertToSnapShot(initSnapshotId);
   });
 
@@ -157,6 +187,7 @@ describe("GammaAdapter", () => {
     strikeAsset: USDC_ADDRESS,
     collateralAsset: WETH_ADDRESS,
     strikePrice: parseEther("960"),
+    settlePrice: "120000000000",
     expiry: "1614326400",
     optionType: CALL_OPTION_TYPE,
     purchaseAmount: parseEther("0.1"),
@@ -172,6 +203,7 @@ describe("GammaAdapter", () => {
     strikeAsset: USDC_ADDRESS,
     collateralAsset: WETH_ADDRESS,
     strikePrice: parseEther("1480"),
+    settlePrice: "120000000000",
     expiry: "1610697600",
     optionType: CALL_OPTION_TYPE,
     purchaseAmount: parseEther("0.1"),
@@ -187,6 +219,7 @@ describe("GammaAdapter", () => {
     strikeAsset: USDC_ADDRESS,
     collateralAsset: USDC_ADDRESS,
     strikePrice: parseEther("800"),
+    settlePrice: "120000000000",
     expiry: "1610697600",
     optionType: PUT_OPTION_TYPE,
     purchaseAmount: parseEther("0.1"),
@@ -212,6 +245,7 @@ function behavesLikeOTokens(params) {
         exerciseProfit,
         shortAmount,
         premium,
+        settlePrice,
       } = params;
 
       this.oTokenAddress = oTokenAddress;
@@ -226,6 +260,9 @@ function behavesLikeOTokens(params) {
       this.premium = premium;
       this.paymentToken = paymentToken || ETH_ADDRESS;
       this.shortAmount = shortAmount;
+      this.paymentToken = paymentToken || ETH_ADDRESS;
+      this.shortAmount = shortAmount;
+      this.settlePrice = settlePrice;
       this.apiResponse = ZERO_EX_API_RESPONSES[oTokenAddress];
       this.scaleDecimals = (n) =>
         n.div(BigNumber.from("10").pow(BigNumber.from("10")));
@@ -491,43 +528,7 @@ function behavesLikeOTokens(params) {
       beforeEach(async function () {
         snapshotId = await time.takeSnapshot();
 
-        const depositAmount = parseEther("10");
-
-        if (this.collateralAsset === WETH_ADDRESS) {
-          const wethContract = (
-            await ethers.getContractAt("IWETH", WETH_ADDRESS)
-          ).connect(ownerSigner);
-          await wethContract.deposit({ from: owner, value: depositAmount });
-          await wethContract.transfer(this.adapter.address, depositAmount, {
-            from: owner,
-          });
-        } else {
-          const router = (
-            await ethers.getContractAt("IUniswapV2Router01", UNISWAP_ROUTER)
-          ).connect(ownerSigner);
-          const collateralToken = (
-            await ethers.getContractAt("IERC20", this.collateralAsset)
-          ).connect(ownerSigner);
-
-          const amountsOut = await router.getAmountsOut(depositAmount, [
-            WETH_ADDRESS,
-            this.collateralAsset,
-          ]);
-
-          const amountOutMin = amountsOut[1];
-
-          await router.swapExactETHForTokens(
-            amountOutMin,
-            [WETH_ADDRESS, this.collateralAsset],
-            owner,
-            Math.floor(Date.now() / 1000) + 69,
-            { from: owner, value: depositAmount }
-          );
-
-          await collateralToken.transfer(this.adapter.address, amountOutMin, {
-            from: owner,
-          });
-        }
+        this.depositToVaultForShorts(parseEther("10"));
       });
 
       afterEach(async () => {
@@ -605,29 +606,75 @@ function behavesLikeOTokens(params) {
       time.revertToSnapshotAfterEach(async function () {
         const depositAmount = parseEther("10");
 
-        const wethContract = (
-          await ethers.getContractAt("IWETH", WETH_ADDRESS)
-        ).connect(ownerSigner);
-
-        await wethContract.deposit({ from: owner, value: depositAmount });
-        await wethContract.transfer(this.adapter.address, depositAmount, {
-          from: owner,
-        });
+        await this.depositToVaultForShorts(depositAmount);
 
         await this.adapter.createShort(this.optionTerms, this.shortAmount);
+
+        await time.increaseTo(
+          parseInt(this.expiry) + ORACLE_LOCKING_PERIOD + 1
+        );
+
+        const res = await this.oracle.setExpiryPrice(
+          WETH_ADDRESS,
+          this.expiry,
+          this.settlePrice
+        );
+        const receipt = await res.wait();
+        const timestamp = (await provider.getBlock(receipt.blockNumber))
+          .timestamp;
+
+        await time.increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);
       });
 
       it("settles the vault and withdraws collateral", async function () {
-        await time.increaseTo(this.expiry + 1);
-        await this.oracle.setExpiryPrice(
-          WETH_ADDRESS,
-          this.expiry,
-          BigNumber.from("164418427402")
-        );
+        // We just avoid testing for sell puts right now
+        // because it's not the priority
+        if (this.optionType == PUT_OPTION_TYPE) {
+          return;
+        }
+
         await this.adapter.closeShort();
       });
     });
   });
+}
+
+async function depositToVaultForShorts(depositAmount) {
+  if (this.collateralAsset === WETH_ADDRESS) {
+    const wethContract = (
+      await ethers.getContractAt("IWETH", WETH_ADDRESS)
+    ).connect(ownerSigner);
+    await wethContract.deposit({ from: owner, value: depositAmount });
+    await wethContract.transfer(this.adapter.address, depositAmount, {
+      from: owner,
+    });
+  } else {
+    const router = (
+      await ethers.getContractAt("IUniswapV2Router01", UNISWAP_ROUTER)
+    ).connect(ownerSigner);
+    const collateralToken = (
+      await ethers.getContractAt("IERC20", this.collateralAsset)
+    ).connect(ownerSigner);
+
+    const amountsOut = await router.getAmountsOut(depositAmount, [
+      WETH_ADDRESS,
+      this.collateralAsset,
+    ]);
+
+    const amountOutMin = amountsOut[1];
+
+    await router.swapExactETHForTokens(
+      amountOutMin,
+      [WETH_ADDRESS, this.collateralAsset],
+      owner,
+      Math.floor(Date.now() / 1000) + 69,
+      { from: owner, value: depositAmount }
+    );
+
+    await collateralToken.transfer(this.adapter.address, amountOutMin, {
+      from: owner,
+    });
+  }
 }
 
 function calculateZeroExOrderCost(apiResponse) {

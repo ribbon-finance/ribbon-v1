@@ -16,7 +16,6 @@ import {ISwap} from "../interfaces/ISwap.sol";
 import {Ownable} from "../lib/Ownable.sol";
 
 import {OptionsVaultStorageV1} from "../storage/OptionsVaultStorage.sol";
-import "hardhat/console.sol";
 
 contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     using ProtocolAdapter for IProtocolAdapter;

@@ -392,11 +392,13 @@ contract HegicAdapter is IProtocolAdapter {
         }
     }
 
-    function createShort(OptionTerms memory optionTerms, uint256 amount)
-        public
-        payable
+    function createShort(OptionTerms memory, uint256)
+        external
+        pure
         override
     {}
+
+    function closeShort() external override {}
 
     /**
      * @notice Helper function to get the options address based on the underlying asset

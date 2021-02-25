@@ -77,6 +77,7 @@ describe("RibbonETHCoveredCall", () => {
       "1614326400",
       parseEther("960"),
       2,
+      WETH_ADDRESS,
     ];
 
     this.oTokenAddress = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";

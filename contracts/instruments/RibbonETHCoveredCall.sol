@@ -128,7 +128,6 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     {
         IProtocolAdapter adapter =
             IProtocolAdapter(factory.getAdapter(_adapterName));
-
         uint256 currentBalance = IERC20(asset).balanceOf(address(this));
         uint256 shortAmount = wmul(currentBalance, lockedRatio);
         uint256 shortBalance =
@@ -143,6 +142,13 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         lockedAmount = shortAmount;
 
         emit WriteOptions(msg.sender, options, shortAmount);
+    }
+
+    function withdrawFromVault() public {
+        IProtocolAdapter adapter =
+            IProtocolAdapter(factory.getAdapter(_adapterName));
+
+        adapter.delegateCloseShort();
     }
 
     function totalBalance() public view returns (uint256) {

@@ -5,11 +5,14 @@ const { parseEther } = ethers.utils;
 
 const time = require("../helpers/time.js");
 const ZERO_EX_API_RESPONSES = require("../fixtures/GammaAdapter.json");
+const ORACLE_ABI = require("../../constants/abis/OpynOracle.json");
 const { wdiv } = require("../helpers/utils");
 
 const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
+const CHAINLINK_PRICER = "0xAC05f5147566Cc949b73F0A776944E7011FabC50";
+
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";
 const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
@@ -27,6 +30,8 @@ describe("GammaAdapter", () => {
   let initSnapshotId;
 
   before(async function () {
+    initSnapshotId = await time.takeSnapshot();
+
     [, ownerSigner, userSigner, recipientSigner] = await ethers.getSigners();
     owner = ownerSigner.address;
     user = userSigner.address;
@@ -81,7 +86,19 @@ describe("GammaAdapter", () => {
       )
     ).connect(userSigner);
 
-    initSnapshotId = await time.takeSnapshot();
+    await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [CHAINLINK_PRICER],
+    });
+    const pricerSigner = await provider.getSigner(CHAINLINK_PRICER);
+
+    await ownerSigner.sendTransaction({
+      from: owner,
+      to: CHAINLINK_PRICER,
+      value: parseEther("1"),
+    });
+
+    this.oracle = new ethers.Contract(GAMMA_ORACLE, ORACLE_ABI, pricerSigner);
   });
 
   after(async () => {
@@ -574,6 +591,33 @@ function behavesLikeOTokens(params) {
           endPoolCollateralBalance.sub(initialPoolCollateralBalance).toString(),
           this.shortAmount
         );
+      });
+    });
+
+    describe("#closeShort", () => {
+      time.revertToSnapshotAfterEach(async function () {
+        const depositAmount = parseEther("10");
+
+        const wethContract = (
+          await ethers.getContractAt("IWETH", WETH_ADDRESS)
+        ).connect(ownerSigner);
+
+        await wethContract.deposit({ from: owner, value: depositAmount });
+        await wethContract.transfer(this.adapter.address, depositAmount, {
+          from: owner,
+        });
+
+        await this.adapter.createShort(this.optionTerms, this.shortAmount);
+      });
+
+      it("settles the vault and withdraws collateral", async function () {
+        await time.increaseTo(this.expiry + 1);
+        await this.oracle.setExpiryPrice(
+          WETH_ADDRESS,
+          this.expiry,
+          BigNumber.from("164418427402")
+        );
+        await this.adapter.closeShort();
       });
     });
   });

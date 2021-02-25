@@ -36,7 +36,7 @@ contract HegicAdapter is IProtocolAdapter {
     string private constant _name = "HEGIC";
     bool private constant _nonFungible = true;
     address public immutable ethAddress;
-    address public constant wethAddress = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2); 
+    address public constant wethAddress = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     address public immutable wbtcAddress;
     IHegicETHOptions public immutable ethOptions;
     IHegicBTCOptions public immutable wbtcOptions;
@@ -126,7 +126,7 @@ contract HegicAdapter is IProtocolAdapter {
             block.timestamp < optionTerms.expiry,
             "Cannot purchase after expiry"
         );
-        
+
         uint256 period = optionTerms.expiry.sub(block.timestamp);
         uint256 scaledStrikePrice =
             scaleDownStrikePrice(optionTerms.strikePrice);
@@ -164,7 +164,7 @@ contract HegicAdapter is IProtocolAdapter {
     function exerciseProfit(
         address optionsAddress,
         uint256 optionID,
-        uint256 
+        uint256
     ) public view override returns (uint256 profit) {
         require(
             optionsAddress == address(ethOptions) ||
@@ -242,7 +242,7 @@ contract HegicAdapter is IProtocolAdapter {
             block.timestamp < optionTerms.expiry,
             "Cannot purchase after expiry"
         );
-        
+
         uint256 cost = premium(
             OptionTerms(
                 optionTerms.underlying,
@@ -332,7 +332,7 @@ contract HegicAdapter is IProtocolAdapter {
         uint amount0Out;
         uint amount1Out;
         (amount0Out, amount1Out) = (uint(0), costETH); // in case we change tokens (currently using WETH<>WBTC pair) this should be reviewed
-        ethWbtcPair.swap(amount0Out, amount1Out, address(this), ""); 
+        ethWbtcPair.swap(amount0Out, amount1Out, address(this), "");
         IWETH(wethAddress).withdraw(costETH); // unwrapping ETH. It would not be required if options are paid using WETH
     }
 
@@ -362,14 +362,16 @@ contract HegicAdapter is IProtocolAdapter {
         returns (uint256 rewardsAmount)
     {
         IHegicRewards rewardsContract = IHegicRewards(rewardsAddress);
+        IHegicOptions hegicOptions = rewardsContract.hegicOptions();
+        uint256 rewardsRate = rewardsContract.rewardsRate();
 
         uint256 i = 0;
 
         while (i < optionIDs.length && optionIDs[i] > 0) {
-          (, , , uint _amount, , uint _premium, , ) = rewardsContract.hegicOptions().options(optionIDs[i]);
+          (, , , uint _amount, , uint _premium, , ) = hegicOptions.options(optionIDs[i]);
           if(!rewardsContract.rewardedOptions(optionIDs[i])){
             rewardsAmount = rewardsAmount.add(_amount.div(100).add(_premium)
-            .mul(rewardsContract.rewardsRate())
+            .mul(rewardsRate)
             .div(1e8));
           }
           i += 1;
@@ -386,21 +388,22 @@ contract HegicAdapter is IProtocolAdapter {
         returns (uint256 rewardsAmount)
     {
         IHegicRewards rewardsContract = IHegicRewards(rewardsAddress);
+        IERC20 hegicToken = rewardsContract.hegic();
 
         uint256 i = 0;
 
-        uint256 balanceBefore = rewardsContract.hegic().balanceOf(address(this));
+        uint256 balanceBefore = hegicToken.balanceOf(address(this));
 
         while (i < optionIDs.length && optionIDs[i] > 0) {
           try rewardsContract.getReward(optionIDs[i]) {} catch {}
           i += 1;
         }
 
-        uint256 balanceAfter = rewardsContract.hegic().balanceOf(address(this));
+        uint256 balanceAfter = hegicToken.balanceOf(address(this));
 
         rewardsAmount = balanceAfter.sub(balanceBefore);
         require(rewardsAmount > 0, "No rewards to claim");
-        rewardsContract.hegic().safeTransfer(msg.sender, rewardsAmount);
+        hegicToken.safeTransfer(msg.sender, rewardsAmount);
     }
 
     /**

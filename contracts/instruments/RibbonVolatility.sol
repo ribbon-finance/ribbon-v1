@@ -245,7 +245,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         uint256 amount,
         uint256[] memory strikePrices,
         bytes[] memory buyData,
-        address paymentToken, 
+        address paymentToken,
         uint256[] memory maxCosts
     ) public payable nonReentrant returns (uint256 positionID) {
         require(venues.length >= 2, "Must have 2 or more venue");
@@ -415,8 +415,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                 optionID = position.putOptionID;
                 optionType = OptionType.Put;
             }
-            
-            address paymentToken = address(0); // it is irrelevant at this stage 
+
+            address paymentToken = address(0); // it is irrelevant at this stage
 
             address optionsAddress =
                 adapter.getOptionsAddress(

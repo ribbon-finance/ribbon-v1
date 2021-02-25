@@ -523,16 +523,8 @@ function behavesLikeOTokens(params) {
     });
 
     describe("#createShort", () => {
-      let snapshotId;
-
-      beforeEach(async function () {
-        snapshotId = await time.takeSnapshot();
-
-        this.depositToVaultForShorts(parseEther("10"));
-      });
-
-      afterEach(async () => {
-        await time.revertToSnapShot(snapshotId);
+      time.revertToSnapshotAfterEach(async function () {
+        await this.depositToVaultForShorts(parseEther("10"));
       });
 
       it("reverts when no matched oToken", async function () {
@@ -543,6 +535,7 @@ function behavesLikeOTokens(params) {
           "1614326400",
           parseEther("800"),
           CALL_OPTION_TYPE,
+          "0x0000000000000000000000000000000000000069",
         ];
 
         await expect(

@@ -401,7 +401,7 @@ function behavesLikeRibbonVolatility(params) {
               gasPrice: this.gasPrice,
             }
           )
-        ).vertedWith("Cannot purchase after expiry");
+        ).to.be.revertedWith("Cannot purchase after expiry");
       });
 
       it("buys instrument", async function () {

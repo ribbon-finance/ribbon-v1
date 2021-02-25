@@ -256,8 +256,6 @@ function behavesLikeOTokens(params) {
       this.exerciseProfit = exerciseProfit;
       this.premium = premium;
       this.shortAmount = shortAmount;
-      this.paymentToken = paymentToken || ETH_ADDRESS;
-      this.shortAmount = shortAmount;
       this.settlePrice = settlePrice;
       this.apiResponse = ZERO_EX_API_RESPONSES[oTokenAddress];
       this.scaleDecimals = (n) =>

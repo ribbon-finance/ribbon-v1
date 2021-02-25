@@ -137,7 +137,7 @@ library ProtocolAdapter {
         (bool success, bytes memory res) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
-                    "createShort((address,address,address,uint256,uint256,uint8,address),uint256)",
+                    "createShort((address,address,address,uint256,uint256,uint8),uint256)",
                     optionTerms,
                     amount
                 )

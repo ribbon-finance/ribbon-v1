@@ -525,6 +525,7 @@ function behavesLikeOTokens(params) {
           "1614326400",
           parseEther("800"),
           CALL_OPTION_TYPE,
+          "0x0000000000000000000000000000000000000069",
         ];
 
         await expect(

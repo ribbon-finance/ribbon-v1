@@ -245,7 +245,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         uint256 amount,
         uint256[] memory strikePrices,
         bytes[] memory buyData,
-        address paymentToken, 
+        address paymentToken,
         uint256[] memory maxCosts
     ) public payable nonReentrant returns (uint256 positionID) {
         require(venues.length >= 2, "Must have 2 or more venue");
@@ -415,8 +415,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                 optionID = position.putOptionID;
                 optionType = OptionType.Put;
             }
-            
-            address paymentToken = address(0); // it is irrelevant at this stage 
+
+            address paymentToken = address(0); // it is irrelevant at this stage
 
             address optionsAddress =
                 adapter.getOptionsAddress(
@@ -459,12 +459,48 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         emit Exercised(msg.sender, positionID, totalProfit, optionsExercised);
     }
 
-    function claimRewards(string calldata adapterName, address rewardsAddress, uint256[] calldata optionIDs)
+    function claimRewards(address rewardsAddress)
         external
     {
-      IProtocolAdapter adapter = IProtocolAdapter(factory.getAdapter(adapterName));
-      adapter.delegateClaimRewards(rewardsAddress, optionIDs);
-      emit ClaimedRewards(optionIDs.length);
+      IProtocolAdapter adapter = IProtocolAdapter(factory.getAdapter("HEGIC"));
+      uint256[] memory optionIDs = getOptionIDs(msg.sender);
+      uint256 claimedRewards = adapter.delegateClaimRewards(rewardsAddress, optionIDs);
+      emit ClaimedRewards(claimedRewards);
+    }
+
+    function rewardsClaimable(address rewardsAddress)
+        external
+        view
+        returns (uint256 rewardsToClaim)
+    {
+      IProtocolAdapter adapter = IProtocolAdapter(factory.getAdapter("HEGIC"));
+      uint256[] memory optionIDs = getOptionIDs(msg.sender);
+      rewardsToClaim = adapter.delegateRewardsClaimable(rewardsAddress, optionIDs);
+    }
+
+    function getOptionIDs(address user)
+        private
+        view
+        returns (uint256[] memory optionIDs)
+    {
+        uint256 i = 0;
+        uint256 j = 0;
+
+        InstrumentPosition[] memory positions = instrumentPositions[user];
+
+        optionIDs = new uint256[](positions.length.mul(2));
+
+        while(i < positions.length){
+          if(keccak256(bytes(getAdapterName(positions[i].callVenue))) == hegicHash){
+            optionIDs[j] = positions[i].callOptionID;
+            j += 1;
+          }
+          if(keccak256(bytes(getAdapterName(positions[i].putVenue))) == hegicHash){
+            optionIDs[j] = positions[i].putOptionID;
+            j += 1;
+          }
+          i+=1;
+        }
     }
 
     function getAdapterName(uint8 venueID)

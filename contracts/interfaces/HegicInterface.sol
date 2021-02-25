@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.7.2;
 import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 enum HegicOptionType {Invalid, Put, Call}
 enum State {Inactive, Active, Exercised, Expired}
@@ -89,5 +90,9 @@ interface IHegicBTCOptions is IHegicOptions {
 }
 
 interface IHegicRewards {
+  function hegic() external view returns (IERC20);
+  function hegicOptions() external view returns (IHegicOptions);
+  function rewardsRate() external view returns (uint256);
+  function rewardedOptions(uint optionId) external view returns(bool);
   function getReward(uint optionId) external;
 }

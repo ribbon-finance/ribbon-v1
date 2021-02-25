@@ -164,7 +164,7 @@ library ProtocolAdapter {
         IProtocolAdapter adapter,
         address rewardsAddress,
         uint256[] calldata optionIDs
-    ) external {
+    ) external returns (uint256){
         (bool success, bytes memory result) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
@@ -174,6 +174,24 @@ library ProtocolAdapter {
                 )
             );
         require(success, getRevertMsg(result));
+        return abi.decode(result, (uint256));
+    }
+
+    function delegateRewardsClaimable(
+        IProtocolAdapter adapter,
+        address rewardsAddress,
+        uint256[] calldata optionIDs
+    ) external view returns (uint256){
+        (bool success, bytes memory result) =
+            address(adapter).staticcall(
+                abi.encodeWithSignature(
+                    "rewardsClaimable(address,uint256[])",
+                    rewardsAddress,
+                    optionIDs
+                )
+            );
+        require(success, getRevertMsg(result));
+        return abi.decode(result, (uint256));
     }
 
     function getRevertMsg(bytes memory _returnData)

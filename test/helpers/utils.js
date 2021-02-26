@@ -1,7 +1,11 @@
 const { encodeCall } = require("@openzeppelin/upgrades");
 const { ethers, artifacts } = require("hardhat");
-const { BigNumber, constants } = ethers;
+const { provider, BigNumber, constants } = ethers;
 const { parseEther } = ethers.utils;
+const time = require("./time");
+
+const wbtcAbi = require("../../constants/abis/WBTC.json");
+const ORACLE_ABI = require("../../constants/abis/OpynOracle.json");
 
 module.exports = {
   getDefaultArgs,
@@ -10,6 +14,8 @@ module.exports = {
   wdiv,
   parseLog,
   mintAndApprove,
+  setupOracle,
+  setOpynOracleExpiryPrice,
 };
 
 async function deployProxy(
@@ -38,7 +44,13 @@ async function deployProxy(
   return await ethers.getContractAt(logicContractName, proxy.address);
 }
 
+const ORACLE_DISPUTE_PERIOD = 7200;
+const ORACLE_LOCKING_PERIOD = 300;
+
+const ORACLE_OWNER = "0x638E5DA0EEbbA58c67567bcEb4Ab2dc8D34853FB";
+const CHAINLINK_PRICER = "0xAC05f5147566Cc949b73F0A776944E7011FabC50";
 const CHI_ADDRESS = "0x0000000000004946c0e9F43F4Dee607b0eF1fA1c";
+const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
@@ -185,20 +197,69 @@ async function parseLog(contractName, log) {
 async function mintAndApprove(tokenAddress, userSigner, spender, amount) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: ["0xca06411bd7a7296d7dbdd0050dfc846e95febeb7"]}
-  )
-  const wbtcMinter = await ethers.provider.getSigner("0xca06411bd7a7296d7dbdd0050dfc846e95febeb7")
+    params: ["0xca06411bd7a7296d7dbdd0050dfc846e95febeb7"],
+  });
+  const wbtcMinter = await ethers.provider.getSigner(
+    "0xca06411bd7a7296d7dbdd0050dfc846e95febeb7"
+  );
   const forceSendContract = await ethers.getContractFactory("ForceSend");
-  const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function) 
+  const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
   await forceSend.deployed();
-  await forceSend.go("0xca06411bd7a7296d7dbdd0050dfc846e95febeb7", { value: parseEther("1") });
-  const wbtcAbi = [{"constant":true,"inputs":[],"name":"mintingFinished","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_token","type":"address"}],"name":"reclaimToken","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transferFrom","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[],"name":"unpause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_amount","type":"uint256"}],"name":"mint","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"value","type":"uint256"}],"name":"burn","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"claimOwnership","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"paused","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_subtractedValue","type":"uint256"}],"name":"decreaseApproval","outputs":[{"name":"success","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[],"name":"renounceOwnership","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"finishMinting","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"pause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_addedValue","type":"uint256"}],"name":"increaseApproval","outputs":[{"name":"success","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"pendingOwner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"anonymous":false,"inputs":[],"name":"Pause","type":"event"},{"anonymous":false,"inputs":[],"name":"Unpause","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"burner","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Burn","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"to","type":"address"},{"indexed":false,"name":"amount","type":"uint256"}],"name":"Mint","type":"event"},{"anonymous":false,"inputs":[],"name":"MintFinished","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"previousOwner","type":"address"}],"name":"OwnershipRenounced","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"previousOwner","type":"address"},{"indexed":true,"name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"owner","type":"address"},{"indexed":true,"name":"spender","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"from","type":"address"},{"indexed":true,"name":"to","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Transfer","type":"event"}];
-  
+  await forceSend.go("0xca06411bd7a7296d7dbdd0050dfc846e95febeb7", {
+    value: parseEther("1"),
+  });
+
   const WBTCToken = await ethers.getContractAt(wbtcAbi, tokenAddress);
   await WBTCToken.connect(wbtcMinter).mint(userSigner.address, amount);
-  await WBTCToken.connect(userSigner).approve(spender, amount.mul(BigNumber.from("10")))
+  await WBTCToken.connect(userSigner).approve(
+    spender,
+    amount.mul(BigNumber.from("10"))
+  );
   // await hre.network.provider.request({
   //   method: "hardhat_stopImpersonatingAccount",
   //   params: ["0xca06411bd7a7296d7dbdd0050dfc846e95febeb7"]}
   // )
+}
+
+async function setupOracle(signer) {
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [CHAINLINK_PRICER],
+  });
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [ORACLE_OWNER],
+  });
+  const pricerSigner = await provider.getSigner(CHAINLINK_PRICER);
+
+  const forceSendContract = await ethers.getContractFactory("ForceSend");
+  const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
+  await forceSend
+    .connect(signer)
+    .go(CHAINLINK_PRICER, { value: parseEther("0.5") });
+
+  const oracle = new ethers.Contract(GAMMA_ORACLE, ORACLE_ABI, pricerSigner);
+
+  const oracleOwnerSigner = await provider.getSigner(ORACLE_OWNER);
+
+  await signer.sendTransaction({
+    to: ORACLE_OWNER,
+    value: parseEther("0.5"),
+  });
+
+  await oracle
+    .connect(oracleOwnerSigner)
+    .setStablePrice(USDC_ADDRESS, "100000000");
+
+  return oracle;
+}
+
+async function setOpynOracleExpiryPrice(oracle, expiry, settlePrice) {
+  await time.increaseTo(parseInt(expiry) + ORACLE_LOCKING_PERIOD + 1);
+
+  const res = await oracle.setExpiryPrice(WETH_ADDRESS, expiry, settlePrice);
+  const receipt = await res.wait();
+  const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
+
+  await time.increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);
 }

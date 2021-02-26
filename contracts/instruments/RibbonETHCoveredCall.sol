@@ -13,6 +13,7 @@ import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {ISwap} from "../interfaces/ISwap.sol";
+import {OtokenInterface} from "../interfaces/GammaInterface.sol";
 import {Ownable} from "../lib/Ownable.sol";
 
 import {OptionsVaultStorageV1} from "../storage/OptionsVaultStorage.sol";
@@ -136,6 +137,10 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         address oldOption = currentOption;
 
         if (oldOption != address(0)) {
+            require(
+                block.timestamp >= OtokenInterface(oldOption).expiryTimestamp(),
+                "Otoken not expired"
+            );
             uint256 withdrawAmount = adapter.delegateCloseShort();
             emit WithdrawFromShort(oldOption, withdrawAmount, msg.sender);
         }
@@ -154,6 +159,16 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         lockedAmount = shortAmount;
 
         emit DepositForShort(options, shortAmount, msg.sender);
+    }
+
+    function currentOptionExpiry() external view returns (uint256) {
+        address _currentOption = currentOption;
+        if (_currentOption == address(0)) {
+            return 0;
+        }
+
+        OtokenInterface oToken = OtokenInterface(currentOption);
+        return oToken.expiryTimestamp();
     }
 
     function totalBalance() public view returns (uint256) {

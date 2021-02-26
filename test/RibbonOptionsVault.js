@@ -7,7 +7,13 @@ const { provider, getContractAt } = ethers;
 const { parseEther } = ethers.utils;
 
 const time = require("./helpers/time");
-const { deployProxy, getDefaultArgs, wmul } = require("./helpers/utils");
+const {
+  deployProxy,
+  getDefaultArgs,
+  wmul,
+  setupOracle,
+  setOpynOracleExpiryPrice,
+} = require("./helpers/utils");
 
 let owner, user;
 let userSigner, ownerSigner, managerSigner, counterpartySigner;
@@ -276,6 +282,8 @@ describe("RibbonETHCoveredCall", () => {
       this.depositAmount = parseEther("1");
       this.expectedMintAmount = BigNumber.from("90000000");
       await this.vault.depositETH({ value: this.depositAmount });
+
+      this.oracle = await setupOracle(ownerSigner);
     });
 
     it("reverts when not called with manager", async function () {
@@ -298,6 +306,8 @@ describe("RibbonETHCoveredCall", () => {
       const res = await this.vault
         .connect(managerSigner)
         .rollToNextOption(this.optionTerms, { from: manager });
+
+      expect(res).to.not.emit(this.vault, "WithdrawFromShort");
 
       expect(res)
         .to.emit(this.vault, "DepositForShort")
@@ -328,6 +338,97 @@ describe("RibbonETHCoveredCall", () => {
         await this.oToken.allowance(this.vault.address, SWAP_ADDRESS),
         this.expectedMintAmount
       );
+    });
+
+    it("reverts when rolling to next option when current is not expired", async function () {
+      await this.vault
+        .connect(managerSigner)
+        .rollToNextOption(
+          [
+            WETH_ADDRESS,
+            USDC_ADDRESS,
+            WETH_ADDRESS,
+            "1614326400",
+            parseEther("960"),
+            2,
+            WETH_ADDRESS,
+          ],
+          { from: manager }
+        );
+
+      assert.equal(
+        await this.vault.currentOption(),
+        "0x3cF86d40988309AF3b90C14544E1BB0673BFd439"
+      );
+      assert.equal(await this.vault.currentOptionExpiry(), 1614326400);
+
+      await expect(
+        this.vault
+          .connect(managerSigner)
+          .rollToNextOption(
+            [
+              WETH_ADDRESS,
+              USDC_ADDRESS,
+              WETH_ADDRESS,
+              "1610697600",
+              parseEther("680"),
+              2,
+              WETH_ADDRESS,
+            ],
+            { from: manager }
+          )
+      ).to.be.revertedWith("Otoken not expired");
+    });
+
+    it("withdraws and roll funds into next option", async function () {
+      await this.vault
+        .connect(managerSigner)
+        .rollToNextOption(
+          [
+            WETH_ADDRESS,
+            USDC_ADDRESS,
+            WETH_ADDRESS,
+            "1610697600",
+            parseEther("1480"),
+            2,
+            WETH_ADDRESS,
+          ],
+          { from: manager }
+        );
+
+      assert.equal(
+        await this.vault.currentOption(),
+        "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3"
+      );
+      assert.equal(await this.vault.currentOptionExpiry(), 1610697600);
+
+      // withdraw 100% because it's OTM
+      await setOpynOracleExpiryPrice(
+        this.oracle,
+        await this.vault.currentOptionExpiry(),
+        BigNumber.from("148000000000").sub(BigNumber.from("1"))
+      );
+
+      await this.vault
+        .connect(managerSigner)
+        .rollToNextOption(
+          [
+            WETH_ADDRESS,
+            USDC_ADDRESS,
+            WETH_ADDRESS,
+            "1614326400",
+            parseEther("960"),
+            2,
+            WETH_ADDRESS,
+          ],
+          { from: manager }
+        );
+
+      assert.equal(
+        await this.vault.currentOption(),
+        "0x3cF86d40988309AF3b90C14544E1BB0673BFd439"
+      );
+      assert.equal(await this.vault.currentOptionExpiry(), 1614326400);
     });
   });
 

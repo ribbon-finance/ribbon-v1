@@ -5,14 +5,16 @@ const { parseEther } = ethers.utils;
 
 const time = require("../helpers/time.js");
 const ZERO_EX_API_RESPONSES = require("../fixtures/GammaAdapter.json");
-const ORACLE_ABI = require("../../constants/abis/OpynOracle.json");
-const { wmul, wdiv } = require("../helpers/utils");
+const {
+  wmul,
+  wdiv,
+  setupOracle,
+  setOpynOracleExpiryPrice,
+} = require("../helpers/utils");
 
 const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
-const CHAINLINK_PRICER = "0xAC05f5147566Cc949b73F0A776944E7011FabC50";
-const ORACLE_OWNER = "0x638E5DA0EEbbA58c67567bcEb4Ab2dc8D34853FB";
 
 const ORACLE_DISPUTE_PERIOD = 7200;
 const ORACLE_LOCKING_PERIOD = 300;
@@ -91,48 +93,12 @@ describe("GammaAdapter", () => {
       )
     ).connect(userSigner);
 
-    await hre.network.provider.request({
-      method: "hardhat_impersonateAccount",
-      params: [CHAINLINK_PRICER],
-    });
-    await hre.network.provider.request({
-      method: "hardhat_impersonateAccount",
-      params: [ORACLE_OWNER],
-    });
-    const pricerSigner = await provider.getSigner(CHAINLINK_PRICER);
-
-    const forceSendContract = await ethers.getContractFactory("ForceSend");
-    const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
-    await forceSend
-      .connect(ownerSigner)
-      .go(CHAINLINK_PRICER, { value: parseEther("0.5") });
-
-    this.oracle = new ethers.Contract(GAMMA_ORACLE, ORACLE_ABI, pricerSigner);
-
-    const oracleOwnerSigner = await provider.getSigner(ORACLE_OWNER);
-
-    await ownerSigner.sendTransaction({
-      from: owner,
-      to: ORACLE_OWNER,
-      value: parseEther("0.5"),
-    });
-
-    await this.oracle
-      .connect(oracleOwnerSigner)
-      .setStablePrice(USDC_ADDRESS, "100000000");
+    this.oracle = await setupOracle(ownerSigner);
 
     this.depositToVaultForShorts = depositToVaultForShorts;
   });
 
   after(async () => {
-    await hre.network.provider.request({
-      method: "hardhat_stopImpersonatingAccount",
-      params: [CHAINLINK_PRICER],
-    });
-    await hre.network.provider.request({
-      method: "hardhat_impersonateAccount",
-      params: [ORACLE_OWNER],
-    });
     await time.revertToSnapShot(initSnapshotId);
   });
 
@@ -601,20 +567,11 @@ function behavesLikeOTokens(params) {
 
         await this.adapter.createShort(this.optionTerms, this.shortAmount);
 
-        await time.increaseTo(
-          parseInt(this.expiry) + ORACLE_LOCKING_PERIOD + 1
-        );
-
-        const res = await this.oracle.setExpiryPrice(
-          WETH_ADDRESS,
+        await setOpynOracleExpiryPrice(
+          this.oracle,
           this.expiry,
           this.settlePrice
         );
-        const receipt = await res.wait();
-        const timestamp = (await provider.getBlock(receipt.blockNumber))
-          .timestamp;
-
-        await time.increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);
       });
 
       it("settles the vault and withdraws collateral", async function () {

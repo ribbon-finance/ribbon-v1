@@ -407,8 +407,11 @@ contract HegicAdapter is IProtocolAdapter {
         IERC20 hegicToken = rewardsContract.hegic();
 
         uint256 i = 0;
-        while (i < optionIDs.length) {
-            rewardsContract.getReward(optionIDs[i]);
+
+        uint256 balanceBefore = hegicToken.balanceOf(address(this));
+
+        while (i < optionIDs.length && optionIDs[i] > 0) {
+            try rewardsContract.getReward(optionIDs[i]) {} catch {}
             i += 1;
         }
 

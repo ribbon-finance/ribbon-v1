@@ -345,10 +345,10 @@ describe("RibbonETHCoveredCall", () => {
         .connect(managerSigner)
         .rollToNextOption(this.optionTerms, { from: manager });
 
-      expect(res).to.not.emit(this.vault, "WithdrawFromShort");
+      expect(res).to.not.emit(this.vault, "CloseShort");
 
       expect(res)
-        .to.emit(this.vault, "DepositForShort")
+        .to.emit(this.vault, "OpenShort")
         .withArgs(this.oTokenAddress, lockedAmount, manager);
 
       assert.equal((await this.vault.lockedAmount()).toString(), lockedAmount);
@@ -441,7 +441,7 @@ describe("RibbonETHCoveredCall", () => {
       assert.equal(await this.vault.currentOptionExpiry(), 1610697600);
 
       expect(firstTx)
-        .to.emit(this.vault, "DepositForShort")
+        .to.emit(this.vault, "OpenShort")
         .withArgs(firstOption, wmul(this.depositAmount, LOCKED_RATIO), manager);
 
       // Perform the swap to deposit premiums and remove otokens
@@ -489,11 +489,11 @@ describe("RibbonETHCoveredCall", () => {
       assert.equal(await this.vault.currentOptionExpiry(), 1614326400);
 
       expect(secondTx)
-        .to.emit(this.vault, "WithdrawFromShort")
+        .to.emit(this.vault, "CloseShort")
         .withArgs(firstOption, wmul(this.depositAmount, LOCKED_RATIO), manager);
 
       expect(secondTx)
-        .to.emit(this.vault, "DepositForShort")
+        .to.emit(this.vault, "OpenShort")
         .withArgs(secondOption, parseEther("0.99"), manager);
 
       assert.equal(
@@ -522,7 +522,7 @@ describe("RibbonETHCoveredCall", () => {
         );
 
       expect(firstTx)
-        .to.emit(this.vault, "DepositForShort")
+        .to.emit(this.vault, "OpenShort")
         .withArgs(firstOption, wmul(this.depositAmount, LOCKED_RATIO), manager);
 
       // Perform the swap to deposit premiums and remove otokens
@@ -570,11 +570,11 @@ describe("RibbonETHCoveredCall", () => {
       assert.equal(await this.vault.currentOptionExpiry(), 1614326400);
 
       expect(secondTx)
-        .to.emit(this.vault, "WithdrawFromShort")
+        .to.emit(this.vault, "CloseShort")
         .withArgs(firstOption, parseEther("0.8325"), manager);
 
       expect(secondTx)
-        .to.emit(this.vault, "DepositForShort")
+        .to.emit(this.vault, "OpenShort")
         .withArgs(secondOption, parseEther("0.92925"), manager);
 
       assert.equal(

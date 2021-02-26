@@ -28,6 +28,8 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     string private constant _tokenSymbol = "rETH-COVCALL";
     string private constant _adapterName = "OPYN_GAMMA";
     address private constant _WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+    // AirSwap Swap contract https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
     ISwap private constant _swapContract =
         ISwap(0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA);
 
@@ -47,13 +49,13 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
 
     event Withdraw(address indexed account, uint256 amount, uint256 share);
 
-    event DepositForShort(
+    event OpenShort(
         address indexed options,
-        uint256 amount,
+        uint256 depositAmount,
         address manager
     );
 
-    event WithdrawFromShort(
+    event CloseShort(
         address indexed options,
         uint256 withdrawAmount,
         address manager
@@ -61,12 +63,20 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
 
     constructor() ERC20(_tokenName, _tokenSymbol) {}
 
+    /**
+     * @notice Initializes the OptionVault contract with an owner and a factory.
+     * @param _owner is the owner of the contract who can set the manager
+     * @param _factory is the RibbonFactory instance
+     */
     function initialize(address _owner, address _factory) public initializer {
         Ownable.initialize(_owner);
         factory = IRibbonFactory(_factory);
-        feeTo = address(this);
     }
 
+    /**
+     * @notice Sets the new manager of the vault. Revoke the airswap signer authorization from the old manager, and authorize the manager.
+     * @param _manager is the new manager of the vault
+     */
     function setManager(address _manager) public onlyOwner {
         require(_manager != address(0), "New manager cannot be 0x0");
         address oldManager = manager;
@@ -79,6 +89,9 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         emit ManagerChanged(oldManager, _manager);
     }
 
+    /**
+     * @notice Deposits ETH into the contract and mint vault shares.
+     */
     function depositETH() external payable nonReentrant {
         require(msg.value > 0, "No value passed");
         require(asset == _WETH, "Asset is not WETH");
@@ -87,19 +100,35 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         _deposit(msg.value);
     }
 
+    /**
+     * @notice Deposits the `asset` into the contract and mint vault shares.
+     * @param amount is the amount of `asset` to deposit
+     */
     function deposit(uint256 amount) external nonReentrant {
         IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
         _deposit(amount);
     }
 
+    /**
+     * @notice Mints the vault shares to the msg.sender
+     * @param amount is the amount of `asset` deposited
+     */
     function _deposit(uint256 amount) private {
+        // amount needs to be subtracted from totalBalance because it has already been
+        // added to it from either IWETH.deposit and IERC20.safeTransferFrom
         uint256 total = totalBalance().sub(amount);
+
+        // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L104
         uint256 share =
             total == 0 ? amount : amount.mul(totalSupply()).div(total);
         _mint(msg.sender, share);
         emit Deposit(msg.sender, amount, share);
     }
 
+    /**
+     * @notice Withdraws ETH from vault using vault shares
+     * @param share is the number of vault shares to be burned
+     */
     function withdrawETH(uint256 share) external nonReentrant {
         uint256 withdrawAmount = _withdraw(share);
 
@@ -108,6 +137,10 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         require(success, "ETH transfer failed");
     }
 
+    /**
+     * @notice Withdraws WETH from vault using vault shares
+     * @param share is the number of vault shares to be burned
+     */
     function withdraw(uint256 share) external nonReentrant {
         uint256 withdrawAmount = _withdraw(share);
         require(
@@ -116,6 +149,10 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         );
     }
 
+    /**
+     * @notice Burns vault shares and checks if eligible for withdrawal
+     * @param share is the number of vault shares to be burned
+     */
     function _withdraw(uint256 share) private returns (uint256) {
         uint256 _lockedAmount = lockedAmount;
         uint256 currentAssetBalance = IERC20(asset).balanceOf(address(this));
@@ -123,6 +160,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         uint256 availableForWithdrawal =
             _availableToWithdraw(_lockedAmount, currentAssetBalance);
 
+        // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L111
         uint256 withdrawAmount = share.mul(total).div(totalSupply());
         require(
             withdrawAmount <= availableForWithdrawal,
@@ -139,6 +177,10 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         return amountAfterFee;
     }
 
+    /**
+     * @notice Rolls from one short option position to another. Closes the expired short position, withdraw from it, then open a new position.
+     * @param optionTerms are the option contract terms the vault will be short
+     */
     function rollToNextOption(OptionTerms calldata optionTerms)
         external
         onlyManager
@@ -155,7 +197,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
                 "Otoken not expired"
             );
             uint256 withdrawAmount = adapter.delegateCloseShort();
-            emit WithdrawFromShort(oldOption, withdrawAmount, msg.sender);
+            emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
 
         uint256 currentBalance = IERC20(asset).balanceOf(address(this));
@@ -170,9 +212,12 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         currentOption = newOption;
         lockedAmount = shortAmount;
 
-        emit DepositForShort(newOption, shortAmount, msg.sender);
+        emit OpenShort(newOption, shortAmount, msg.sender);
     }
 
+    /**
+     * @notice Returns the expiry of the current option the vault is shorting
+     */
     function currentOptionExpiry() external view returns (uint256) {
         address _currentOption = currentOption;
         if (_currentOption == address(0)) {
@@ -183,10 +228,16 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         return oToken.expiryTimestamp();
     }
 
+    /**
+     * @notice Returns the vault's total balance, including the amounts locked into a short position
+     */
     function totalBalance() public view returns (uint256) {
         return lockedAmount.add(IERC20(asset).balanceOf(address(this)));
     }
 
+    /**
+     * @notice Returns the amount available for users to withdraw. MIN(10% * (locked + assetBalance), assetBalance)
+     */
     function availableToWithdraw() external view returns (uint256) {
         return
             _availableToWithdraw(
@@ -195,6 +246,9 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
             );
     }
 
+    /**
+     * @notice Helper function that returns amount available to withdraw. Used to save gas.
+     */
     function _availableToWithdraw(uint256 lockedBalance, uint256 freeBalance)
         private
         pure
@@ -207,14 +261,23 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         return min(reserve, freeBalance);
     }
 
+    /**
+     * @notice Returns the token name
+     */
     function name() public pure override returns (string memory) {
         return _tokenName;
     }
 
+    /**
+     * @notice Returns the token symbol
+     */
     function symbol() public pure override returns (string memory) {
         return _tokenSymbol;
     }
 
+    /**
+     * @notice Only allows manager to execute a function
+     */
     modifier onlyManager {
         require(msg.sender == manager, "Only manager");
         _;

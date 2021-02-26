@@ -175,6 +175,9 @@ describe("RibbonETHCoveredCall", () => {
         (await this.vault.balanceOf(user)).toString(),
         depositAmount
       );
+      expect(res)
+        .to.emit(this.vault, "Deposit")
+        .withArgs(user, depositAmount, depositAmount);
     });
 
     it("returns the correct number of shares back", async function () {
@@ -201,13 +204,16 @@ describe("RibbonETHCoveredCall", () => {
       // formula:
       // (depositAmount * totalSupply) / total
       // (1 * 3) / 4 = 0.75 shares
-      await this.vault
+      const res = await this.vault
         .connect(counterpartySigner)
         .depositETH({ value: parseEther("1") });
       assert.equal(
         (await this.vault.balanceOf(counterparty)).toString(),
         parseEther("0.75")
       );
+      expect(res)
+        .to.emit(this.vault, "Deposit")
+        .withArgs(user, parseEther("1"), parseEther("0.75"));
     });
 
     it("accounts for the amounts that are locked", async function () {
@@ -720,6 +726,10 @@ describe("RibbonETHCoveredCall", () => {
         (await this.vault.totalSupply()).toString(),
         parseEther("0.9")
       );
+
+      expect(res)
+        .to.emit(this.vault, "Withdraw")
+        .withArgs(user, parseEther("0.099"), parseEther("0.9"));
     });
 
     it("should withdraw funds up to 10% of pool", async function () {

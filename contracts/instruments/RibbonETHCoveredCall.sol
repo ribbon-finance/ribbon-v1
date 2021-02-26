@@ -38,15 +38,14 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     // 1% for an instant withdrawal
     uint256 public constant instantWithdrawalFee = 0.01 ether;
 
-    // Users can withdraw for free but have to wait for 7 days
-    uint256 public constant freeWithdrawPeriod = 7 days;
-
     // 90% locked in options protocol, 10% of the pool reserved for withdrawals
     uint256 public constant lockedRatio = 0.9 ether;
 
     event ManagerChanged(address oldManager, address newManager);
 
-    event Deposit(address indexed account, uint256 amouunt);
+    event Deposit(address indexed account, uint256 amount, uint256 share);
+
+    event Withdraw(address indexed account, uint256 amount, uint256 share);
 
     event DepositForShort(
         address indexed options,
@@ -98,7 +97,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         uint256 share =
             total == 0 ? amount : amount.mul(totalSupply()).div(total);
         _mint(msg.sender, share);
-        emit Deposit(msg.sender, share);
+        emit Deposit(msg.sender, amount, share);
     }
 
     function withdrawETH(uint256 share) external nonReentrant {
@@ -134,6 +133,9 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         uint256 amountAfterFee = withdrawAmount.sub(feeAmount);
 
         _burn(msg.sender, share);
+
+        emit Withdraw(msg.sender, amountAfterFee, share);
+
         return amountAfterFee;
     }
 

@@ -239,6 +239,29 @@ describe("RibbonETHCoveredCall", () => {
     });
   });
 
+  describe("#deposit", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("deposits successfully", async function () {
+      const depositAmount = parseEther("1");
+      await this.weth.connect(userSigner).deposit({ value: depositAmount });
+      await this.weth
+        .connect(userSigner)
+        .approve(this.vault.address, depositAmount);
+
+      const res = await this.vault.deposit(depositAmount);
+      const receipt = await res.wait();
+
+      assert.isAtMost(receipt.gasUsed.toNumber(), 150000);
+
+      assert.equal((await this.vault.totalSupply()).toString(), depositAmount);
+      assert.equal(
+        (await this.vault.balanceOf(user)).toString(),
+        depositAmount
+      );
+    });
+  });
+
   describe("signing an order message", () => {
     it("signs an order message", async function () {
       const sellToken = this.oTokenAddress;
@@ -654,7 +677,7 @@ describe("RibbonETHCoveredCall", () => {
     });
   });
 
-  describe("#withdraw", () => {
+  describe("#withdrawETH", () => {
     time.revertToSnapshotAfterEach();
 
     it("reverts when withdrawing more than 10%", async function () {
@@ -718,7 +741,9 @@ describe("RibbonETHCoveredCall", () => {
         this.vault.withdrawETH(parseEther("0.2").add(BigNumber.from("1")))
       ).to.be.revertedWith("Cannot withdraw more than available");
 
-      await this.vault.withdrawETH(parseEther("0.1"));
+      const tx = await this.vault.withdrawETH(parseEther("0.1"));
+      const receipt = await tx.wait();
+      assert.isAtMost(receipt.gasUsed.toNumber(), 150000);
     });
 
     it("should only withdraw original deposit amount minus fees if vault doesn't expand", async function () {
@@ -785,6 +810,19 @@ describe("RibbonETHCoveredCall", () => {
       await expect(
         this.vault.withdrawETH(parseEther("1").add(BigNumber.from("1")))
       ).to.be.revertedWith("ERC20: burn amount exceeds balance");
+    });
+  });
+
+  describe("#withdraw", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("should withdraw funds, leaving behind withdrawal fee", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+      await this.vault.withdraw(parseEther("0.1"));
+      assert.equal(
+        (await this.weth.balanceOf(user)).toString(),
+        parseEther("0.099")
+      );
     });
   });
 });

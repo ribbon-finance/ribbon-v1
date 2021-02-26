@@ -84,14 +84,12 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         require(msg.value > 0, "No value passed");
         require(asset == _WETH, "Asset is not WETH");
 
-        IWETH weth = IWETH(_WETH);
-        weth.deposit{value: msg.value}();
+        IWETH(_WETH).deposit{value: msg.value}();
         _deposit(msg.value);
     }
 
     function deposit(uint256 amount) external nonReentrant {
-        IERC20 assetToken = IERC20(asset);
-        assetToken.safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
         _deposit(amount);
     }
 
@@ -104,6 +102,22 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     }
 
     function withdrawETH(uint256 share) external nonReentrant {
+        uint256 withdrawAmount = _withdraw(share);
+
+        IWETH(_WETH).withdraw(withdrawAmount);
+        (bool success, ) = msg.sender.call{value: withdrawAmount}("");
+        require(success, "ETH transfer failed");
+    }
+
+    function withdraw(uint256 share) external nonReentrant {
+        uint256 withdrawAmount = _withdraw(share);
+        require(
+            IERC20(asset).transfer(msg.sender, withdrawAmount),
+            "ERC20 transfer failed"
+        );
+    }
+
+    function _withdraw(uint256 share) private returns (uint256) {
         uint256 _lockedAmount = lockedAmount;
         uint256 currentAssetBalance = IERC20(asset).balanceOf(address(this));
         uint256 total = _lockedAmount.add(currentAssetBalance);
@@ -120,10 +134,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         uint256 amountAfterFee = withdrawAmount.sub(feeAmount);
 
         _burn(msg.sender, share);
-
-        IWETH(_WETH).withdraw(amountAfterFee);
-        (bool success, ) = msg.sender.call{value: amountAfterFee}("");
-        require(success, "ETH transfer failed");
+        return amountAfterFee;
     }
 
     function rollToNextOption(OptionTerms calldata optionTerms)
@@ -131,6 +142,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         onlyManager
         nonReentrant
     {
+        // We can save gas by storing the factory address as a constant
         IProtocolAdapter adapter =
             IProtocolAdapter(factory.getAdapter(_adapterName));
 

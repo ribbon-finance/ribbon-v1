@@ -430,7 +430,9 @@ contract HegicAdapter is IProtocolAdapter {
         return 0;
     }
 
-    function closeShort() external override {}
+    function closeShort() external override returns (uint256) {
+        return 0;
+    }
 
     /**
      * @notice Helper function to get the options address based on the underlying asset

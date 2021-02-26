@@ -182,12 +182,16 @@ library ProtocolAdapter {
         return abi.decode(res, (uint256));
     }
 
-    function delegateCloseShort(IProtocolAdapter adapter) external {
+    function delegateCloseShort(IProtocolAdapter adapter)
+        external
+        returns (uint256)
+    {
         (bool success, bytes memory res) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature("closeShort()")
             );
         require(success, getRevertMsg(res));
+        return abi.decode(res, (uint256));
     }
 
     function getRevertMsg(bytes memory _returnData)

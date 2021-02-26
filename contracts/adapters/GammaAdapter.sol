@@ -16,7 +16,8 @@ import {
     IOtokenFactory,
     OtokenInterface,
     IController,
-    OracleInterface
+    OracleInterface,
+    Vault
 } from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
@@ -96,7 +97,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     /**
      * @notice Gets the premium to buy `purchaseAmount` of the option contract in ETH terms.
      */
-    function premium(OptionTerms calldata , uint256 )
+    function premium(OptionTerms calldata, uint256)
         external
         pure
         override
@@ -112,7 +113,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
      */
     function exerciseProfit(
         address options,
-        uint256 ,
+        uint256,
         uint256 amount
     ) public view override returns (uint256 profit) {
         IController controller = IController(gammaController);
@@ -156,12 +157,11 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     /**
      * @notice Purchases the options contract.
      */
-    function purchase(OptionTerms calldata , uint256 , uint256 )
-        external
-        payable
-        override
-        returns (uint256 optionID)
-    {}
+    function purchase(
+        OptionTerms calldata,
+        uint256,
+        uint256
+    ) external payable override returns (uint256 optionID) {}
 
     function purchaseWithZeroEx(
         OptionTerms calldata optionTerms,
@@ -411,11 +411,19 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         return mintAmount;
     }
 
-    function closeShort() external override {
+    function closeShort() external override returns (uint256) {
         IController controller = IController(gammaController);
 
         // gets the currently active vault ID
         uint256 vaultID = controller.getAccountVaultCounter(address(this));
+
+        Vault memory vault = controller.getVault(address(this), vaultID);
+
+        require(vault.collateralAssets.length > 0, "No active vault");
+
+        IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
+        uint256 startCollateralBalance =
+            collateralToken.balanceOf(address(this));
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](1);
@@ -432,6 +440,10 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         );
 
         controller.operate(actions);
+
+        uint256 endCollateralBalance = collateralToken.balanceOf(address(this));
+
+        return endCollateralBalance.sub(startCollateralBalance);
     }
 
     function assetDecimals(address asset) private pure returns (uint256) {

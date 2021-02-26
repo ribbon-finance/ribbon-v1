@@ -135,7 +135,7 @@ library ProtocolAdapter {
         IProtocolAdapter adapter,
         address rewardsAddress,
         uint256[] calldata optionIDs
-    ) external returns (uint256){
+    ) external returns (uint256) {
         (bool success, bytes memory result) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
@@ -152,7 +152,7 @@ library ProtocolAdapter {
         IProtocolAdapter adapter,
         address rewardsAddress,
         uint256[] calldata optionIDs
-    ) external view returns (uint256){
+    ) external view returns (uint256) {
         (bool success, bytes memory result) =
             address(adapter).staticcall(
                 abi.encodeWithSignature(
@@ -173,7 +173,7 @@ library ProtocolAdapter {
         (bool success, bytes memory res) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
-                    "createShort((address,address,address,uint256,uint256,uint8),uint256)",
+                    "createShort((address,address,address,uint256,uint256,uint8,address),uint256)",
                     optionTerms,
                     amount
                 )

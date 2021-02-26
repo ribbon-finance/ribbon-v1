@@ -45,14 +45,18 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
 
     event ManagerChanged(address oldManager, address newManager);
 
-    event Deposited(address account, uint256 amouunt);
+    event Deposit(address indexed account, uint256 amouunt);
 
-    event WriteOptions(address manager, address options, uint256 amount);
+    event DepositForShort(
+        address indexed options,
+        uint256 amount,
+        address manager
+    );
 
-    event OptionsSaleApproved(
-        address manager,
-        address options,
-        uint256 approveAmount
+    event WithdrawFromShort(
+        address indexed options,
+        uint256 withdrawAmount,
+        address manager
     );
 
     constructor() ERC20(_tokenName, _tokenSymbol) {}
@@ -95,7 +99,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         uint256 share =
             total == 0 ? amount : amount.mul(totalSupply()).div(total);
         _mint(msg.sender, share);
-        emit Deposited(msg.sender, share);
+        emit Deposit(msg.sender, share);
     }
 
     function withdrawETH(uint256 share) external nonReentrant {
@@ -121,13 +125,21 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         require(success, "ETH transfer failed");
     }
 
-    function writeOptions(OptionTerms calldata optionTerms)
+    function rollToNextOption(OptionTerms calldata optionTerms)
         external
         onlyManager
         nonReentrant
     {
         IProtocolAdapter adapter =
             IProtocolAdapter(factory.getAdapter(_adapterName));
+
+        address oldOption = currentOption;
+
+        if (oldOption != address(0)) {
+            uint256 withdrawAmount = adapter.delegateCloseShort();
+            emit WithdrawFromShort(oldOption, withdrawAmount, msg.sender);
+        }
+
         uint256 currentBalance = IERC20(asset).balanceOf(address(this));
         uint256 shortAmount = wmul(currentBalance, lockedRatio);
         uint256 shortBalance =
@@ -141,14 +153,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         currentOption = options;
         lockedAmount = shortAmount;
 
-        emit WriteOptions(msg.sender, options, shortAmount);
-    }
-
-    function withdrawFromVault() public {
-        IProtocolAdapter adapter =
-            IProtocolAdapter(factory.getAdapter(_adapterName));
-
-        adapter.delegateCloseShort();
+        emit DepositForShort(options, shortAmount, msg.sender);
     }
 
     function totalBalance() public view returns (uint256) {

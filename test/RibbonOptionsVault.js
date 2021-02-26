@@ -215,7 +215,9 @@ describe("RibbonETHCoveredCall", () => {
         .connect(userSigner)
         .transfer(this.vault.address, parseEther("1"));
 
-      await this.vault.connect(managerSigner).writeOptions(this.optionTerms);
+      await this.vault
+        .connect(managerSigner)
+        .rollToNextOption(this.optionTerms);
 
       // formula:
       // (depositAmount * totalSupply) / total
@@ -269,7 +271,7 @@ describe("RibbonETHCoveredCall", () => {
     });
   });
 
-  describe("#writeOptions", () => {
+  describe("#rollToNextOption", () => {
     time.revertToSnapshotAfterEach(async function () {
       this.depositAmount = parseEther("1");
       this.expectedMintAmount = BigNumber.from("90000000");
@@ -280,7 +282,7 @@ describe("RibbonETHCoveredCall", () => {
       await expect(
         this.vault
           .connect(userSigner)
-          .writeOptions(this.optionTerms, { from: user })
+          .rollToNextOption(this.optionTerms, { from: user })
       ).to.be.revertedWith("Only manager");
     });
 
@@ -295,11 +297,11 @@ describe("RibbonETHCoveredCall", () => {
 
       const res = await this.vault
         .connect(managerSigner)
-        .writeOptions(this.optionTerms, { from: manager });
+        .rollToNextOption(this.optionTerms, { from: manager });
 
       expect(res)
-        .to.emit(this.vault, "WriteOptions")
-        .withArgs(manager, this.oTokenAddress, lockedAmount);
+        .to.emit(this.vault, "DepositForShort")
+        .withArgs(this.oTokenAddress, lockedAmount, manager);
 
       assert.equal((await this.vault.lockedAmount()).toString(), lockedAmount);
 
@@ -342,7 +344,7 @@ describe("RibbonETHCoveredCall", () => {
       await this.vault.depositETH({ value: this.depositAmount });
       await this.vault
         .connect(managerSigner)
-        .writeOptions(this.optionTerms, { from: manager });
+        .rollToNextOption(this.optionTerms, { from: manager });
     });
 
     it("completes the trade with the counterparty", async function () {
@@ -401,7 +403,7 @@ describe("RibbonETHCoveredCall", () => {
 
       await this.vault
         .connect(managerSigner)
-        .writeOptions(this.optionTerms, { from: manager });
+        .rollToNextOption(this.optionTerms, { from: manager });
     });
 
     it("returns the 10% reserve amount", async function () {

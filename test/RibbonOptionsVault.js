@@ -461,15 +461,96 @@ describe("RibbonETHCoveredCall", () => {
 
       expect(secondTx)
         .to.emit(this.vault, "WithdrawFromShort")
-        .withArgs(firstOption, this.depositAmount, manager);
+        .withArgs(firstOption, wmul(this.depositAmount, LOCKED_RATIO), manager);
 
       expect(secondTx)
         .to.emit(this.vault, "DepositForShort")
-        .withArgs(secondOption, this.depositAmount, manager);
+        .withArgs(secondOption, parseEther("0.99"), manager);
 
       assert.equal(
         (await this.weth.balanceOf(this.vault.address)).toString(),
         wmul(this.depositAmount.add(this.premium), WITHDRAWAL_BUFFER)
+      );
+    });
+
+    it("withdraws and roll funds into next option, OTM", async function () {
+      const firstOption = "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3";
+      const secondOption = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
+
+      const firstTx = await this.vault
+        .connect(managerSigner)
+        .rollToNextOption(
+          [
+            WETH_ADDRESS,
+            USDC_ADDRESS,
+            WETH_ADDRESS,
+            "1610697600",
+            parseEther("1480"),
+            2,
+            WETH_ADDRESS,
+          ],
+          { from: manager }
+        );
+
+      expect(firstTx)
+        .to.emit(this.vault, "DepositForShort")
+        .withArgs(firstOption, wmul(this.depositAmount, LOCKED_RATIO), manager);
+
+      // Perform the swap to deposit premiums and remove otokens
+      const signedOrder = await signOrderForSwap({
+        vaultAddress: this.vault.address,
+        counterpartyAddress: counterparty,
+        signerPrivateKey: this.managerWallet.privateKey,
+        sellToken: firstOption,
+        buyToken: WETH_ADDRESS,
+        sellAmount: this.sellAmount.toString(),
+        buyAmount: this.premium.toString(),
+      });
+
+      await this.airswap.connect(counterpartySigner).swap(signedOrder);
+
+      // only the premium should be left over because the funds are locked into Opyn
+      assert.equal(
+        (await this.weth.balanceOf(this.vault.address)).toString(),
+        wmul(this.depositAmount, WITHDRAWAL_BUFFER).add(this.premium)
+      );
+
+      // withdraw 100% because it's OTM
+      await setOpynOracleExpiryPrice(
+        this.oracle,
+        await this.vault.currentOptionExpiry(),
+        BigNumber.from("160000000000")
+      );
+
+      const secondTx = await this.vault
+        .connect(managerSigner)
+        .rollToNextOption(
+          [
+            WETH_ADDRESS,
+            USDC_ADDRESS,
+            WETH_ADDRESS,
+            "1614326400",
+            parseEther("960"),
+            2,
+            WETH_ADDRESS,
+          ],
+          { from: manager }
+        );
+
+      assert.equal(await this.vault.currentOption(), secondOption);
+      assert.equal(await this.vault.currentOptionExpiry(), 1614326400);
+
+      expect(secondTx)
+        .to.emit(this.vault, "WithdrawFromShort")
+        .withArgs(firstOption, parseEther("0.8325"), manager);
+
+      expect(secondTx)
+        .to.emit(this.vault, "DepositForShort")
+        .withArgs(secondOption, parseEther("0.92925"), manager);
+
+      assert.equal(
+        (await this.weth.balanceOf(this.vault.address)).toString(),
+        parseEther("0.10325")
       );
     });
   });

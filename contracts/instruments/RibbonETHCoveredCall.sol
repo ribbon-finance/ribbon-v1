@@ -149,15 +149,14 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         uint256 shortBalance =
             adapter.delegateCreateShort(optionTerms, shortAmount);
 
-        address options = adapter.getOptionsAddress(optionTerms);
-
-        IERC20 optionToken = IERC20(options);
+        address newOption = adapter.getOptionsAddress(optionTerms);
+        IERC20 optionToken = IERC20(newOption);
         optionToken.approve(address(_swapContract), shortBalance);
 
-        currentOption = options;
+        currentOption = newOption;
         lockedAmount = shortAmount;
 
-        emit DepositForShort(options, shortAmount, msg.sender);
+        emit DepositForShort(newOption, shortAmount, msg.sender);
     }
 
     function currentOptionExpiry() external view returns (uint256) {

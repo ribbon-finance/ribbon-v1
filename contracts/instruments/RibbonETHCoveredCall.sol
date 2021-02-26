@@ -135,7 +135,6 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
             IProtocolAdapter(factory.getAdapter(_adapterName));
 
         address oldOption = currentOption;
-
         if (oldOption != address(0)) {
             require(
                 block.timestamp >= OtokenInterface(oldOption).expiryTimestamp(),

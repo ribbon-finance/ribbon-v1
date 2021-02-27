@@ -18,6 +18,6 @@ async function updateDeployedAddresses(network, contractName, address) {
 
   await promisify(fs.writeFile)(
     filepath,
-    JSON.stringify(deployments, null, "\t") + "\n"
+    JSON.stringify(deployments, null, 2) + "\n"
   );
 }

@@ -1,12 +1,16 @@
 require("dotenv").config();
 const getWeb3 = require("./helpers/web3");
-const { constants } = require("@openzeppelin/test-helpers");
 const { Command } = require("commander");
 const program = new Command();
 
 const deployments = require("../constants/deployments");
 const externalAddresses = require("../constants/externalAddresses");
 const accountAddresses = require("../constants/accounts.json");
+const oTokenFactoryABI = require("../constants/abis/OtokenFactory.json");
+const { sleep } = require("@openzeppelin/upgrades");
+const getGasPrice = require("./helpers/getGasPrice");
+
+const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 
 program.version("0.0.1");
 program
@@ -32,6 +36,8 @@ program
 program.parse(process.argv);
 
 async function deployOToken() {
+  const web3 = await getWeb3();
+
   const {
     underlying,
     strikeAsset,
@@ -40,13 +46,31 @@ async function deployOToken() {
     expiry,
     isPut,
   } = program;
-  console.log({
-    underlying,
-    strikeAsset,
-    collateralAsset,
-    strikePrice,
-    expiry,
-    isPut,
-  });
+
+  const factory = new web3.eth.Contract(oTokenFactoryABI, OTOKEN_FACTORY);
+
+  const gasPrice = await getGasPrice();
+  console.log(`Gas price: ${gasPrice.toString()}`);
+
+  const receipt = await factory.methods
+    .createOtoken(
+      underlying,
+      strikeAsset,
+      collateralAsset,
+      strikePrice,
+      expiry,
+      isPut
+    )
+    .send({
+      from: accountAddresses.mainnet.owner,
+      gasPrice,
+    });
+  const txhash = receipt.transactionHash;
+  console.log("Txhash: " + txhash);
+
+  sleep(60000);
+
+  process.exit(0);
 }
+
 deployOToken();

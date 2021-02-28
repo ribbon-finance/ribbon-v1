@@ -3,7 +3,6 @@ const getWeb3 = require("./helpers/web3");
 const { Command } = require("commander");
 const program = new Command();
 
-const deployments = require("../constants/deployments");
 const externalAddresses = require("../constants/externalAddresses");
 const accountAddresses = require("../constants/accounts.json");
 const oTokenFactoryABI = require("../constants/abis/OtokenFactory.json");

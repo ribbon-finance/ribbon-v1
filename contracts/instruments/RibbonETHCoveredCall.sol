@@ -276,6 +276,13 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
     }
 
     /**
+     * @notice Returns the token decimals
+     */
+    function decimals() public pure override returns (uint8) {
+        return 18;
+    }
+
+    /**
      * @notice Only allows manager to execute a function
      */
     modifier onlyManager {

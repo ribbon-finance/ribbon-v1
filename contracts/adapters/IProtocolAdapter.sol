@@ -43,12 +43,7 @@ interface IProtocolAdapter {
         address indexed caller,
         string indexed protocolName,
         address indexed underlying,
-        address strikeAsset,
-        uint256 expiry,
-        uint256 strikePrice,
-        OptionType optionType,
         uint256 amount,
-        uint256 premium,
         uint256 optionID
     );
 

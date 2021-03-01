@@ -228,11 +228,6 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
             msg.sender,
             _name,
             optionTerms.underlying,
-            optionTerms.strikeAsset,
-            optionTerms.expiry,
-            optionTerms.strikePrice,
-            optionTerms.optionType,
-            zeroExOrder.makerAssetAmount,
             soldETH.add(zeroExOrder.protocolFee),
             0
         );

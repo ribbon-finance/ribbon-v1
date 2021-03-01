@@ -154,7 +154,7 @@ contract HegicAdapter is IProtocolAdapter {
                 cost = costWBTC;
             }
         } else {
-            require(false, "No matching underlying");
+            revert("No matching underlying");
         }
     }
 
@@ -281,11 +281,6 @@ contract HegicAdapter is IProtocolAdapter {
             msg.sender,
             _name,
             optionTerms.underlying,
-            optionTerms.strikeAsset,
-            optionTerms.expiry,
-            optionTerms.strikePrice,
-            optionTerms.optionType,
-            amount,
             msg.value,
             optionID
         );

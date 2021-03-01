@@ -202,7 +202,7 @@ describe("HegicAdapter", () => {
               this.expiry,
               this.strikePrice,
               this.optionType,
-              this.paymentToken
+              this.paymentToken,
             ],
             this.purchaseAmount
           );
@@ -229,7 +229,7 @@ describe("HegicAdapter", () => {
                 this.expiry,
                 this.strikePrice,
                 this.optionType,
-                this.paymentToken
+                this.paymentToken,
               ],
               this.purchaseAmount,
               this.maxCost,
@@ -238,7 +238,7 @@ describe("HegicAdapter", () => {
                 value: this.premium.sub(BigNumber.from("1")),
               }
             )
-          ).to.be.revertedWith("Value does not cover cost");
+          ).to.be.revertedWith("Wrong value");
         });
 
         it("reverts when buying after expiry", async function () {
@@ -284,7 +284,7 @@ describe("HegicAdapter", () => {
                 value: this.purchaseAmount,
               }
             )
-          ).to.be.revertedWith("No matching underlying");
+          ).to.be.revertedWith("No matching options contract");
         });
 
         it("creates options on hegic", async function () {
@@ -312,11 +312,6 @@ describe("HegicAdapter", () => {
               user,
               ethers.utils.keccak256(ethers.utils.toUtf8Bytes("HEGIC")),
               this.underlying,
-              this.strikeAsset,
-              this.expiry.toString(),
-              this.strikePrice,
-              this.optionType,
-              this.purchaseAmount,
               this.premium,
               this.expectedOptionID
             );
@@ -401,7 +396,7 @@ describe("HegicAdapter", () => {
               "HegicAdapter",
               receipt.logs[receipt.logs.length - 1]
             )
-          ).args[9];
+          ).args[4];
 
           assert.equal(
             (
@@ -442,7 +437,7 @@ describe("HegicAdapter", () => {
               "HegicAdapter",
               receipt.logs[receipt.logs.length - 1]
             )
-          ).args[9];
+          ).args[4];
         });
 
         afterEach(async () => {
@@ -609,7 +604,7 @@ describe("HegicAdapter", () => {
               "HegicAdapter",
               receipt.logs[receipt.logs.length - 1]
             )
-          ).args[9];
+          ).args[4];
         });
 
         afterEach(async () => {

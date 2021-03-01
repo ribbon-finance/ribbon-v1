@@ -623,6 +623,13 @@ function behavesLikeRibbonVolatility(params) {
             this.optionsExercised
           );
 
+        if (this.optionsExercised.includes(true)) {
+          assert.isTrue(
+            (await this.contract.instrumentPosition(user, this.positionID))
+              .exercised
+          );
+        }
+
         if (this.underlying == constants.AddressZero) {
           assert.equal(
             (await provider.getBalance(user)).sub(startUserBalance).toString(),

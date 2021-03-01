@@ -83,8 +83,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         uint256 profit = 0;
 
         uint8[] memory venues = new uint8[](2);
-        venues[0] = position.callVenue;
-        venues[1] = position.putVenue;
+        venues[0] = position.putVenue;
+        venues[1] = position.callVenue;
 
         for (uint256 i = 0; i < venues.length; i++) {
             string memory venue = getAdapterName(venues[i]);
@@ -94,13 +94,13 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
             uint256 strikePrice;
             uint32 optionID;
             if (i == 0) {
-                strikePrice = position.callStrikePrice;
-                optionID = position.callOptionID;
-                optionType = OptionType.Call;
-            } else {
                 strikePrice = position.putStrikePrice;
                 optionID = position.putOptionID;
                 optionType = OptionType.Put;
+            } else {
+                strikePrice = position.callStrikePrice;
+                optionID = position.callOptionID;
+                optionType = OptionType.Call;
             }
 
             address adapterAddress = factory.getAdapter(venue);
@@ -142,8 +142,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         bool eitherOneCanExercise = false;
 
         uint8[] memory venues = new uint8[](2);
-        venues[0] = position.callVenue;
-        venues[1] = position.putVenue;
+        venues[0] = position.putVenue;
+        venues[1] = position.callVenue;
 
         for (uint256 i = 0; i < venues.length; i++) {
             string memory venue = getAdapterName(venues[i]);
@@ -151,13 +151,13 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
             uint32 optionID;
             OptionType optionType;
             if (i == 0) {
-                strikePrice = position.callStrikePrice;
-                optionID = position.callOptionID;
-                optionType = OptionType.Call;
-            } else {
                 strikePrice = position.putStrikePrice;
                 optionID = position.putOptionID;
                 optionType = OptionType.Put;
+            } else {
+                strikePrice = position.callStrikePrice;
+                optionID = position.callOptionID;
+                optionType = OptionType.Call;
             }
 
             address adapterAddress = factory.getAdapter(venue);
@@ -353,8 +353,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
 
         bool[] memory optionsExercised = new bool[](2);
         uint8[] memory venues = new uint8[](2);
-        venues[0] = position.callVenue;
-        venues[1] = position.putVenue;
+        venues[0] = position.putVenue;
+        venues[1] = position.callVenue;
 
         for (uint256 i = 0; i < venues.length; i++) {
             string memory adapterName = getAdapterName(venues[i]);
@@ -365,13 +365,13 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
             uint256 strikePrice;
             uint32 optionID;
             if (i == 0) {
-                strikePrice = position.callStrikePrice;
-                optionID = position.callOptionID;
-                optionType = OptionType.Call;
-            } else {
                 strikePrice = position.putStrikePrice;
                 optionID = position.putOptionID;
                 optionType = OptionType.Put;
+            } else {
+                strikePrice = position.callStrikePrice;
+                optionID = position.callOptionID;
+                optionType = OptionType.Call;
             }
 
             address paymentToken = address(0); // it is irrelevant at this stage

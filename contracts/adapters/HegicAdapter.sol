@@ -26,6 +26,7 @@ import {
 import {ISwapPair} from "../interfaces/ISwapPair.sol";
 
 import {IWETH} from "../interfaces/IWETH.sol";
+import "hardhat/console.sol";
 
 contract HegicAdapter is IProtocolAdapter {
     using SafeMath for uint256;
@@ -246,8 +247,6 @@ contract HegicAdapter is IProtocolAdapter {
         OptionTerms memory optionTermsWithETH = optionTerms;
         optionTermsWithETH.paymentToken = ethAddress;
 
-        uint256 cost = premium(optionTermsWithETH, amount);
-
         uint256 scaledStrikePrice =
             scaleDownStrikePrice(optionTerms.strikePrice);
         uint256 period = optionTerms.expiry.sub(block.timestamp);
@@ -255,6 +254,8 @@ contract HegicAdapter is IProtocolAdapter {
 
         // swap for ETH if ETH has not been provided as paymentToken
         if (msg.value == 0) {
+            uint256 cost = premium(optionTermsWithETH, amount);
+
             require(
                 optionTerms.paymentToken == wbtcAddress,
                 "Invalid paymentToken or msg.value"
@@ -262,11 +263,14 @@ contract HegicAdapter is IProtocolAdapter {
             uint256 costWBTC = _getAmountsIn(cost);
             require(maxCost >= costWBTC, "MaxCost is too low");
             _swapWBTCToETH(costWBTC, cost);
-        } else {
-            require(msg.value >= cost, "Value does not cover cost");
         }
 
-        optionID = options.create{value: cost}(
+        // Gas optimization to avoid double counting premium()
+        // This will revert if the address(this).balance is not sufficient
+        // Any extras will be refunded to the address(this)
+        // This could potentially be a large security vuln. if the Options contract
+        // does not refund the change
+        optionID = options.create{value: address(this).balance}(
             period,
             amount,
             scaledStrikePrice,

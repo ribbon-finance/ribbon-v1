@@ -286,7 +286,7 @@ contract HegicAdapter is IProtocolAdapter {
             optionTerms.strikePrice,
             optionTerms.optionType,
             amount,
-            cost,
+            msg.value,
             optionID
         );
     }

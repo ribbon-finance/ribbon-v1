@@ -148,7 +148,6 @@ describe("RibbonVolatility", () => {
     actualExerciseProfit: BigNumber.from("9897877"),
   });
 
-
   // behavesLikeRibbonVolatility({
   //   name: "Hegic OTM Put, Gamma ITM Call",
   //   underlying: ETH_ADDRESS,
@@ -180,6 +179,11 @@ function behavesLikeRibbonVolatility(params) {
       owner = ownerSigner.address;
       user = userSigner.address;
 
+      const venueIDMap = {
+        HEGIC: 1,
+        OPYN_GAMMA: 2,
+      };
+
       const {
         name,
         symbol,
@@ -199,7 +203,7 @@ function behavesLikeRibbonVolatility(params) {
         collateralAsset,
         optionsExercised,
         paymentToken,
-        maxCosts
+        maxCosts,
       } = params;
       this.name = name;
       this.symbol = symbol;
@@ -210,14 +214,24 @@ function behavesLikeRibbonVolatility(params) {
       this.venues = venues;
       this.optionTypes = optionTypes;
       this.amounts = amounts;
+      this.amount = amounts[0];
       this.purchaseAmount = purchaseAmount;
       this.optionIDs = optionIDs;
       this.exerciseProfit = exerciseProfit;
       this.actualExerciseProfit = actualExerciseProfit;
       this.optionsExercised = optionsExercised;
       this.paymentToken = paymentToken || ETH_ADDRESS;
-      this.maxCosts = maxCosts || [parseEther('9999999'), parseEther('999999')];
+      this.maxCosts = maxCosts || [parseEther("9999999"), parseEther("999999")];
       this.apiResponses = apiResponses;
+
+      this.callIndex = optionTypes.indexOf(CALL_OPTION_TYPE);
+      this.putIndex = optionTypes.indexOf(PUT_OPTION_TYPE);
+      this.callVenue = venueIDMap[venues[this.callIndex]];
+      this.putVenue = venueIDMap[venues[this.putIndex]];
+      this.callStrikePrice = strikePrices[this.callIndex];
+      this.putStrikePrice = strikePrices[this.putIndex];
+      this.callMaxCost = this.maxCosts[this.callIndex];
+      this.putMaxCost = this.maxCosts[this.putIndex];
 
       this.premiums = venues.map((venue, i) => {
         return venue === GAMMA_PROTOCOL
@@ -228,6 +242,8 @@ function behavesLikeRibbonVolatility(params) {
       this.buyData = venues.map((venue, i) =>
         venue === GAMMA_PROTOCOL ? serializeZeroExOrder(apiResponses[i]) : "0x"
       );
+      this.callBuyData = this.buyData[this.callIndex];
+      this.putBuyData = this.buyData[this.putIndex];
 
       this.gasPrice = Math.max(
         ...venues.map((venue, i) =>
@@ -239,7 +255,8 @@ function behavesLikeRibbonVolatility(params) {
         (a, b) => a.add(b),
         BigNumber.from("0")
       );
-      if(this.paymentToken == WBTC_ADDRESS) this.totalPremium = BigNumber.from("0");
+      if (this.paymentToken == WBTC_ADDRESS)
+        this.totalPremium = BigNumber.from("0");
 
       this.cost = BigNumber.from("0");
       venues.forEach((venue, index) => {
@@ -328,7 +345,13 @@ function behavesLikeRibbonVolatility(params) {
         await ethers.getContractAt("RibbonVolatility", instrumentAddress)
       ).connect(userSigner);
 
-      if(this.paymentToken == WBTC_ADDRESS) await mintAndApprove(WBTC_ADDRESS, userSigner, this.contract.address, parseUnits('10', 8));
+      if (this.paymentToken == WBTC_ADDRESS)
+        await mintAndApprove(
+          WBTC_ADDRESS,
+          userSigner,
+          this.contract.address,
+          parseUnits("10", 8)
+        );
 
       initSnapshotId = await time.takeSnapshot();
     });
@@ -354,7 +377,7 @@ function behavesLikeRibbonVolatility(params) {
               this.optionTypes,
               this.amounts,
               this.strikePrices,
-              this.paymentToken,
+              this.paymentToken
             )
           ).toString(),
           this.cost.toString()
@@ -565,20 +588,33 @@ function behavesLikeRibbonVolatility(params) {
 
       it("does not exceed gas limit budget", async function () {
         const res = await this.contract.buyInstrument(
-          this.venues,
-          this.optionTypes,
-          this.amounts[0],
-          this.strikePrices,
-          this.buyData,
-          this.paymentToken,
-          this.maxCosts,
+          [
+            this.callVenue,
+            this.putVenue,
+            this.paymentToken,
+            this.callStrikePrice,
+            this.putStrikePrice,
+            this.amount,
+            this.callMaxCost,
+            this.putMaxCost,
+            this.callBuyData,
+            this.putBuyData,
+          ],
+          // this.venues,
+          // this.optionTypes,
+          // this.amounts[0],
+          // this.strikePrices,
+          // this.buyData,
+          // this.paymentToken,
+          // this.maxCosts,
           {
             from: user,
             value: this.totalPremium,
             gasPrice: this.gasPrice,
           }
         );
-        const receipt = await provider.waitForTransaction(res.hash);
+        const receipt = await res.wait();
+        console.log(receipt.gasUsed.toString());
 
         assert.isAtMost(receipt.gasUsed, 1400000);
       });
@@ -635,13 +671,10 @@ function behavesLikeRibbonVolatility(params) {
 
       it("exercises one of the options", async function () {
         let startUserBalance, underlying;
-        if(this.underlying == constants.AddressZero) {
+        if (this.underlying == constants.AddressZero) {
           startUserBalance = await provider.getBalance(user);
         } else {
-          underlying = await ethers.getContractAt(
-            "IERC20",
-            this.underlying
-          );
+          underlying = await ethers.getContractAt("IERC20", this.underlying);
           startUserBalance = await underlying.balanceOf(user);
         }
 
@@ -763,9 +796,18 @@ function behavesLikeRibbonVolatility(params) {
 
       beforeEach(async function () {
         snapshotId = await time.takeSnapshot();
-        rhegicContract = new ethers.Contract(rHEGICJSON.address, rHEGICJSON.abi, prov);
-        withSigner = await rhegicContract.connect(await ethers.provider.getSigner(user));
-        underlying_address = this.underlying == ETH_ADDRESS ? HEGIC_ETH_REWARDS : HEGIC_WBTC_REWARDS;
+        rhegicContract = new ethers.Contract(
+          rHEGICJSON.address,
+          rHEGICJSON.abi,
+          prov
+        );
+        withSigner = await rhegicContract.connect(
+          await ethers.provider.getSigner(user)
+        );
+        underlying_address =
+          this.underlying == ETH_ADDRESS
+            ? HEGIC_ETH_REWARDS
+            : HEGIC_WBTC_REWARDS;
         res = await this.contract.buyInstrument(
           this.venues,
           this.optionTypes,
@@ -799,15 +841,21 @@ function behavesLikeRibbonVolatility(params) {
       });
 
       it("claimRewards() sends same amount as rewardsClaimable() returns", async function () {
-        const rewardsClaimable = (await this.contract.rewardsClaimable(underlying_address)).toString();
+        const rewardsClaimable = (
+          await this.contract.rewardsClaimable(underlying_address)
+        ).toString();
         const claimedRewards = await claimRewards(this.contract, user);
         assert.equal(claimedRewards, parseInt(rewardsClaimable));
       });
 
       it("rewardsClaimable() shows less when optionIDs claimed", async function () {
-        const rewardsClaimable = (await this.contract.rewardsClaimable(underlying_address)).toString();
+        const rewardsClaimable = (
+          await this.contract.rewardsClaimable(underlying_address)
+        ).toString();
         const claimedRewards = await claimRewards(this.contract, user);
-        const rewardsClaimable2 = (await this.contract.rewardsClaimable(underlying_address)).toString();
+        const rewardsClaimable2 = (
+          await this.contract.rewardsClaimable(underlying_address)
+        ).toString();
         assert.isAbove(claimedRewards, parseInt(rewardsClaimable2));
       });
 
@@ -836,7 +884,9 @@ function behavesLikeRibbonVolatility(params) {
 
       it("claimRewards() reverts as there are no rewards to claim", async function () {
         const claimedRewards = await claimRewards(this.contract, user);
-        await expect(this.contract.claimRewards(underlying_address)).to.be.revertedWith("No rewards to claim");
+        await expect(
+          this.contract.claimRewards(underlying_address)
+        ).to.be.revertedWith("No rewards to claim");
       });
     });
   });

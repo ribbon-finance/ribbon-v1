@@ -231,59 +231,67 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         return eitherOneCanExercise;
     }
 
-    /**
-     * @notice Buy instrument and create the underlying options positions
-     * @param venues array of venue names, e.g. "HEGIC", "OPYN_V1"
-     * @param amount amount of contracts to purchase
-     */
-    function buyInstrument(
-        string[] calldata venues,
-        OptionType[] calldata optionTypes,
-        uint256 amount,
-        uint256[] memory strikePrices,
-        bytes[] memory buyData,
-        address paymentToken,
-        uint256[] memory maxCosts
-    ) public payable nonReentrant returns (uint256 positionID) {
-        require(venues.length >= 2, "Must have 2 or more venue");
-        require(optionTypes.length >= 2, "Must have 2 or more optionTypes");
-        require(strikePrices.length >= 2, "Must have 2 or more strikePrices");
-        require(buyData.length >= 2, "Must have 2 or more buyData");
+    struct BuyInstrumentParams {
+        uint8 callVenue;
+        uint8 putVenue;
+        address paymentToken;
+        uint256 callStrikePrice;
+        uint256 putStrikePrice;
+        uint256 amount;
+        uint256 callMaxCost;
+        uint256 putMaxCost;
+        bytes callBuyData;
+        bytes putBuyData;
+    }
+
+    function buyInstrument(BuyInstrumentParams calldata params)
+        external
+        payable
+        nonReentrant
+        returns (uint256 positionID)
+    {
         require(block.timestamp < expiry, "Cannot purchase after expiry");
 
         factory.burnGasTokens();
 
-        bool seenCall = false;
-        bool seenPut = false;
+        string memory callVenueName = getAdapterName(params.callVenue);
+        string memory putVenueName = getAdapterName(params.putVenue);
+        uint256 _expiry = expiry;
 
-        InstrumentPosition memory position;
-        position.exercised = false;
-        position.amount = amount;
+        uint32 callOptionID =
+            purchaseOptionAtVenue(
+                callVenueName,
+                OptionType.Call,
+                params.amount,
+                params.callStrikePrice,
+                params.callBuyData,
+                params.paymentToken,
+                params.callMaxCost,
+                _expiry
+            );
+        uint32 putOptionID =
+            purchaseOptionAtVenue(
+                putVenueName,
+                OptionType.Put,
+                params.amount,
+                params.putStrikePrice,
+                params.putBuyData,
+                params.paymentToken,
+                params.putMaxCost,
+                _expiry
+            );
 
-        for (uint256 i = 0; i < venues.length; i++) {
-            uint32 optionID =
-                purchaseOptionAtVenue(
-                    venues[i],
-                    optionTypes[i],
-                    amount,
-                    strikePrices[i],
-                    buyData[i],
-                    paymentToken,
-                    maxCosts[i]
-                );
-
-            if (!seenPut && optionTypes[i] == OptionType.Put) {
-                position.callVenue = uint8(getVenueID(venues[i]));
-                position.callStrikePrice = strikePrices[i];
-                position.callOptionID = optionID;
-                seenPut = true;
-            } else if (!seenCall && optionTypes[i] == OptionType.Call) {
-                position.putVenue = uint8(getVenueID(venues[i]));
-                position.putStrikePrice = strikePrices[i];
-                position.putOptionID = optionID;
-                seenCall = true;
-            }
-        }
+        InstrumentPosition memory position =
+            InstrumentPosition(
+                false,
+                params.callVenue,
+                params.putVenue,
+                callOptionID,
+                putOptionID,
+                params.amount,
+                params.callStrikePrice,
+                params.putStrikePrice
+            );
 
         positionID = instrumentPositions[msg.sender].length;
         instrumentPositions[msg.sender].push(position);
@@ -291,13 +299,21 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         uint256 balance = address(this).balance;
         if (balance > 0) payable(msg.sender).transfer(balance);
 
-        emit PositionCreated(
-            msg.sender,
-            positionID,
-            venues,
-            optionTypes,
-            amount
-        );
+        // string[] memory venues = new string[](2);
+        // venues[0] = putVenueName;
+        // venues[1] = callVenueName;
+
+        // OptionType[] memory optionTypes = new OptionType[](2);
+        // optionTypes[0] = OptionType.Put;
+        // optionTypes[1] = OptionType.Call;
+
+        // emit PositionCreated(
+        //     msg.sender,
+        //     positionID,
+        //     venues,
+        //     optionTypes,
+        //     params.amount
+        // );
     }
 
     function purchaseOptionAtVenue(
@@ -307,7 +323,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         uint256 strikePrice,
         bytes memory buyData,
         address paymentToken,
-        uint256 maxCost
+        uint256 maxCost,
+        uint256 _expiry
     ) private returns (uint32 optionID) {
         address adapterAddress = factory.getAdapter(venue);
         require(adapterAddress != address(0), "Adapter does not exist");
@@ -329,10 +346,17 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                 amount,
                 strikePrice,
                 paymentToken,
-                maxCost
+                maxCost,
+                _expiry
             );
         } else if (purchaseMethod == PurchaseMethod.ZeroEx) {
-            purchaseWithZeroEx(adapter, optionType, strikePrice, buyData);
+            purchaseWithZeroEx(
+                adapter,
+                optionType,
+                strikePrice,
+                buyData,
+                _expiry
+            );
         }
     }
 
@@ -342,14 +366,15 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         uint256 amount,
         uint256 strikePrice,
         address paymentToken,
-        uint256 maxCost
+        uint256 maxCost,
+        uint256 _expiry
     ) private returns (uint32 optionID) {
         OptionTerms memory optionTerms =
             OptionTerms(
                 underlying,
                 strikeAsset,
                 collateralAsset,
-                expiry,
+                _expiry,
                 strikePrice,
                 optionType,
                 paymentToken
@@ -364,14 +389,15 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         IProtocolAdapter adapter,
         OptionType optionType,
         uint256 strikePrice,
-        bytes memory buyData
+        bytes memory buyData,
+        uint256 _expiry
     ) private {
         OptionTerms memory optionTerms =
             OptionTerms(
                 underlying,
                 strikeAsset,
                 collateralAsset,
-                expiry,
+                _expiry,
                 strikePrice,
                 optionType,
                 address(0)

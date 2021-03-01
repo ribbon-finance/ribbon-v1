@@ -115,7 +115,7 @@ contract HegicAdapter is IProtocolAdapter {
      * @param optionTerms is the terms of the option contract
      * @param purchaseAmount is the purchase amount in Wad units (10**18)
      */
-    function premium(OptionTerms calldata optionTerms, uint256 purchaseAmount)
+    function premium(OptionTerms memory optionTerms, uint256 purchaseAmount)
         public
         view
         override
@@ -243,19 +243,10 @@ contract HegicAdapter is IProtocolAdapter {
             "Cannot purchase after expiry"
         );
 
-        uint256 cost =
-            premium(
-                OptionTerms(
-                    optionTerms.underlying,
-                    optionTerms.strikeAsset,
-                    optionTerms.collateralAsset,
-                    optionTerms.expiry,
-                    optionTerms.strikePrice,
-                    optionTerms.optionType,
-                    ethAddress // force total cost to be in ETH
-                ),
-                amount
-            );
+        OptionTerms memory optionTermsWithETH = optionTerms;
+        optionTermsWithETH.paymentToken = ethAddress;
+
+        uint256 cost = premium(optionTermsWithETH, amount);
 
         uint256 scaledStrikePrice =
             scaleDownStrikePrice(optionTerms.strikePrice);
@@ -422,15 +413,16 @@ contract HegicAdapter is IProtocolAdapter {
         hegicToken.safeTransfer(msg.sender, rewardsAmount);
     }
 
-    function createShort(OptionTerms memory optionTerms, uint256 amount)
-        public
+    function createShort(OptionTerms memory, uint256)
+        external
+        pure
         override
         returns (uint256)
     {
         return 0;
     }
 
-    function closeShort() external override returns (uint256) {
+    function closeShort() external pure override returns (uint256) {
         return 0;
     }
 

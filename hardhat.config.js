@@ -8,8 +8,22 @@ require("hardhat-log-remover");
 
 require("dotenv").config();
 
+process.env.TEST_MNEMONIC =
+  "test test test test test test test test test test test junk";
+
 module.exports = {
-  solidity: "0.7.2",
+  accounts: {
+    mnemonic: process.env.TEST_MNEMONIC,
+  },
+  solidity: {
+    version: "0.7.2",
+    settings: {
+      optimizer: {
+        runs: 200,
+        enabled: true,
+      },
+    },
+  },
   networks: {
     hardhat: {
       forking: {

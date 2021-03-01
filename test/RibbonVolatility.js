@@ -266,6 +266,19 @@ function behavesLikeRibbonVolatility(params) {
         this.cost = this.cost.add(premiums[index]);
       });
 
+      this.buyInstrumentParams = [
+        this.callVenue,
+        this.putVenue,
+        this.paymentToken,
+        this.callStrikePrice,
+        this.putStrikePrice,
+        this.amount,
+        this.callMaxCost,
+        this.putMaxCost,
+        this.callBuyData,
+        this.putBuyData,
+      ];
+
       this.startTime = (await provider.getBlock()).timestamp;
       this.expiry = expiry || this.startTime + 60 * 60 * 24 * 2; // 2 days from now
 
@@ -360,31 +373,6 @@ function behavesLikeRibbonVolatility(params) {
       await time.revertToSnapShot(initSnapshotId);
     });
 
-    describe("#cost", () => {
-      beforeEach(async () => {
-        snapshotId = await time.takeSnapshot();
-      });
-
-      afterEach(async () => {
-        await time.revertToSnapShot(snapshotId);
-      });
-
-      it("returns the total cost of the position", async function () {
-        assert.equal(
-          (
-            await this.contract.cost(
-              this.venues,
-              this.optionTypes,
-              this.amounts,
-              this.strikePrices,
-              this.paymentToken
-            )
-          ).toString(),
-          this.cost.toString()
-        );
-      });
-    });
-
     describe("#canExercise", () => {
       beforeEach(async () => {
         snapshotId = await time.takeSnapshot();
@@ -395,20 +383,11 @@ function behavesLikeRibbonVolatility(params) {
       });
 
       it("can exercise when there's exercise profit", async function () {
-        await this.contract.buyInstrument(
-          this.venues,
-          this.optionTypes,
-          this.amounts[0],
-          this.strikePrices,
-          this.buyData,
-          this.paymentToken,
-          this.maxCosts,
-          {
-            from: user,
-            value: this.totalPremium,
-            gasPrice: this.gasPrice,
-          }
-        );
+        await this.contract.buyInstrument(this.buyInstrumentParams, {
+          from: user,
+          value: this.totalPremium,
+          gasPrice: this.gasPrice,
+        });
         const positionID = 0;
 
         const venueIndex = this.venues.findIndex((v) => v === GAMMA_PROTOCOL);
@@ -479,32 +458,17 @@ function behavesLikeRibbonVolatility(params) {
         await time.increaseTo(this.expiry + 1);
 
         await expect(
-          this.contract.buyInstrument(
-            this.venues,
-            this.optionTypes,
-            this.amounts[0],
-            this.strikePrices,
-            this.buyData,
-            this.paymentToken,
-            this.maxCosts,
-            {
-              from: user,
-              value: this.totalPremium,
-              gasPrice: this.gasPrice,
-            }
-          )
+          this.contract.buyInstrument(this.buyInstrumentParams, {
+            from: user,
+            value: this.totalPremium,
+            gasPrice: this.gasPrice,
+          })
         ).to.be.revertedWith("Cannot purchase after expiry");
       });
 
       it("buys instrument", async function () {
         const res = await this.contract.buyInstrument(
-          this.venues,
-          this.optionTypes,
-          this.amounts[0],
-          this.strikePrices,
-          this.buyData,
-          this.paymentToken,
-          this.maxCosts,
+          this.buyInstrumentParams,
           {
             from: user,
             value: this.totalPremium,
@@ -514,31 +478,21 @@ function behavesLikeRibbonVolatility(params) {
         const receipt = await res.wait();
         console.log("gas used", receipt.gasUsed.toString());
 
-        expect(res)
-          .to.emit(this.contract, "PositionCreated")
-          .withArgs(user, "0", this.venues, this.optionTypes, this.amounts[0]);
-
-        const { optionTypes, amount } = (
-          await parseLog(
-            "RibbonVolatility",
-            receipt.logs[receipt.logs.length - 1]
-          )
-        ).args;
-
-        assert.deepEqual(optionTypes, this.optionTypes);
-        assert.equal(amount, this.amounts[0].toString());
-
         const position = await this.contract.instrumentPosition(user, 0);
 
         assert.equal(position.exercised, false);
         assert.equal(position.putVenue, protocolMap[this.venues[0]]);
         assert.equal(position.callVenue, protocolMap[this.venues[1]]);
         assert.equal(position.amount, this.amounts[0].toString());
-        assert.equal(position.callOptionID, this.optionIDs[0]);
-        assert.equal(position.putOptionID, this.optionIDs[1]);
+        assert.equal(position.putOptionID, this.optionIDs[0]);
+        assert.equal(position.callOptionID, this.optionIDs[1]);
 
         let i = 0;
-        for (const venue of this.venues) {
+        const venues = [
+          this.venues[this.putIndex],
+          this.venues[this.callIndex],
+        ];
+        for (const venue of venues) {
           const expectedOptionType = this.optionTypes[i];
           const strikePrice = this.strikePrices[i];
           const hegicScaledStrikePrice = strikePrice.div(
@@ -588,25 +542,7 @@ function behavesLikeRibbonVolatility(params) {
 
       it("does not exceed gas limit budget", async function () {
         const res = await this.contract.buyInstrument(
-          [
-            this.callVenue,
-            this.putVenue,
-            this.paymentToken,
-            this.callStrikePrice,
-            this.putStrikePrice,
-            this.amount,
-            this.callMaxCost,
-            this.putMaxCost,
-            this.callBuyData,
-            this.putBuyData,
-          ],
-          // this.venues,
-          // this.optionTypes,
-          // this.amounts[0],
-          // this.strikePrices,
-          // this.buyData,
-          // this.paymentToken,
-          // this.maxCosts,
+          this.buyInstrumentParams,
           {
             from: user,
             value: this.totalPremium,
@@ -625,20 +561,11 @@ function behavesLikeRibbonVolatility(params) {
 
       beforeEach(async function () {
         snapshotId = await time.takeSnapshot();
-        await this.contract.buyInstrument(
-          this.venues,
-          this.optionTypes,
-          this.amounts[0],
-          this.strikePrices,
-          this.buyData,
-          this.paymentToken,
-          this.maxCosts,
-          {
-            from: user,
-            value: this.totalPremium,
-            gasPrice: this.gasPrice,
-          }
-        );
+        await this.contract.buyInstrument(this.buyInstrumentParams, {
+          from: user,
+          value: this.totalPremium,
+          gasPrice: this.gasPrice,
+        });
         this.positionID = 0;
 
         const venueIndex = this.venues.findIndex((v) => v === GAMMA_PROTOCOL);
@@ -723,20 +650,11 @@ function behavesLikeRibbonVolatility(params) {
 
       it("returns the exercise profit", async function () {
         snapshotId = await time.takeSnapshot();
-        await this.contract.buyInstrument(
-          this.venues,
-          this.optionTypes,
-          this.amounts[0],
-          this.strikePrices,
-          this.buyData,
-          this.paymentToken,
-          this.maxCosts,
-          {
-            from: user,
-            value: this.totalPremium,
-            gasPrice: this.gasPrice,
-          }
-        );
+        await this.contract.buyInstrument(this.buyInstrumentParams, {
+          from: user,
+          value: this.totalPremium,
+          gasPrice: this.gasPrice,
+        });
         this.positionID = 0;
 
         const canExercise = await this.contract.canExercise(
@@ -761,20 +679,11 @@ function behavesLikeRibbonVolatility(params) {
 
     describe("#numOfPositions", () => {
       beforeEach(async function () {
-        await this.contract.buyInstrument(
-          this.venues,
-          this.optionTypes,
-          this.amounts[0],
-          this.strikePrices,
-          this.buyData,
-          this.paymentToken,
-          this.maxCosts,
-          {
-            from: user,
-            value: this.totalPremium,
-            gasPrice: this.gasPrice,
-          }
-        );
+        await this.contract.buyInstrument(this.buyInstrumentParams, {
+          from: user,
+          value: this.totalPremium,
+          gasPrice: this.gasPrice,
+        });
       });
 
       afterEach(async () => {
@@ -808,20 +717,11 @@ function behavesLikeRibbonVolatility(params) {
           this.underlying == ETH_ADDRESS
             ? HEGIC_ETH_REWARDS
             : HEGIC_WBTC_REWARDS;
-        res = await this.contract.buyInstrument(
-          this.venues,
-          this.optionTypes,
-          this.amounts[0],
-          this.strikePrices,
-          this.buyData,
-          this.paymentToken,
-          this.maxCosts,
-          {
-            from: user,
-            value: this.totalPremium,
-            gasPrice: this.gasPrice,
-          }
-        );
+        res = await this.contract.buyInstrument(this.buyInstrumentParams, {
+          from: user,
+          value: this.totalPremium,
+          gasPrice: this.gasPrice,
+        });
       });
 
       afterEach(async () => {
@@ -862,20 +762,11 @@ function behavesLikeRibbonVolatility(params) {
       it("claimRewards() claims less when first optionIDs claimed", async function () {
         const claimedRewards = await claimRewards(this.contract, user);
 
-        const _ = await this.contract.buyInstrument(
-          this.venues,
-          this.optionTypes,
-          this.amounts[0],
-          this.strikePrices,
-          this.buyData,
-          this.paymentToken,
-          this.maxCosts,
-          {
-            from: user,
-            value: this.totalPremium,
-            gasPrice: this.gasPrice,
-          }
-        );
+        const _ = await this.contract.buyInstrument(this.buyInstrumentParams, {
+          from: user,
+          value: this.totalPremium,
+          gasPrice: this.gasPrice,
+        });
 
         const claimedRewards2 = await claimRewards(this.contract, user);
 

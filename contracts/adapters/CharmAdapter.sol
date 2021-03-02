@@ -16,13 +16,17 @@ import {
     PurchaseMethod
 } from "./IProtocolAdapter.sol";
 
+import {
+    ICharmOptionMarket
+} from "../interfaces/CharmInterface.sol";
+
 
 contract CharmAdapet is IProtocolAdapter {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
 
-    string private constant _name = "OPYN_GAMMA";
+    string private constant _name = "CHARM";
     bool private constant _nonFungible = false;
 
 
@@ -40,31 +44,6 @@ contract CharmAdapet is IProtocolAdapter {
         return PurchaseMethod;
     }
 
-    /**
-     * @notice Check if an options contract exist based on the passed parameters.
-     * @param optionTerms is the terms of the option contract
-     */
-    function optionsExist(OptionTerms calldata optionTerms)
-        external
-        view
-        override
-        returns (bool)
-    {
-        return lookupOToken(optionTerms) != address(0);
-    }
-
-    /**
-     * @notice Get the options contract's address based on the passed parameters
-     * @param optionTerms is the terms of the option contract
-     */
-    function getOptionsAddress(OptionTerms calldata optionTerms)
-        external
-        view
-        override
-        returns (address)
-    {
-        return lookupOToken(optionTerms);
-    }
 
     /**
      * @notice Gets the premium to buy `purchaseAmount` of the option contract in ETH terms.
@@ -75,11 +54,10 @@ contract CharmAdapet is IProtocolAdapter {
         override
         returns (uint256 cost)
     {
-        return 0;
+        CharmInterface charmInterface = CharmInterface(0x8Dd6231992E75CA2D160D8fA2e0b506783B50D7f);
+        cost = charmInterface.getCurrentCost();
+        return cost;
     }
-
-
-    // Need to call getCurrentCost()
 
 
 }

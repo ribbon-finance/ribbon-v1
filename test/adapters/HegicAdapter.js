@@ -220,25 +220,28 @@ describe("HegicAdapter", () => {
         });
 
         it("reverts when not enough value is passed", async function () {
-          await expect(
-            this.adapter.purchase(
-              [
-                this.underlying,
-                this.strikeAsset,
-                this.collateralAsset,
-                this.expiry,
-                this.strikePrice,
-                this.optionType,
-                this.paymentToken,
-              ],
-              this.purchaseAmount,
-              this.maxCost,
-              {
-                from: user,
-                value: this.premium.sub(BigNumber.from("1")),
-              }
-            )
-          ).to.be.revertedWith("Wrong value");
+          const promise = this.adapter.purchase(
+            [
+              this.underlying,
+              this.strikeAsset,
+              this.collateralAsset,
+              this.expiry,
+              this.strikePrice,
+              this.optionType,
+              this.paymentToken,
+            ],
+            this.purchaseAmount,
+            this.maxCost,
+            {
+              from: user,
+              value: this.premium.sub(BigNumber.from("1")),
+            }
+          );
+          if (this.underlying === ETH_ADDRESS) {
+            await expect(promise).to.be.revertedWith("Wrong value");
+          } else {
+            await expect(promise).to.be.reverted;
+          }
         });
 
         it("reverts when buying after expiry", async function () {

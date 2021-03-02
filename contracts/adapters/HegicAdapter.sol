@@ -269,13 +269,6 @@ contract HegicAdapter is IProtocolAdapter {
         // Any extras will be refunded to the address(this)
         // This could potentially be a large security vuln. if the Options contract
         // does not refund the change
-
-        console.log(
-            "balance %s, msg.value %s",
-            address(this).balance,
-            msg.value
-        );
-
         optionID = options.create{value: address(this).balance}(
             period,
             amount,

@@ -244,9 +244,6 @@ contract HegicAdapter is IProtocolAdapter {
             "Cannot purchase after expiry"
         );
 
-        OptionTerms memory optionTermsWithETH = optionTerms;
-        optionTermsWithETH.paymentToken = ethAddress;
-
         uint256 scaledStrikePrice =
             scaleDownStrikePrice(optionTerms.strikePrice);
         uint256 period = optionTerms.expiry.sub(block.timestamp);
@@ -254,6 +251,8 @@ contract HegicAdapter is IProtocolAdapter {
 
         // swap for ETH if ETH has not been provided as paymentToken
         if (msg.value == 0) {
+            OptionTerms memory optionTermsWithETH = optionTerms;
+            optionTermsWithETH.paymentToken = ethAddress;
             uint256 cost = premium(optionTermsWithETH, amount);
 
             require(
@@ -270,6 +269,13 @@ contract HegicAdapter is IProtocolAdapter {
         // Any extras will be refunded to the address(this)
         // This could potentially be a large security vuln. if the Options contract
         // does not refund the change
+
+        console.log(
+            "balance %s, msg.value %s",
+            address(this).balance,
+            msg.value
+        );
+
         optionID = options.create{value: address(this).balance}(
             period,
             amount,

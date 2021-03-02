@@ -5,16 +5,30 @@ const { parseEther } = ethers.utils;
 
 const time = require("../helpers/time.js");
 const ZERO_EX_API_RESPONSES = require("../fixtures/GammaAdapter.json");
+const {
+  wmul,
+  wdiv,
+  setupOracle,
+  setOpynOracleExpiryPrice,
+} = require("../helpers/utils");
 
+const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
+const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
+
+const ORACLE_DISPUTE_PERIOD = 7200;
+const ORACLE_LOCKING_PERIOD = 300;
+const WAD = BigNumber.from("10").pow(BigNumber.from("18"));
+
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";
 const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
-const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
+// const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const ETH_ADDRESS = constants.AddressZero;
 let owner, user, recipient;
+let ownerSigner;
 
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
@@ -23,18 +37,19 @@ describe("GammaAdapter", () => {
   let initSnapshotId;
 
   before(async function () {
-    const [
-      ,
-      ownerSigner,
-      userSigner,
-      recipientSigner,
-    ] = await ethers.getSigners();
+    initSnapshotId = await time.takeSnapshot();
+
+    [, ownerSigner, userSigner, recipientSigner] = await ethers.getSigners();
     owner = ownerSigner.address;
     user = userSigner.address;
     recipient = recipientSigner.address;
 
     const MockGammaAdapter = await ethers.getContractFactory(
       "MockGammaAdapter",
+      ownerSigner
+    );
+    const GammaAdapter = await ethers.getContractFactory(
+      "GammaAdapter",
       ownerSigner
     );
     const MockGammaController = await ethers.getContractFactory(
@@ -44,7 +59,7 @@ describe("GammaAdapter", () => {
 
     this.protocolName = "OPYN_GAMMA";
     this.nonFungible = false;
-    
+
     this.mockController = await MockGammaController.deploy(
       GAMMA_ORACLE,
       UNISWAP_ROUTER,
@@ -53,16 +68,34 @@ describe("GammaAdapter", () => {
 
     this.mockController.setPrice("110000000000");
 
-    this.adapter = await MockGammaAdapter.deploy(
-      OTOKEN_FACTORY,
-      this.mockController.address,
-      WETH_ADDRESS,
-      ZERO_EX_EXCHANGE,
-      UNISWAP_ROUTER
+    this.gammaController = await ethers.getContractAt(
+      "IController",
+      GAMMA_CONTROLLER
     );
-    this.adapter = this.adapter.connect(userSigner);
 
-    initSnapshotId = await time.takeSnapshot();
+    this.mockAdapter = (
+      await MockGammaAdapter.deploy(
+        OTOKEN_FACTORY,
+        this.mockController.address,
+        WETH_ADDRESS,
+        ZERO_EX_EXCHANGE,
+        UNISWAP_ROUTER
+      )
+    ).connect(userSigner);
+
+    this.adapter = (
+      await GammaAdapter.deploy(
+        OTOKEN_FACTORY,
+        GAMMA_CONTROLLER,
+        WETH_ADDRESS,
+        ZERO_EX_EXCHANGE,
+        UNISWAP_ROUTER
+      )
+    ).connect(userSigner);
+
+    this.oracle = await setupOracle(ownerSigner);
+
+    this.depositToVaultForShorts = depositToVaultForShorts;
   });
 
   after(async () => {
@@ -91,8 +124,8 @@ describe("GammaAdapter", () => {
         constants.AddressZero,
         "1614326400",
         parseEther("800"),
-        CALL_OPTION_TYPE, 
-        constants.AddressZero
+        CALL_OPTION_TYPE,
+        constants.AddressZero,
       ]);
 
       assert.equal(actualOTokenAddress, oTokenAddress);
@@ -107,8 +140,8 @@ describe("GammaAdapter", () => {
         constants.AddressZero,
         "1610697600",
         parseEther("800"),
-        PUT_OPTION_TYPE, 
-        constants.AddressZero
+        PUT_OPTION_TYPE,
+        constants.AddressZero,
       ]);
       assert.equal(actualOTokenAddress, oTokenAddress);
     });
@@ -121,9 +154,11 @@ describe("GammaAdapter", () => {
     strikeAsset: USDC_ADDRESS,
     collateralAsset: WETH_ADDRESS,
     strikePrice: parseEther("960"),
+    settlePrice: "120000000000",
     expiry: "1614326400",
     optionType: CALL_OPTION_TYPE,
     purchaseAmount: parseEther("0.1"),
+    shortAmount: parseEther("1"),
     exerciseProfit: BigNumber.from("12727272727272727"),
     premium: "50329523139774375",
   });
@@ -135,9 +170,11 @@ describe("GammaAdapter", () => {
     strikeAsset: USDC_ADDRESS,
     collateralAsset: WETH_ADDRESS,
     strikePrice: parseEther("1480"),
+    settlePrice: "120000000000",
     expiry: "1610697600",
     optionType: CALL_OPTION_TYPE,
     purchaseAmount: parseEther("0.1"),
+    shortAmount: parseEther("1"),
     exerciseProfit: BigNumber.from("0"),
     premium: "18271767935676968",
   });
@@ -149,9 +186,11 @@ describe("GammaAdapter", () => {
     strikeAsset: USDC_ADDRESS,
     collateralAsset: USDC_ADDRESS,
     strikePrice: parseEther("800"),
+    settlePrice: "120000000000",
     expiry: "1610697600",
     optionType: PUT_OPTION_TYPE,
     purchaseAmount: parseEther("0.1"),
+    shortAmount: BigNumber.from("1000000000"),
     exerciseProfit: BigNumber.from("0"),
     premium: "16125055430257410",
   });
@@ -171,7 +210,9 @@ function behavesLikeOTokens(params) {
         oTokenAddress,
         purchaseAmount,
         exerciseProfit,
+        shortAmount,
         premium,
+        settlePrice,
       } = params;
 
       this.oTokenAddress = oTokenAddress;
@@ -185,9 +226,13 @@ function behavesLikeOTokens(params) {
       this.exerciseProfit = exerciseProfit;
       this.premium = premium;
       this.paymentToken = paymentToken || ETH_ADDRESS;
+      this.shortAmount = shortAmount;
+      this.settlePrice = settlePrice;
       this.apiResponse = ZERO_EX_API_RESPONSES[oTokenAddress];
       this.scaleDecimals = (n) =>
         n.div(BigNumber.from("10").pow(BigNumber.from("10")));
+
+      this.oToken = await ethers.getContractAt("IERC20", oTokenAddress);
 
       this.optionTerms = [
         this.underlying,
@@ -196,7 +241,7 @@ function behavesLikeOTokens(params) {
         this.expiry,
         this.strikePrice,
         this.optionType,
-        this.paymentToken
+        this.paymentToken,
       ];
 
       this.zeroExOrder = [
@@ -236,7 +281,7 @@ function behavesLikeOTokens(params) {
 
         assert.equal(
           (
-            await this.adapter.exerciseProfit(
+            await this.mockAdapter.exerciseProfit(
               this.oTokenAddress,
               0,
               this.purchaseAmount
@@ -335,7 +380,7 @@ function behavesLikeOTokens(params) {
           value: parseEther("10"),
         });
 
-        await this.adapter.purchaseWithZeroEx(
+        await this.mockAdapter.purchaseWithZeroEx(
           this.optionTerms,
           this.zeroExOrder,
           {
@@ -358,7 +403,7 @@ function behavesLikeOTokens(params) {
         }
         await time.increaseTo(this.expiry + 1);
 
-        const res = await this.adapter.mockedExercise(
+        const res = await this.mockAdapter.mockedExercise(
           this.oTokenAddress,
           0,
           this.purchaseAmount,
@@ -367,7 +412,7 @@ function behavesLikeOTokens(params) {
         );
 
         expect(res)
-          .to.emit(this.adapter, "Exercised")
+          .to.emit(this.mockAdapter, "Exercised")
           .withArgs(
             user,
             this.oTokenAddress,
@@ -380,7 +425,7 @@ function behavesLikeOTokens(params) {
 
         assert.equal((await otoken.balanceOf(user)).toString(), "0");
         assert.equal(
-          (await otoken.balanceOf(this.adapter.address)).toString(),
+          (await otoken.balanceOf(this.mockAdapter.address)).toString(),
           "0"
         );
 
@@ -418,7 +463,7 @@ function behavesLikeOTokens(params) {
       it("can exercise", async function () {
         await time.increaseTo(this.expiry + 1);
 
-        const res = await this.adapter.canExercise(
+        const res = await this.mockAdapter.canExercise(
           this.oTokenAddress,
           0,
           this.purchaseAmount
@@ -433,7 +478,7 @@ function behavesLikeOTokens(params) {
       });
 
       it("cannot exercise before expiry", async function () {
-        const res = await this.adapter.canExercise(
+        const res = await this.mockAdapter.canExercise(
           this.oTokenAddress,
           0,
           this.purchaseAmount
@@ -441,7 +486,180 @@ function behavesLikeOTokens(params) {
         assert.isFalse(res);
       });
     });
+
+    describe("#createShort", () => {
+      time.revertToSnapshotAfterEach(async function () {
+        await this.depositToVaultForShorts(parseEther("10"));
+      });
+
+      it("reverts when no matched oToken", async function () {
+        const optionTerms = [
+          "0x0000000000000000000000000000000000000069",
+          "0x0000000000000000000000000000000000000069",
+          "0x0000000000000000000000000000000000000069",
+          "1614326400",
+          parseEther("800"),
+          CALL_OPTION_TYPE,
+          "0x0000000000000000000000000000000000000069",
+        ];
+
+        await expect(
+          this.adapter.createShort(optionTerms, this.shortAmount)
+        ).to.be.revertedWith("Invalid oToken");
+      });
+
+      it("reverts when depositing too little collateral for ETH", async function () {
+        if (this.collateralAsset === WETH_ADDRESS) {
+          await expect(
+            this.adapter.createShort(this.optionTerms, 1)
+          ).to.be.revertedWith(/Must deposit more than 10\*\*8 collateral/);
+        }
+      });
+
+      it("creates a short position", async function () {
+        const collateral = await ethers.getContractAt(
+          "IERC20",
+          this.collateralAsset
+        );
+        const initialPoolCollateralBalance = await collateral.balanceOf(
+          MARGIN_POOL
+        );
+
+        await this.adapter.createShort(this.optionTerms, this.shortAmount);
+
+        let oTokenMintedAmount;
+
+        if (this.optionType === CALL_OPTION_TYPE) {
+          oTokenMintedAmount = this.shortAmount.div(
+            BigNumber.from("10").pow(BigNumber.from("10"))
+          );
+        } else {
+          oTokenMintedAmount = wdiv(this.shortAmount, this.strikePrice)
+            .mul(BigNumber.from("10").pow(BigNumber.from("8")))
+            .div(BigNumber.from("10").pow(BigNumber.from("6")));
+        }
+
+        const vaultID = await this.gammaController.getAccountVaultCounter(
+          this.adapter.address
+        );
+        assert.equal(vaultID, "1");
+
+        assert.equal(
+          (await this.oToken.balanceOf(this.adapter.address)).toString(),
+          oTokenMintedAmount
+        );
+
+        const endPoolCollateralBalance = await collateral.balanceOf(
+          MARGIN_POOL
+        );
+        assert.equal(
+          endPoolCollateralBalance.sub(initialPoolCollateralBalance).toString(),
+          this.shortAmount
+        );
+      });
+    });
+
+    describe("#closeShort", () => {
+      time.revertToSnapshotAfterEach(async function () {
+        const depositAmount = parseEther("10");
+
+        await this.depositToVaultForShorts(depositAmount);
+
+        await this.adapter.createShort(this.optionTerms, this.shortAmount);
+
+        await setOpynOracleExpiryPrice(
+          this.oracle,
+          this.expiry,
+          this.settlePrice
+        );
+      });
+
+      it("settles the vault and withdraws collateral", async function () {
+        const collateralToken = await ethers.getContractAt(
+          "IERC20",
+          this.collateralAsset
+        );
+
+        const startWETHBalance = await collateralToken.balanceOf(
+          this.adapter.address
+        );
+
+        await this.adapter.closeShort();
+
+        const strike = this.strikePrice;
+        const shortAmount = this.shortAmount;
+
+        const settlePrice = BigNumber.from(this.settlePrice).mul(
+          BigNumber.from("10").pow(BigNumber.from("10"))
+        );
+
+        const inTheMoney =
+          this.optionType === CALL_OPTION_TYPE
+            ? settlePrice.gt(strike)
+            : settlePrice.lt(strike);
+
+        let shortOutcome;
+
+        if (inTheMoney) {
+          // lose money when short option and ITM
+          // settlePrice = 1200, strikePrice = 9600
+          // loss = (1200-960)/1200
+          // shortOutcome = shortAmount - loss = 0.8 ETH
+
+          const loss = settlePrice.sub(strike).mul(WAD).div(settlePrice);
+          shortOutcome = shortAmount.sub(wmul(shortAmount, loss));
+        } else {
+          // If it's OTM, you will get back 100% of the collateral deposited
+          shortOutcome = shortAmount;
+        }
+
+        assert.equal(
+          (await collateralToken.balanceOf(this.adapter.address))
+            .sub(startWETHBalance)
+            .toString(),
+          shortOutcome
+        );
+      });
+    });
   });
+}
+
+async function depositToVaultForShorts(depositAmount) {
+  if (this.collateralAsset === WETH_ADDRESS) {
+    const wethContract = (
+      await ethers.getContractAt("IWETH", WETH_ADDRESS)
+    ).connect(ownerSigner);
+    await wethContract.deposit({ from: owner, value: depositAmount });
+    await wethContract.transfer(this.adapter.address, depositAmount, {
+      from: owner,
+    });
+  } else {
+    const router = (
+      await ethers.getContractAt("IUniswapV2Router01", UNISWAP_ROUTER)
+    ).connect(ownerSigner);
+    const collateralToken = (
+      await ethers.getContractAt("IERC20", this.collateralAsset)
+    ).connect(ownerSigner);
+
+    const amountsOut = await router.getAmountsOut(depositAmount, [
+      WETH_ADDRESS,
+      this.collateralAsset,
+    ]);
+
+    const amountOutMin = amountsOut[1];
+
+    await router.swapExactETHForTokens(
+      amountOutMin,
+      [WETH_ADDRESS, this.collateralAsset],
+      owner,
+      Math.floor(Date.now() / 1000) + 69,
+      { from: owner, value: depositAmount }
+    );
+
+    await collateralToken.transfer(this.adapter.address, amountOutMin, {
+      from: owner,
+    });
+  }
 }
 
 function calculateZeroExOrderCost(apiResponse) {

@@ -16,12 +16,14 @@ import {
     IOtokenFactory,
     OtokenInterface,
     IController,
-    OracleInterface
+    OracleInterface,
+    Vault
 } from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
+import {DSMath} from "../lib/DSMath.sol";
 
-contract GammaAdapter is IProtocolAdapter {
+contract GammaAdapter is IProtocolAdapter, DSMath {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -34,6 +36,9 @@ contract GammaAdapter is IProtocolAdapter {
 
     string private constant _name = "OPYN_GAMMA";
     bool private constant _nonFungible = false;
+    address private constant _marginPool =
+        0x5934807cC0654d46755eBd2848840b616256C6Ef;
+    uint256 private constant OTOKEN_DECIMALS = 10**8;
 
     constructor(
         address _oTokenFactory,
@@ -92,7 +97,7 @@ contract GammaAdapter is IProtocolAdapter {
     /**
      * @notice Gets the premium to buy `purchaseAmount` of the option contract in ETH terms.
      */
-    function premium(OptionTerms calldata , uint256 )
+    function premium(OptionTerms calldata, uint256)
         external
         pure
         override
@@ -108,7 +113,7 @@ contract GammaAdapter is IProtocolAdapter {
      */
     function exerciseProfit(
         address options,
-        uint256 ,
+        uint256,
         uint256 amount
     ) public view override returns (uint256 profit) {
         IController controller = IController(gammaController);
@@ -152,12 +157,11 @@ contract GammaAdapter is IProtocolAdapter {
     /**
      * @notice Purchases the options contract.
      */
-    function purchase(OptionTerms calldata , uint256 , uint256 )
-        external
-        payable
-        override
-        returns (uint256 optionID)
-    {}
+    function purchase(
+        OptionTerms calldata,
+        uint256,
+        uint256
+    ) external payable override returns (uint256 optionID) {}
 
     function purchaseWithZeroEx(
         OptionTerms calldata optionTerms,
@@ -326,6 +330,128 @@ contract GammaAdapter is IProtocolAdapter {
                 block.timestamp + _swapWindow
             );
         }
+    }
+
+    function createShort(
+        OptionTerms calldata optionTerms,
+        uint256 depositAmount
+    ) external override returns (uint256) {
+        IController controller = IController(gammaController);
+        uint256 newVaultID =
+            (controller.getAccountVaultCounter(address(this))).add(1);
+
+        address oToken = lookupOToken(optionTerms);
+        require(oToken != address(0), "Invalid oToken");
+
+        address collateralAsset = optionTerms.collateralAsset;
+        if (collateralAsset == address(0)) {
+            collateralAsset = _weth;
+        }
+        IERC20 collateralToken = IERC20(collateralAsset);
+
+        uint256 collateralDecimals = assetDecimals(collateralAsset);
+        uint256 mintAmount;
+
+        if (optionTerms.optionType == OptionType.Call) {
+            mintAmount = depositAmount;
+            if (collateralDecimals >= 8) {
+                uint256 scaleBy = 10**(collateralDecimals - 8); // oTokens have 8 decimals
+                mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
+                require(
+                    mintAmount > 0,
+                    "Must deposit more than 10**8 collateral"
+                );
+            }
+        } else {
+            mintAmount = wdiv(depositAmount, optionTerms.strikePrice)
+                .mul(OTOKEN_DECIMALS)
+                .div(10**collateralDecimals);
+        }
+
+        collateralToken.safeApprove(_marginPool, depositAmount);
+
+        IController.ActionArgs[] memory actions =
+            new IController.ActionArgs[](3);
+
+        actions[0] = IController.ActionArgs(
+            IController.ActionType.OpenVault,
+            address(this), // owner
+            address(this), // receiver -  we need this contract to receive so we can swap at the end
+            address(0), // asset, otoken
+            newVaultID, // vaultId
+            0, // amount
+            0, //index
+            "" //data
+        );
+
+        actions[1] = IController.ActionArgs(
+            IController.ActionType.DepositCollateral,
+            address(this), // owner
+            address(this), // address to transfer from
+            collateralAsset, // deposited asset
+            newVaultID, // vaultId
+            depositAmount, // amount
+            0, //index
+            "" //data
+        );
+
+        actions[2] = IController.ActionArgs(
+            IController.ActionType.MintShortOption,
+            address(this), // owner
+            address(this), // address to transfer to
+            oToken, // deposited asset
+            newVaultID, // vaultId
+            mintAmount, // amount
+            0, //index
+            "" //data
+        );
+
+        controller.operate(actions);
+
+        return mintAmount;
+    }
+
+    function closeShort() external override returns (uint256) {
+        IController controller = IController(gammaController);
+
+        // gets the currently active vault ID
+        uint256 vaultID = controller.getAccountVaultCounter(address(this));
+
+        Vault memory vault = controller.getVault(address(this), vaultID);
+
+        require(vault.collateralAssets.length > 0, "No active vault");
+
+        IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
+        uint256 startCollateralBalance =
+            collateralToken.balanceOf(address(this));
+
+        IController.ActionArgs[] memory actions =
+            new IController.ActionArgs[](1);
+
+        actions[0] = IController.ActionArgs(
+            IController.ActionType.SettleVault,
+            address(this), // owner
+            address(this), // address to transfer to
+            address(0), // not used
+            vaultID, // vaultId
+            0, // not used
+            0, // not used
+            "" // not used
+        );
+
+        controller.operate(actions);
+
+        uint256 endCollateralBalance = collateralToken.balanceOf(address(this));
+
+        return endCollateralBalance.sub(startCollateralBalance);
+    }
+
+    function assetDecimals(address asset) private pure returns (uint256) {
+        // USDC
+        if (asset == 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48) {
+            return 6;
+        }
+        return 18;
     }
 
     /**

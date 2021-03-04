@@ -176,7 +176,7 @@ describe("GammaAdapter", () => {
     purchaseAmount: parseEther("0.1"),
     shortAmount: parseEther("1"),
     exerciseProfit: BigNumber.from("0"),
-    premium: "16131974349332756",
+    premium: "18292499493934936",
   });
 
   behavesLikeOTokens({
@@ -192,7 +192,7 @@ describe("GammaAdapter", () => {
     purchaseAmount: parseEther("0.1"),
     shortAmount: BigNumber.from("1000000000"),
     exerciseProfit: BigNumber.from("0"),
-    premium: "16131974349332756",
+    premium: "16411974349332756",
   });
 });
 

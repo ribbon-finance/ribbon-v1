@@ -14,16 +14,17 @@
   "mainnet": {
     "RibbonFactoryLogic": "0x84a5A8c504eC7f9Add6771459c5Dfc8475138c33",
     "RibbonFactory": "0x863dd8Ea9B7472c54CdE1F0e2D5B2bCC8CBf0Cd1",
-    "RibbonVolatilityLogic": "0x2A6B34e4C2Df56aCd34B73C5Bf365966c8fD58D5",
+    "RibbonVolatilityLogic": "0x7004f9fcdE66E2ecABF408132Cb21Ebbcf53D4B0",
     "GammaAdapterLogic": "0x2C4A3eF36e204706014eEe6267f82a29773D0632",
     "HegicAdapterLogic": "0x0bd5Aa838368E91F8959bA0d2a254FfdD09daa8c",
     "ProtocolAdapterLib": "0xfe423309b326b7BF9cC28669a47A4E09288DF5e1",
     "RibbonETHCoveredCallLogic": "0xb9a143a9b010ff7F4408Ee87AE42C401c7c9De6D",
-    "RibbonETHCoveredCall": "0x8e65F34FF5925D3D43aD642bEe84ac947583A939"
+    "RibbonETHCoveredCall": "0x8e65F34FF5925D3D43aD642bEe84ac947583A939",
+    "GnosisSafe": "0xc19c3b461809248ddcC288B1FA31031f4Af712Ef"
   },
   "mainnet-fork": {
     "RibbonFactory": "0x863dd8Ea9B7472c54CdE1F0e2D5B2bCC8CBf0Cd1",
-    "RibbonVolatilityLogic": "0x2A6B34e4C2Df56aCd34B73C5Bf365966c8fD58D5",
+    "RibbonVolatilityLogic": "0x7004f9fcdE66E2ecABF408132Cb21Ebbcf53D4B0",
     "HegicAdapterLogic": "0x0bd5Aa838368E91F8959bA0d2a254FfdD09daa8c",
     "GammaAdapterLogic": "0x2C4A3eF36e204706014eEe6267f82a29773D0632",
     "RibbonFactoryLogic": "0x84a5A8c504eC7f9Add6771459c5Dfc8475138c33",

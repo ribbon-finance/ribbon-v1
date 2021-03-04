@@ -6,7 +6,7 @@ const { promisify } = require("util");
 const { BigNumber } = require("ethers");
 const { parseUnits } = require("ethers/lib/utils");
 const { ethers } = require("hardhat");
-const { signOrderForSwap } = require("./helpers/signature");
+const { signOrderForSwap } = require("../scripts/helpers/signature");
 const { provider, getContractAt } = ethers;
 const { parseEther } = ethers.utils;
 
@@ -98,17 +98,6 @@ describe("RibbonETHCoveredCall", () => {
     this.weth = await getContractAt("IWETH", WETH_ADDRESS);
 
     this.airswap = await getContractAt("ISwap", SWAP_ADDRESS);
-
-    this.ipfs = await IPFS.create();
-
-    // remove lock for repo
-    const ipfsRepoStat = await this.ipfs.repo.stat();
-    const lockFile = path.join(ipfsRepoStat.repoPath, "repo.lock");
-
-    try {
-      await promisify(fs.access)(lockFile, fs.F_OK);
-      await promisify(fs.unlink)(lockFile);
-    } catch (e) {}
   });
 
   after(async () => {
@@ -655,28 +644,6 @@ describe("RibbonETHCoveredCall", () => {
         await this.weth.balanceOf(this.vault.address),
         startBuyTokenBalance.add(this.premium)
       );
-    });
-
-    it("adds order to IPFS", async function () {
-      const signedOrder = await signOrderForSwap({
-        vaultAddress: this.vault.address,
-        counterpartyAddress: counterparty,
-        signerPrivateKey: this.managerWallet.privateKey,
-        sellToken: this.oTokenAddress,
-        buyToken: WETH_ADDRESS,
-        sellAmount: this.sellAmount.toString(),
-        buyAmount: this.premium.toString(),
-      });
-
-      const orderStr = JSON.stringify(signedOrder);
-
-      const cid = await this.ipfs.add(orderStr);
-
-      // assert.equal(await this.ipfs.cat(cid.path), orderStr);
-
-      for await (const chunk of this.ipfs.cat(cid.path)) {
-        assert.equal(chunk.toString(), orderStr);
-      }
     });
   });
 

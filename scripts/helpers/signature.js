@@ -28,7 +28,7 @@ async function signOrderForSwap({
     },
   });
 
-  const signedOrder = signTypedDataOrder(
+  const signedOrder = await signTypedDataOrder(
     order,
     signerPrivateKey,
     SWAP_CONTRACT

@@ -26,7 +26,6 @@ import {
 import {ISwapPair} from "../interfaces/ISwapPair.sol";
 
 import {IWETH} from "../interfaces/IWETH.sol";
-import "hardhat/console.sol";
 
 contract HegicAdapter is IProtocolAdapter {
     using SafeMath for uint256;

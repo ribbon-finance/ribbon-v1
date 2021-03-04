@@ -616,6 +616,15 @@ function behavesLikeOTokens(params) {
         );
       });
     });
+
+    describe("#getOptionsAddress", () => {
+      it("returns the correct otoken address", async function () {
+        assert.equal(
+          await this.adapter.getOptionsAddress(this.optionTerms),
+          this.oTokenAddress
+        );
+      });
+    });
   });
 }
 

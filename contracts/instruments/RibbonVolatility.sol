@@ -21,7 +21,6 @@ import {
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {Ownable} from "../lib/Ownable.sol";
-import "hardhat/console.sol";
 
 contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
     using SafeMath for uint256;
@@ -164,12 +163,13 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
             address adapterAddress = factory.getAdapter(venue);
             require(adapterAddress != address(0), "Adapter does not exist");
             IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
+
             address options =
                 adapter.getOptionsAddress(
                     OptionTerms(
                         underlying,
                         strikeAsset,
-                        collateralAsset,
+                        address(0), // collateralAsset not needed
                         expiry,
                         strikePrice,
                         optionType,

@@ -6,6 +6,7 @@ const { provider, constants, BigNumber } = ethers;
 const { parseEther, parseUnits } = ethers.utils;
 
 const time = require("./helpers/time");
+const { wmul } = require("./helpers/utils");
 const { getDefaultArgs, parseLog, mintAndApprove } = require("./helpers/utils");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const ZERO_EX_API_RESPONSES = require("./fixtures/GammaAdapter.json");
@@ -39,134 +40,136 @@ describe("RibbonVolatility", () => {
    * Current price for BTC-USD = ~$38000
    */
 
-  behavesLikeRibbonVolatility({
-    name: "Hegic ITM Put, Hegic OTM Call (ETH)",
-    underlying: ETH_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
-    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    paymentToken: ETH_ADDRESS,
-    amounts: [parseEther("1"), parseEther("1")],
-    optionsExercised: [true, false],
-    strikePrices: [parseEther("1300"), parseEther("1300")],
-    premiums: [BigNumber.from("296363339171109209"), BigNumber.from("0")],
-    purchaseAmount: parseEther("1"),
-    optionIDs: ["2353", "2354"],
-    exerciseProfit: BigNumber.from("154765182941453405"),
-    actualExerciseProfit: BigNumber.from("154765182941453405"),
-  });
-
-  behavesLikeRibbonVolatility({
-    name: "Hegic OTM Put, Hegic OTM Call (ETH)",
-    underlying: ETH_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
-    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    paymentToken: ETH_ADDRESS,
-    amounts: [parseEther("1"), parseEther("1")],
-    optionsExercised: [false, false],
-    strikePrices: [parseEther("900"), parseEther("1300")],
-    premiums: [BigNumber.from("120217234727039817"), BigNumber.from("0")],
-    purchaseAmount: parseEther("1"),
-    optionIDs: ["2353", "2354"],
-    exerciseProfit: BigNumber.from("0"),
-    actualExerciseProfit: BigNumber.from("0"),
-  });
-
-  behavesLikeRibbonVolatility({
-    name: "Hegic OTM Put, Hegic ITM Call (ETH)",
-    underlying: ETH_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
-    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    paymentToken: ETH_ADDRESS,
-    amounts: [parseEther("1"), parseEther("1")],
-    optionsExercised: [false, true],
-    strikePrices: [parseEther("900"), parseEther("900")],
-    premiums: [BigNumber.from("343924487476973783"), BigNumber.from("0")],
-    purchaseAmount: parseEther("1"),
-    optionIDs: ["2353", "2354"],
-    exerciseProfit: BigNumber.from("200547181040532257"),
-    actualExerciseProfit: BigNumber.from("200547181040532257"),
-  });
-
-  // WBTC VOLATILITY
-  behavesLikeRibbonVolatility({
-    name: "Hegic ITM Put, Hegic OTM Call (WBTC)",
-    underlying: WBTC_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
-    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    paymentToken: WBTC_ADDRESS,
-    amounts: [parseUnits("1", 8), parseUnits("1", 8)],
-    optionsExercised: [true, false],
-    strikePrices: [parseEther("42000"), parseEther("42000")],
-    premiums: [BigNumber.from("16459774"), BigNumber.from("4355716")],
-    purchaseAmount: parseUnits("1", 8),
-    optionIDs: ["1119", "1120"],
-    exerciseProfit: BigNumber.from("11302622"),
-    actualExerciseProfit: BigNumber.from("11302622"),
-  });
-
-  behavesLikeRibbonVolatility({
-    name: "Hegic OTM Put, Hegic OTM Call (WBTC)",
-    underlying: WBTC_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
-    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    paymentToken: WBTC_ADDRESS,
-    amounts: [parseUnits("1", 8), parseUnits("1", 8)],
-    optionsExercised: [false, false],
-    strikePrices: [parseEther("34000"), parseEther("42000")],
-    premiums: [BigNumber.from("4365314"), BigNumber.from("4355716")],
-    purchaseAmount: parseUnits("1", 8),
-    optionIDs: ["1119", "1120"],
-    exerciseProfit: BigNumber.from("0"),
-    actualExerciseProfit: BigNumber.from("0"),
-  });
-
-  behavesLikeRibbonVolatility({
-    name: "Hegic OTM Put, Hegic ITM Call (WBTC)",
-    underlying: WBTC_ADDRESS,
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
-    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
-    paymentToken: WBTC_ADDRESS,
-    amounts: [parseUnits("1", 8), parseUnits("1", 8)],
-    optionsExercised: [false, true],
-    strikePrices: [parseEther("34000"), parseEther("34000")],
-    premiums: [BigNumber.from("4365314"), BigNumber.from("15043173")],
-    purchaseAmount: parseUnits("1", 8),
-    optionIDs: ["1119", "1120"],
-    exerciseProfit: BigNumber.from("9897877"),
-    actualExerciseProfit: BigNumber.from("9897877"),
-  });
-
   // behavesLikeRibbonVolatility({
-  //   name: "Hegic OTM Put, Gamma ITM Call",
+  //   name: "Hegic ITM Put, Hegic OTM Call (ETH)",
   //   underlying: ETH_ADDRESS,
   //   strikeAsset: USDC_ADDRESS,
-  //   collateralAsset: ETH_ADDRESS,
-  //   venues: [GAMMA_PROTOCOL],
-  //   optionTypes: [CALL_OPTION_TYPE],
-  //   amounts: [parseEther("0.1")],
-  //   strikePrices: [parseEther("960")],
-  //   premiums: [BigNumber.from("0")],
+  //   collateralAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   paymentToken: ETH_ADDRESS,
+  //   amounts: [parseEther("1"), parseEther("1")],
+  //   optionsExercised: [true, false],
+  //   strikePrices: [parseEther("1300"), parseEther("1300")],
+  //   premiums: [BigNumber.from("296363339171109209"), BigNumber.from("0")],
   //   purchaseAmount: parseEther("1"),
-  //   expiry: "1614326400",
-  //   optionIDs: ["0"],
-  //   exerciseProfit: BigNumber.from("12727272727272727"),
-  //   actualExerciseProfit: BigNumber.from("12727272727272727"),
-  //   apiResponses: [
-  //     ZERO_EX_API_RESPONSES["0x3cF86d40988309AF3b90C14544E1BB0673BFd439"],
-  //   ],
+  //   optionIDs: ["2353", "2354"],
+  //   exerciseProfit: BigNumber.from("154765182941453405"),
+  //   actualExerciseProfit: BigNumber.from("154765182941453405"),
   // });
+
+  // behavesLikeRibbonVolatility({
+  //   name: "Hegic OTM Put, Hegic OTM Call (ETH)",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   paymentToken: ETH_ADDRESS,
+  //   amounts: [parseEther("1"), parseEther("1")],
+  //   optionsExercised: [false, false],
+  //   strikePrices: [parseEther("900"), parseEther("1300")],
+  //   premiums: [BigNumber.from("120217234727039817"), BigNumber.from("0")],
+  //   purchaseAmount: parseEther("1"),
+  //   optionIDs: ["2353", "2354"],
+  //   exerciseProfit: BigNumber.from("0"),
+  //   actualExerciseProfit: BigNumber.from("0"),
+  // });
+
+  // behavesLikeRibbonVolatility({
+  //   name: "Hegic OTM Put, Hegic ITM Call (ETH)",
+  //   underlying: ETH_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   paymentToken: ETH_ADDRESS,
+  //   amounts: [parseEther("1"), parseEther("1")],
+  //   optionsExercised: [false, true],
+  //   strikePrices: [parseEther("900"), parseEther("900")],
+  //   premiums: [BigNumber.from("343924487476973783"), BigNumber.from("0")],
+  //   purchaseAmount: parseEther("1"),
+  //   optionIDs: ["2353", "2354"],
+  //   exerciseProfit: BigNumber.from("200547181040532257"),
+  //   actualExerciseProfit: BigNumber.from("200547181040532257"),
+  // });
+
+  // // WBTC VOLATILITY
+  // behavesLikeRibbonVolatility({
+  //   name: "Hegic ITM Put, Hegic OTM Call (WBTC)",
+  //   underlying: WBTC_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   paymentToken: WBTC_ADDRESS,
+  //   amounts: [parseUnits("1", 8), parseUnits("1", 8)],
+  //   optionsExercised: [true, false],
+  //   strikePrices: [parseEther("42000"), parseEther("42000")],
+  //   premiums: [BigNumber.from("16459774"), BigNumber.from("4355716")],
+  //   purchaseAmount: parseUnits("1", 8),
+  //   optionIDs: ["1119", "1120"],
+  //   exerciseProfit: BigNumber.from("11302622"),
+  //   actualExerciseProfit: BigNumber.from("11302622"),
+  // });
+
+  // behavesLikeRibbonVolatility({
+  //   name: "Hegic OTM Put, Hegic OTM Call (WBTC)",
+  //   underlying: WBTC_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   paymentToken: WBTC_ADDRESS,
+  //   amounts: [parseUnits("1", 8), parseUnits("1", 8)],
+  //   optionsExercised: [false, false],
+  //   strikePrices: [parseEther("34000"), parseEther("42000")],
+  //   premiums: [BigNumber.from("4365314"), BigNumber.from("4355716")],
+  //   purchaseAmount: parseUnits("1", 8),
+  //   optionIDs: ["1119", "1120"],
+  //   exerciseProfit: BigNumber.from("0"),
+  //   actualExerciseProfit: BigNumber.from("0"),
+  // });
+
+  // behavesLikeRibbonVolatility({
+  //   name: "Hegic OTM Put, Hegic ITM Call (WBTC)",
+  //   underlying: WBTC_ADDRESS,
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: USDC_ADDRESS,
+  //   venues: [HEGIC_PROTOCOL, HEGIC_PROTOCOL],
+  //   optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+  //   paymentToken: WBTC_ADDRESS,
+  //   amounts: [parseUnits("1", 8), parseUnits("1", 8)],
+  //   optionsExercised: [false, true],
+  //   strikePrices: [parseEther("34000"), parseEther("34000")],
+  //   premiums: [BigNumber.from("4365314"), BigNumber.from("15043173")],
+  //   purchaseAmount: parseUnits("1", 8),
+  //   optionIDs: ["1119", "1120"],
+  //   exerciseProfit: BigNumber.from("9897877"),
+  //   actualExerciseProfit: BigNumber.from("9897877"),
+  // });
+
+  behavesLikeRibbonVolatility({
+    name: "Gamma OTM Put, Gamma ITM Call",
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: ETH_ADDRESS,
+    venues: [GAMMA_PROTOCOL, GAMMA_PROTOCOL],
+    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+    amounts: [parseEther("0.1"), parseEther("0.1")],
+    optionsExercised: [false, true],
+    strikePrices: [parseEther("800"), parseEther("960")],
+    premiums: [BigNumber.from("0"), BigNumber.from("0")],
+    purchaseAmount: parseEther("1"),
+    expiry: "1614326400",
+    optionIDs: ["0", "0"],
+    exerciseProfit: BigNumber.from("12727272727272727"),
+    actualExerciseProfit: BigNumber.from("12727272727272727"),
+    apiResponses: [
+      ZERO_EX_API_RESPONSES["0x006583fEea92C695A9dE02C3AC2d4cd321f2F341"],
+      ZERO_EX_API_RESPONSES["0x3cF86d40988309AF3b90C14544E1BB0673BFd439"],
+    ],
+  });
 });
 
 function behavesLikeRibbonVolatility(params) {
@@ -255,6 +258,7 @@ function behavesLikeRibbonVolatility(params) {
         (a, b) => a.add(b),
         BigNumber.from("0")
       );
+
       if (this.paymentToken == WBTC_ADDRESS)
         this.totalPremium = BigNumber.from("0");
 
@@ -388,14 +392,13 @@ function behavesLikeRibbonVolatility(params) {
           value: this.totalPremium,
           gasPrice: this.gasPrice,
         });
-        const positionID = 0;
 
-        const venueIndex = this.venues.findIndex((v) => v === GAMMA_PROTOCOL);
-        if (venueIndex !== -1) {
+        if (this.venues.includes(GAMMA_PROTOCOL)) {
           await time.increaseTo(this.expiry + 1);
           await this.mockGammaController.setPrice("110000000000");
         }
 
+        const positionID = 0;
         const canExercise = await this.contract.canExercise(user, positionID, {
           from: user,
         });
@@ -417,42 +420,6 @@ function behavesLikeRibbonVolatility(params) {
       afterEach(async () => {
         await time.revertToSnapShot(snapshotId);
       });
-
-      // it("reverts when passed less than 2 venues", async function () {
-      //   await expectRevert(
-      //     this.contract.buyInstrument(
-      //       [this.venues[0]],
-      //       [this.optionTypes[0]],
-      //       [this.amounts[0]],
-      //       [this.strikePrices[0]],
-      //       this.buyData,
-      //       {
-      //         from: user,
-      //         value: this.premiums[0],
-      //         gasPrice: this.gasPrice,
-      //       }
-      //     ),
-      //     "Must have at least 2 venues"
-      //   );
-      // });
-
-      // it("reverts when passed 2 options of the same type", async function () {
-      //   await expectRevert(
-      //     this.contract.buyInstrument(
-      //       [this.venues[0], this.venues[0]],
-      //       [this.optionTypes[0], this.optionTypes[0]],
-      //       [this.amounts[0], this.amounts[0]],
-      //       [this.strikePrices[0], this.strikePrices[0]],
-      //       this.buyData,
-      //       {
-      //         from: user,
-      //         value: this.premiums[0].mul(BigNumber.from("3")), // just multiply premium by 3 because doubling the premiums sometimes doesnt work
-      //         gasPrice: this.gasPrice,
-      //       }
-      //     ),
-      //     "Must have both put and call options"
-      //   );
-      // });
 
       it("reverts when buying after expiry", async function () {
         await time.increaseTo(this.expiry + 1);
@@ -568,20 +535,25 @@ function behavesLikeRibbonVolatility(params) {
         });
         this.positionID = 0;
 
-        const venueIndex = this.venues.findIndex((v) => v === GAMMA_PROTOCOL);
-
-        if (venueIndex !== -1) {
+        if (this.venues.includes(GAMMA_PROTOCOL)) {
           await time.increaseTo(this.expiry + 1);
+          const self = this;
 
-          const oTokenAddress = this.apiResponses[venueIndex].buyTokenAddress;
+          const promises = this.venues.map(async function (venue, venueIndex) {
+            if (venue !== GAMMA_PROTOCOL) return;
 
-          await this.mockGammaController.setPrice("110000000000");
+            const oTokenAddress = self.apiResponses[venueIndex].buyTokenAddress;
 
-          // load the contract with collateralAsset
-          await this.mockGammaController.buyCollateral(oTokenAddress, {
-            from: owner,
-            value: parseEther("10"),
+            await self.mockGammaController.setPrice("110000000000");
+
+            // load the contract with collateralAsset
+            await self.mockGammaController.buyCollateral(oTokenAddress, {
+              from: owner,
+              value: parseEther("10"),
+            });
           });
+
+          await Promise.all(promises);
         }
       });
 
@@ -703,15 +675,17 @@ function behavesLikeRibbonVolatility(params) {
     });
 
     describe("#claimRewards", () => {
-      let snapshotId;
       let rhegicContract;
       let withSigner;
       let underlying_address;
       let prov = ethers.getDefaultProvider();
       let res;
 
-      beforeEach(async function () {
-        snapshotId = await time.takeSnapshot();
+      time.revertToSnapshotAfterEach(async function () {
+        if (!this.venues.includes(HEGIC_PROTOCOL)) {
+          this.skip();
+        }
+
         rhegicContract = new ethers.Contract(
           rHEGICJSON.address,
           rHEGICJSON.abi,
@@ -729,10 +703,6 @@ function behavesLikeRibbonVolatility(params) {
           value: this.totalPremium,
           gasPrice: this.gasPrice,
         });
-      });
-
-      afterEach(async () => {
-        await time.revertToSnapShot(snapshotId);
       });
 
       async function claimRewards(c, optionBuyerAddress) {

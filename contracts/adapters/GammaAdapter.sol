@@ -44,6 +44,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     uint256 private constant OTOKEN_DECIMALS = 10**8;
     AggregatorV3Interface private constant _USDCETHPriceFeed =
         AggregatorV3Interface(0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
+    address private constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
     constructor(
         address _oTokenFactory,
@@ -446,7 +447,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
 
     function assetDecimals(address asset) private pure returns (uint256) {
         // USDC
-        if (asset == 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48) {
+        if (asset == USDC) {
             return 6;
         }
         return 18;
@@ -474,7 +475,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         // so we can ignore the collateral asset passed in option terms
         address collateralAsset;
         if (isPut) {
-            collateralAsset = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+            collateralAsset = USDC;
         } else {
             collateralAsset = underlying;
         }

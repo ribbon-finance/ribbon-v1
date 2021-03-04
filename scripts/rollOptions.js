@@ -1,6 +1,7 @@
 require("dotenv").config();
 const getWeb3 = require("./helpers/web3");
 const { Command } = require("commander");
+const { sleep } = require("@openzeppelin/upgrades");
 const program = new Command();
 
 const OtokenInterface = require("../build/contracts/OtokenInterface.json");

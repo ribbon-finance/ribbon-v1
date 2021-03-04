@@ -153,7 +153,7 @@ contract HegicAdapter is IProtocolAdapter {
                 cost = costWBTC;
             }
         } else {
-            require(false, "No matching underlying");
+            revert("No matching underlying");
         }
     }
 
@@ -243,20 +243,6 @@ contract HegicAdapter is IProtocolAdapter {
             "Cannot purchase after expiry"
         );
 
-        uint256 cost =
-            premium(
-                OptionTerms(
-                    optionTerms.underlying,
-                    optionTerms.strikeAsset,
-                    optionTerms.collateralAsset,
-                    optionTerms.expiry,
-                    optionTerms.strikePrice,
-                    optionTerms.optionType,
-                    ethAddress // force total cost to be in ETH
-                ),
-                amount
-            );
-
         uint256 scaledStrikePrice =
             scaleDownStrikePrice(optionTerms.strikePrice);
         uint256 period = optionTerms.expiry.sub(block.timestamp);
@@ -264,6 +250,10 @@ contract HegicAdapter is IProtocolAdapter {
 
         // swap for ETH if ETH has not been provided as paymentToken
         if (msg.value == 0) {
+            OptionTerms memory optionTermsWithETH = optionTerms;
+            optionTermsWithETH.paymentToken = ethAddress;
+            uint256 cost = premium(optionTermsWithETH, amount);
+
             require(
                 optionTerms.paymentToken == wbtcAddress,
                 "Invalid paymentToken or msg.value"
@@ -271,11 +261,14 @@ contract HegicAdapter is IProtocolAdapter {
             uint256 costWBTC = _getAmountsIn(cost);
             require(maxCost >= costWBTC, "MaxCost is too low");
             _swapWBTCToETH(costWBTC, cost);
-        } else {
-            require(msg.value >= cost, "Value does not cover cost");
         }
 
-        optionID = options.create{value: cost}(
+        // Gas optimization to avoid double counting premium()
+        // This will revert if the address(this).balance is not sufficient
+        // Any extras will be refunded to the address(this)
+        // This could potentially be a large security vuln. if the Options contract
+        // does not refund the change
+        optionID = options.create{value: address(this).balance}(
             period,
             amount,
             scaledStrikePrice,
@@ -286,12 +279,7 @@ contract HegicAdapter is IProtocolAdapter {
             msg.sender,
             _name,
             optionTerms.underlying,
-            optionTerms.strikeAsset,
-            optionTerms.expiry,
-            optionTerms.strikePrice,
-            optionTerms.optionType,
-            amount,
-            cost,
+            msg.value,
             optionID
         );
     }
@@ -422,15 +410,16 @@ contract HegicAdapter is IProtocolAdapter {
         hegicToken.safeTransfer(msg.sender, rewardsAmount);
     }
 
-    function createShort(OptionTerms memory optionTerms, uint256 amount)
-        public
+    function createShort(OptionTerms memory, uint256)
+        external
+        pure
         override
         returns (uint256)
     {
         return 0;
     }
 
-    function closeShort() external override returns (uint256) {
+    function closeShort() external pure override returns (uint256) {
         return 0;
     }
 

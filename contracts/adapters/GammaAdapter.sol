@@ -2,6 +2,9 @@
 pragma solidity >=0.7.2;
 pragma experimental ABIEncoderV2;
 
+import {
+    AggregatorV3Interface
+} from "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
@@ -39,6 +42,9 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     address private constant _marginPool =
         0x5934807cC0654d46755eBd2848840b616256C6Ef;
     uint256 private constant OTOKEN_DECIMALS = 10**8;
+    AggregatorV3Interface private constant _USDCETHPriceFeed =
+        AggregatorV3Interface(0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
+    address private constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
     constructor(
         address _oTokenFactory,
@@ -177,13 +183,11 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         address[] memory path = new address[](2);
         path[0] = _weth;
         path[1] = zeroExOrder.sellTokenAddress;
-        uint256[] memory amountsIn =
-            router.getAmountsIn(zeroExOrder.takerAssetAmount, path);
 
-        uint256 soldETH = amountsIn[0];
-        uint256 totalCost = soldETH.add(zeroExOrder.protocolFee);
+        (, int256 latestPrice, , , ) = _USDCETHPriceFeed.latestRoundData();
 
-        require(msg.value >= totalCost, "Not enough value to purchase");
+        uint256 soldETH =
+            zeroExOrder.takerAssetAmount.mul(uint256(latestPrice)).div(10**6);
 
         router.swapETHForExactTokens{value: soldETH}(
             zeroExOrder.takerAssetAmount,
@@ -225,12 +229,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
             msg.sender,
             _name,
             optionTerms.underlying,
-            optionTerms.strikeAsset,
-            optionTerms.expiry,
-            optionTerms.strikePrice,
-            optionTerms.optionType,
-            zeroExOrder.makerAssetAmount,
-            totalCost,
+            soldETH.add(zeroExOrder.protocolFee),
             0
         );
     }
@@ -448,7 +447,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
 
     function assetDecimals(address asset) private pure returns (uint256) {
         // USDC
-        if (asset == 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48) {
+        if (asset == USDC) {
             return 6;
         }
         return 18;
@@ -476,7 +475,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         // so we can ignore the collateral asset passed in option terms
         address collateralAsset;
         if (isPut) {
-            collateralAsset = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+            collateralAsset = USDC;
         } else {
             collateralAsset = underlying;
         }

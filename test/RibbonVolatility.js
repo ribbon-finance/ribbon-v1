@@ -14,6 +14,7 @@ const ZERO_EX_API_RESPONSES = require("./fixtures/GammaAdapter.json");
 const rHEGICJSON = require("../constants/abis/rHEGIC2.json");
 
 let owner, user;
+let userSigner;
 const gasPrice = parseUnits("10", "gwei");
 
 const PUT_OPTION_TYPE = 1;
@@ -177,7 +178,7 @@ function behavesLikeRibbonVolatility(params) {
     let snapshotId, initSnapshotId;
 
     before(async function () {
-      const [adminSigner, ownerSigner, userSigner] = await ethers.getSigners();
+      [adminSigner, ownerSigner, userSigner] = await ethers.getSigners();
       admin = adminSigner.address;
       owner = ownerSigner.address;
       user = userSigner.address;
@@ -755,6 +756,27 @@ function behavesLikeRibbonVolatility(params) {
         await expect(
           this.contract.claimRewards(underlying_address)
         ).to.be.revertedWith("No rewards to claim");
+      });
+    });
+
+    describe("#initialize", () => {
+      it("should have the correct owner", async function () {
+        assert.equal(await this.contract.owner(), owner);
+      });
+
+      it("cannot initialize twice", async function () {
+        await expect(
+          this.contract.initialize(
+            owner,
+            this.factory.address,
+            "test",
+            "test",
+            WETH_ADDRESS,
+            USDC_ADDRESS,
+            WETH_ADDRESS,
+            this.expiry
+          )
+        ).to.be.revertedWith("Contract instance has already been initialized");
       });
     });
   });

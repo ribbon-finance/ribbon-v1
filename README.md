@@ -4,6 +4,14 @@
 
 We use Hardhat for compiling and testing, and currently use Truffle for running migrations & deployments. We are planning to move to doing deployments using Hardhat scripts in the future.
 
+0. Install Node 12.3.0 with `nvm`
+
+```
+nvm install 12.3.0
+
+nvm use 12.3.0
+```
+
 1. Install all the NodeJS dependencies with yarn.
 
 ```

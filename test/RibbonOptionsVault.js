@@ -225,7 +225,7 @@ describe("RibbonETHCoveredCall", () => {
       );
       expect(res)
         .to.emit(this.vault, "Deposit")
-        .withArgs(user, parseEther("1"), parseEther("0.75"));
+        .withArgs(counterparty, parseEther("1"), parseEther("0.75"));
     });
 
     it("accounts for the amounts that are locked", async function () {

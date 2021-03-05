@@ -6,7 +6,7 @@ const { promisify } = require("util");
 const { BigNumber } = require("ethers");
 const { parseUnits } = require("ethers/lib/utils");
 const { ethers } = require("hardhat");
-const { signOrderForSwap } = require("../scripts/helpers/signature");
+const { signOrderForSwap } = require("../src/airswap/signature");
 const { provider, getContractAt } = ethers;
 const { parseEther } = ethers.utils;
 

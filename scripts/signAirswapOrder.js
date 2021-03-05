@@ -1,6 +1,6 @@
 require("dotenv").config();
 const getWeb3 = require("./helpers/web3");
-const { signOrderForSwap } = require("./helpers/signature");
+const { signOrderForSwap } = require("../src/airswap/signature");
 const { Command } = require("commander");
 const ethers = require("ethers");
 const fs = require("fs");

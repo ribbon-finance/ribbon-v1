@@ -1,8 +1,4 @@
 const { expect, assert } = require("chai");
-const IPFS = require("ipfs-core");
-const fs = require("fs");
-const path = require("path");
-const { promisify } = require("util");
 const { BigNumber } = require("ethers");
 const { parseUnits } = require("ethers/lib/utils");
 const { ethers } = require("hardhat");

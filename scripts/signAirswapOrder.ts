@@ -1,16 +1,15 @@
 require("dotenv").config();
+import { signOrderForSwap } from "../src/airswap/signature";
+import { Command } from "commander";
+import { ethers } from "ethers";
+import fs from "fs";
+import path from "path";
+import { promisify } from "util";
+import vaultJSON from "../build/contracts/RibbonETHCoveredCall.json";
+
 const getWeb3 = require("./helpers/web3");
-const { signOrderForSwap } = require("../src/airswap/signature");
-const { Command } = require("commander");
-const ethers = require("ethers");
-const fs = require("fs");
-const path = require("path");
-const { promisify } = require("util");
+
 const program = new Command();
-
-const vaultJSON = require("../build/contracts/RibbonETHCoveredCall.json");
-const erc20JSON = require("../build/contracts/IERC20.json");
-
 program.version("0.0.1");
 program
   .option("-N, --network <network>", "Ethereum network", "mainnet")
@@ -66,10 +65,13 @@ async function signAirswapOrder() {
     "-"
   );
 
-  const managerWallet = ethers.Wallet.fromMnemonic(
-    process.env.MNEMONIC,
-    manager
-  );
+  const mnemonic = process.env["MNEMONIC"];
+
+  if (!mnemonic) {
+    throw new Error("No mnemonic set at process.env.MNEMONIC");
+  }
+
+  const managerWallet = ethers.Wallet.fromMnemonic(mnemonic, manager);
   console.log(`Using account ${managerWallet.address} to sign`);
 
   const signedOrder = await signOrderForSwap({
@@ -82,7 +84,7 @@ async function signAirswapOrder() {
     signerPrivateKey: managerWallet.privateKey,
   });
 
-  const date = new Date(signedOrder.expiry * 1000);
+  const date = new Date(parseInt(signedOrder.expiry) * 1000);
   const dateStr = date.toISOString().replace(/:/g, "-");
   const fileName = `order-${otokenSymbol}-${dateStr}.json`;
   console.log(fileName);

@@ -1,12 +1,9 @@
-const { createOrder, signTypedDataOrder } = require("@airswap/utils");
-
-module.exports = {
-  signOrderForSwap,
-};
+import { createOrder, signTypedDataOrder } from "@airswap/utils";
 
 const SWAP_CONTRACT = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
+const TRADER_AFFILIATE = "0xFf98F0052BdA391F8FaD266685609ffb192Bef25";
 
-async function signOrderForSwap({
+export async function signOrderForSwap({
   vaultAddress,
   counterpartyAddress,
   sellToken,
@@ -14,6 +11,14 @@ async function signOrderForSwap({
   sellAmount,
   buyAmount,
   signerPrivateKey,
+}: {
+  vaultAddress: string;
+  counterpartyAddress: string;
+  sellToken: string;
+  buyToken: string;
+  sellAmount: string;
+  buyAmount: string;
+  signerPrivateKey: string;
 }) {
   let order = createOrder({
     signer: {
@@ -26,9 +31,12 @@ async function signOrderForSwap({
       token: buyToken,
       amount: buyAmount,
     },
+    affiliate: {
+      wallet: TRADER_AFFILIATE,
+    },
   });
 
-  const signedOrder = signTypedDataOrder(
+  const signedOrder = await signTypedDataOrder(
     order,
     signerPrivateKey,
     SWAP_CONTRACT

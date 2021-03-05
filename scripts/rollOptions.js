@@ -1,6 +1,7 @@
 require("dotenv").config();
 const getWeb3 = require("./helpers/web3");
 const { Command } = require("commander");
+const { sleep } = require("@openzeppelin/upgrades");
 const program = new Command();
 
 const OtokenInterface = require("../build/contracts/OtokenInterface.json");
@@ -56,6 +57,11 @@ async function rollOptions() {
   const otokenAddress = await gammaAdapter.methods
     .getOptionsAddress(optionTerms)
     .call();
+
+  if (otokenAddress.toLowerCase() !== address.toLowerCase()) {
+    throw new Error(`Found otoken ${otokenAddress} does not match`);
+  }
+
   console.log(`Matched with oToken ${otokenAddress}`);
 
   const receipt = await vault.methods.rollToNextOption(optionTerms).send({

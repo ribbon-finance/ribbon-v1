@@ -4,6 +4,14 @@
 
 We use Hardhat for compiling and testing, and currently use Truffle for running migrations & deployments. We are planning to move to doing deployments using Hardhat scripts in the future.
 
+0. Install Node 12.3.0 with `nvm`
+
+```
+nvm install 12.3.0
+
+nvm use 12.3.0
+```
+
 1. Install all the NodeJS dependencies with yarn.
 
 ```
@@ -55,3 +63,17 @@ node ./scripts/addRibbonVolatility.js -e 1615507200 -n 'ETHVOL-12MAR2021' -s 'ET
 ```
 
 Check the `--help` for more information on the parameters.
+
+## Running scripts
+
+Scripts are either plain-old NodeJS files, or Typescript. If the file extension is .ts, run it with:
+
+```
+yarn run ts-node ./scripts/signAirswapOrder.ts
+```
+
+Else:
+
+```
+node ./scripts/rollOptions.js
+```

@@ -31,8 +31,11 @@
     "hardhat-log-remover": "^2.0.0",
     "husky": "^4.3.0",
     "mocha": "^8.1.3",
+    "moment": "^2.29.1",
     "sol-merger": "^3.1.0",
     "truffle": "^5.1.47",
+    "ts-node": "^9.1.1",
+    "typescript": "^4.2.3",
     "verify-on-etherscan": "^1.2.1",
     "web3": "^1.3.1"
   },

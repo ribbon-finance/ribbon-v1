@@ -2,9 +2,9 @@ const { expect, assert } = require("chai");
 const { BigNumber } = require("ethers");
 const { parseUnits } = require("ethers/lib/utils");
 const { ethers } = require("hardhat");
-const { signOrderForSwap } = require("../src/airswap/signature");
 const { provider, getContractAt } = ethers;
 const { parseEther } = ethers.utils;
+const { createOrder, signTypedDataOrder } = require("@airswap/utils");
 
 const time = require("./helpers/time");
 const {
@@ -22,6 +22,8 @@ const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const SWAP_ADDRESS = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
+const SWAP_CONTRACT = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
+const TRADER_AFFILIATE = "0xFf98F0052BdA391F8FaD266685609ffb192Bef25";
 
 const LOCKED_RATIO = parseEther("0.9");
 const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
@@ -836,3 +838,36 @@ describe("RibbonETHCoveredCall", () => {
     });
   });
 });
+
+async function signOrderForSwap({
+  vaultAddress,
+  counterpartyAddress,
+  sellToken,
+  buyToken,
+  sellAmount,
+  buyAmount,
+  signerPrivateKey,
+}) {
+  let order = createOrder({
+    signer: {
+      wallet: vaultAddress,
+      token: sellToken,
+      amount: sellAmount,
+    },
+    sender: {
+      wallet: counterpartyAddress,
+      token: buyToken,
+      amount: buyAmount,
+    },
+    affiliate: {
+      wallet: TRADER_AFFILIATE,
+    },
+  });
+
+  const signedOrder = await signTypedDataOrder(
+    order,
+    signerPrivateKey,
+    SWAP_CONTRACT
+  );
+  return signedOrder;
+}

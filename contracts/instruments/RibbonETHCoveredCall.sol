@@ -217,7 +217,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
 
         address newOption = adapter.getOptionsAddress(optionTerms);
         IERC20 optionToken = IERC20(newOption);
-        optionToken.approve(address(_swapContract), shortBalance);
+        optionToken.safeApprove(address(_swapContract), shortBalance);
 
         currentOption = newOption;
         lockedAmount = shortAmount;

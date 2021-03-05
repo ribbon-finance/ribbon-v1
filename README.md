@@ -63,3 +63,17 @@ node ./scripts/addRibbonVolatility.js -e 1615507200 -n 'ETHVOL-12MAR2021' -s 'ET
 ```
 
 Check the `--help` for more information on the parameters.
+
+## Running scripts
+
+Scripts are either plain-old NodeJS files, or Typescript. If the file extension is .ts, run it with:
+
+```
+yarn run ts-node ./script.ts
+```
+
+Else:
+
+```
+node ./scripts/rollOptions.js
+```

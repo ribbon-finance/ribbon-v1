@@ -8,7 +8,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [12.0]
+        node-version: [12.13.0]
 
     steps:
       - run: git config --global url."https://".insteadOf git://

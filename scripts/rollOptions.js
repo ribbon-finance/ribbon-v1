@@ -57,6 +57,11 @@ async function rollOptions() {
   const otokenAddress = await gammaAdapter.methods
     .getOptionsAddress(optionTerms)
     .call();
+
+  if (otokenAddress.toLowerCase() !== address.toLowerCase()) {
+    throw new Error(`Found otoken ${otokenAddress} does not match`);
+  }
+
   console.log(`Matched with oToken ${otokenAddress}`);
 
   const receipt = await vault.methods.rollToNextOption(optionTerms).send({

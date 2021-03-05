@@ -126,7 +126,7 @@ export async function deribitAPICall(
 
 (async function () {
   const optionName = await getOptionNameFromOtoken(
-    "0x8eeED0dD82391e55cA39bd08CAF80Db0Eb29032b"
+    "0xDc76Cc5F03ED1169559CA712F37c787015a2716a"
   );
   console.log(optionName);
   console.log(await getInstrument(optionName));

@@ -69,7 +69,7 @@ Check the `--help` for more information on the parameters.
 Scripts are either plain-old NodeJS files, or Typescript. If the file extension is .ts, run it with:
 
 ```
-yarn run ts-node ./script.ts
+yarn run ts-node ./scripts/signAirswapOrder.ts
 ```
 
 Else:

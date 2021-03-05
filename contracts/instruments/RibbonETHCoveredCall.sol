@@ -61,6 +61,8 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         address manager
     );
 
+    event CapSet(uint256 oldCap, uint256 newCap, address manager);
+
     constructor() ERC20(_tokenName, _tokenSymbol) {}
 
     /**
@@ -68,9 +70,14 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
      * @param _owner is the owner of the contract who can set the manager
      * @param _factory is the RibbonFactory instance
      */
-    function initialize(address _owner, address _factory) public initializer {
+    function initialize(
+        address _owner,
+        address _factory,
+        uint256 _initCap
+    ) public initializer {
         Ownable.initialize(_owner);
         factory = IRibbonFactory(_factory);
+        cap = _initCap;
     }
 
     /**
@@ -114,9 +121,12 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
      * @param amount is the amount of `asset` deposited
      */
     function _deposit(uint256 amount) private {
+        uint256 totalWithDepositedAmount = totalBalance();
+        require(totalWithDepositedAmount < cap, "Cap exceeded");
+
         // amount needs to be subtracted from totalBalance because it has already been
         // added to it from either IWETH.deposit and IERC20.safeTransferFrom
-        uint256 total = totalBalance().sub(amount);
+        uint256 total = totalWithDepositedAmount.sub(amount);
 
         // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L104
         uint256 share =
@@ -213,6 +223,16 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         lockedAmount = shortAmount;
 
         emit OpenShort(newOption, shortAmount, msg.sender);
+    }
+
+    /**
+     * @notice Sets a new cap for deposits
+     * @param newCap is the new cap for deposits
+     */
+    function setCap(uint256 newCap) external onlyManager {
+        uint256 oldCap = cap;
+        cap = newCap;
+        emit CapSet(oldCap, newCap, msg.sender);
     }
 
     /**

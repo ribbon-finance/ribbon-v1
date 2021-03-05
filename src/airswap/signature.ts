@@ -1,6 +1,7 @@
 import { createOrder, signTypedDataOrder } from "@airswap/utils";
 
 const SWAP_CONTRACT = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
+const TRADER_AFFILIATE = "0xFf98F0052BdA391F8FaD266685609ffb192Bef25";
 
 export async function signOrderForSwap({
   vaultAddress,
@@ -29,6 +30,9 @@ export async function signOrderForSwap({
       wallet: counterpartyAddress,
       token: buyToken,
       amount: buyAmount,
+    },
+    affiliate: {
+      wallet: TRADER_AFFILIATE,
     },
   });
 

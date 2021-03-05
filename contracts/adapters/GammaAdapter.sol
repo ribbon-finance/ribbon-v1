@@ -167,7 +167,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         OptionTerms calldata,
         uint256,
         uint256
-    ) external payable override returns (uint256 optionID) {}
+    ) external payable override returns (uint256) {}
 
     function purchaseWithZeroEx(
         OptionTerms calldata optionTerms,

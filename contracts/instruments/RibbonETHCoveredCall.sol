@@ -101,7 +101,6 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
      */
     function depositETH() external payable nonReentrant {
         require(msg.value > 0, "No value passed");
-        require(asset == _WETH, "Asset is not WETH");
 
         IWETH(_WETH).deposit{value: msg.value}();
         _deposit(msg.value);

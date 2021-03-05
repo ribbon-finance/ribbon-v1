@@ -14,6 +14,7 @@ const {
   setupOracle,
   setOpynOracleExpiryPrice,
 } = require("./helpers/utils");
+const { assertEvent } = require("@openzeppelin/upgrades");
 
 let owner, user;
 let userSigner, ownerSigner, managerSigner, counterpartySigner;
@@ -27,7 +28,6 @@ const TRADER_AFFILIATE = "0xFf98F0052BdA391F8FaD266685609ffb192Bef25";
 
 const LOCKED_RATIO = parseEther("0.9");
 const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
-const WITHDRAWAL_FEE = parseEther("0.01");
 const gasPrice = parseUnits("10", "gwei");
 
 describe("RibbonETHCoveredCall", () => {
@@ -60,8 +60,10 @@ describe("RibbonETHCoveredCall", () => {
     } = await getDefaultArgs();
     await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address);
 
-    const initializeTypes = ["address", "address"];
-    const initializeArgs = [owner, factory.address];
+    this.factory = factory;
+
+    const initializeTypes = ["address", "address", "uint256"];
+    const initializeArgs = [owner, factory.address, parseEther("500")];
 
     this.vault = (
       await deployProxy(
@@ -100,6 +102,14 @@ describe("RibbonETHCoveredCall", () => {
 
   after(async () => {
     await time.revertToSnapShot(initSnapshotId);
+  });
+
+  describe("#initialize", () => {
+    it("initializes with correct values", async function () {
+      assert.equal((await this.vault.cap()).toString(), parseEther("500"));
+      assert.equal(await this.vault.factory(), this.factory.address);
+      assert.equal(await this.vault.owner(), owner);
+    });
   });
 
   describe("#name", () => {
@@ -835,6 +845,31 @@ describe("RibbonETHCoveredCall", () => {
         (await this.weth.balanceOf(user)).toString(),
         parseEther("0.099")
       );
+    });
+  });
+
+  describe("#setCap", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("should revert if not manager", async function () {
+      await expect(
+        this.vault.connect(userSigner).setCap(parseEther("10"))
+      ).to.be.revertedWith("Only manager");
+    });
+
+    it("should set the new cap", async function () {
+      await this.vault.connect(managerSigner).setCap(parseEther("10"));
+      assert.equal((await this.vault.cap()).toString(), parseEther("10"));
+    });
+
+    it("should revert when depositing over the cap", async function () {
+      await this.vault.connect(managerSigner).setCap(parseEther("1"));
+
+      await expect(
+        this.vault.depositETH({
+          value: parseEther("1").add(BigNumber.from("1")),
+        })
+      ).to.be.revertedWith("Cap exceeded");
     });
   });
 });

@@ -20,4 +20,7 @@ contract OptionsVaultStorageV1 is Initializable, Ownable, ReentrancyGuard {
 
     // Amount that is currently locked for selling options
     uint256 public lockedAmount;
+
+    // Cap for total amount deposited into vault
+    uint256 public cap;
 }

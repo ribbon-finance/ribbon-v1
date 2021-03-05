@@ -1,9 +1,11 @@
 import axios from "axios";
-import { BigNumber } from "ethers";
+import { BigNumber, ethers } from "ethers";
 import { ASSETS } from "../constants";
+import OtokenInterface from "../../build/contracts/OtokenInterface.json";
+import { getProvider } from "../connection";
+import moment from "moment";
 
 require("dotenv").config();
-
 const clientID = process.env["DERIBIT_CLIENT_ID"];
 const clientSecret = process.env["DERIBIT_CLIENT_SECRET"];
 
@@ -25,16 +27,34 @@ export function getOptionName(
     throw new Error(`No found ticker with address ${underlying}`);
   }
 
-  const date = new Date(expiry * 1000);
-  const day = date.getUTCDay();
-  const year = date.getUTCFullYear().toString().slice(2);
-  const month = date.getUTCMonth();
+  const dateStr = moment(new Date(expiry * 1000))
+    .format("DMMMYY")
+    .toUpperCase();
   const optionType = isPut ? "P" : "C";
   const strike = BigNumber.from(strikePrice)
     .div(BigNumber.from("10").pow("8"))
     .toString();
 
-  return `${ticker}-${day}${month}${year}-${strike}-${optionType}`;
+  return `${ticker}-${dateStr}-${strike}-${optionType}`;
+}
+
+export async function getOptionNameFromOtoken(otokenAddress: string) {
+  const provider = getProvider();
+  const otoken = new ethers.Contract(
+    otokenAddress,
+    OtokenInterface.abi,
+    provider
+  );
+  const underlying = await otoken.underlyingAsset();
+  const expiry = await otoken.expiryTimestamp();
+  const isPut = await otoken.isPut();
+  const strikePrice = await otoken.strikePrice();
+  return getOptionName(
+    underlying,
+    expiry.toNumber(),
+    strikePrice.toString(),
+    isPut
+  );
 }
 
 export async function authenticate(): Promise<string> {
@@ -64,6 +84,12 @@ export async function getPositions(
     "private",
     accessToken
   );
+  return response;
+}
+
+export async function getInstrument(instrument: string) {
+  const data = { instrument_name: instrument };
+  const response = await deribitAPICall("get_instrument", data, "public");
   return response;
 }
 
@@ -99,8 +125,11 @@ export async function deribitAPICall(
 }
 
 (async function () {
-  const accessToken = await authenticate();
-  console.log(await getPositions(accessToken, "ETH", "option"));
+  const optionName = await getOptionNameFromOtoken(
+    "0x8eeED0dD82391e55cA39bd08CAF80Db0Eb29032b"
+  );
+  console.log(optionName);
+  console.log(await getInstrument(optionName));
 })();
 
 // console.log(getOptionName(ASSETS.WETH, 1614931200, "140000000000", false));

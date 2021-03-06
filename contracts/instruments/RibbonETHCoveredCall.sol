@@ -8,7 +8,10 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {DSMath} from "../lib/DSMath.sol";
 
-import {OptionTerms, IProtocolAdapter} from "../adapters/IProtocolAdapter.sol";
+import {
+    ProtocolAdapterTypes,
+    IProtocolAdapter
+} from "../adapters/IProtocolAdapter.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
@@ -190,11 +193,9 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
      * @notice Rolls from one short option position to another. Closes the expired short position, withdraw from it, then open a new position.
      * @param optionTerms are the option contract terms the vault will be short
      */
-    function rollToNextOption(OptionTerms calldata optionTerms)
-        external
-        onlyManager
-        nonReentrant
-    {
+    function rollToNextOption(
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms
+    ) external onlyManager nonReentrant {
         // We can save gas by storing the factory address as a constant
         IProtocolAdapter adapter =
             IProtocolAdapter(factory.getAdapter(_adapterName));
@@ -228,6 +229,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
      * @notice Sets a new cap for deposits
      * @param newCap is the new cap for deposits
      */
+    // if_succeeds {:msg "sets cap"} cap == newCap
     function setCap(uint256 newCap) external onlyManager {
         uint256 oldCap = cap;
         cap = newCap;

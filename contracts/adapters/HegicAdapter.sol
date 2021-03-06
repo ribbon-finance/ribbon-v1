@@ -8,12 +8,7 @@ import {
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import {
-    IProtocolAdapter,
-    OptionTerms,
-    OptionType,
-    PurchaseMethod
-} from "./IProtocolAdapter.sol";
+import {ProtocolAdapterTypes, IProtocolAdapter} from "./IProtocolAdapter.sol";
 import {
     State,
     IHegicOptions,
@@ -73,15 +68,20 @@ contract HegicAdapter is IProtocolAdapter {
         return _nonFungible;
     }
 
-    function purchaseMethod() external pure override returns (PurchaseMethod) {
-        return PurchaseMethod.Contract;
+    function purchaseMethod()
+        external
+        pure
+        override
+        returns (ProtocolAdapterTypes.PurchaseMethod)
+    {
+        return ProtocolAdapterTypes.PurchaseMethod.Contract;
     }
 
     /**
      * @notice Check if an options contract exist based on the passed parameters.
      * @param optionTerms is the terms of the option contract
      */
-    function optionsExist(OptionTerms calldata optionTerms)
+    function optionsExist(ProtocolAdapterTypes.OptionTerms calldata optionTerms)
         external
         view
         override
@@ -96,12 +96,9 @@ contract HegicAdapter is IProtocolAdapter {
      * @notice Get the options contract's address based on the passed parameters
      * @param optionTerms is the terms of the option contract
      */
-    function getOptionsAddress(OptionTerms calldata optionTerms)
-        external
-        view
-        override
-        returns (address)
-    {
+    function getOptionsAddress(
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms
+    ) external view override returns (address) {
         if (optionTerms.underlying == ethAddress) {
             return address(ethOptions);
         } else if (optionTerms.underlying == wbtcAddress) {
@@ -115,12 +112,10 @@ contract HegicAdapter is IProtocolAdapter {
      * @param optionTerms is the terms of the option contract
      * @param purchaseAmount is the purchase amount in Wad units (10**18)
      */
-    function premium(OptionTerms memory optionTerms, uint256 purchaseAmount)
-        public
-        view
-        override
-        returns (uint256 cost)
-    {
+    function premium(
+        ProtocolAdapterTypes.OptionTerms memory optionTerms,
+        uint256 purchaseAmount
+    ) public view override returns (uint256 cost) {
         require(
             block.timestamp < optionTerms.expiry,
             "Cannot purchase after expiry"
@@ -234,7 +229,7 @@ contract HegicAdapter is IProtocolAdapter {
      * @param maxCost is the max amount of paymentToken to be paid for the option (to avoid sandwich attacks, ...)
      */
     function purchase(
-        OptionTerms calldata optionTerms,
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms,
         uint256 amount,
         uint256 maxCost
     ) external payable override returns (uint256 optionID) {
@@ -250,7 +245,8 @@ contract HegicAdapter is IProtocolAdapter {
 
         // swap for ETH if ETH has not been provided as paymentToken
         if (msg.value == 0) {
-            OptionTerms memory optionTermsWithETH = optionTerms;
+            ProtocolAdapterTypes.OptionTerms memory optionTermsWithETH =
+                optionTerms;
             optionTermsWithETH.paymentToken = ethAddress;
             uint256 cost = premium(optionTermsWithETH, amount);
 
@@ -410,7 +406,7 @@ contract HegicAdapter is IProtocolAdapter {
         hegicToken.safeTransfer(msg.sender, rewardsAmount);
     }
 
-    function createShort(OptionTerms memory, uint256)
+    function createShort(ProtocolAdapterTypes.OptionTerms memory, uint256)
         external
         pure
         override

@@ -12,11 +12,8 @@ import {
     Venues
 } from "../storage/InstrumentStorage.sol";
 import {
-    OptionType,
-    OptionTerms,
-    IProtocolAdapter,
-    PurchaseMethod,
-    ZeroExOrder
+    ProtocolAdapterTypes,
+    IProtocolAdapter
 } from "../adapters/IProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
@@ -34,7 +31,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         address indexed account,
         uint256 indexed positionID,
         string[] venues,
-        OptionType[] optionTypes,
+        ProtocolAdapterTypes.OptionType[] optionTypes,
         uint256 amount
     );
     event Exercised(
@@ -90,17 +87,17 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
             string memory venue = getAdapterName(venues[i]);
             uint256 amount = position.amount;
 
-            OptionType optionType;
+            ProtocolAdapterTypes.OptionType optionType;
             uint256 strikePrice;
             uint32 optionID;
             if (i == 0) {
                 strikePrice = position.putStrikePrice;
                 optionID = position.putOptionID;
-                optionType = OptionType.Put;
+                optionType = ProtocolAdapterTypes.OptionType.Put;
             } else {
                 strikePrice = position.callStrikePrice;
                 optionID = position.callOptionID;
-                optionType = OptionType.Call;
+                optionType = ProtocolAdapterTypes.OptionType.Call;
             }
 
             address adapterAddress = factory.getAdapter(venue);
@@ -108,7 +105,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
             IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
             address options =
                 adapter.getOptionsAddress(
-                    OptionTerms(
+                    ProtocolAdapterTypes.OptionTerms(
                         underlying,
                         strikeAsset,
                         collateralAsset,
@@ -149,15 +146,15 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
             string memory venue = getAdapterName(venues[i]);
             uint256 strikePrice;
             uint32 optionID;
-            OptionType optionType;
+            ProtocolAdapterTypes.OptionType optionType;
             if (i == 0) {
                 strikePrice = position.putStrikePrice;
                 optionID = position.putOptionID;
-                optionType = OptionType.Put;
+                optionType = ProtocolAdapterTypes.OptionType.Put;
             } else {
                 strikePrice = position.callStrikePrice;
                 optionID = position.callOptionID;
-                optionType = OptionType.Call;
+                optionType = ProtocolAdapterTypes.OptionType.Call;
             }
 
             address adapterAddress = factory.getAdapter(venue);
@@ -166,7 +163,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
 
             address options =
                 adapter.getOptionsAddress(
-                    OptionTerms(
+                    ProtocolAdapterTypes.OptionTerms(
                         underlying,
                         strikeAsset,
                         address(0), // collateralAsset not needed
@@ -216,7 +213,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         uint32 putOptionID =
             purchaseOptionAtVenue(
                 putVenueName,
-                OptionType.Put,
+                ProtocolAdapterTypes.OptionType.Put,
                 params.amount,
                 params.putStrikePrice,
                 params.putBuyData,
@@ -226,7 +223,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         uint32 callOptionID =
             purchaseOptionAtVenue(
                 callVenueName,
-                OptionType.Call,
+                ProtocolAdapterTypes.OptionType.Call,
                 params.amount,
                 params.callStrikePrice,
                 params.callBuyData,
@@ -255,7 +252,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
 
     function purchaseOptionAtVenue(
         string memory venue,
-        OptionType optionType,
+        ProtocolAdapterTypes.OptionType optionType,
         uint256 amount,
         uint256 strikePrice,
         bytes memory buyData,
@@ -266,7 +263,10 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         require(adapterAddress != address(0), "Adapter does not exist");
         IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
 
-        require(optionType != OptionType.Invalid, "Invalid option type");
+        require(
+            optionType != ProtocolAdapterTypes.OptionType.Invalid,
+            "Invalid option type"
+        );
 
         uint256 _expiry = expiry;
 
@@ -297,15 +297,15 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
 
     function purchaseWithContract(
         IProtocolAdapter adapter,
-        OptionType optionType,
+        ProtocolAdapterTypes.OptionType optionType,
         uint256 amount,
         uint256 strikePrice,
         address paymentToken,
         uint256 maxCost,
         uint256 _expiry
     ) private returns (uint32 optionID) {
-        OptionTerms memory optionTerms =
-            OptionTerms(
+        ProtocolAdapterTypes.OptionTerms memory optionTerms =
+            ProtocolAdapterTypes.OptionTerms(
                 underlying,
                 strikeAsset,
                 collateralAsset,
@@ -322,13 +322,13 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
 
     function purchaseWithZeroEx(
         IProtocolAdapter adapter,
-        OptionType optionType,
+        ProtocolAdapterTypes.OptionType optionType,
         uint256 strikePrice,
         bytes memory buyData,
         uint256 _expiry
     ) private {
-        OptionTerms memory optionTerms =
-            OptionTerms(
+        ProtocolAdapterTypes.OptionTerms memory optionTerms =
+            ProtocolAdapterTypes.OptionTerms(
                 underlying,
                 strikeAsset,
                 collateralAsset,
@@ -338,7 +338,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                 address(0)
             );
 
-        ZeroExOrder memory zeroExOrder = abi.decode(buyData, (ZeroExOrder));
+        ProtocolAdapterTypes.ZeroExOrder memory zeroExOrder =
+            abi.decode(buyData, (ProtocolAdapterTypes.ZeroExOrder));
 
         adapter.delegatePurchaseWithZeroEx(optionTerms, zeroExOrder);
     }
@@ -362,24 +363,24 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
             IProtocolAdapter adapter =
                 IProtocolAdapter(factory.getAdapter(adapterName));
 
-            OptionType optionType;
+            ProtocolAdapterTypes.OptionType optionType;
             uint256 strikePrice;
             uint32 optionID;
             if (i == 0) {
                 strikePrice = position.putStrikePrice;
                 optionID = position.putOptionID;
-                optionType = OptionType.Put;
+                optionType = ProtocolAdapterTypes.OptionType.Put;
             } else {
                 strikePrice = position.callStrikePrice;
                 optionID = position.callOptionID;
-                optionType = OptionType.Call;
+                optionType = ProtocolAdapterTypes.OptionType.Call;
             }
 
             address paymentToken = address(0); // it is irrelevant at this stage
 
             address optionsAddress =
                 adapter.getOptionsAddress(
-                    OptionTerms(
+                    ProtocolAdapterTypes.OptionTerms(
                         underlying,
                         strikeAsset,
                         collateralAsset,

@@ -85,13 +85,14 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
      * @notice Sets the new manager of the vault. Revoke the airswap signer authorization from the old manager, and authorize the manager.
      * @param _manager is the new manager of the vault
      */
-    function setManager(address _manager) public onlyOwner {
+    function setManager(address _manager) external onlyOwner {
         require(_manager != address(0), "New manager cannot be 0x0");
         address oldManager = manager;
+        manager = _manager;
+
         if (oldManager != address(0)) {
             _swapContract.revokeSigner(oldManager);
         }
-        manager = _manager;
         _swapContract.authorizeSigner(_manager);
 
         emit ManagerChanged(oldManager, _manager);
@@ -199,6 +200,9 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
             IProtocolAdapter(factory.getAdapter(_adapterName));
 
         address oldOption = currentOption;
+        address newOption = adapter.getOptionsAddress(optionTerms);
+        currentOption = newOption;
+
         if (oldOption != address(0)) {
             require(
                 block.timestamp >= OtokenInterface(oldOption).expiryTimestamp(),
@@ -207,18 +211,14 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
             uint256 withdrawAmount = adapter.delegateCloseShort();
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
-
         uint256 currentBalance = IERC20(asset).balanceOf(address(this));
         uint256 shortAmount = wmul(currentBalance, lockedRatio);
+        lockedAmount = shortAmount;
+
         uint256 shortBalance =
             adapter.delegateCreateShort(optionTerms, shortAmount);
-
-        address newOption = adapter.getOptionsAddress(optionTerms);
         IERC20 optionToken = IERC20(newOption);
         optionToken.safeApprove(address(_swapContract), shortBalance);
-
-        currentOption = newOption;
-        lockedAmount = shortAmount;
 
         emit OpenShort(newOption, shortAmount, msg.sender);
     }

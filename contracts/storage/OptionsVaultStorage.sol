@@ -10,7 +10,6 @@ import {
 import {
     ERC20Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {Initializable} from "../lib/upgrades/Initializable.sol";
 
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 

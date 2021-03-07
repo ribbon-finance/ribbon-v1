@@ -110,6 +110,12 @@ describe("RibbonETHCoveredCall", () => {
       assert.equal(await this.vault.factory(), this.factory.address);
       assert.equal(await this.vault.owner(), owner);
     });
+
+    it("cannot be initialized twice", async function () {
+      await expect(
+        this.vault.initialize(owner, this.factory.address, parseEther("500"))
+      ).to.be.revertedWith("Initializable: contract is already initialized");
+    });
   });
 
   describe("#name", () => {

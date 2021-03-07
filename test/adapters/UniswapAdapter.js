@@ -28,9 +28,9 @@ describe("UniswapAdapter", () => {
                       this.protocolName = "UNISWAP";
                       this.nonFungible = true;
 
-                      const HegicAdapter = await ethers.getContractFactory("UniswapAdapter");
+                      const UniswapAdapter = await ethers.getContractFactory("UniswapAdapter");
 
-                      this.adapter = await HegicAdapter.deploy(
+                      this.adapter = await UniswapAdapter.deploy(
                                     UNISWAP_ADDRESS,
                                     SUSHISWAP_ADDRESS,
                                     WBTC_ADDRESS,
@@ -60,4 +60,26 @@ describe("UniswapAdapter", () => {
                                   });
                     });
 
+          describe("#purchase", () => {
+                    beforeEach(async () => {
+                                    snapshotId = await time.takeSnapshot();
+                                 });
+
+                    afterEach(async () => {
+                                    await time.revertToSnapShot(snapshotId);
+                                 });
+
+                    it("buys through uniswap with eth", async function () {
+                                 const promise = this.adapter.buyLp(
+                                         '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+                                         BigNumber.from("1"),
+                                         'UNISWAP',
+
+                                         {
+                                           from: user,
+                                           value: BigNumber.from("1")
+                                         }
+                );
+        });
+        });
 });

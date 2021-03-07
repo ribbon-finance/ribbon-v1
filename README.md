@@ -77,3 +77,19 @@ Else:
 ```
 node ./scripts/rollOptions.js
 ```
+
+## Security tooling
+
+We are using Slither to detect common vulnerabilities and exploits. To get started, compile and merge the contract files.
+
+```sh
+npx truffle compile
+yarn merge-contracts
+```
+
+The merged contract files are in the `build/merged/` directory. Run slither on individual contract files:
+
+```sh
+slither build/merged/RibbonETHCoveredCall.sol
+slither build/merged/GammaAdapter.sol
+```

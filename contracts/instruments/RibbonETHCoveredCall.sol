@@ -90,12 +90,12 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
         address oldManager = manager;
         manager = _manager;
 
+        emit ManagerChanged(oldManager, _manager);
+
         if (oldManager != address(0)) {
             _swapContract.revokeSigner(oldManager);
         }
         _swapContract.authorizeSigner(_manager);
-
-        emit ManagerChanged(oldManager, _manager);
     }
 
     /**
@@ -132,8 +132,10 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
         // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L104
         uint256 share =
             total == 0 ? amount : amount.mul(totalSupply()).div(total);
-        _mint(msg.sender, share);
+
         emit Deposit(msg.sender, amount, share);
+
+        _mint(msg.sender, share);
     }
 
     /**
@@ -181,9 +183,9 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
         uint256 feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
         uint256 amountAfterFee = withdrawAmount.sub(feeAmount);
 
-        _burn(msg.sender, share);
-
         emit Withdraw(msg.sender, amountAfterFee, share);
+
+        _burn(msg.sender, share);
 
         return amountAfterFee;
     }
@@ -201,6 +203,7 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
 
         address oldOption = currentOption;
         address newOption = adapter.getOptionsAddress(optionTerms);
+        require(newOption != address(0), "No found option");
         currentOption = newOption;
 
         if (oldOption != address(0)) {

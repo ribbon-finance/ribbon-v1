@@ -14,7 +14,7 @@ import {
     OtokenInterface,
     IController,
     OracleInterface,
-    Vault
+    GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
@@ -39,6 +39,8 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     AggregatorV3Interface private constant _USDCETHPriceFeed =
         AggregatorV3Interface(0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
     address private constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address private constant ZeroExchangeV3 =
+        0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef;
 
     constructor(
         address _oTokenFactory,
@@ -47,6 +49,11 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         address _zeroExExchange,
         address router
     ) {
+        require(_oTokenFactory != address(0), "!_oTokenFactory");
+        require(_zeroExExchange != address(0), "!_zeroExExchange");
+        require(_gammaController != address(0), "!_gammaController");
+        require(weth != address(0), "!weth");
+        require(router != address(0), "!router");
         oTokenFactory = _oTokenFactory;
         zeroExExchange = _zeroExExchange;
         gammaController = _gammaController;
@@ -209,7 +216,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         );
 
         (bool success, ) =
-            zeroExOrder.exchangeAddress.call{value: zeroExOrder.protocolFee}(
+            ZeroExchangeV3.call{value: zeroExOrder.protocolFee}(
                 zeroExOrder.swapData
             );
 
@@ -412,7 +419,8 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         // gets the currently active vault ID
         uint256 vaultID = controller.getAccountVaultCounter(address(this));
 
-        Vault memory vault = controller.getVault(address(this), vaultID);
+        GammaTypes.Vault memory vault =
+            controller.getVault(address(this), vaultID);
 
         require(vault.collateralAssets.length > 0, "No active vault");
 

@@ -39,8 +39,8 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     AggregatorV3Interface private constant _USDCETHPriceFeed =
         AggregatorV3Interface(0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
     address private constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address private constant ZeroExchangeV3 =
-        0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef;
+    address private constant ZERO_EX_EXCHANGE_V3 =
+        0xDef1C0ded9bec7F1a1670819833240f027b25EfF;
 
     constructor(
         address _oTokenFactory,
@@ -216,7 +216,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         );
 
         (bool success, ) =
-            ZeroExchangeV3.call{value: zeroExOrder.protocolFee}(
+            ZERO_EX_EXCHANGE_V3.call{value: zeroExOrder.protocolFee}(
                 zeroExOrder.swapData
             );
 

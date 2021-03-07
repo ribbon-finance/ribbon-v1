@@ -4,11 +4,21 @@ pragma solidity >=0.7.2;
 import {
     ReentrancyGuard
 } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {
+    OwnableUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {
+    ERC20Upgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {Initializable} from "../lib/upgrades/Initializable.sol";
-import {Ownable} from "../lib/Ownable.sol";
+
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 
-contract OptionsVaultStorageV1 is Initializable, Ownable, ReentrancyGuard {
+contract OptionsVaultStorageV1 is
+    OwnableUpgradeable,
+    ERC20Upgradeable,
+    ReentrancyGuard
+{
     // Ribbon Factory used to access adapters
     IRibbonFactory public factory;
 

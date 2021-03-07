@@ -4,7 +4,6 @@ pragma experimental ABIEncoderV2;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {DSMath} from "../lib/DSMath.sol";
 
@@ -17,11 +16,10 @@ import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {ISwap} from "../interfaces/ISwap.sol";
 import {OtokenInterface} from "../interfaces/GammaInterface.sol";
-import {Ownable} from "../lib/Ownable.sol";
 
 import {OptionsVaultStorageV1} from "../storage/OptionsVaultStorage.sol";
 
-contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
+contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
     using ProtocolAdapter for IProtocolAdapter;
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -66,8 +64,6 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
-    constructor() ERC20(_tokenName, _tokenSymbol) {}
-
     /**
      * @notice Initializes the OptionVault contract with an owner and a factory.
      * @param _owner is the owner of the contract who can set the manager
@@ -77,8 +73,10 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         address _owner,
         address _factory,
         uint256 _initCap
-    ) public initializer {
-        Ownable.initialize(_owner);
+    ) external initializer {
+        __ERC20_init(_tokenName, _tokenSymbol);
+        __Ownable_init();
+        transferOwnership(_owner);
         factory = IRibbonFactory(_factory);
         cap = _initCap;
     }
@@ -280,20 +278,6 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         uint256 reserve = wmul(total, reserveRatio);
 
         return min(reserve, freeBalance);
-    }
-
-    /**
-     * @notice Returns the token name
-     */
-    function name() public pure override returns (string memory) {
-        return _tokenName;
-    }
-
-    /**
-     * @notice Returns the token symbol
-     */
-    function symbol() public pure override returns (string memory) {
-        return _tokenSymbol;
     }
 
     /**

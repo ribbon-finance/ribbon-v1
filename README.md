@@ -24,7 +24,13 @@ yarn install
 npx hardhat compile
 ```
 
-3. Run the unit tests with the command:
+3. You will need access to an archive node to run tests, since the tests use forked mainnet state. Create a .env file with a `TEST_URI`. Ask @kenchangh for access to archive node.
+
+```
+TEST_URI=<add node url here>
+```
+
+4. Run the unit tests with the command:
 
 ```
 npx hardhat test

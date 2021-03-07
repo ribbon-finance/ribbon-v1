@@ -2,17 +2,12 @@
 pragma solidity >=0.7.2;
 pragma experimental ABIEncoderV2;
 
-import {
-    IProtocolAdapter,
-    OptionTerms,
-    OptionType,
-    ZeroExOrder
-} from "./IProtocolAdapter.sol";
+import {IProtocolAdapter, ProtocolAdapterTypes} from "./IProtocolAdapter.sol";
 
 library ProtocolAdapter {
     function delegateOptionsExist(
         IProtocolAdapter adapter,
-        OptionTerms calldata optionTerms
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms
     ) external view returns (bool) {
         (bool success, bytes memory result) =
             address(adapter).staticcall(
@@ -27,7 +22,7 @@ library ProtocolAdapter {
 
     function delegateGetOptionsAddress(
         IProtocolAdapter adapter,
-        OptionTerms calldata optionTerms
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms
     ) external view returns (address) {
         (bool success, bytes memory result) =
             address(adapter).staticcall(
@@ -42,7 +37,7 @@ library ProtocolAdapter {
 
     function delegatePremium(
         IProtocolAdapter adapter,
-        OptionTerms calldata optionTerms,
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms,
         uint256 purchaseAmount
     ) external view returns (uint256) {
         (bool success, bytes memory result) =
@@ -78,7 +73,7 @@ library ProtocolAdapter {
 
     function delegatePurchase(
         IProtocolAdapter adapter,
-        OptionTerms calldata optionTerms,
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms,
         uint256 purchaseAmount,
         uint256 maxCost
     ) external returns (uint256) {
@@ -97,8 +92,8 @@ library ProtocolAdapter {
 
     function delegatePurchaseWithZeroEx(
         IProtocolAdapter adapter,
-        OptionTerms calldata optionTerms,
-        ZeroExOrder calldata zeroExOrder
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms,
+        ProtocolAdapterTypes.ZeroExOrder calldata zeroExOrder
     ) external {
         (bool success, bytes memory result) =
             address(adapter).delegatecall(
@@ -167,7 +162,7 @@ library ProtocolAdapter {
 
     function delegateCreateShort(
         IProtocolAdapter adapter,
-        OptionTerms calldata optionTerms,
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms,
         uint256 amount
     ) external returns (uint256) {
         (bool success, bytes memory res) =

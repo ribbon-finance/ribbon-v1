@@ -7,7 +7,7 @@ import {
 } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Initializable} from "../lib/upgrades/Initializable.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
-import {OptionType} from "../adapters/IProtocolAdapter.sol";
+import {ProtocolAdapterTypes} from "../adapters/IProtocolAdapter.sol";
 import {Ownable} from "../lib/Ownable.sol";
 
 contract InstrumentStorageV1 is Initializable, Ownable, ReentrancyGuard {
@@ -24,7 +24,7 @@ contract InstrumentStorageV1 is Initializable, Ownable, ReentrancyGuard {
 
     struct OldInstrumentPosition {
         bool exercised;
-        OptionType[] optionTypes;
+        ProtocolAdapterTypes.OptionType[] optionTypes;
         uint32[] optionIDs;
         uint256[] amounts;
         uint256[] strikePrices;

@@ -4,21 +4,22 @@ pragma experimental ABIEncoderV2;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {DSMath} from "../lib/DSMath.sol";
 
-import {OptionTerms, IProtocolAdapter} from "../adapters/IProtocolAdapter.sol";
+import {
+    ProtocolAdapterTypes,
+    IProtocolAdapter
+} from "../adapters/IProtocolAdapter.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {ISwap} from "../interfaces/ISwap.sol";
 import {OtokenInterface} from "../interfaces/GammaInterface.sol";
-import {Ownable} from "../lib/Ownable.sol";
 
 import {OptionsVaultStorageV1} from "../storage/OptionsVaultStorage.sol";
 
-contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
+contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
     using ProtocolAdapter for IProtocolAdapter;
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -63,8 +64,6 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
-    constructor() ERC20(_tokenName, _tokenSymbol) {}
-
     /**
      * @notice Initializes the OptionVault contract with an owner and a factory.
      * @param _owner is the owner of the contract who can set the manager
@@ -74,8 +73,10 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         address _owner,
         address _factory,
         uint256 _initCap
-    ) public initializer {
-        Ownable.initialize(_owner);
+    ) external initializer {
+        __ERC20_init(_tokenName, _tokenSymbol);
+        __Ownable_init();
+        transferOwnership(_owner);
         factory = IRibbonFactory(_factory);
         cap = _initCap;
     }
@@ -84,16 +85,17 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
      * @notice Sets the new manager of the vault. Revoke the airswap signer authorization from the old manager, and authorize the manager.
      * @param _manager is the new manager of the vault
      */
-    function setManager(address _manager) public onlyOwner {
+    function setManager(address _manager) external onlyOwner {
         require(_manager != address(0), "New manager cannot be 0x0");
         address oldManager = manager;
+        manager = _manager;
+
+        emit ManagerChanged(oldManager, _manager);
+
         if (oldManager != address(0)) {
             _swapContract.revokeSigner(oldManager);
         }
-        manager = _manager;
         _swapContract.authorizeSigner(_manager);
-
-        emit ManagerChanged(oldManager, _manager);
     }
 
     /**
@@ -101,7 +103,6 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
      */
     function depositETH() external payable nonReentrant {
         require(msg.value > 0, "No value passed");
-        require(asset == _WETH, "Asset is not WETH");
 
         IWETH(_WETH).deposit{value: msg.value}();
         _deposit(msg.value);
@@ -131,8 +132,10 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L104
         uint256 share =
             total == 0 ? amount : amount.mul(totalSupply()).div(total);
-        _mint(msg.sender, share);
+
         emit Deposit(msg.sender, amount, share);
+
+        _mint(msg.sender, share);
     }
 
     /**
@@ -180,9 +183,9 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         uint256 feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
         uint256 amountAfterFee = withdrawAmount.sub(feeAmount);
 
-        _burn(msg.sender, share);
-
         emit Withdraw(msg.sender, amountAfterFee, share);
+
+        _burn(msg.sender, share);
 
         return amountAfterFee;
     }
@@ -191,16 +194,18 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
      * @notice Rolls from one short option position to another. Closes the expired short position, withdraw from it, then open a new position.
      * @param optionTerms are the option contract terms the vault will be short
      */
-    function rollToNextOption(OptionTerms calldata optionTerms)
-        external
-        onlyManager
-        nonReentrant
-    {
+    function rollToNextOption(
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms
+    ) external onlyManager nonReentrant {
         // We can save gas by storing the factory address as a constant
         IProtocolAdapter adapter =
             IProtocolAdapter(factory.getAdapter(_adapterName));
 
         address oldOption = currentOption;
+        address newOption = adapter.getOptionsAddress(optionTerms);
+        require(newOption != address(0), "No found option");
+        currentOption = newOption;
+
         if (oldOption != address(0)) {
             require(
                 block.timestamp >= OtokenInterface(oldOption).expiryTimestamp(),
@@ -209,18 +214,14 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
             uint256 withdrawAmount = adapter.delegateCloseShort();
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
-
         uint256 currentBalance = IERC20(asset).balanceOf(address(this));
         uint256 shortAmount = wmul(currentBalance, lockedRatio);
+        lockedAmount = shortAmount;
+
         uint256 shortBalance =
             adapter.delegateCreateShort(optionTerms, shortAmount);
-
-        address newOption = adapter.getOptionsAddress(optionTerms);
         IERC20 optionToken = IERC20(newOption);
-        optionToken.approve(address(_swapContract), shortBalance);
-
-        currentOption = newOption;
-        lockedAmount = shortAmount;
+        optionToken.safeApprove(address(_swapContract), shortBalance);
 
         emit OpenShort(newOption, shortAmount, msg.sender);
     }
@@ -229,6 +230,7 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
      * @notice Sets a new cap for deposits
      * @param newCap is the new cap for deposits
      */
+    // if_succeeds {:msg "sets cap"} cap == newCap
     function setCap(uint256 newCap) external onlyManager {
         uint256 oldCap = cap;
         cap = newCap;
@@ -279,20 +281,6 @@ contract RibbonETHCoveredCall is DSMath, ERC20, OptionsVaultStorageV1 {
         uint256 reserve = wmul(total, reserveRatio);
 
         return min(reserve, freeBalance);
-    }
-
-    /**
-     * @notice Returns the token name
-     */
-    function name() public pure override returns (string memory) {
-        return _tokenName;
-    }
-
-    /**
-     * @notice Returns the token symbol
-     */
-    function symbol() public pure override returns (string memory) {
-        return _tokenSymbol;
     }
 
     /**

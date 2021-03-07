@@ -2,6 +2,8 @@
 
 pragma solidity >=0.6.0;
 
+import {Initializable} from "../lib/upgrades/Initializable.sol";
+
 /**
  * @dev Contract module which provides a basic access control mechanism, where
  * there is an account (an owner) that can be granted exclusive access to
@@ -14,7 +16,7 @@ pragma solidity >=0.6.0;
  * `onlyOwner`, which can be applied to your functions to restrict their use to
  * the owner.
  */
-abstract contract Ownable {
+abstract contract Ownable is Initializable {
     address private _owner;
 
     event OwnershipTransferred(
@@ -25,7 +27,7 @@ abstract contract Ownable {
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
      */
-    function initialize(address newOwner) internal {
+    function initialize(address newOwner) internal initializer {
         _owner = newOwner;
         emit OwnershipTransferred(address(0), newOwner);
     }

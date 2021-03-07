@@ -8,19 +8,13 @@ import {
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import {
-    OptionType,
-    IProtocolAdapter,
-    OptionTerms,
-    ZeroExOrder,
-    PurchaseMethod
-} from "./IProtocolAdapter.sol";
+import {IProtocolAdapter, ProtocolAdapterTypes} from "./IProtocolAdapter.sol";
 import {
     IOtokenFactory,
     OtokenInterface,
     IController,
     OracleInterface,
-    Vault
+    GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
@@ -45,6 +39,8 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     AggregatorV3Interface private constant _USDCETHPriceFeed =
         AggregatorV3Interface(0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
     address private constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address private constant ZERO_EX_EXCHANGE_V3 =
+        0xDef1C0ded9bec7F1a1670819833240f027b25EfF;
 
     constructor(
         address _oTokenFactory,
@@ -53,6 +49,11 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         address _zeroExExchange,
         address router
     ) {
+        require(_oTokenFactory != address(0), "!_oTokenFactory");
+        require(_zeroExExchange != address(0), "!_zeroExExchange");
+        require(_gammaController != address(0), "!_gammaController");
+        require(weth != address(0), "!weth");
+        require(router != address(0), "!router");
         oTokenFactory = _oTokenFactory;
         zeroExExchange = _zeroExExchange;
         gammaController = _gammaController;
@@ -70,15 +71,20 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         return _nonFungible;
     }
 
-    function purchaseMethod() external pure override returns (PurchaseMethod) {
-        return PurchaseMethod.ZeroEx;
+    function purchaseMethod()
+        external
+        pure
+        override
+        returns (ProtocolAdapterTypes.PurchaseMethod)
+    {
+        return ProtocolAdapterTypes.PurchaseMethod.ZeroEx;
     }
 
     /**
      * @notice Check if an options contract exist based on the passed parameters.
      * @param optionTerms is the terms of the option contract
      */
-    function optionsExist(OptionTerms calldata optionTerms)
+    function optionsExist(ProtocolAdapterTypes.OptionTerms calldata optionTerms)
         external
         view
         override
@@ -91,19 +97,16 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
      * @notice Get the options contract's address based on the passed parameters
      * @param optionTerms is the terms of the option contract
      */
-    function getOptionsAddress(OptionTerms calldata optionTerms)
-        external
-        view
-        override
-        returns (address)
-    {
+    function getOptionsAddress(
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms
+    ) external view override returns (address) {
         return lookupOToken(optionTerms);
     }
 
     /**
      * @notice Gets the premium to buy `purchaseAmount` of the option contract in ETH terms.
      */
-    function premium(OptionTerms calldata, uint256)
+    function premium(ProtocolAdapterTypes.OptionTerms calldata, uint256)
         external
         pure
         override
@@ -164,14 +167,14 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
      * @notice Purchases the options contract.
      */
     function purchase(
-        OptionTerms calldata,
+        ProtocolAdapterTypes.OptionTerms calldata,
         uint256,
         uint256
-    ) external payable override returns (uint256 optionID) {}
+    ) external payable override returns (uint256) {}
 
     function purchaseWithZeroEx(
-        OptionTerms calldata optionTerms,
-        ZeroExOrder calldata zeroExOrder
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms,
+        ProtocolAdapterTypes.ZeroExOrder calldata zeroExOrder
     ) external payable {
         require(
             msg.value >= zeroExOrder.protocolFee,
@@ -213,7 +216,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         );
 
         (bool success, ) =
-            zeroExOrder.exchangeAddress.call{value: zeroExOrder.protocolFee}(
+            ZERO_EX_EXCHANGE_V3.call{value: zeroExOrder.protocolFee}(
                 zeroExOrder.swapData
             );
 
@@ -332,7 +335,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     }
 
     function createShort(
-        OptionTerms calldata optionTerms,
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms,
         uint256 depositAmount
     ) external override returns (uint256) {
         IController controller = IController(gammaController);
@@ -351,7 +354,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         uint256 collateralDecimals = assetDecimals(collateralAsset);
         uint256 mintAmount;
 
-        if (optionTerms.optionType == OptionType.Call) {
+        if (optionTerms.optionType == ProtocolAdapterTypes.OptionType.Call) {
             mintAmount = depositAmount;
             if (collateralDecimals >= 8) {
                 uint256 scaleBy = 10**(collateralDecimals - 8); // oTokens have 8 decimals
@@ -416,7 +419,8 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         // gets the currently active vault ID
         uint256 vaultID = controller.getAccountVaultCounter(address(this));
 
-        Vault memory vault = controller.getVault(address(this), vaultID);
+        GammaTypes.Vault memory vault =
+            controller.getVault(address(this), vaultID);
 
         require(vault.collateralAssets.length > 0, "No active vault");
 
@@ -457,14 +461,15 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
      * @notice Function to lookup oToken addresses. oToken addresses are keyed by an ABI-encoded byte string
      * @param optionTerms is the terms of the option contract
      */
-    function lookupOToken(OptionTerms memory optionTerms)
+    function lookupOToken(ProtocolAdapterTypes.OptionTerms memory optionTerms)
         public
         view
         returns (address oToken)
     {
         IOtokenFactory factory = IOtokenFactory(oTokenFactory);
 
-        bool isPut = optionTerms.optionType == OptionType.Put;
+        bool isPut =
+            optionTerms.optionType == ProtocolAdapterTypes.OptionType.Put;
         address underlying = optionTerms.underlying;
 
         if (optionTerms.underlying == address(0)) {

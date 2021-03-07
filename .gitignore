@@ -376,3 +376,6 @@ logs
 
 artifacts/
 cache/
+
+coverage.json
+coverage/

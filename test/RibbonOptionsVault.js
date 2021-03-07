@@ -1,5 +1,5 @@
 const { expect, assert } = require("chai");
-const { BigNumber } = require("ethers");
+const { BigNumber, constants } = require("ethers");
 const { parseUnits } = require("ethers/lib/utils");
 const { ethers } = require("hardhat");
 const { provider, getContractAt } = ethers;
@@ -110,6 +110,12 @@ describe("RibbonETHCoveredCall", () => {
       assert.equal(await this.vault.factory(), this.factory.address);
       assert.equal(await this.vault.owner(), owner);
     });
+
+    it("cannot be initialized twice", async function () {
+      await expect(
+        this.vault.initialize(owner, this.factory.address, parseEther("500"))
+      ).to.be.revertedWith("Initializable: contract is already initialized");
+    });
   });
 
   describe("#name", () => {
@@ -144,6 +150,12 @@ describe("RibbonETHCoveredCall", () => {
 
   describe("#setManager", () => {
     time.revertToSnapshotAfterTest();
+
+    it("reverts when setting 0x0 as manager", async function () {
+      await expect(
+        this.vault.connect(ownerSigner).setManager(constants.AddressZero)
+      ).to.be.revertedWith("New manager cannot be 0x0");
+    });
 
     it("reverts when not owner call", async function () {
       await expect(this.vault.setManager(manager)).to.be.revertedWith(
@@ -254,6 +266,12 @@ describe("RibbonETHCoveredCall", () => {
         (await this.vault.balanceOf(counterparty)).toString(),
         parseEther("0.75")
       );
+    });
+
+    it("reverts when no value passed", async function () {
+      await expect(
+        this.vault.connect(userSigner).depositETH({ value: 0 })
+      ).to.be.revertedWith("No value passed");
     });
   });
 
@@ -870,6 +888,18 @@ describe("RibbonETHCoveredCall", () => {
           value: parseEther("1").add(BigNumber.from("1")),
         })
       ).to.be.revertedWith("Cap exceeded");
+    });
+  });
+
+  describe("#currentOptionExpiry", () => {
+    it("should return 0 when currentOption not set", async function () {
+      assert.equal((await this.vault.currentOptionExpiry()).toString(), "0");
+    });
+  });
+
+  describe("#decimals", () => {
+    it("should return 18 for decimals", async function () {
+      assert.equal((await this.vault.decimals()).toString(), "18");
     });
   });
 });

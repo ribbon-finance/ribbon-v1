@@ -12,7 +12,7 @@
     "TwinYieldLogic": "0xEC5d4F247aF81A843612eb1371CBCfa88b762119"
   },
   "mainnet": {
-    "RibbonFactoryLogic": "0x84a5A8c504eC7f9Add6771459c5Dfc8475138c33",
+    "RibbonFactoryLogic": "0x6e0f736a2a0b81E7D8B7D6Ac3608aC977341bA4F",
     "RibbonFactory": "0x863dd8Ea9B7472c54CdE1F0e2D5B2bCC8CBf0Cd1",
     "RibbonVolatilityLogic": "0x7004f9fcdE66E2ecABF408132Cb21Ebbcf53D4B0",
     "GammaAdapterLogic": "0x2C4A3eF36e204706014eEe6267f82a29773D0632",
@@ -27,7 +27,7 @@
     "RibbonVolatilityLogic": "0x7004f9fcdE66E2ecABF408132Cb21Ebbcf53D4B0",
     "HegicAdapterLogic": "0x0bd5Aa838368E91F8959bA0d2a254FfdD09daa8c",
     "GammaAdapterLogic": "0x2C4A3eF36e204706014eEe6267f82a29773D0632",
-    "RibbonFactoryLogic": "0x84a5A8c504eC7f9Add6771459c5Dfc8475138c33",
+    "RibbonFactoryLogic": "0x6e0f736a2a0b81E7D8B7D6Ac3608aC977341bA4F",
     "ProtocolAdapterLib": "0xfe423309b326b7BF9cC28669a47A4E09288DF5e1",
     "RibbonETHCoveredCallLogic": "0xb9a143a9b010ff7F4408Ee87AE42C401c7c9De6D",
     "RibbonETHCoveredCall": "0x8e65F34FF5925D3D43aD642bEe84ac947583A939"

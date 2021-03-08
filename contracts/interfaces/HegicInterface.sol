@@ -52,6 +52,9 @@ interface IHegicOptions {
     function exercise(uint256 optionID) external;
 
     function priceProvider() external view returns (address);
+    function transfer(uint256 optionID, address payable newHolder) external;
+
+
 }
 
 interface IHegicETHOptions is IHegicOptions {
@@ -69,6 +72,7 @@ interface IHegicETHOptions is IHegicOptions {
             uint256 strikeFee,
             uint256 periodFee
         );
+
 }
 
 interface IHegicBTCOptions is IHegicOptions {
@@ -87,6 +91,7 @@ interface IHegicBTCOptions is IHegicOptions {
             uint256 strikeFee,
             uint256 periodFee
         );
+
 }
 
 interface IHegicRewards {

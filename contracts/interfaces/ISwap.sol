@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache
 /*
   Copyright 2020 Swap Holdings Ltd.
 

@@ -8,12 +8,7 @@ import {
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import {
-    IProtocolAdapter,
-    OptionTerms,
-    OptionType,
-    PurchaseMethod
-} from "./IProtocolAdapter.sol";
+import {ProtocolAdapterTypes, IProtocolAdapter} from "./IProtocolAdapter.sol";
 import {
     State,
     IHegicOptions,
@@ -73,15 +68,20 @@ contract HegicAdapter is IProtocolAdapter {
         return _nonFungible;
     }
 
-    function purchaseMethod() external pure override returns (PurchaseMethod) {
-        return PurchaseMethod.Contract;
+    function purchaseMethod()
+        external
+        pure
+        override
+        returns (ProtocolAdapterTypes.PurchaseMethod)
+    {
+        return ProtocolAdapterTypes.PurchaseMethod.Contract;
     }
 
     /**
      * @notice Check if an options contract exist based on the passed parameters.
      * @param optionTerms is the terms of the option contract
      */
-    function optionsExist(OptionTerms calldata optionTerms)
+    function optionsExist(ProtocolAdapterTypes.OptionTerms calldata optionTerms)
         external
         view
         override
@@ -96,12 +96,9 @@ contract HegicAdapter is IProtocolAdapter {
      * @notice Get the options contract's address based on the passed parameters
      * @param optionTerms is the terms of the option contract
      */
-    function getOptionsAddress(OptionTerms calldata optionTerms)
-        external
-        view
-        override
-        returns (address)
-    {
+    function getOptionsAddress(
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms
+    ) external view override returns (address) {
         if (optionTerms.underlying == ethAddress) {
             return address(ethOptions);
         } else if (optionTerms.underlying == wbtcAddress) {
@@ -115,12 +112,10 @@ contract HegicAdapter is IProtocolAdapter {
      * @param optionTerms is the terms of the option contract
      * @param purchaseAmount is the purchase amount in Wad units (10**18)
      */
-    function premium(OptionTerms memory optionTerms, uint256 purchaseAmount)
-        public
-        view
-        override
-        returns (uint256 cost)
-    {
+    function premium(
+        ProtocolAdapterTypes.OptionTerms memory optionTerms,
+        uint256 purchaseAmount
+    ) public view override returns (uint256 cost) {
         require(
             block.timestamp < optionTerms.expiry,
             "Cannot purchase after expiry"
@@ -153,7 +148,7 @@ contract HegicAdapter is IProtocolAdapter {
                 cost = costWBTC;
             }
         } else {
-            require(false, "No matching underlying");
+            revert("No matching underlying");
         }
     }
 
@@ -234,7 +229,7 @@ contract HegicAdapter is IProtocolAdapter {
      * @param maxCost is the max amount of paymentToken to be paid for the option (to avoid sandwich attacks, ...)
      */
     function purchase(
-        OptionTerms calldata optionTerms,
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms,
         uint256 amount,
         uint256 maxCost
     ) external payable override returns (uint256 optionID) {
@@ -243,20 +238,6 @@ contract HegicAdapter is IProtocolAdapter {
             "Cannot purchase after expiry"
         );
 
-        uint256 cost =
-            premium(
-                OptionTerms(
-                    optionTerms.underlying,
-                    optionTerms.strikeAsset,
-                    optionTerms.collateralAsset,
-                    optionTerms.expiry,
-                    optionTerms.strikePrice,
-                    optionTerms.optionType,
-                    ethAddress // force total cost to be in ETH
-                ),
-                amount
-            );
-
         uint256 scaledStrikePrice =
             scaleDownStrikePrice(optionTerms.strikePrice);
         uint256 period = optionTerms.expiry.sub(block.timestamp);
@@ -264,6 +245,11 @@ contract HegicAdapter is IProtocolAdapter {
 
         // swap for ETH if ETH has not been provided as paymentToken
         if (msg.value == 0) {
+            ProtocolAdapterTypes.OptionTerms memory optionTermsWithETH =
+                optionTerms;
+            optionTermsWithETH.paymentToken = ethAddress;
+            uint256 cost = premium(optionTermsWithETH, amount);
+
             require(
                 optionTerms.paymentToken == wbtcAddress,
                 "Invalid paymentToken or msg.value"
@@ -271,11 +257,14 @@ contract HegicAdapter is IProtocolAdapter {
             uint256 costWBTC = _getAmountsIn(cost);
             require(maxCost >= costWBTC, "MaxCost is too low");
             _swapWBTCToETH(costWBTC, cost);
-        } else {
-            require(msg.value >= cost, "Value does not cover cost");
         }
 
-        optionID = options.create{value: cost}(
+        // Gas optimization to avoid double counting premium()
+        // This will revert if the address(this).balance is not sufficient
+        // Any extras will be refunded to the address(this)
+        // This could potentially be a large security vuln. if the Options contract
+        // does not refund the change
+        optionID = options.create{value: address(this).balance}(
             period,
             amount,
             scaledStrikePrice,
@@ -286,12 +275,7 @@ contract HegicAdapter is IProtocolAdapter {
             msg.sender,
             _name,
             optionTerms.underlying,
-            optionTerms.strikeAsset,
-            optionTerms.expiry,
-            optionTerms.strikePrice,
-            optionTerms.optionType,
-            amount,
-            cost,
+            msg.value,
             optionID
         );
     }
@@ -422,15 +406,16 @@ contract HegicAdapter is IProtocolAdapter {
         hegicToken.safeTransfer(msg.sender, rewardsAmount);
     }
 
-    function createShort(OptionTerms memory optionTerms, uint256 amount)
-        public
+    function createShort(ProtocolAdapterTypes.OptionTerms memory, uint256)
+        external
+        pure
         override
         returns (uint256)
     {
         return 0;
     }
 
-    function closeShort() external override returns (uint256) {
+    function closeShort() external pure override returns (uint256) {
         return 0;
     }
 

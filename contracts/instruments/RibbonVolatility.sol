@@ -12,11 +12,8 @@ import {
     Venues
 } from "../storage/InstrumentStorage.sol";
 import {
-    OptionType,
-    OptionTerms,
-    IProtocolAdapter,
-    PurchaseMethod,
-    ZeroExOrder
+    ProtocolAdapterTypes,
+    IProtocolAdapter
 } from "../adapters/IProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
@@ -34,7 +31,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         address indexed account,
         uint256 indexed positionID,
         string[] venues,
-        OptionType[] optionTypes,
+        ProtocolAdapterTypes.OptionType[] optionTypes,
         uint256 amount
     );
     event Exercised(
@@ -44,9 +41,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         bool[] optionsExercised
     );
 
-    event ClaimedRewards(
-        uint256 numRewards
-    );
+    event ClaimedRewards(uint256 numRewards);
 
     receive() external payable {}
 
@@ -72,51 +67,6 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         collateralAsset = _collateralAsset;
     }
 
-    function cost(
-        string[] memory venues,
-        OptionType[] memory optionTypes,
-        uint256[] memory amounts,
-        uint256[] memory strikePrices,
-        address paymentToken
-    ) public view returns (uint256 totalPremium) {
-        for (uint256 i = 0; i < venues.length; i++) {
-            address adapterAddress = factory.getAdapter(venues[i]);
-            require(adapterAddress != address(0), "Adapter does not exist");
-            IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
-
-            if (adapter.purchaseMethod() == PurchaseMethod.ZeroEx) {
-                continue;
-            }
-
-            bool exists =
-                adapter.delegateOptionsExist(
-                    OptionTerms(
-                        underlying,
-                        strikeAsset,
-                        collateralAsset,
-                        expiry,
-                        strikePrices[i],
-                        optionTypes[i],
-                        paymentToken
-                    )
-                );
-            require(exists, "Options does not exist");
-
-            totalPremium += adapter.delegatePremium(
-                OptionTerms(
-                    underlying,
-                    strikeAsset,
-                    collateralAsset,
-                    expiry,
-                    strikePrices[i],
-                    optionTypes[i],
-                    paymentToken
-                ),
-                amounts[i]
-            );
-        }
-    }
-
     function exerciseProfit(address account, uint256 positionID)
         external
         view
@@ -130,24 +80,24 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         uint256 profit = 0;
 
         uint8[] memory venues = new uint8[](2);
-        venues[0] = position.callVenue;
-        venues[1] = position.putVenue;
+        venues[0] = position.putVenue;
+        venues[1] = position.callVenue;
 
         for (uint256 i = 0; i < venues.length; i++) {
             string memory venue = getAdapterName(venues[i]);
             uint256 amount = position.amount;
 
-            OptionType optionType;
+            ProtocolAdapterTypes.OptionType optionType;
             uint256 strikePrice;
             uint32 optionID;
             if (i == 0) {
-                strikePrice = position.callStrikePrice;
-                optionID = position.callOptionID;
-                optionType = OptionType.Call;
-            } else {
                 strikePrice = position.putStrikePrice;
                 optionID = position.putOptionID;
-                optionType = OptionType.Put;
+                optionType = ProtocolAdapterTypes.OptionType.Put;
+            } else {
+                strikePrice = position.callStrikePrice;
+                optionID = position.callOptionID;
+                optionType = ProtocolAdapterTypes.OptionType.Call;
             }
 
             address adapterAddress = factory.getAdapter(venue);
@@ -155,7 +105,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
             IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
             address options =
                 adapter.getOptionsAddress(
-                    OptionTerms(
+                    ProtocolAdapterTypes.OptionTerms(
                         underlying,
                         strikeAsset,
                         collateralAsset,
@@ -189,33 +139,34 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         bool eitherOneCanExercise = false;
 
         uint8[] memory venues = new uint8[](2);
-        venues[0] = position.callVenue;
-        venues[1] = position.putVenue;
+        venues[0] = position.putVenue;
+        venues[1] = position.callVenue;
 
         for (uint256 i = 0; i < venues.length; i++) {
             string memory venue = getAdapterName(venues[i]);
             uint256 strikePrice;
             uint32 optionID;
-            OptionType optionType;
+            ProtocolAdapterTypes.OptionType optionType;
             if (i == 0) {
-                strikePrice = position.callStrikePrice;
-                optionID = position.callOptionID;
-                optionType = OptionType.Call;
-            } else {
                 strikePrice = position.putStrikePrice;
                 optionID = position.putOptionID;
-                optionType = OptionType.Put;
+                optionType = ProtocolAdapterTypes.OptionType.Put;
+            } else {
+                strikePrice = position.callStrikePrice;
+                optionID = position.callOptionID;
+                optionType = ProtocolAdapterTypes.OptionType.Call;
             }
 
             address adapterAddress = factory.getAdapter(venue);
             require(adapterAddress != address(0), "Adapter does not exist");
             IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
+
             address options =
                 adapter.getOptionsAddress(
-                    OptionTerms(
+                    ProtocolAdapterTypes.OptionTerms(
                         underlying,
                         strikeAsset,
-                        collateralAsset,
+                        address(0), // collateralAsset not needed
                         expiry,
                         strikePrice,
                         optionType,
@@ -233,78 +184,75 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         return eitherOneCanExercise;
     }
 
-    /**
-     * @notice Buy instrument and create the underlying options positions
-     * @param venues array of venue names, e.g. "HEGIC", "OPYN_V1"
-     * @param amount amount of contracts to purchase
-     */
-    function buyInstrument(
-        string[] memory venues,
-        OptionType[] memory optionTypes,
-        uint256 amount,
-        uint256[] memory strikePrices,
-        bytes[] memory buyData,
-        address paymentToken,
-        uint256[] memory maxCosts
-    ) public payable nonReentrant returns (uint256 positionID) {
-        require(venues.length >= 2, "Must have 2 or more venue");
-        require(optionTypes.length >= 2, "Must have 2 or more optionTypes");
-        require(strikePrices.length >= 2, "Must have 2 or more strikePrices");
-        require(buyData.length >= 2, "Must have 2 or more buyData");
+    struct BuyInstrumentParams {
+        uint8 callVenue;
+        uint8 putVenue;
+        address paymentToken;
+        uint256 callStrikePrice;
+        uint256 putStrikePrice;
+        uint256 amount;
+        uint256 callMaxCost;
+        uint256 putMaxCost;
+        bytes callBuyData;
+        bytes putBuyData;
+    }
+
+    function buyInstrument(BuyInstrumentParams calldata params)
+        external
+        payable
+        nonReentrant
+        returns (uint256 positionID)
+    {
         require(block.timestamp < expiry, "Cannot purchase after expiry");
 
         factory.burnGasTokens();
 
-        bool seenCall = false;
-        bool seenPut = false;
+        string memory callVenueName = getAdapterName(params.callVenue);
+        string memory putVenueName = getAdapterName(params.putVenue);
 
-        InstrumentPosition memory position;
-        position.exercised = false;
-        position.amount = amount;
+        uint32 putOptionID =
+            purchaseOptionAtVenue(
+                putVenueName,
+                ProtocolAdapterTypes.OptionType.Put,
+                params.amount,
+                params.putStrikePrice,
+                params.putBuyData,
+                params.paymentToken,
+                params.putMaxCost
+            );
+        uint32 callOptionID =
+            purchaseOptionAtVenue(
+                callVenueName,
+                ProtocolAdapterTypes.OptionType.Call,
+                params.amount,
+                params.callStrikePrice,
+                params.callBuyData,
+                params.paymentToken,
+                params.callMaxCost
+            );
 
-        for (uint256 i = 0; i < venues.length; i++) {
-            uint32 optionID =
-                purchaseOptionAtVenue(
-                    venues[i],
-                    optionTypes[i],
-                    amount,
-                    strikePrices[i],
-                    buyData[i],
-                    paymentToken,
-                    maxCosts[i]
-                );
-
-            if (!seenPut && optionTypes[i] == OptionType.Put) {
-                position.callVenue = uint8(getVenueID(venues[i]));
-                position.callStrikePrice = strikePrices[i];
-                position.callOptionID = optionID;
-                seenPut = true;
-            } else if (!seenCall && optionTypes[i] == OptionType.Call) {
-                position.putVenue = uint8(getVenueID(venues[i]));
-                position.putStrikePrice = strikePrices[i];
-                position.putOptionID = optionID;
-                seenCall = true;
-            }
-        }
+        InstrumentPosition memory position =
+            InstrumentPosition(
+                false,
+                params.callVenue,
+                params.putVenue,
+                callOptionID,
+                putOptionID,
+                params.amount,
+                params.callStrikePrice,
+                params.putStrikePrice
+            );
 
         positionID = instrumentPositions[msg.sender].length;
         instrumentPositions[msg.sender].push(position);
 
-        uint balance = address(this).balance;
-        if(balance > 0) payable(msg.sender).transfer(balance);
-
-        emit PositionCreated(
-            msg.sender,
-            positionID,
-            venues,
-            optionTypes,
-            amount
-        );
+        uint256 balance = address(this).balance;
+        if (balance > 0) payable(msg.sender).transfer(balance);
     }
 
     function purchaseOptionAtVenue(
         string memory venue,
-        OptionType optionType,
+        ProtocolAdapterTypes.OptionType optionType,
         uint256 amount,
         uint256 strikePrice,
         bytes memory buyData,
@@ -315,76 +263,89 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         require(adapterAddress != address(0), "Adapter does not exist");
         IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
 
-        require(optionType != OptionType.Invalid, "Invalid option type");
-
-        PurchaseMethod purchaseMethod = adapter.purchaseMethod();
-
         require(
-            purchaseMethod != PurchaseMethod.Invalid,
-            "Invalid purchase method"
+            optionType != ProtocolAdapterTypes.OptionType.Invalid,
+            "Invalid option type"
         );
 
-        if (purchaseMethod == PurchaseMethod.Contract) {
+        uint256 _expiry = expiry;
+
+        Venues venueID = getVenueID(venue);
+
+        if (venueID == Venues.OpynGamma) {
+            purchaseWithZeroEx(
+                adapter,
+                optionType,
+                strikePrice,
+                buyData,
+                _expiry
+            );
+        } else if (venueID == Venues.Hegic) {
             optionID = purchaseWithContract(
                 adapter,
                 optionType,
                 amount,
                 strikePrice,
                 paymentToken,
-                maxCost
+                maxCost,
+                _expiry
             );
-        } else if (purchaseMethod == PurchaseMethod.ZeroEx) {
-            purchaseWithZeroEx(adapter, optionType, strikePrice, buyData);
+        } else {
+            revert("Venue not supported");
         }
     }
 
     function purchaseWithContract(
         IProtocolAdapter adapter,
-        OptionType optionType,
+        ProtocolAdapterTypes.OptionType optionType,
         uint256 amount,
         uint256 strikePrice,
         address paymentToken,
-        uint256 maxCost
+        uint256 maxCost,
+        uint256 _expiry
     ) private returns (uint32 optionID) {
-        OptionTerms memory optionTerms =
-            OptionTerms(
+        ProtocolAdapterTypes.OptionTerms memory optionTerms =
+            ProtocolAdapterTypes.OptionTerms(
                 underlying,
                 strikeAsset,
                 collateralAsset,
-                expiry,
+                _expiry,
                 strikePrice,
                 optionType,
                 paymentToken
             );
 
-        uint256 optionID256 = adapter.delegatePurchase(optionTerms, amount, maxCost);
+        uint256 optionID256 =
+            adapter.delegatePurchase(optionTerms, amount, maxCost);
         optionID = uint32(optionID256);
     }
 
     function purchaseWithZeroEx(
         IProtocolAdapter adapter,
-        OptionType optionType,
+        ProtocolAdapterTypes.OptionType optionType,
         uint256 strikePrice,
-        bytes memory buyData
+        bytes memory buyData,
+        uint256 _expiry
     ) private {
-        OptionTerms memory optionTerms =
-            OptionTerms(
+        ProtocolAdapterTypes.OptionTerms memory optionTerms =
+            ProtocolAdapterTypes.OptionTerms(
                 underlying,
                 strikeAsset,
                 collateralAsset,
-                expiry,
+                _expiry,
                 strikePrice,
                 optionType,
                 address(0)
             );
 
-        ZeroExOrder memory zeroExOrder = abi.decode(buyData, (ZeroExOrder));
+        ProtocolAdapterTypes.ZeroExOrder memory zeroExOrder =
+            abi.decode(buyData, (ProtocolAdapterTypes.ZeroExOrder));
 
         adapter.delegatePurchaseWithZeroEx(optionTerms, zeroExOrder);
     }
 
     function exercisePosition(uint256 positionID)
-        public
+        external
         nonReentrant
         returns (uint256 totalProfit)
     {
@@ -394,32 +355,32 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
 
         bool[] memory optionsExercised = new bool[](2);
         uint8[] memory venues = new uint8[](2);
-        venues[0] = position.callVenue;
-        venues[1] = position.putVenue;
+        venues[0] = position.putVenue;
+        venues[1] = position.callVenue;
 
         for (uint256 i = 0; i < venues.length; i++) {
             string memory adapterName = getAdapterName(venues[i]);
             IProtocolAdapter adapter =
                 IProtocolAdapter(factory.getAdapter(adapterName));
 
-            OptionType optionType;
+            ProtocolAdapterTypes.OptionType optionType;
             uint256 strikePrice;
             uint32 optionID;
             if (i == 0) {
-                strikePrice = position.callStrikePrice;
-                optionID = position.callOptionID;
-                optionType = OptionType.Call;
-            } else {
                 strikePrice = position.putStrikePrice;
                 optionID = position.putOptionID;
-                optionType = OptionType.Put;
+                optionType = ProtocolAdapterTypes.OptionType.Put;
+            } else {
+                strikePrice = position.callStrikePrice;
+                optionID = position.callOptionID;
+                optionType = ProtocolAdapterTypes.OptionType.Call;
             }
 
             address paymentToken = address(0); // it is irrelevant at this stage
 
             address optionsAddress =
                 adapter.getOptionsAddress(
-                    OptionTerms(
+                    ProtocolAdapterTypes.OptionTerms(
                         underlying,
                         strikeAsset,
                         collateralAsset,
@@ -458,13 +419,13 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         emit Exercised(msg.sender, positionID, totalProfit, optionsExercised);
     }
 
-    function claimRewards(address rewardsAddress)
-        external
-    {
-      IProtocolAdapter adapter = IProtocolAdapter(factory.getAdapter("HEGIC"));
-      uint256[] memory optionIDs = getOptionIDs(msg.sender);
-      uint256 claimedRewards = adapter.delegateClaimRewards(rewardsAddress, optionIDs);
-      emit ClaimedRewards(claimedRewards);
+    function claimRewards(address rewardsAddress) external {
+        IProtocolAdapter adapter =
+            IProtocolAdapter(factory.getAdapter("HEGIC"));
+        uint256[] memory optionIDs = getOptionIDs(msg.sender);
+        uint256 claimedRewards =
+            adapter.delegateClaimRewards(rewardsAddress, optionIDs);
+        emit ClaimedRewards(claimedRewards);
     }
 
     function rewardsClaimable(address rewardsAddress)
@@ -472,9 +433,13 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
         view
         returns (uint256 rewardsToClaim)
     {
-      IProtocolAdapter adapter = IProtocolAdapter(factory.getAdapter("HEGIC"));
-      uint256[] memory optionIDs = getOptionIDs(msg.sender);
-      rewardsToClaim = adapter.delegateRewardsClaimable(rewardsAddress, optionIDs);
+        IProtocolAdapter adapter =
+            IProtocolAdapter(factory.getAdapter("HEGIC"));
+        uint256[] memory optionIDs = getOptionIDs(msg.sender);
+        rewardsToClaim = adapter.delegateRewardsClaimable(
+            rewardsAddress,
+            optionIDs
+        );
     }
 
     function getOptionIDs(address user)
@@ -489,16 +454,22 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
 
         optionIDs = new uint256[](positions.length.mul(2));
 
-        while(i < positions.length){
-          if(keccak256(bytes(getAdapterName(positions[i].callVenue))) == hegicHash){
-            optionIDs[j] = positions[i].callOptionID;
-            j += 1;
-          }
-          if(keccak256(bytes(getAdapterName(positions[i].putVenue))) == hegicHash){
-            optionIDs[j] = positions[i].putOptionID;
-            j += 1;
-          }
-          i+=1;
+        while (i < positions.length) {
+            if (
+                keccak256(bytes(getAdapterName(positions[i].callVenue))) ==
+                hegicHash
+            ) {
+                optionIDs[j] = positions[i].callOptionID;
+                j += 1;
+            }
+            if (
+                keccak256(bytes(getAdapterName(positions[i].putVenue))) ==
+                hegicHash
+            ) {
+                optionIDs[j] = positions[i].putOptionID;
+                j += 1;
+            }
+            i += 1;
         }
     }
 

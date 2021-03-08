@@ -1,10 +1,10 @@
 const { expect, assert } = require("chai");
-const { BigNumber } = require("ethers");
+const { BigNumber, constants } = require("ethers");
 const { parseUnits } = require("ethers/lib/utils");
 const { ethers } = require("hardhat");
-const { signOrderForSwap } = require("./helpers/signature");
 const { provider, getContractAt } = ethers;
 const { parseEther } = ethers.utils;
+const { createOrder, signTypedDataOrder } = require("@airswap/utils");
 
 const time = require("./helpers/time");
 const {
@@ -14,6 +14,7 @@ const {
   setupOracle,
   setOpynOracleExpiryPrice,
 } = require("./helpers/utils");
+const { assertEvent } = require("@openzeppelin/upgrades");
 
 let owner, user;
 let userSigner, ownerSigner, managerSigner, counterpartySigner;
@@ -22,10 +23,11 @@ const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const SWAP_ADDRESS = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
+const SWAP_CONTRACT = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
+const TRADER_AFFILIATE = "0xFf98F0052BdA391F8FaD266685609ffb192Bef25";
 
 const LOCKED_RATIO = parseEther("0.9");
 const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
-const WITHDRAWAL_FEE = parseEther("0.01");
 const gasPrice = parseUnits("10", "gwei");
 
 describe("RibbonETHCoveredCall", () => {
@@ -58,8 +60,10 @@ describe("RibbonETHCoveredCall", () => {
     } = await getDefaultArgs();
     await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address);
 
-    const initializeTypes = ["address", "address"];
-    const initializeArgs = [owner, factory.address];
+    this.factory = factory;
+
+    const initializeTypes = ["address", "address", "uint256"];
+    const initializeArgs = [owner, factory.address, parseEther("500")];
 
     this.vault = (
       await deployProxy(
@@ -100,6 +104,20 @@ describe("RibbonETHCoveredCall", () => {
     await time.revertToSnapShot(initSnapshotId);
   });
 
+  describe("#initialize", () => {
+    it("initializes with correct values", async function () {
+      assert.equal((await this.vault.cap()).toString(), parseEther("500"));
+      assert.equal(await this.vault.factory(), this.factory.address);
+      assert.equal(await this.vault.owner(), owner);
+    });
+
+    it("cannot be initialized twice", async function () {
+      await expect(
+        this.vault.initialize(owner, this.factory.address, parseEther("500"))
+      ).to.be.revertedWith("Initializable: contract is already initialized");
+    });
+  });
+
   describe("#name", () => {
     it("returns the name", async function () {
       assert.equal(await this.vault.name(), "Ribbon ETH Covered Call Vault");
@@ -132,6 +150,12 @@ describe("RibbonETHCoveredCall", () => {
 
   describe("#setManager", () => {
     time.revertToSnapshotAfterTest();
+
+    it("reverts when setting 0x0 as manager", async function () {
+      await expect(
+        this.vault.connect(ownerSigner).setManager(constants.AddressZero)
+      ).to.be.revertedWith("New manager cannot be 0x0");
+    });
 
     it("reverts when not owner call", async function () {
       await expect(this.vault.setManager(manager)).to.be.revertedWith(
@@ -213,7 +237,7 @@ describe("RibbonETHCoveredCall", () => {
       );
       expect(res)
         .to.emit(this.vault, "Deposit")
-        .withArgs(user, parseEther("1"), parseEther("0.75"));
+        .withArgs(counterparty, parseEther("1"), parseEther("0.75"));
     });
 
     it("accounts for the amounts that are locked", async function () {
@@ -242,6 +266,12 @@ describe("RibbonETHCoveredCall", () => {
         (await this.vault.balanceOf(counterparty)).toString(),
         parseEther("0.75")
       );
+    });
+
+    it("reverts when no value passed", async function () {
+      await expect(
+        this.vault.connect(userSigner).depositETH({ value: 0 })
+      ).to.be.revertedWith("No value passed");
     });
   });
 
@@ -835,4 +865,74 @@ describe("RibbonETHCoveredCall", () => {
       );
     });
   });
+
+  describe("#setCap", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("should revert if not manager", async function () {
+      await expect(
+        this.vault.connect(userSigner).setCap(parseEther("10"))
+      ).to.be.revertedWith("Only manager");
+    });
+
+    it("should set the new cap", async function () {
+      await this.vault.connect(managerSigner).setCap(parseEther("10"));
+      assert.equal((await this.vault.cap()).toString(), parseEther("10"));
+    });
+
+    it("should revert when depositing over the cap", async function () {
+      await this.vault.connect(managerSigner).setCap(parseEther("1"));
+
+      await expect(
+        this.vault.depositETH({
+          value: parseEther("1").add(BigNumber.from("1")),
+        })
+      ).to.be.revertedWith("Cap exceeded");
+    });
+  });
+
+  describe("#currentOptionExpiry", () => {
+    it("should return 0 when currentOption not set", async function () {
+      assert.equal((await this.vault.currentOptionExpiry()).toString(), "0");
+    });
+  });
+
+  describe("#decimals", () => {
+    it("should return 18 for decimals", async function () {
+      assert.equal((await this.vault.decimals()).toString(), "18");
+    });
+  });
 });
+
+async function signOrderForSwap({
+  vaultAddress,
+  counterpartyAddress,
+  sellToken,
+  buyToken,
+  sellAmount,
+  buyAmount,
+  signerPrivateKey,
+}) {
+  let order = createOrder({
+    signer: {
+      wallet: vaultAddress,
+      token: sellToken,
+      amount: sellAmount,
+    },
+    sender: {
+      wallet: counterpartyAddress,
+      token: buyToken,
+      amount: buyAmount,
+    },
+    affiliate: {
+      wallet: TRADER_AFFILIATE,
+    },
+  });
+
+  const signedOrder = await signTypedDataOrder(
+    order,
+    signerPrivateKey,
+    SWAP_CONTRACT
+  );
+  return signedOrder;
+}

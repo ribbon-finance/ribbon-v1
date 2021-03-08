@@ -2,7 +2,7 @@
 pragma solidity >=0.7.2;
 pragma experimental ABIEncoderV2;
 
-import {OptionType} from "../adapters/IProtocolAdapter.sol";
+import {ProtocolAdapterTypes} from "../adapters/IProtocolAdapter.sol";
 
 struct InstrumentPosition {
     bool exercised;
@@ -18,7 +18,7 @@ struct InstrumentPosition {
 interface IAggregatedOptionsInstrument {
     function cost(
         string[] calldata venues,
-        OptionType[] calldata optionTypes,
+        ProtocolAdapterTypes.OptionType[] calldata optionTypes,
         uint256[] calldata amounts,
         uint256[] calldata strikePrices
     ) external view returns (uint256);
@@ -35,7 +35,7 @@ interface IAggregatedOptionsInstrument {
 
     function buyInstrument(
         string[] calldata venues,
-        OptionType[] calldata optionTypes,
+        ProtocolAdapterTypes.OptionType[] calldata optionTypes,
         uint256 amount,
         uint256[] calldata strikePrices,
         bytes[] calldata buyData

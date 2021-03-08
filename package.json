@@ -11,6 +11,7 @@
     "@airswap/utils": "0.4.2",
     "@chainlink/contracts": "0.0.10",
     "@openzeppelin/contracts": "^3.2.0",
+    "@openzeppelin/contracts-upgradeable": "^3.4.1",
     "@openzeppelin/upgrades": "^2.8.0",
     "axios": "^0.21.1",
     "truffle-contract-size": "^2.0.0",
@@ -31,19 +32,24 @@
     "hardhat-log-remover": "^2.0.0",
     "husky": "^4.3.0",
     "mocha": "^8.1.3",
+    "moment": "^2.29.1",
     "sol-merger": "^3.1.0",
+    "solidity-coverage": "^0.7.16",
     "truffle": "^5.1.47",
+    "ts-node": "^9.1.1",
+    "typescript": "^4.2.3",
     "verify-on-etherscan": "^1.2.1",
     "web3": "^1.3.1"
   },
   "scripts": {
     "compile": "npx hardhat compile",
     "test": "npx hardhat test",
-    "verify": " npx truffle run verify RibbonFactory HegicAdapter GammaAdapter ProtocolAdapter AdminUpgradeabilityProxy RibbonVolatility RibbonETHCoveredCall --network mainnet --license MIT",
+    "verify": "npx truffle run verify RibbonFactory HegicAdapter GammaAdapter ProtocolAdapter AdminUpgradeabilityProxy RibbonVolatility RibbonETHCoveredCall --network mainnet --license MIT",
     "merge-contracts": "sol-merger  --export-plugin SPDXLicenseRemovePlugin \"./contracts/**/*.sol\" ./build/merged",
     "export-artefacts": "node ./scripts/exportArtefacts.js",
     "upgrade-instrument": "node ./scripts/upgradeInstrument.js",
     "ganache": "ganache-cli --fork \"`node scripts/helpers/printTestURI.js`@`node scripts/helpers/getCurrentBlock.js`\" --forkCacheSize '-1'",
-    "clean-logs": "yarn run hardhat remove-logs"
+    "clean-logs": "yarn run hardhat remove-logs",
+    "coverage": "npx hardhat coverage --testfiles 'test/**.js'"
   }
 }

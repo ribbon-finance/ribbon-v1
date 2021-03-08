@@ -160,7 +160,7 @@ describe("GammaAdapter", () => {
     purchaseAmount: parseEther("0.1"),
     shortAmount: parseEther("1"),
     exerciseProfit: BigNumber.from("12727272727272727"),
-    premium: "50329523139774375",
+    premium: "50587453335072052",
   });
 
   behavesLikeOTokens({
@@ -176,7 +176,7 @@ describe("GammaAdapter", () => {
     purchaseAmount: parseEther("0.1"),
     shortAmount: parseEther("1"),
     exerciseProfit: BigNumber.from("0"),
-    premium: "18271767935676968",
+    premium: "18292499493934936",
   });
 
   behavesLikeOTokens({
@@ -192,7 +192,7 @@ describe("GammaAdapter", () => {
     purchaseAmount: parseEther("0.1"),
     shortAmount: BigNumber.from("1000000000"),
     exerciseProfit: BigNumber.from("0"),
-    premium: "16125055430257410",
+    premium: "16411974349332756",
   });
 });
 
@@ -335,11 +335,6 @@ function behavesLikeOTokens(params) {
             user,
             ethers.utils.keccak256(ethers.utils.toUtf8Bytes(this.protocolName)),
             this.underlying,
-            this.strikeAsset,
-            this.expiry,
-            this.strikePrice,
-            this.optionType,
-            this.scaleDecimals(this.purchaseAmount),
             this.premium,
             "0"
           );
@@ -618,6 +613,15 @@ function behavesLikeOTokens(params) {
             .sub(startWETHBalance)
             .toString(),
           shortOutcome
+        );
+      });
+    });
+
+    describe("#getOptionsAddress", () => {
+      it("returns the correct otoken address", async function () {
+        assert.equal(
+          await this.adapter.getOptionsAddress(this.optionTerms),
+          this.oTokenAddress
         );
       });
     });

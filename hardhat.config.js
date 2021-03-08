@@ -6,6 +6,8 @@ require("@nomiclabs/hardhat-waffle");
 
 require("hardhat-log-remover");
 
+require("solidity-coverage");
+
 require("dotenv").config();
 
 process.env.TEST_MNEMONIC =

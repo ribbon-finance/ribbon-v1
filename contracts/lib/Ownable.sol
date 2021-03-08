@@ -25,7 +25,7 @@ abstract contract Ownable {
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
      */
-    function initialize(address newOwner) public {
+    function initialize(address newOwner) internal {
         _owner = newOwner;
         emit OwnershipTransferred(address(0), newOwner);
     }

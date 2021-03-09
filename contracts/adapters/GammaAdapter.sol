@@ -423,7 +423,6 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         GammaTypes.Vault memory vault =
             controller.getVault(address(this), vaultID);
 
-        require(vault.collateralAssets.length > 0, "No active vault");
         require(vault.shortOtokens.length > 0, "No active short");
 
         IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
@@ -432,9 +431,10 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         bool settlementAllowed =
             isSettlementAllowed(
                 otoken.underlyingAsset(),
-                otoken.isPut(),
                 otoken.expiryTimestamp()
             );
+
+        IController.ActionArgs[] memory actions;
 
         // If it is after expiry, we need to settle the short position using the normal way
         // Delete the vault and withdraw all remaining collateral from the vault
@@ -444,8 +444,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
             uint256 startCollateralBalance =
                 collateralToken.balanceOf(address(this));
 
-            IController.ActionArgs[] memory actions =
-                new IController.ActionArgs[](1);
+            actions = new IController.ActionArgs[](1);
 
             actions[0] = IController.ActionArgs(
                 IController.ActionType.SettleVault,
@@ -466,27 +465,64 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
             return endCollateralBalance.sub(startCollateralBalance);
         }
 
-        // approve otoken burn
+        // Burning otokens given by vault.shortAmounts[0] (closing the entire short position),
+        // then withdrawing all the collateral from the vault
+        actions = new IController.ActionArgs[](2);
+
+        actions[0] = IController.ActionArgs(
+            IController.ActionType.BurnShortOption,
+            address(this), // owner
+            address(this), // address to transfer to
+            address(otoken), // otoken address
+            vaultID, // vaultId
+            vault.shortAmounts[0], // amount
+            0, //index
+            "" //data
+        );
+
+        actions[1] = IController.ActionArgs(
+            IController.ActionType.WithdrawCollateral,
+            address(this), // owner
+            address(this), // address to transfer to
+            address(collateralToken), // withdrawn asset
+            vaultID, // vaultId
+            vault.collateralAmounts[0], // amount
+            0, //index
+            "" //data
+        );
+
+        controller.operate(actions);
+
+        uint256 proceed = controller.getProceed(address(this), vaultID);
+        console.log(
+            "proceed %s, shortAmount %s",
+            proceed,
+            vault.collateralAmounts[0]
+        );
     }
 
     /**
      * @notice Gas-optimized getter for checking if settlement is allowed. Looks up from the oracles with asset address and expiry
      */
-    function isSettlementAllowed(
-        address underlying,
-        bool isPut,
-        uint256 expiry
-    ) private view returns (bool) {
+    function isSettlementAllowed(address underlying, uint256 expiry)
+        private
+        view
+        returns (bool)
+    {
         IController controller = IController(gammaController);
         OracleInterface oracle = OracleInterface(controller.oracle());
 
         bool underlyingFinalized =
             oracle.isDisputePeriodOver(underlying, expiry);
-        bool strikeFinalized = oracle.isDisputePeriodOver(USDC, expiry);
-        bool collateralFinalized =
-            oracle.isDisputePeriodOver(isPut ? USDC : underlying, expiry);
 
-        return underlyingFinalized && strikeFinalized && collateralFinalized;
+        bool strikeFinalized = oracle.isDisputePeriodOver(USDC, expiry);
+
+        // We can avoid checking the dispute period for the collateral for now
+        // Because the collateral is either the underlying or USDC at this point
+        // We do not have, for example, ETH-collateralized UNI otoken vaults
+        // bool collateralFinalized = oracle.isDisputePeriodOver(isPut ? USDC : underlying, expiry);
+
+        return underlyingFinalized && strikeFinalized;
     }
 
     function assetDecimals(address asset) private pure returns (uint256) {

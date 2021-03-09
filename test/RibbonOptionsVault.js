@@ -450,7 +450,62 @@ describe("RibbonETHCoveredCall", () => {
     //   ).to.be.revertedWith("Otoken not expired");
     // });
 
-    it("withdraws and roll funds into next option, ITM", async function () {
+    it("burns otokens and withdraws from vault, before expiry, OTM", async function () {
+      const firstOption = "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3";
+      const secondOption = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
+
+      const firstTx = await this.vault
+        .connect(managerSigner)
+        .rollToNextOption(
+          [
+            WETH_ADDRESS,
+            USDC_ADDRESS,
+            WETH_ADDRESS,
+            "1610697600",
+            parseEther("1480"),
+            2,
+            WETH_ADDRESS,
+          ],
+          { from: manager }
+        );
+
+      expect(firstTx)
+        .to.emit(this.vault, "OpenShort")
+        .withArgs(firstOption, wmul(this.depositAmount, LOCKED_RATIO), manager);
+
+      const secondTx = await this.vault
+        .connect(managerSigner)
+        .rollToNextOption(
+          [
+            WETH_ADDRESS,
+            USDC_ADDRESS,
+            WETH_ADDRESS,
+            "1614326400",
+            parseEther("960"),
+            2,
+            WETH_ADDRESS,
+          ],
+          { from: manager }
+        );
+
+      assert.equal(await this.vault.currentOption(), secondOption);
+      assert.equal(await this.vault.currentOptionExpiry(), 1614326400);
+
+      expect(secondTx)
+        .to.emit(this.vault, "CloseShort")
+        .withArgs(firstOption, parseEther("0.8325"), manager);
+
+      expect(secondTx)
+        .to.emit(this.vault, "OpenShort")
+        .withArgs(secondOption, parseEther("0.92925"), manager);
+
+      assert.equal(
+        (await this.weth.balanceOf(this.vault.address)).toString(),
+        parseEther("0.10325").toString()
+      );
+    });
+
+    it("withdraws and roll funds into next option, after expiry ITM", async function () {
       const firstOption = "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3";
       const secondOption = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
 
@@ -534,7 +589,7 @@ describe("RibbonETHCoveredCall", () => {
       );
     });
 
-    it("withdraws and roll funds into next option, OTM", async function () {
+    it("withdraws and roll funds into next option, after expiry OTM", async function () {
       const firstOption = "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3";
       const secondOption = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
 

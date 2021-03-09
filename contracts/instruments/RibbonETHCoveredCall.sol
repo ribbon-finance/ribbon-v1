@@ -67,9 +67,14 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
     constructor(address _factory) {
+        require(_factory != address(0), "!_factory");
         IRibbonFactory factoryInstance = IRibbonFactory(_factory);
+
+        address adapterAddr = factoryInstance.getAdapter(_adapterName);
+        require(adapterAddr != address(0), "Adapter not set");
+
         factory = factoryInstance;
-        adapter = IProtocolAdapter(factoryInstance.getAdapter(_adapterName));
+        adapter = IProtocolAdapter(adapterAddr);
     }
 
     /**

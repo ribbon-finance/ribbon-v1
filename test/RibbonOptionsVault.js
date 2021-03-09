@@ -60,6 +60,7 @@ describe("RibbonETHCoveredCall", () => {
     await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address);
 
     this.factory = factory;
+    this.protocolAdapterLib = protocolAdapterLib;
 
     const initializeTypes = ["address", "uint256"];
     const initializeArgs = [owner, parseEther("500")];
@@ -103,6 +104,41 @@ describe("RibbonETHCoveredCall", () => {
 
   after(async () => {
     await time.revertToSnapShot(initSnapshotId);
+  });
+
+  describe("constructor", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("reverts when deployed with 0x0 factory", async function () {
+      const VaultContract = await ethers.getContractFactory(
+        "RibbonETHCoveredCall",
+        {
+          libraries: {
+            ProtocolAdapter: this.protocolAdapterLib.address,
+          },
+        }
+      );
+      await expect(
+        VaultContract.deploy(constants.AddressZero)
+      ).to.be.revertedWith("!_factory");
+    });
+
+    it("reverts when adapter not set yet", async function () {
+      const VaultContract = await ethers.getContractFactory(
+        "RibbonETHCoveredCall",
+        {
+          libraries: {
+            ProtocolAdapter: this.protocolAdapterLib.address,
+          },
+        }
+      );
+
+      await this.factory.setAdapter("OPYN_GAMMA", constants.AddressZero);
+
+      await expect(
+        VaultContract.deploy(this.factory.address)
+      ).to.be.revertedWith("Adapter not set");
+    });
   });
 
   describe("#initialize", () => {

@@ -15,7 +15,7 @@ const rHEGICJSON = require("../constants/abis/rHEGIC2.json");
 
 let owner, user;
 let userSigner;
-const gasPrice = parseUnits("10", "gwei");
+const gasPrice = parseUnits("1", "gwei");
 
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;

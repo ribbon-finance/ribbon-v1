@@ -27,7 +27,7 @@ const TRADER_AFFILIATE = "0xFf98F0052BdA391F8FaD266685609ffb192Bef25";
 
 const LOCKED_RATIO = parseEther("0.9");
 const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
-const gasPrice = parseUnits("10", "gwei");
+const gasPrice = parseUnits("1", "gwei");
 
 describe("RibbonETHCoveredCall", () => {
   let initSnapshotId;

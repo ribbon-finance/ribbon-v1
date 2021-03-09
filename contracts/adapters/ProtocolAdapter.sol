@@ -4,6 +4,9 @@ pragma experimental ABIEncoderV2;
 
 import {IProtocolAdapter, ProtocolAdapterTypes} from "./IProtocolAdapter.sol";
 
+/**
+ * @notice ProtocolAdapter is used to shadow IProtocolAdapter to provide functions that delegatecall's the underlying IProtocolAdapter functions.
+ */
 library ProtocolAdapter {
     function delegateOptionsExist(
         IProtocolAdapter adapter,
@@ -48,7 +51,7 @@ library ProtocolAdapter {
                     purchaseAmount
                 )
             );
-        require(success, "premium staticcall failed");
+        revertWhenFail(success, result);
         return abi.decode(result, (uint256));
     }
 
@@ -123,7 +126,7 @@ library ProtocolAdapter {
                     recipient
                 )
             );
-        require(success, getRevertMsg(result));
+        revertWhenFail(success, result);
     }
 
     function delegateClaimRewards(
@@ -173,7 +176,7 @@ library ProtocolAdapter {
                     amount
                 )
             );
-        require(success, getRevertMsg(result));
+        revertWhenFail(success, result);
         return abi.decode(result, (uint256));
     }
 
@@ -203,7 +206,7 @@ library ProtocolAdapter {
         returns (string memory)
     {
         // If the _res length is less than 68, then the transaction failed silently (without a revert message)
-        if (_returnData.length < 68) return "Transaction reverted silently";
+        if (_returnData.length < 68) return "ProtocolAdapter: reverted";
 
         assembly {
             // Slice the sighash.

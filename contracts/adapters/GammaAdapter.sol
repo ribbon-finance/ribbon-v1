@@ -19,7 +19,6 @@ import {
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {DSMath} from "../lib/DSMath.sol";
-import "hardhat/console.sol";
 
 contract GammaAdapter is IProtocolAdapter, DSMath {
     using SafeMath for uint256;

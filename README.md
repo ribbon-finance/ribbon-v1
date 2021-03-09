@@ -99,3 +99,13 @@ The merged contract files are in the `build/merged/` directory. Run slither on i
 slither build/merged/RibbonETHCoveredCall.sol
 slither build/merged/GammaAdapter.sol
 ```
+
+## Test coverage
+
+We use solidity-coverage for testing contract coverage. Run:
+
+```
+yarn coverage
+```
+
+And then you can browse the `coverage/index.html`.

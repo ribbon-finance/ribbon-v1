@@ -178,6 +178,8 @@ function behavesLikeRibbonVolatility(params) {
     let snapshotId, initSnapshotId;
 
     before(async function () {
+      initSnapshotId = await time.takeSnapshot();
+
       [adminSigner, ownerSigner, userSigner] = await ethers.getSigners();
       admin = adminSigner.address;
       owner = ownerSigner.address;
@@ -370,15 +372,14 @@ function behavesLikeRibbonVolatility(params) {
           this.contract.address,
           parseUnits("10", 8)
         );
-
-      initSnapshotId = await time.takeSnapshot();
     });
 
     after(async () => {
       await time.revertToSnapShot(initSnapshotId);
     });
 
-    describe("#canExercise [ @skip-on-coverage ]", () => {
+    describe.skip("#canExercise", () => {
+      let snapshotId;
       beforeEach(async () => {
         snapshotId = await time.takeSnapshot();
       });
@@ -411,7 +412,7 @@ function behavesLikeRibbonVolatility(params) {
       });
     });
 
-    describe("#buyInstrument [ @skip-on-coverage ]", () => {
+    describe("#buyInstrument", () => {
       let snapshotId;
 
       beforeEach(async () => {
@@ -524,7 +525,7 @@ function behavesLikeRibbonVolatility(params) {
       });
     });
 
-    describe("#exercisePosition [ @skip-on-coverage ]", () => {
+    describe("#exercisePosition", () => {
       let snapshotId;
 
       beforeEach(async function () {
@@ -617,7 +618,7 @@ function behavesLikeRibbonVolatility(params) {
       });
     });
 
-    describe("#exerciseProfit [ @skip-on-coverage ]", () => {
+    describe("#exerciseProfit", () => {
       let snapshotId;
 
       beforeEach(async () => {
@@ -629,7 +630,6 @@ function behavesLikeRibbonVolatility(params) {
       });
 
       it("returns the exercise profit", async function () {
-        snapshotId = await time.takeSnapshot();
         await this.contract.buyInstrument(this.buyInstrumentParams, {
           from: user,
           value: this.totalPremium,
@@ -658,15 +658,12 @@ function behavesLikeRibbonVolatility(params) {
     });
 
     describe("#numOfPositions", () => {
-      beforeEach(async function () {
+      time.revertToSnapshotAfterEach(async function () {
         await this.contract.buyInstrument(this.buyInstrumentParams, {
           from: user,
           value: this.totalPremium,
+          gasPrice: this.gasPrice,
         });
-      });
-
-      afterEach(async () => {
-        await time.revertToSnapShot(initSnapshotId);
       });
 
       it("gets the number of positions", async function () {

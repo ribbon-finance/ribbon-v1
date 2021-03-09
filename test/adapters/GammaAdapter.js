@@ -277,7 +277,7 @@ function behavesLikeOTokens(params) {
       });
     });
 
-    describe("#purchaseWithZeroEx [ @skip-on-coverage ]", () => {
+    describe("#purchaseWithZeroEx", () => {
       let snapshotId;
 
       beforeEach(async () => {
@@ -348,7 +348,7 @@ function behavesLikeOTokens(params) {
       });
     });
 
-    describe("#exercise [ @skip-on-coverage ]", () => {
+    describe("#exercise", () => {
       let snapshotId;
 
       beforeEach(async function () {
@@ -711,7 +711,7 @@ function calculateZeroExOrderCost(apiResponse) {
   const totalETH =
     scaledSellAmount / parseFloat(apiResponse.sellTokenToEthRate);
 
-  return parseEther(totalETH.toPrecision(6)).add(
+  return parseEther(totalETH.toPrecision(10)).add(
     BigNumber.from(apiResponse.value)
   );
 }

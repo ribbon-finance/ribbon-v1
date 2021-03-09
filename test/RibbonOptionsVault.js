@@ -14,7 +14,6 @@ const {
   setupOracle,
   setOpynOracleExpiryPrice,
 } = require("./helpers/utils");
-const { assertEvent } = require("@openzeppelin/upgrades");
 
 let owner, user;
 let userSigner, ownerSigner, managerSigner, counterpartySigner;
@@ -473,6 +472,12 @@ describe("RibbonETHCoveredCall", () => {
         .to.emit(this.vault, "OpenShort")
         .withArgs(firstOption, wmul(this.depositAmount, LOCKED_RATIO), manager);
 
+      // 90% of the vault's balance is allocated to short
+      assert.equal(
+        (await this.weth.balanceOf(this.vault.address)).toString(),
+        parseEther("0.1").toString()
+      );
+
       const secondTx = await this.vault
         .connect(managerSigner)
         .rollToNextOption(
@@ -491,17 +496,21 @@ describe("RibbonETHCoveredCall", () => {
       assert.equal(await this.vault.currentOption(), secondOption);
       assert.equal(await this.vault.currentOptionExpiry(), 1614326400);
 
+      // Withdraw the original short position, which is 90% of the vault
       expect(secondTx)
         .to.emit(this.vault, "CloseShort")
-        .withArgs(firstOption, parseEther("0.8325"), manager);
+        .withArgs(firstOption, parseEther("0.9"), manager);
 
       expect(secondTx)
         .to.emit(this.vault, "OpenShort")
-        .withArgs(secondOption, parseEther("0.92925"), manager);
+        .withArgs(secondOption, parseEther("0.9"), manager);
 
+      // should still be 10% because the 90% withdrawn from the 1st short
+      // is re-allocated back into the
+      // should return back to the original amount now that the short is closed
       assert.equal(
         (await this.weth.balanceOf(this.vault.address)).toString(),
-        parseEther("0.10325").toString()
+        parseEther("0.1").toString()
       );
     });
 

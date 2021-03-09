@@ -434,6 +434,9 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
                 otoken.expiryTimestamp()
             );
 
+        uint256 startCollateralBalance =
+            collateralToken.balanceOf(address(this));
+
         IController.ActionArgs[] memory actions;
 
         // If it is after expiry, we need to settle the short position using the normal way
@@ -441,9 +444,6 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         //
         // If it is before expiry, we need to burn otokens in order to withdraw collateral from the vault
         if (settlementAllowed) {
-            uint256 startCollateralBalance =
-                collateralToken.balanceOf(address(this));
-
             actions = new IController.ActionArgs[](1);
 
             actions[0] = IController.ActionArgs(
@@ -458,47 +458,39 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
             );
 
             controller.operate(actions);
+        } else {
+            // Burning otokens given by vault.shortAmounts[0] (closing the entire short position),
+            // then withdrawing all the collateral from the vault
+            actions = new IController.ActionArgs[](2);
 
-            uint256 endCollateralBalance =
-                collateralToken.balanceOf(address(this));
+            actions[0] = IController.ActionArgs(
+                IController.ActionType.BurnShortOption,
+                address(this), // owner
+                address(this), // address to transfer to
+                address(otoken), // otoken address
+                vaultID, // vaultId
+                vault.shortAmounts[0], // amount
+                0, //index
+                "" //data
+            );
 
-            return endCollateralBalance.sub(startCollateralBalance);
+            actions[1] = IController.ActionArgs(
+                IController.ActionType.WithdrawCollateral,
+                address(this), // owner
+                address(this), // address to transfer to
+                address(collateralToken), // withdrawn asset
+                vaultID, // vaultId
+                vault.collateralAmounts[0], // amount
+                0, //index
+                "" //data
+            );
+
+            controller.operate(actions);
         }
 
-        // Burning otokens given by vault.shortAmounts[0] (closing the entire short position),
-        // then withdrawing all the collateral from the vault
-        actions = new IController.ActionArgs[](2);
+        uint256 endCollateralBalance = collateralToken.balanceOf(address(this));
 
-        actions[0] = IController.ActionArgs(
-            IController.ActionType.BurnShortOption,
-            address(this), // owner
-            address(this), // address to transfer to
-            address(otoken), // otoken address
-            vaultID, // vaultId
-            vault.shortAmounts[0], // amount
-            0, //index
-            "" //data
-        );
-
-        actions[1] = IController.ActionArgs(
-            IController.ActionType.WithdrawCollateral,
-            address(this), // owner
-            address(this), // address to transfer to
-            address(collateralToken), // withdrawn asset
-            vaultID, // vaultId
-            vault.collateralAmounts[0], // amount
-            0, //index
-            "" //data
-        );
-
-        controller.operate(actions);
-
-        uint256 proceed = controller.getProceed(address(this), vaultID);
-        console.log(
-            "proceed %s, shortAmount %s",
-            proceed,
-            vault.collateralAmounts[0]
-        );
+        return endCollateralBalance.sub(startCollateralBalance);
     }
 
     /**

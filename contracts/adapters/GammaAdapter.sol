@@ -24,11 +24,9 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    address public immutable zeroExExchange;
     address public immutable gammaController;
     address public immutable oTokenFactory;
-    address private immutable _weth;
-    address private immutable _router;
+
     uint256 private constant _swapWindow = 900;
 
     string private constant _name = "OPYN_GAMMA";
@@ -36,29 +34,30 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     address private constant _marginPool =
         0x5934807cC0654d46755eBd2848840b616256C6Ef;
     uint256 private constant OTOKEN_DECIMALS = 10**8;
+
     AggregatorV3Interface private constant _USDCETHPriceFeed =
         AggregatorV3Interface(0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
+
+    address private constant UNISWAP_ROUTER =
+        0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+
+    address private constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
     address private constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
     address private constant ZERO_EX_EXCHANGE_V3 =
         0xDef1C0ded9bec7F1a1670819833240f027b25EfF;
 
-    constructor(
-        address _oTokenFactory,
-        address _gammaController,
-        address weth,
-        address _zeroExExchange,
-        address router
-    ) {
+    /**
+     * @notice Constructor for the GammaAdapter which initializes a few immutable variables to be used by instrument contracts.
+     * @param _oTokenFactory is the Gamma protocol factory contract which spawns otokens https://github.com/opynfinance/GammaProtocol/blob/master/contracts/OtokenFactory.sol
+     * @param _gammaController is a top-level contract which allows users to perform multiple actions in the Gamma protocol https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
+     */
+    constructor(address _oTokenFactory, address _gammaController) {
         require(_oTokenFactory != address(0), "!_oTokenFactory");
-        require(_zeroExExchange != address(0), "!_zeroExExchange");
         require(_gammaController != address(0), "!_gammaController");
-        require(weth != address(0), "!weth");
-        require(router != address(0), "!router");
         oTokenFactory = _oTokenFactory;
-        zeroExExchange = _zeroExExchange;
         gammaController = _gammaController;
-        _weth = weth;
-        _router = router;
     }
 
     receive() external payable {}
@@ -181,10 +180,10 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
             "Value cannot cover protocolFee"
         );
 
-        IUniswapV2Router02 router = IUniswapV2Router02(_router);
+        IUniswapV2Router02 router = IUniswapV2Router02(UNISWAP_ROUTER);
 
         address[] memory path = new address[](2);
-        path[0] = _weth;
+        path[0] = WETH;
         path[1] = zeroExOrder.sellTokenAddress;
 
         (, int256 latestPrice, , , ) = _USDCETHPriceFeed.latestRoundData();
@@ -305,9 +304,9 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
             "Not enough collateral from exercising"
         );
 
-        IUniswapV2Router02 router = IUniswapV2Router02(_router);
+        IUniswapV2Router02 router = IUniswapV2Router02(UNISWAP_ROUTER);
 
-        IWETH weth = IWETH(_weth);
+        IWETH weth = IWETH(WETH);
 
         if (collateral == address(weth)) {
             profitInUnderlying = profitInCollateral;
@@ -347,7 +346,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
 
         address collateralAsset = optionTerms.collateralAsset;
         if (collateralAsset == address(0)) {
-            collateralAsset = _weth;
+            collateralAsset = WETH;
         }
         IERC20 collateralToken = IERC20(collateralAsset);
 
@@ -540,7 +539,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         address underlying = optionTerms.underlying;
 
         if (optionTerms.underlying == address(0)) {
-            underlying = _weth;
+            underlying = WETH;
         }
 
         // Put otokens have USDC as the backing collateral

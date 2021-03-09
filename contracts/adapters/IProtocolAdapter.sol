@@ -30,6 +30,17 @@ library ProtocolAdapterTypes {
         address paymentToken;
     }
 
+    /**
+     * @notice 0x order for purchasing otokens
+     * @param exchangeAddress [deprecated] is the address we call to conduct a 0x trade. Slither flagged this as a potential vulnerability so we hardcoded it.
+     * @param buyTokenAddress is the otoken address
+     * @param sellTokenAddress is the token used to purchase USDC. This is USDC most of the time.
+     * @param allowanceTarget is the address the adapter needs to provide sellToken allowance to so the swap happens
+     * @param protocolFee is the fee paid (in ETH) when conducting the trade
+     * @param makerAssetAmount is the buyToken amount
+     * @param takerAssetAmount is the sellToken amount
+     * @param swapData is the encoded msg.data passed by the 0x api response
+     */
     struct ZeroExOrder {
         address exchangeAddress;
         address buyTokenAddress;
@@ -154,10 +165,18 @@ interface IProtocolAdapter {
         address recipient
     ) external payable;
 
+    /**
+     * @notice Opens a short position for a given `optionTerms`.
+     * @param optionTerms is the terms of the option contract
+     * @param amount is the short position amount
+     */
     function createShort(
         ProtocolAdapterTypes.OptionTerms calldata optionTerms,
         uint256 amount
     ) external returns (uint256);
 
+    /**
+     * @notice Closes an existing short position. In the future, we may want to open this up to specifying a particular short position to close.
+     */
     function closeShort() external returns (uint256);
 }

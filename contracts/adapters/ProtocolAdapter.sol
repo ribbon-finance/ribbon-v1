@@ -16,7 +16,7 @@ library ProtocolAdapter {
                     optionTerms
                 )
             );
-        require(success, getRevertMsg(result));
+        revertWhenFail(success, result);
         return abi.decode(result, (bool));
     }
 
@@ -31,7 +31,7 @@ library ProtocolAdapter {
                     optionTerms
                 )
             );
-        require(success, getRevertMsg(result));
+        revertWhenFail(success, result);
         return abi.decode(result, (address));
     }
 
@@ -67,7 +67,7 @@ library ProtocolAdapter {
                     amount
                 )
             );
-        require(success, getRevertMsg(result));
+        revertWhenFail(success, result);
         return abi.decode(result, (uint256));
     }
 
@@ -86,7 +86,7 @@ library ProtocolAdapter {
                     maxCost
                 )
             );
-        require(success, getRevertMsg(result));
+        revertWhenFail(success, result);
         return abi.decode(result, (uint256));
     }
 
@@ -103,7 +103,7 @@ library ProtocolAdapter {
                     zeroExOrder
                 )
             );
-        require(success, getRevertMsg(result));
+        revertWhenFail(success, result);
     }
 
     function delegateExercise(
@@ -113,7 +113,7 @@ library ProtocolAdapter {
         uint256 amount,
         address recipient
     ) external {
-        (bool success, bytes memory res) =
+        (bool success, bytes memory result) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
                     "exercise(address,uint256,uint256,address)",
@@ -123,7 +123,7 @@ library ProtocolAdapter {
                     recipient
                 )
             );
-        require(success, getRevertMsg(res));
+        require(success, getRevertMsg(result));
     }
 
     function delegateClaimRewards(
@@ -139,7 +139,7 @@ library ProtocolAdapter {
                     optionIDs
                 )
             );
-        require(success, getRevertMsg(result));
+        revertWhenFail(success, result);
         return abi.decode(result, (uint256));
     }
 
@@ -156,7 +156,7 @@ library ProtocolAdapter {
                     optionIDs
                 )
             );
-        require(success, getRevertMsg(result));
+        revertWhenFail(success, result);
         return abi.decode(result, (uint256));
     }
 
@@ -165,7 +165,7 @@ library ProtocolAdapter {
         ProtocolAdapterTypes.OptionTerms calldata optionTerms,
         uint256 amount
     ) external returns (uint256) {
-        (bool success, bytes memory res) =
+        (bool success, bytes memory result) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
                     "createShort((address,address,address,uint256,uint256,uint8,address),uint256)",
@@ -173,24 +173,32 @@ library ProtocolAdapter {
                     amount
                 )
             );
-        require(success, getRevertMsg(res));
-        return abi.decode(res, (uint256));
+        require(success, getRevertMsg(result));
+        return abi.decode(result, (uint256));
     }
 
     function delegateCloseShort(IProtocolAdapter adapter)
         external
         returns (uint256)
     {
-        (bool success, bytes memory res) =
+        (bool success, bytes memory result) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature("closeShort()")
             );
-        require(success, getRevertMsg(res));
-        return abi.decode(res, (uint256));
+        require(success, getRevertMsg(result));
+        return abi.decode(result, (uint256));
+    }
+
+    function revertWhenFail(bool success, bytes memory returnData)
+        private
+        pure
+    {
+        if (success) return;
+        revert(getRevertMsg(returnData));
     }
 
     function getRevertMsg(bytes memory _returnData)
-        internal
+        private
         pure
         returns (string memory)
     {

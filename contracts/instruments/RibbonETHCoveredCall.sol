@@ -66,6 +66,9 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
+    /**
+     * @notice Initializes the factory and adapter contract addresses
+     */
     constructor(address _factory) {
         require(_factory != address(0), "!_factory");
         IRibbonFactory factoryInstance = IRibbonFactory(_factory);

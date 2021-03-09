@@ -409,47 +409,7 @@ describe("RibbonETHCoveredCall", () => {
       );
     });
 
-    // it("reverts when rolling to next option when current is not expired", async function () {
-    //   await this.vault
-    //     .connect(managerSigner)
-    //     .rollToNextOption(
-    //       [
-    //         WETH_ADDRESS,
-    //         USDC_ADDRESS,
-    //         WETH_ADDRESS,
-    //         "1614326400",
-    //         parseEther("960"),
-    //         2,
-    //         WETH_ADDRESS,
-    //       ],
-    //       { from: manager }
-    //     );
-
-    //   assert.equal(
-    //     await this.vault.currentOption(),
-    //     "0x3cF86d40988309AF3b90C14544E1BB0673BFd439"
-    //   );
-    //   assert.equal(await this.vault.currentOptionExpiry(), 1614326400);
-
-    //   await expect(
-    //     this.vault
-    //       .connect(managerSigner)
-    //       .rollToNextOption(
-    //         [
-    //           WETH_ADDRESS,
-    //           USDC_ADDRESS,
-    //           WETH_ADDRESS,
-    //           "1610697600",
-    //           parseEther("680"),
-    //           2,
-    //           WETH_ADDRESS,
-    //         ],
-    //         { from: manager }
-    //       )
-    //   ).to.be.revertedWith("Otoken not expired");
-    // });
-
-    it("burns otokens and withdraws from vault, before expiry, OTM", async function () {
+    it("burns otokens and withdraws from vault, before expiry", async function () {
       const firstOption = "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3";
       const secondOption = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
 

@@ -23,7 +23,8 @@ async function deployProxy(
   adminSigner,
   initializeTypes,
   initializeArgs,
-  factoryOptions
+  factoryOptions = {},
+  logicDeployParams = []
 ) {
   const AdminUpgradeabilityProxy = await ethers.getContractFactory(
     "AdminUpgradeabilityProxy",
@@ -33,7 +34,7 @@ async function deployProxy(
     logicContractName,
     factoryOptions || {}
   );
-  const logic = await LogicContract.deploy();
+  const logic = await LogicContract.deploy(...logicDeployParams);
 
   const initBytes = encodeCall("initialize", initializeTypes, initializeArgs);
   const proxy = await AdminUpgradeabilityProxy.deploy(

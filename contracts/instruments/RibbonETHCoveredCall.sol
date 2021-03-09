@@ -25,9 +25,11 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
     using SafeMath for uint256;
 
     enum ExchangeMechanism {Unknown, AirSwap}
+    IRibbonFactory public immutable factory;
+    IProtocolAdapter public immutable adapter;
+    string private constant _adapterName = "OPYN_GAMMA";
     string private constant _tokenName = "Ribbon ETH Covered Call Vault";
     string private constant _tokenSymbol = "rETH-COVCALL";
-    string private constant _adapterName = "OPYN_GAMMA";
     address private constant _WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     // AirSwap Swap contract https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
@@ -64,20 +66,21 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
+    constructor(address _factory) {
+        IRibbonFactory factoryInstance = IRibbonFactory(_factory);
+        factory = factoryInstance;
+        adapter = IProtocolAdapter(factoryInstance.getAdapter(_adapterName));
+    }
+
     /**
      * @notice Initializes the OptionVault contract with an owner and a factory.
      * @param _owner is the owner of the contract who can set the manager
-     * @param _factory is the RibbonFactory instance
+     * @param _initCap is the initial vault's cap on deposits, the manager can increase this as necessary
      */
-    function initialize(
-        address _owner,
-        address _factory,
-        uint256 _initCap
-    ) external initializer {
+    function initialize(address _owner, uint256 _initCap) external initializer {
         __ERC20_init(_tokenName, _tokenSymbol);
         __Ownable_init();
         transferOwnership(_owner);
-        factory = IRibbonFactory(_factory);
         cap = _initCap;
     }
 
@@ -197,20 +200,12 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
     function rollToNextOption(
         ProtocolAdapterTypes.OptionTerms calldata optionTerms
     ) external onlyManager nonReentrant {
-        // We can save gas by storing the factory address as a constant
-        IProtocolAdapter adapter =
-            IProtocolAdapter(factory.getAdapter(_adapterName));
-
         address oldOption = currentOption;
         address newOption = adapter.getOptionsAddress(optionTerms);
         require(newOption != address(0), "No found option");
         currentOption = newOption;
 
         if (oldOption != address(0)) {
-            require(
-                block.timestamp >= OtokenInterface(oldOption).expiryTimestamp(),
-                "Otoken not expired"
-            );
             uint256 withdrawAmount = adapter.delegateCloseShort();
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
@@ -230,7 +225,6 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
      * @notice Sets a new cap for deposits
      * @param newCap is the new cap for deposits
      */
-    // if_succeeds {:msg "sets cap"} cap == newCap
     function setCap(uint256 newCap) external onlyManager {
         uint256 oldCap = cap;
         cap = newCap;

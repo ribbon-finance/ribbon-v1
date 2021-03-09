@@ -16,8 +16,6 @@ const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
 
-const ORACLE_DISPUTE_PERIOD = 7200;
-const ORACLE_LOCKING_PERIOD = 300;
 const WAD = BigNumber.from("10").pow(BigNumber.from("18"));
 
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
@@ -556,20 +554,36 @@ function behavesLikeOTokens(params) {
 
     describe("#closeShort", () => {
       time.revertToSnapshotAfterEach(async function () {
-        const depositAmount = parseEther("10");
+        const ethDepositAmount = parseEther("10");
 
-        await this.depositToVaultForShorts(depositAmount);
+        this.depositAmount = await this.depositToVaultForShorts(
+          ethDepositAmount
+        );
 
         await this.adapter.createShort(this.optionTerms, this.shortAmount);
+      });
 
-        await setOpynOracleExpiryPrice(
-          this.oracle,
-          this.expiry,
-          this.settlePrice
+      it("burns otokens and withdraws original amount before expiry", async function () {
+        const collateralToken = await ethers.getContractAt(
+          "IERC20",
+          this.collateralAsset
+        );
+
+        assert.equal(
+          (await collateralToken.balanceOf(this.adapter.address)).toString(),
+          this.depositAmount.sub(this.shortAmount)
+        );
+
+        await this.adapter.closeShort();
+
+        // the adapter should get back the collateral used to open the short
+        assert.equal(
+          (await collateralToken.balanceOf(this.adapter.address)).toString(),
+          this.depositAmount.toString()
         );
       });
 
-      it("settles the vault and withdraws collateral", async function () {
+      it("settles the vault and withdraws collateral after expiry", async function () {
         const collateralToken = await ethers.getContractAt(
           "IERC20",
           this.collateralAsset
@@ -577,6 +591,12 @@ function behavesLikeOTokens(params) {
 
         const startWETHBalance = await collateralToken.balanceOf(
           this.adapter.address
+        );
+
+        await setOpynOracleExpiryPrice(
+          this.oracle,
+          this.expiry,
+          this.settlePrice
         );
 
         await this.adapter.closeShort();
@@ -637,6 +657,8 @@ async function depositToVaultForShorts(depositAmount) {
     await wethContract.transfer(this.adapter.address, depositAmount, {
       from: owner,
     });
+
+    return depositAmount;
   } else {
     const router = (
       await ethers.getContractAt("IUniswapV2Router01", UNISWAP_ROUTER)
@@ -652,6 +674,8 @@ async function depositToVaultForShorts(depositAmount) {
 
     const amountOutMin = amountsOut[1];
 
+    const startBalance = await collateralToken.balanceOf(owner);
+
     await router.swapExactETHForTokens(
       amountOutMin,
       [WETH_ADDRESS, this.collateralAsset],
@@ -660,9 +684,19 @@ async function depositToVaultForShorts(depositAmount) {
       { from: owner, value: depositAmount }
     );
 
-    await collateralToken.transfer(this.adapter.address, amountOutMin, {
-      from: owner,
-    });
+    const endBalance = await collateralToken.balanceOf(owner);
+
+    const depositedCollateralAmount = endBalance.sub(startBalance);
+
+    await collateralToken.transfer(
+      this.adapter.address,
+      depositedCollateralAmount,
+      {
+        from: owner,
+      }
+    );
+
+    return depositedCollateralAmount;
   }
 }
 

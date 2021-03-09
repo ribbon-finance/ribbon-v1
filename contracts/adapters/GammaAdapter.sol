@@ -19,6 +19,7 @@ import {
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {DSMath} from "../lib/DSMath.sol";
+import "hardhat/console.sol";
 
 contract GammaAdapter is IProtocolAdapter, DSMath {
     using SafeMath for uint256;
@@ -423,30 +424,69 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
             controller.getVault(address(this), vaultID);
 
         require(vault.collateralAssets.length > 0, "No active vault");
+        require(vault.shortOtokens.length > 0, "No active short");
 
         IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
-        uint256 startCollateralBalance =
-            collateralToken.balanceOf(address(this));
+        OtokenInterface otoken = OtokenInterface(vault.shortOtokens[0]);
 
-        IController.ActionArgs[] memory actions =
-            new IController.ActionArgs[](1);
+        bool settlementAllowed =
+            isSettlementAllowed(
+                otoken.underlyingAsset(),
+                otoken.isPut(),
+                otoken.expiryTimestamp()
+            );
 
-        actions[0] = IController.ActionArgs(
-            IController.ActionType.SettleVault,
-            address(this), // owner
-            address(this), // address to transfer to
-            address(0), // not used
-            vaultID, // vaultId
-            0, // not used
-            0, // not used
-            "" // not used
-        );
+        // If it is after expiry, we need to settle the short position using the normal way
+        // Delete the vault and withdraw all remaining collateral from the vault
+        //
+        // If it is before expiry, we need to burn otokens in order to withdraw collateral from the vault
+        if (settlementAllowed) {
+            uint256 startCollateralBalance =
+                collateralToken.balanceOf(address(this));
 
-        controller.operate(actions);
+            IController.ActionArgs[] memory actions =
+                new IController.ActionArgs[](1);
 
-        uint256 endCollateralBalance = collateralToken.balanceOf(address(this));
+            actions[0] = IController.ActionArgs(
+                IController.ActionType.SettleVault,
+                address(this), // owner
+                address(this), // address to transfer to
+                address(0), // not used
+                vaultID, // vaultId
+                0, // not used
+                0, // not used
+                "" // not used
+            );
 
-        return endCollateralBalance.sub(startCollateralBalance);
+            controller.operate(actions);
+
+            uint256 endCollateralBalance =
+                collateralToken.balanceOf(address(this));
+
+            return endCollateralBalance.sub(startCollateralBalance);
+        }
+
+        // approve otoken burn
+    }
+
+    /**
+     * @notice Gas-optimized getter for checking if settlement is allowed. Looks up from the oracles with asset address and expiry
+     */
+    function isSettlementAllowed(
+        address underlying,
+        bool isPut,
+        uint256 expiry
+    ) private view returns (bool) {
+        IController controller = IController(gammaController);
+        OracleInterface oracle = OracleInterface(controller.oracle());
+
+        bool underlyingFinalized =
+            oracle.isDisputePeriodOver(underlying, expiry);
+        bool strikeFinalized = oracle.isDisputePeriodOver(USDC, expiry);
+        bool collateralFinalized =
+            oracle.isDisputePeriodOver(isPut ? USDC : underlying, expiry);
+
+        return underlyingFinalized && strikeFinalized && collateralFinalized;
     }
 
     function assetDecimals(address asset) private pure returns (uint256) {

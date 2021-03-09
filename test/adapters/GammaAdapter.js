@@ -440,8 +440,8 @@ function behavesLikeOTokens(params) {
         await time.revertToSnapShot(snapshotId);
       });
 
-      it("can exercise", async function () {
-        await time.increaseTo(this.expiry + 1);
+      it.skip("can exercise", async function () {
+        await time.increaseTo(this.expiry + 7201);
 
         const res = await this.mockAdapter.canExercise(
           this.oTokenAddress,
@@ -505,6 +505,13 @@ function behavesLikeOTokens(params) {
           MARGIN_POOL
         );
 
+        assert.equal(
+          await this.gammaController.getAccountVaultCounter(
+            this.adapter.address
+          ),
+          "0"
+        );
+
         await this.adapter.createShort(this.optionTerms, this.shortAmount);
 
         let oTokenMintedAmount;
@@ -519,10 +526,12 @@ function behavesLikeOTokens(params) {
             .div(BigNumber.from("10").pow(BigNumber.from("6")));
         }
 
-        const vaultID = await this.gammaController.getAccountVaultCounter(
-          this.adapter.address
+        assert.equal(
+          await this.gammaController.getAccountVaultCounter(
+            this.adapter.address
+          ),
+          "1"
         );
-        assert.equal(vaultID, "1");
 
         assert.equal(
           (await this.oToken.balanceOf(this.adapter.address)).toString(),

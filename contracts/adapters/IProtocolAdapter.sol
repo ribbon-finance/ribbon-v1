@@ -5,15 +5,20 @@ pragma experimental ABIEncoderV2;
 library ProtocolAdapterTypes {
     enum OptionType {Invalid, Put, Call}
 
+    // We have 2 types of purchase methods so far - by contract and by 0x.
+    // Contract is simple because it involves just specifying the option terms you want to buy.
+    // ZeroEx involves an off-chain API call which prepares a ZeroExOrder object to be passed into the tx.
     enum PurchaseMethod {Invalid, Contract, ZeroEx}
 
     /**
      * @notice Terms of an options contract
      * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
      * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
+     * @param collateralAsset is the asset used to collateralize a short position for the option.
      * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
      * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
      * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     * @param paymentToken is the token used to purchase the option. E.g. Buy UNI/USDC CALL with WETH as the paymentToken.
      */
     struct OptionTerms {
         address underlying;

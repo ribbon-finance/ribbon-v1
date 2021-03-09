@@ -474,6 +474,56 @@ describe("RibbonETHCoveredCall", () => {
       );
     });
 
+    it("reverts when not enough otokens to burn", async function () {
+      const firstOption = "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3";
+      const secondOption = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
+
+      await this.vault
+        .connect(managerSigner)
+        .rollToNextOption(
+          [
+            WETH_ADDRESS,
+            USDC_ADDRESS,
+            WETH_ADDRESS,
+            "1610697600",
+            parseEther("1480"),
+            2,
+            WETH_ADDRESS,
+          ],
+          { from: manager }
+        );
+
+      // Perform the swap to deposit premiums and remove otokens
+      const signedOrder = await signOrderForSwap({
+        vaultAddress: this.vault.address,
+        counterpartyAddress: counterparty,
+        signerPrivateKey: this.managerWallet.privateKey,
+        sellToken: firstOption,
+        buyToken: WETH_ADDRESS,
+        sellAmount: this.sellAmount.toString(),
+        buyAmount: this.premium.toString(),
+      });
+
+      await this.airswap.connect(counterpartySigner).swap(signedOrder);
+
+      await expect(
+        this.vault
+          .connect(managerSigner)
+          .rollToNextOption(
+            [
+              WETH_ADDRESS,
+              USDC_ADDRESS,
+              WETH_ADDRESS,
+              "1614326400",
+              parseEther("960"),
+              2,
+              WETH_ADDRESS,
+            ],
+            { from: manager }
+          )
+      ).to.be.revertedWith("ERC20: burn amount exceeds balance");
+    });
+
     it("withdraws and roll funds into next option, after expiry ITM", async function () {
       const firstOption = "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3";
       const secondOption = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";

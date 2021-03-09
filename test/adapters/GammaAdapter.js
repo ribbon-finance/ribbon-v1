@@ -290,7 +290,7 @@ function behavesLikeOTokens(params) {
       });
     });
 
-    describe("#purchaseWithZeroEx", () => {
+    describe("#purchaseWithZeroEx [ @skip-on-coverage ]", () => {
       let snapshotId;
 
       beforeEach(async () => {
@@ -361,7 +361,7 @@ function behavesLikeOTokens(params) {
       });
     });
 
-    describe("#exercise", () => {
+    describe("#exercise [ @skip-on-coverage ]", () => {
       let snapshotId;
 
       beforeEach(async function () {

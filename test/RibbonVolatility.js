@@ -378,7 +378,7 @@ function behavesLikeRibbonVolatility(params) {
       await time.revertToSnapShot(initSnapshotId);
     });
 
-    describe("#canExercise", () => {
+    describe("#canExercise [ @skip-on-coverage ]", () => {
       beforeEach(async () => {
         snapshotId = await time.takeSnapshot();
       });
@@ -411,7 +411,7 @@ function behavesLikeRibbonVolatility(params) {
       });
     });
 
-    describe("#buyInstrument", () => {
+    describe("#buyInstrument [ @skip-on-coverage ]", () => {
       let snapshotId;
 
       beforeEach(async () => {
@@ -524,7 +524,7 @@ function behavesLikeRibbonVolatility(params) {
       });
     });
 
-    describe("#exercisePosition", () => {
+    describe("#exercisePosition [ @skip-on-coverage ]", () => {
       let snapshotId;
 
       beforeEach(async function () {
@@ -617,7 +617,7 @@ function behavesLikeRibbonVolatility(params) {
       });
     });
 
-    describe("#exerciseProfit", () => {
+    describe("#exerciseProfit [ @skip-on-coverage ]", () => {
       let snapshotId;
 
       beforeEach(async () => {
@@ -662,7 +662,6 @@ function behavesLikeRibbonVolatility(params) {
         await this.contract.buyInstrument(this.buyInstrumentParams, {
           from: user,
           value: this.totalPremium,
-          gasPrice: this.gasPrice,
         });
       });
 

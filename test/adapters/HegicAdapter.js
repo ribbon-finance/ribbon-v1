@@ -358,81 +358,84 @@ describe("HegicAdapter", () => {
         });
       });
 
-       describe("#canTransfer", () => {
+      describe("#canTransfer", () => {
         beforeEach(async function () {
           snapshotId = await time.takeSnapshot();
         });
         afterEach(async () => {
           await time.revertToSnapShot(snapshotId);
         });
-         it("correctly buys and transfers the option", async function () {
-            const purchaseRes = await this.adapter.purchase(
-                [
-                 this.underlying,
-                 this.strikeAsset,
-                 this.collateralAsset,
-                 this.expiry,
-                 this.strikePrice,
-                 this.optionType,
-                 this.paymentToken,
-                ],
-                  this.purchaseAmount,
-                  this.maxCost,
-                 {
-                  from: user,
-                  value: this.premium,
-                 }
-                 );
-                 const receipt = await provider.waitForTransaction(purchaseRes.hash);
-                 const optionID = (
-                  await parseLog(
-                  "HegicAdapter",
-                  receipt.logs[receipt.logs.length - 1]
-                 )
-                 ).args[4];
+        it("correctly buys and transfers the option", async function () {
+          const purchaseRes = await this.adapter.purchase(
+            [
+              this.underlying,
+              this.strikeAsset,
+              this.collateralAsset,
+              this.expiry,
+              this.strikePrice,
+              this.optionType,
+              this.paymentToken,
+            ],
+            this.purchaseAmount,
+            this.maxCost,
+            {
+              from: user,
+              value: this.premium,
+            }
+          );
+          const receipt = await provider.waitForTransaction(purchaseRes.hash);
+          const optionID = (
+            await parseLog(
+              "HegicAdapter",
+              receipt.logs[receipt.logs.length - 1]
+            )
+          ).args[4];
 
-                 const transferRes = await this.adapter.transferOption(this.hegicOptions.address, optionID, recipient, {
-                        from: user,
-                  }
-                 );
-});
-
-
- it("reverts transfer on bad input", async function () {
-
-        const purchaseRes = await this.adapter.purchase(
-        [
-        this.underlying,
-        this.strikeAsset,
-        this.collateralAsset,
-        this.expiry,
-        this.strikePrice,
-        this.optionType,
-        this.paymentToken,
-        ],
-        this.purchaseAmount,
-        this.maxCost,
-        {
-        from: user,
-        value: this.premium,
-        }
-        );
-        const receipt = await provider.waitForTransaction(purchaseRes.hash);
-        const optionID = (
-        await parseLog(
-        "HegicAdapter",
-        receipt.logs[receipt.logs.length - 1]
-        )
-        ).args[4];
-
-        await expect(this.adapter.transferOption(user, optionID, recipient, {
-        from: user,
-        }
-        )).to.be.revertedWith("optionsAddress must match either ETH or WBTC options");;
+          const transferRes = await this.adapter.transferOption(
+            this.hegicOptions.address,
+            optionID,
+            recipient,
+            {
+              from: user,
+            }
+          );
         });
-});
 
+        it("reverts transfer on invalid options address input", async function () {
+          const purchaseRes = await this.adapter.purchase(
+            [
+              this.underlying,
+              this.strikeAsset,
+              this.collateralAsset,
+              this.expiry,
+              this.strikePrice,
+              this.optionType,
+              this.paymentToken,
+            ],
+            this.purchaseAmount,
+            this.maxCost,
+            {
+              from: user,
+              value: this.premium,
+            }
+          );
+          const receipt = await provider.waitForTransaction(purchaseRes.hash);
+          const optionID = (
+            await parseLog(
+              "HegicAdapter",
+              receipt.logs[receipt.logs.length - 1]
+            )
+          ).args[4];
 
+          await expect(
+            this.adapter.transferOption(user, optionID, recipient, {
+              from: user,
+            })
+          ).to.be.revertedWith(
+            "optionsAddress must match either ETH or WBTC options"
+          );
+        });
+      });
 
       describe("#exerciseProfit", () => {
         beforeEach(async function () {

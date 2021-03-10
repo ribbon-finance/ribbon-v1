@@ -285,7 +285,8 @@ contract HegicAdapter is IProtocolAdapter {
      * @param optionsAddress is the address of the options contract
      * @param optionID is the ID of the option position in non fungible protocols like Hegic.
      * @param amount is the amount of tokens or options contract to exercise. Only relevant for fungle protocols like Opyn
-     * @param account is the account that receives the exercised profits. This is needed since the adapter holds all the positions and the msg.sender is an instrument contract.
+     * @param account is the account that receives the exercised profits. This is needed since the adapter holds all the positions and the msg.sender is an i
+nstrument contract.
      */
     function exercise(
         address optionsAddress,
@@ -404,6 +405,28 @@ contract HegicAdapter is IProtocolAdapter {
         rewardsAmount = balanceAfter.sub(balanceBefore);
         require(rewardsAmount > 0, "No rewards to claim");
         hegicToken.safeTransfer(msg.sender, rewardsAmount);
+    }
+
+    function transferOption(address optionsAddress,uint256 optionID, address payable newHolder) external payable {
+        require(
+            optionsAddress == address(ethOptions) ||
+                optionsAddress == address(wbtcOptions),
+            "optionsAddress must match either ETH or WBTC options"
+        );
+
+        IHegicOptions options = IHegicOptions(optionsAddress);
+        options.transfer(optionID, newHolder);
+
+        (
+            ,
+            address holder,
+            ,
+            ,
+            ,
+            ,
+            ,
+        ) = options.options(optionID);
+        require(holder == newHolder, 'failed transfer');
     }
 
     function createShort(ProtocolAdapterTypes.OptionTerms memory, uint256)

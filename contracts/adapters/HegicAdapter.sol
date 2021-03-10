@@ -407,7 +407,7 @@ nstrument contract.
         hegicToken.safeTransfer(msg.sender, rewardsAmount);
     }
 
-    function transferOption(address optionsAddress,uint256 optionID, address payable newHolder) external {
+    function transferOption(address optionsAddress,uint256 optionID, address payable newHolder) external payable {
         require(
             optionsAddress == address(ethOptions) ||
                 optionsAddress == address(wbtcOptions),

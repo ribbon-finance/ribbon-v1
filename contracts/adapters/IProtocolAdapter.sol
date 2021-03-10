@@ -5,15 +5,20 @@ pragma experimental ABIEncoderV2;
 library ProtocolAdapterTypes {
     enum OptionType {Invalid, Put, Call}
 
+    // We have 2 types of purchase methods so far - by contract and by 0x.
+    // Contract is simple because it involves just specifying the option terms you want to buy.
+    // ZeroEx involves an off-chain API call which prepares a ZeroExOrder object to be passed into the tx.
     enum PurchaseMethod {Invalid, Contract, ZeroEx}
 
     /**
      * @notice Terms of an options contract
      * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
      * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
+     * @param collateralAsset is the asset used to collateralize a short position for the option.
      * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
      * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
      * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
+     * @param paymentToken is the token used to purchase the option. E.g. Buy UNI/USDC CALL with WETH as the paymentToken.
      */
     struct OptionTerms {
         address underlying;
@@ -25,6 +30,17 @@ library ProtocolAdapterTypes {
         address paymentToken;
     }
 
+    /**
+     * @notice 0x order for purchasing otokens
+     * @param exchangeAddress [deprecated] is the address we call to conduct a 0x trade. Slither flagged this as a potential vulnerability so we hardcoded it.
+     * @param buyTokenAddress is the otoken address
+     * @param sellTokenAddress is the token used to purchase USDC. This is USDC most of the time.
+     * @param allowanceTarget is the address the adapter needs to provide sellToken allowance to so the swap happens
+     * @param protocolFee is the fee paid (in ETH) when conducting the trade
+     * @param makerAssetAmount is the buyToken amount
+     * @param takerAssetAmount is the sellToken amount
+     * @param swapData is the encoded msg.data passed by the 0x api response
+     */
     struct ZeroExOrder {
         address exchangeAddress;
         address buyTokenAddress;
@@ -149,10 +165,18 @@ interface IProtocolAdapter {
         address recipient
     ) external payable;
 
+    /**
+     * @notice Opens a short position for a given `optionTerms`.
+     * @param optionTerms is the terms of the option contract
+     * @param amount is the short position amount
+     */
     function createShort(
         ProtocolAdapterTypes.OptionTerms calldata optionTerms,
         uint256 amount
     ) external returns (uint256);
 
+    /**
+     * @notice Closes an existing short position. In the future, we may want to open this up to specifying a particular short position to close.
+     */
     function closeShort() external returns (uint256);
 }

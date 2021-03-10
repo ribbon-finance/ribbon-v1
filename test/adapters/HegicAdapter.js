@@ -395,42 +395,42 @@ describe("HegicAdapter", () => {
                         from: user,
                   }
                  );
-            });
+});
 
 
-            it("reverts transfer on bad input", async function () {
+ it("reverts transfer on bad input", async function () {
 
-                const purchaseRes = await this.adapter.purchase(
-                [
-                this.underlying,
-                this.strikeAsset,
-                this.collateralAsset,
-                this.expiry,
-                this.strikePrice,
-                this.optionType,
-                this.paymentToken,
-                ],
-                this.purchaseAmount,
-                this.maxCost,
-                {
-                from: user,
-                value: this.premium,
-                }
-                );
-                const receipt = await provider.waitForTransaction(purchaseRes.hash);
-                const optionID = (
-                await parseLog(
-                "HegicAdapter",
-                receipt.logs[receipt.logs.length - 1]
-                )
-                ).args[4];
+        const purchaseRes = await this.adapter.purchase(
+        [
+        this.underlying,
+        this.strikeAsset,
+        this.collateralAsset,
+        this.expiry,
+        this.strikePrice,
+        this.optionType,
+        this.paymentToken,
+        ],
+        this.purchaseAmount,
+        this.maxCost,
+        {
+        from: user,
+        value: this.premium,
+        }
+        );
+        const receipt = await provider.waitForTransaction(purchaseRes.hash);
+        const optionID = (
+        await parseLog(
+        "HegicAdapter",
+        receipt.logs[receipt.logs.length - 1]
+        )
+        ).args[4];
 
-                await expect(this.adapter.transferOption(user, optionID, recipient, {
-                from: user,
-                }
-                )).to.be.revertedWith("optionsAddress must match either ETH or WBTC options");;
-                });
-      });
+        await expect(this.adapter.transferOption(user, optionID, recipient, {
+        from: user,
+        }
+        )).to.be.revertedWith("optionsAddress must match either ETH or WBTC options");;
+        });
+});
 
 
 

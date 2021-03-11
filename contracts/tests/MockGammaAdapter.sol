@@ -6,20 +6,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {GammaAdapter} from "../adapters/GammaAdapter.sol";
 
 contract MockGammaAdapter is GammaAdapter {
-    constructor(
-        address _oTokenFactory,
-        address _gammaController,
-        address weth,
-        address _zeroExExchange,
-        address router
-    )
-        GammaAdapter(
-            _oTokenFactory,
-            _gammaController,
-            weth,
-            _zeroExExchange,
-            router
-        )
+    constructor(address _oTokenFactory, address _gammaController)
+        GammaAdapter(_oTokenFactory, _gammaController)
     {}
 
     function mockedExercise(

@@ -66,10 +66,18 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
+    /**
+     * @notice Initializes the factory and adapter contract addresses
+     */
     constructor(address _factory) {
+        require(_factory != address(0), "!_factory");
         IRibbonFactory factoryInstance = IRibbonFactory(_factory);
+
+        address adapterAddr = factoryInstance.getAdapter(_adapterName);
+        require(adapterAddr != address(0), "Adapter not set");
+
         factory = factoryInstance;
-        adapter = IProtocolAdapter(factoryInstance.getAdapter(_adapterName));
+        adapter = IProtocolAdapter(adapterAddr);
     }
 
     /**
@@ -78,6 +86,8 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
      * @param _initCap is the initial vault's cap on deposits, the manager can increase this as necessary
      */
     function initialize(address _owner, uint256 _initCap) external initializer {
+        require(_owner != address(0), "!_owner");
+        require(_initCap > 0, "_initCap > 0");
         __ERC20_init(_tokenName, _tokenSymbol);
         __Ownable_init();
         transferOwnership(_owner);

@@ -27,7 +27,7 @@ const TRADER_AFFILIATE = "0xFf98F0052BdA391F8FaD266685609ffb192Bef25";
 
 const LOCKED_RATIO = parseEther("0.9");
 const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
-const gasPrice = parseUnits("10", "gwei");
+const gasPrice = parseUnits("1", "gwei");
 
 describe("RibbonETHCoveredCall", () => {
   let initSnapshotId;
@@ -60,6 +60,7 @@ describe("RibbonETHCoveredCall", () => {
     await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address);
 
     this.factory = factory;
+    this.protocolAdapterLib = protocolAdapterLib;
 
     const initializeTypes = ["address", "uint256"];
     const initializeArgs = [owner, parseEther("500")];
@@ -103,6 +104,41 @@ describe("RibbonETHCoveredCall", () => {
 
   after(async () => {
     await time.revertToSnapShot(initSnapshotId);
+  });
+
+  describe("constructor", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("reverts when deployed with 0x0 factory", async function () {
+      const VaultContract = await ethers.getContractFactory(
+        "RibbonETHCoveredCall",
+        {
+          libraries: {
+            ProtocolAdapter: this.protocolAdapterLib.address,
+          },
+        }
+      );
+      await expect(
+        VaultContract.deploy(constants.AddressZero)
+      ).to.be.revertedWith("!_factory");
+    });
+
+    it("reverts when adapter not set yet", async function () {
+      const VaultContract = await ethers.getContractFactory(
+        "RibbonETHCoveredCall",
+        {
+          libraries: {
+            ProtocolAdapter: this.protocolAdapterLib.address,
+          },
+        }
+      );
+
+      await this.factory.setAdapter("OPYN_GAMMA", constants.AddressZero);
+
+      await expect(
+        VaultContract.deploy(this.factory.address)
+      ).to.be.revertedWith("Adapter not set");
+    });
   });
 
   describe("#initialize", () => {

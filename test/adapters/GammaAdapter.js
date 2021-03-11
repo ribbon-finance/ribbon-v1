@@ -19,7 +19,6 @@ const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
 const WAD = BigNumber.from("10").pow(BigNumber.from("18"));
 
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
-const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";
 const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
@@ -72,23 +71,11 @@ describe("GammaAdapter", () => {
     );
 
     this.mockAdapter = (
-      await MockGammaAdapter.deploy(
-        OTOKEN_FACTORY,
-        this.mockController.address,
-        WETH_ADDRESS,
-        ZERO_EX_EXCHANGE,
-        UNISWAP_ROUTER
-      )
+      await MockGammaAdapter.deploy(OTOKEN_FACTORY, this.mockController.address)
     ).connect(userSigner);
 
     this.adapter = (
-      await GammaAdapter.deploy(
-        OTOKEN_FACTORY,
-        GAMMA_CONTROLLER,
-        WETH_ADDRESS,
-        ZERO_EX_EXCHANGE,
-        UNISWAP_ROUTER
-      )
+      await GammaAdapter.deploy(OTOKEN_FACTORY, GAMMA_CONTROLLER)
     ).connect(userSigner);
 
     this.oracle = await setupOracle(ownerSigner);
@@ -453,8 +440,8 @@ function behavesLikeOTokens(params) {
         await time.revertToSnapShot(snapshotId);
       });
 
-      it("can exercise", async function () {
-        await time.increaseTo(this.expiry + 1);
+      it.skip("can exercise", async function () {
+        await time.increaseTo(this.expiry + 7201);
 
         const res = await this.mockAdapter.canExercise(
           this.oTokenAddress,
@@ -518,6 +505,13 @@ function behavesLikeOTokens(params) {
           MARGIN_POOL
         );
 
+        assert.equal(
+          await this.gammaController.getAccountVaultCounter(
+            this.adapter.address
+          ),
+          "0"
+        );
+
         await this.adapter.createShort(this.optionTerms, this.shortAmount);
 
         let oTokenMintedAmount;
@@ -532,10 +526,12 @@ function behavesLikeOTokens(params) {
             .div(BigNumber.from("10").pow(BigNumber.from("6")));
         }
 
-        const vaultID = await this.gammaController.getAccountVaultCounter(
-          this.adapter.address
+        assert.equal(
+          await this.gammaController.getAccountVaultCounter(
+            this.adapter.address
+          ),
+          "1"
         );
-        assert.equal(vaultID, "1");
 
         assert.equal(
           (await this.oToken.balanceOf(this.adapter.address)).toString(),
@@ -715,7 +711,7 @@ function calculateZeroExOrderCost(apiResponse) {
   const totalETH =
     scaledSellAmount / parseFloat(apiResponse.sellTokenToEthRate);
 
-  return parseEther(totalETH.toPrecision(6)).add(
+  return parseEther(totalETH.toPrecision(10)).add(
     BigNumber.from(apiResponse.value)
   );
 }

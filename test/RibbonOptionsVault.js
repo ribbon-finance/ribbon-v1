@@ -15,7 +15,7 @@ const {
   setOpynOracleExpiryPrice,
 } = require("./helpers/utils");
 
-let owner, user;
+let owner, user, feeRecipient;
 let userSigner, ownerSigner, managerSigner, counterpartySigner;
 
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
@@ -41,11 +41,13 @@ describe("RibbonETHCoveredCall", () => {
       userSigner,
       managerSigner,
       counterpartySigner,
+      feeRecipientSigner,
     ] = await ethers.getSigners();
     owner = ownerSigner.address;
     user = userSigner.address;
     manager = managerSigner.address;
     counterparty = counterpartySigner.address;
+    feeRecipient = feeRecipientSigner.address;
 
     this.managerWallet = ethers.Wallet.fromMnemonic(
       process.env.TEST_MNEMONIC,
@@ -62,8 +64,8 @@ describe("RibbonETHCoveredCall", () => {
     this.factory = factory;
     this.protocolAdapterLib = protocolAdapterLib;
 
-    const initializeTypes = ["address", "uint256"];
-    const initializeArgs = [owner, parseEther("500")];
+    const initializeTypes = ["address", "address", "uint256"];
+    const initializeArgs = [owner, feeRecipient, parseEther("500")];
     const deployArgs = [factory.address];
 
     this.vault = (
@@ -146,11 +148,12 @@ describe("RibbonETHCoveredCall", () => {
       assert.equal((await this.vault.cap()).toString(), parseEther("500"));
       assert.equal(await this.vault.factory(), this.factory.address);
       assert.equal(await this.vault.owner(), owner);
+      assert.equal(await this.vault.feeRecipient(), feeRecipient);
     });
 
     it("cannot be initialized twice", async function () {
       await expect(
-        this.vault.initialize(owner, parseEther("500"))
+        this.vault.initialize(owner, feeRecipient, parseEther("500"))
       ).to.be.revertedWith("Initializable: contract is already initialized");
     });
   });
@@ -836,7 +839,7 @@ describe("RibbonETHCoveredCall", () => {
       );
     });
 
-    it("should withdraw funds, leaving behind withdrawal fee if <10%", async function () {
+    it("should withdraw funds, sending withdrawal fee to feeRecipient if <10%", async function () {
       await this.vault.depositETH({ value: parseEther("1") });
       const startETHBalance = await provider.getBalance(user);
 
@@ -844,10 +847,15 @@ describe("RibbonETHCoveredCall", () => {
       const receipt = await res.wait();
       const gasFee = gasPrice.mul(receipt.gasUsed);
 
-      // Fee is left behind
+      // Fee is sent to feeRecipient
       assert.equal(
         (await this.weth.balanceOf(this.vault.address)).toString(),
-        parseEther("0.901").toString()
+        parseEther("0.9").toString()
+      );
+
+      assert.equal(
+        (await this.weth.balanceOf(feeRecipient)).toString(),
+        parseEther("0.001").toString()
       );
 
       assert.equal(

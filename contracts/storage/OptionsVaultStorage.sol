@@ -29,4 +29,7 @@ contract OptionsVaultStorageV1 is
 
     // Cap for total amount deposited into vault
     uint256 public cap;
+
+    // Recipient for withdrawal fees
+    address public feeRecipient;
 }

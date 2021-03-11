@@ -85,13 +85,21 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
      * @param _owner is the owner of the contract who can set the manager
      * @param _initCap is the initial vault's cap on deposits, the manager can increase this as necessary
      */
-    function initialize(address _owner, uint256 _initCap) external initializer {
+    function initialize(
+        address _owner,
+        address _feeRecipient,
+        uint256 _initCap
+    ) external initializer {
         require(_owner != address(0), "!_owner");
+        require(_feeRecipient != address(0), "!_feeRecipient");
         require(_initCap > 0, "_initCap > 0");
+
         __ERC20_init(_tokenName, _tokenSymbol);
         __Ownable_init();
         transferOwnership(_owner);
         cap = _initCap;
+
+        feeRecipient = _feeRecipient;
     }
 
     /**
@@ -181,7 +189,8 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
      */
     function _withdraw(uint256 share) private returns (uint256) {
         uint256 _lockedAmount = lockedAmount;
-        uint256 currentAssetBalance = IERC20(asset).balanceOf(address(this));
+        IERC20 assetToken = IERC20(asset);
+        uint256 currentAssetBalance = assetToken.balanceOf(address(this));
         uint256 total = _lockedAmount.add(currentAssetBalance);
         uint256 availableForWithdrawal =
             _availableToWithdraw(_lockedAmount, currentAssetBalance);
@@ -199,6 +208,7 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
         emit Withdraw(msg.sender, amountAfterFee, share);
 
         _burn(msg.sender, share);
+        assetToken.transfer(feeRecipient, feeAmount);
 
         return amountAfterFee;
     }

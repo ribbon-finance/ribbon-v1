@@ -177,10 +177,7 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
      */
     function withdraw(uint256 share) external nonReentrant {
         uint256 withdrawAmount = _withdraw(share);
-        require(
-            IERC20(asset).transfer(msg.sender, withdrawAmount),
-            "ERC20 transfer failed"
-        );
+        IERC20(asset).safeTransfer(msg.sender, withdrawAmount);
     }
 
     /**
@@ -208,7 +205,7 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
         emit Withdraw(msg.sender, amountAfterFee, share);
 
         _burn(msg.sender, share);
-        assetToken.transfer(feeRecipient, feeAmount);
+        assetToken.safeTransfer(feeRecipient, feeAmount);
 
         return amountAfterFee;
     }

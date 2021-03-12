@@ -16,12 +16,9 @@ const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
 
-const ORACLE_DISPUTE_PERIOD = 7200;
-const ORACLE_LOCKING_PERIOD = 300;
 const WAD = BigNumber.from("10").pow(BigNumber.from("18"));
 
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
-const ZERO_EX_EXCHANGE = "0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef";
 const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
@@ -74,23 +71,11 @@ describe("GammaAdapter", () => {
     );
 
     this.mockAdapter = (
-      await MockGammaAdapter.deploy(
-        OTOKEN_FACTORY,
-        this.mockController.address,
-        WETH_ADDRESS,
-        ZERO_EX_EXCHANGE,
-        UNISWAP_ROUTER
-      )
+      await MockGammaAdapter.deploy(OTOKEN_FACTORY, this.mockController.address)
     ).connect(userSigner);
 
     this.adapter = (
-      await GammaAdapter.deploy(
-        OTOKEN_FACTORY,
-        GAMMA_CONTROLLER,
-        WETH_ADDRESS,
-        ZERO_EX_EXCHANGE,
-        UNISWAP_ROUTER
-      )
+      await GammaAdapter.deploy(OTOKEN_FACTORY, GAMMA_CONTROLLER)
     ).connect(userSigner);
 
     this.oracle = await setupOracle(ownerSigner);
@@ -455,8 +440,8 @@ function behavesLikeOTokens(params) {
         await time.revertToSnapShot(snapshotId);
       });
 
-      it("can exercise", async function () {
-        await time.increaseTo(this.expiry + 1);
+      it.skip("can exercise", async function () {
+        await time.increaseTo(this.expiry + 7201);
 
         const res = await this.mockAdapter.canExercise(
           this.oTokenAddress,
@@ -520,6 +505,13 @@ function behavesLikeOTokens(params) {
           MARGIN_POOL
         );
 
+        assert.equal(
+          await this.gammaController.getAccountVaultCounter(
+            this.adapter.address
+          ),
+          "0"
+        );
+
         await this.adapter.createShort(this.optionTerms, this.shortAmount);
 
         let oTokenMintedAmount;
@@ -534,10 +526,12 @@ function behavesLikeOTokens(params) {
             .div(BigNumber.from("10").pow(BigNumber.from("6")));
         }
 
-        const vaultID = await this.gammaController.getAccountVaultCounter(
-          this.adapter.address
+        assert.equal(
+          await this.gammaController.getAccountVaultCounter(
+            this.adapter.address
+          ),
+          "1"
         );
-        assert.equal(vaultID, "1");
 
         assert.equal(
           (await this.oToken.balanceOf(this.adapter.address)).toString(),
@@ -556,20 +550,36 @@ function behavesLikeOTokens(params) {
 
     describe("#closeShort", () => {
       time.revertToSnapshotAfterEach(async function () {
-        const depositAmount = parseEther("10");
+        const ethDepositAmount = parseEther("10");
 
-        await this.depositToVaultForShorts(depositAmount);
+        this.depositAmount = await this.depositToVaultForShorts(
+          ethDepositAmount
+        );
 
         await this.adapter.createShort(this.optionTerms, this.shortAmount);
+      });
 
-        await setOpynOracleExpiryPrice(
-          this.oracle,
-          this.expiry,
-          this.settlePrice
+      it("burns otokens and withdraws original amount before expiry", async function () {
+        const collateralToken = await ethers.getContractAt(
+          "IERC20",
+          this.collateralAsset
+        );
+
+        assert.equal(
+          (await collateralToken.balanceOf(this.adapter.address)).toString(),
+          this.depositAmount.sub(this.shortAmount)
+        );
+
+        await this.adapter.closeShort();
+
+        // the adapter should get back the collateral used to open the short
+        assert.equal(
+          (await collateralToken.balanceOf(this.adapter.address)).toString(),
+          this.depositAmount.toString()
         );
       });
 
-      it("settles the vault and withdraws collateral", async function () {
+      it("settles the vault and withdraws collateral after expiry", async function () {
         const collateralToken = await ethers.getContractAt(
           "IERC20",
           this.collateralAsset
@@ -577,6 +587,12 @@ function behavesLikeOTokens(params) {
 
         const startWETHBalance = await collateralToken.balanceOf(
           this.adapter.address
+        );
+
+        await setOpynOracleExpiryPrice(
+          this.oracle,
+          this.expiry,
+          this.settlePrice
         );
 
         await this.adapter.closeShort();
@@ -637,6 +653,8 @@ async function depositToVaultForShorts(depositAmount) {
     await wethContract.transfer(this.adapter.address, depositAmount, {
       from: owner,
     });
+
+    return depositAmount;
   } else {
     const router = (
       await ethers.getContractAt("IUniswapV2Router01", UNISWAP_ROUTER)
@@ -652,6 +670,8 @@ async function depositToVaultForShorts(depositAmount) {
 
     const amountOutMin = amountsOut[1];
 
+    const startBalance = await collateralToken.balanceOf(owner);
+
     await router.swapExactETHForTokens(
       amountOutMin,
       [WETH_ADDRESS, this.collateralAsset],
@@ -660,9 +680,19 @@ async function depositToVaultForShorts(depositAmount) {
       { from: owner, value: depositAmount }
     );
 
-    await collateralToken.transfer(this.adapter.address, amountOutMin, {
-      from: owner,
-    });
+    const endBalance = await collateralToken.balanceOf(owner);
+
+    const depositedCollateralAmount = endBalance.sub(startBalance);
+
+    await collateralToken.transfer(
+      this.adapter.address,
+      depositedCollateralAmount,
+      {
+        from: owner,
+      }
+    );
+
+    return depositedCollateralAmount;
   }
 }
 
@@ -681,7 +711,7 @@ function calculateZeroExOrderCost(apiResponse) {
   const totalETH =
     scaledSellAmount / parseFloat(apiResponse.sellTokenToEthRate);
 
-  return parseEther(totalETH.toPrecision(6)).add(
+  return parseEther(totalETH.toPrecision(10)).add(
     BigNumber.from(apiResponse.value)
   );
 }

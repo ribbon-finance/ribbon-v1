@@ -17,7 +17,7 @@ const CALL_OPTION_TYPE = 2;
 
 describe("HegicAdapter", () => {
   let initSnapshotId, snapshotId;
-  const gasPrice = ethers.utils.parseUnits("10", "gwei");
+  const gasPrice = ethers.utils.parseUnits("1", "gwei");
 
   before(async function () {
     const [, , userSigner, recipientSigner] = await ethers.getSigners();

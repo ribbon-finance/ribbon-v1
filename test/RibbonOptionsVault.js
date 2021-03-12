@@ -14,7 +14,6 @@ const {
   setupOracle,
   setOpynOracleExpiryPrice,
 } = require("./helpers/utils");
-const { assertEvent } = require("@openzeppelin/upgrades");
 
 let owner, user;
 let userSigner, ownerSigner, managerSigner, counterpartySigner;
@@ -28,7 +27,7 @@ const TRADER_AFFILIATE = "0xFf98F0052BdA391F8FaD266685609ffb192Bef25";
 
 const LOCKED_RATIO = parseEther("0.9");
 const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
-const gasPrice = parseUnits("10", "gwei");
+const gasPrice = parseUnits("1", "gwei");
 
 describe("RibbonETHCoveredCall", () => {
   let initSnapshotId;
@@ -61,9 +60,11 @@ describe("RibbonETHCoveredCall", () => {
     await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address);
 
     this.factory = factory;
+    this.protocolAdapterLib = protocolAdapterLib;
 
-    const initializeTypes = ["address", "address", "uint256"];
-    const initializeArgs = [owner, factory.address, parseEther("500")];
+    const initializeTypes = ["address", "uint256"];
+    const initializeArgs = [owner, parseEther("500")];
+    const deployArgs = [factory.address];
 
     this.vault = (
       await deployProxy(
@@ -75,7 +76,8 @@ describe("RibbonETHCoveredCall", () => {
           libraries: {
             ProtocolAdapter: protocolAdapterLib.address,
           },
-        }
+        },
+        deployArgs
       )
     ).connect(userSigner);
 
@@ -104,6 +106,41 @@ describe("RibbonETHCoveredCall", () => {
     await time.revertToSnapShot(initSnapshotId);
   });
 
+  describe("constructor", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("reverts when deployed with 0x0 factory", async function () {
+      const VaultContract = await ethers.getContractFactory(
+        "RibbonETHCoveredCall",
+        {
+          libraries: {
+            ProtocolAdapter: this.protocolAdapterLib.address,
+          },
+        }
+      );
+      await expect(
+        VaultContract.deploy(constants.AddressZero)
+      ).to.be.revertedWith("!_factory");
+    });
+
+    it("reverts when adapter not set yet", async function () {
+      const VaultContract = await ethers.getContractFactory(
+        "RibbonETHCoveredCall",
+        {
+          libraries: {
+            ProtocolAdapter: this.protocolAdapterLib.address,
+          },
+        }
+      );
+
+      await this.factory.setAdapter("OPYN_GAMMA", constants.AddressZero);
+
+      await expect(
+        VaultContract.deploy(this.factory.address)
+      ).to.be.revertedWith("Adapter not set");
+    });
+  });
+
   describe("#initialize", () => {
     it("initializes with correct values", async function () {
       assert.equal((await this.vault.cap()).toString(), parseEther("500"));
@@ -113,7 +150,7 @@ describe("RibbonETHCoveredCall", () => {
 
     it("cannot be initialized twice", async function () {
       await expect(
-        this.vault.initialize(owner, this.factory.address, parseEther("500"))
+        this.vault.initialize(owner, parseEther("500"))
       ).to.be.revertedWith("Initializable: contract is already initialized");
     });
   });
@@ -408,8 +445,36 @@ describe("RibbonETHCoveredCall", () => {
       );
     });
 
-    it("reverts when rolling to next option when current is not expired", async function () {
-      await this.vault
+    it("burns otokens and withdraws from vault, before expiry", async function () {
+      const firstOption = "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3";
+      const secondOption = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
+
+      const firstTx = await this.vault
+        .connect(managerSigner)
+        .rollToNextOption(
+          [
+            WETH_ADDRESS,
+            USDC_ADDRESS,
+            WETH_ADDRESS,
+            "1610697600",
+            parseEther("1480"),
+            2,
+            WETH_ADDRESS,
+          ],
+          { from: manager }
+        );
+
+      expect(firstTx)
+        .to.emit(this.vault, "OpenShort")
+        .withArgs(firstOption, wmul(this.depositAmount, LOCKED_RATIO), manager);
+
+      // 90% of the vault's balance is allocated to short
+      assert.equal(
+        (await this.weth.balanceOf(this.vault.address)).toString(),
+        parseEther("0.1").toString()
+      );
+
+      const secondTx = await this.vault
         .connect(managerSigner)
         .rollToNextOption(
           [
@@ -424,11 +489,58 @@ describe("RibbonETHCoveredCall", () => {
           { from: manager }
         );
 
-      assert.equal(
-        await this.vault.currentOption(),
-        "0x3cF86d40988309AF3b90C14544E1BB0673BFd439"
-      );
+      assert.equal(await this.vault.currentOption(), secondOption);
       assert.equal(await this.vault.currentOptionExpiry(), 1614326400);
+
+      // Withdraw the original short position, which is 90% of the vault
+      expect(secondTx)
+        .to.emit(this.vault, "CloseShort")
+        .withArgs(firstOption, parseEther("0.9"), manager);
+
+      expect(secondTx)
+        .to.emit(this.vault, "OpenShort")
+        .withArgs(secondOption, parseEther("0.9"), manager);
+
+      // should still be 10% because the 90% withdrawn from the 1st short
+      // is re-allocated back into the
+      // should return back to the original amount now that the short is closed
+      assert.equal(
+        (await this.weth.balanceOf(this.vault.address)).toString(),
+        parseEther("0.1").toString()
+      );
+    });
+
+    it("reverts when not enough otokens to burn", async function () {
+      const firstOption = "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3";
+      const secondOption = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
+
+      await this.vault
+        .connect(managerSigner)
+        .rollToNextOption(
+          [
+            WETH_ADDRESS,
+            USDC_ADDRESS,
+            WETH_ADDRESS,
+            "1610697600",
+            parseEther("1480"),
+            2,
+            WETH_ADDRESS,
+          ],
+          { from: manager }
+        );
+
+      // Perform the swap to deposit premiums and remove otokens
+      const signedOrder = await signOrderForSwap({
+        vaultAddress: this.vault.address,
+        counterpartyAddress: counterparty,
+        signerPrivateKey: this.managerWallet.privateKey,
+        sellToken: firstOption,
+        buyToken: WETH_ADDRESS,
+        sellAmount: this.sellAmount.toString(),
+        buyAmount: this.premium.toString(),
+      });
+
+      await this.airswap.connect(counterpartySigner).swap(signedOrder);
 
       await expect(
         this.vault
@@ -438,17 +550,17 @@ describe("RibbonETHCoveredCall", () => {
               WETH_ADDRESS,
               USDC_ADDRESS,
               WETH_ADDRESS,
-              "1610697600",
-              parseEther("680"),
+              "1614326400",
+              parseEther("960"),
               2,
               WETH_ADDRESS,
             ],
             { from: manager }
           )
-      ).to.be.revertedWith("Otoken not expired");
+      ).to.be.revertedWith("ERC20: burn amount exceeds balance");
     });
 
-    it("withdraws and roll funds into next option, ITM", async function () {
+    it("withdraws and roll funds into next option, after expiry ITM", async function () {
       const firstOption = "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3";
       const secondOption = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
 
@@ -532,7 +644,7 @@ describe("RibbonETHCoveredCall", () => {
       );
     });
 
-    it("withdraws and roll funds into next option, OTM", async function () {
+    it("withdraws and roll funds into next option, after expiry OTM", async function () {
       const firstOption = "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3";
       const secondOption = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
 

@@ -15,7 +15,7 @@ const rHEGICJSON = require("../constants/abis/rHEGIC2.json");
 
 let owner, user;
 let userSigner;
-const gasPrice = parseUnits("10", "gwei");
+const gasPrice = parseUnits("1", "gwei");
 
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
@@ -178,6 +178,8 @@ function behavesLikeRibbonVolatility(params) {
     let snapshotId, initSnapshotId;
 
     before(async function () {
+      initSnapshotId = await time.takeSnapshot();
+
       [adminSigner, ownerSigner, userSigner] = await ethers.getSigners();
       admin = adminSigner.address;
       owner = ownerSigner.address;
@@ -370,15 +372,14 @@ function behavesLikeRibbonVolatility(params) {
           this.contract.address,
           parseUnits("10", 8)
         );
-
-      initSnapshotId = await time.takeSnapshot();
     });
 
     after(async () => {
       await time.revertToSnapShot(initSnapshotId);
     });
 
-    describe("#canExercise", () => {
+    describe.skip("#canExercise", () => {
+      let snapshotId;
       beforeEach(async () => {
         snapshotId = await time.takeSnapshot();
       });
@@ -629,7 +630,6 @@ function behavesLikeRibbonVolatility(params) {
       });
 
       it("returns the exercise profit", async function () {
-        snapshotId = await time.takeSnapshot();
         await this.contract.buyInstrument(this.buyInstrumentParams, {
           from: user,
           value: this.totalPremium,
@@ -658,16 +658,12 @@ function behavesLikeRibbonVolatility(params) {
     });
 
     describe("#numOfPositions", () => {
-      beforeEach(async function () {
+      time.revertToSnapshotAfterEach(async function () {
         await this.contract.buyInstrument(this.buyInstrumentParams, {
           from: user,
           value: this.totalPremium,
           gasPrice: this.gasPrice,
         });
-      });
-
-      afterEach(async () => {
-        await time.revertToSnapShot(initSnapshotId);
       });
 
       it("gets the number of positions", async function () {

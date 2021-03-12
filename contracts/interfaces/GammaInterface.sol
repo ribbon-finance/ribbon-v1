@@ -129,6 +129,18 @@ interface IController {
         external
         view
         returns (GammaTypes.Vault memory);
+
+    function getProceed(address _owner, uint256 _vaultId)
+        external
+        view
+        returns (uint256);
+
+    function isSettlementAllowed(
+        address _underlying,
+        address _strike,
+        address _collateral,
+        uint256 _expiry
+    ) external view returns (bool);
 }
 
 interface OracleInterface {

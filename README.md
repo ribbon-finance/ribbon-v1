@@ -24,7 +24,13 @@ yarn install
 npx hardhat compile
 ```
 
-3. Run the unit tests with the command:
+3. You will need access to an archive node to run tests, since the tests use forked mainnet state. Create a .env file with a `TEST_URI`. Ask @kenchangh for access to archive node.
+
+```
+TEST_URI=<add node url here>
+```
+
+4. Run the unit tests with the command:
 
 ```
 npx hardhat test
@@ -77,3 +83,29 @@ Else:
 ```
 node ./scripts/rollOptions.js
 ```
+
+## Security tooling
+
+We are using Slither to detect common vulnerabilities and exploits. To get started, compile and merge the contract files.
+
+```sh
+npx truffle compile
+yarn merge-contracts
+```
+
+The merged contract files are in the `build/merged/` directory. Run slither on individual contract files:
+
+```sh
+slither build/merged/RibbonETHCoveredCall.sol
+slither build/merged/GammaAdapter.sol
+```
+
+## Test coverage
+
+We use solidity-coverage for testing contract coverage. Run:
+
+```
+yarn coverage
+```
+
+And then you can browse the `coverage/index.html`.

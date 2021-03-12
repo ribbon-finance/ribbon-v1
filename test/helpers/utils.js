@@ -23,7 +23,8 @@ async function deployProxy(
   adminSigner,
   initializeTypes,
   initializeArgs,
-  factoryOptions
+  factoryOptions = {},
+  logicDeployParams = []
 ) {
   const AdminUpgradeabilityProxy = await ethers.getContractFactory(
     "AdminUpgradeabilityProxy",
@@ -33,7 +34,7 @@ async function deployProxy(
     logicContractName,
     factoryOptions || {}
   );
-  const logic = await LogicContract.deploy();
+  const logic = await LogicContract.deploy(...logicDeployParams);
 
   const initBytes = encodeCall("initialize", initializeTypes, initializeArgs);
   const proxy = await AdminUpgradeabilityProxy.deploy(
@@ -127,18 +128,12 @@ async function getDefaultArgs() {
 
   let mockGammaAdapter = await GammaAdapter.deploy(
     OTOKEN_FACTORY,
-    mockGammaController.address,
-    WETH_ADDRESS,
-    ZERO_EX_EXCHANGE,
-    UNISWAP_ROUTER
+    mockGammaController.address
   );
 
   let gammaAdapter = await GammaAdapter.deploy(
     OTOKEN_FACTORY,
-    GAMMA_CONTROLLER,
-    WETH_ADDRESS,
-    ZERO_EX_EXCHANGE,
-    UNISWAP_ROUTER
+    GAMMA_CONTROLLER
   );
 
   // await mintGasTokens(admin, factory.address);

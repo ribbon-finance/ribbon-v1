@@ -18,9 +18,6 @@ contract OptionsVaultStorageV1 is
     ERC20Upgradeable,
     ReentrancyGuard
 {
-    // Ribbon Factory used to access adapters
-    IRibbonFactory public factory;
-
     // Privileged role that is able to select the option terms (strike price, expiry) to short
     address public manager;
 

@@ -8,161 +8,354 @@ const { parseLog } = require("../helpers/utils");
 const UNISWAP_ADDRESS = "0x7a250d5630b4cf539739df2c5dacb4c659f2488d";
 const SUSHISWAP_ADDRESS = "0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
-const ETH_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
+const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 const DIGG_ADDRESS = "0x798d1be841a82a273720ce31c822c61a67a601c3";
 const SUSHISWAP_LP = "0x9a13867048e01c663ce8ce2fe0cdae69ff9f35e3";
 const UNISWAP_LP = "0xe86204c4eddd2f70ee00ead6805f917671f56c52";
 let user, recipient;
 
-
 describe("UniswapAdapter", () => {
-          let initSnapshotId, snapshotId;
-          const gasPrice = ethers.utils.parseUnits("10", "gwei");
+  let initSnapshotId, snapshotId;
+  const gasPrice = ethers.utils.parseUnits("1", "gwei");
 
-          before(async function () {
-                      const [, , userSigner, recipientSigner] = await ethers.getSigners();
-                      user = userSigner.address;
-                      recipient = recipientSigner.address;
+  before(async function () {
+    const [, , userSigner, recipientSigner] = await ethers.getSigners();
+    user = userSigner.address;
+    recipient = recipientSigner.address;
 
-                      this.protocolName = "UNISWAP";
-                      this.nonFungible = true;
+    this.protocolName = "UNISWAP";
+    this.nonFungible = true;
 
-                      const UniswapAdapter = await ethers.getContractFactory("UniswapAdapter");
+    const UniswapAdapter = await ethers.getContractFactory("UniswapAdapter");
 
-                      this.adapter = await UniswapAdapter.deploy(
-                                    UNISWAP_ADDRESS,
-                                    SUSHISWAP_ADDRESS,
-                                    WBTC_ADDRESS,
-                                    ETH_ADDRESS,
-                                    UNISWAP_LP,
-                                    SUSHISWAP_LP,
-                                    DIGG_ADDRESS
-                                  );
-                      this.adapter = this.adapter.connect(userSigner);
+    this.adapter = await UniswapAdapter.deploy(
+      UNISWAP_ADDRESS,
+      SUSHISWAP_ADDRESS,
+      WBTC_ADDRESS,
+      ETH_ADDRESS,
+      UNISWAP_LP,
+      SUSHISWAP_LP,
+      DIGG_ADDRESS
+    );
+    this.adapter = this.adapter.connect(userSigner);
+    const wethArtifact = await artifacts.readArtifact("IWETH");
+    this.weth = new ethers.Contract(
+      "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+      wethArtifact.abi,
+      ethers.provider
+    );
+    this.weth = this.weth.connect(userSigner);
 
-                      initSnapshotId = await time.takeSnapshot();
-                    });
+    const tokenArtifact = await artifacts.readArtifact("ERC20");
+    this.token = new ethers.Contract(
+      "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+      tokenArtifact.abi,
+      ethers.provider
+    );
+    this.token = this.token.connect(userSigner);
 
-          after(async () => {
-                      await time.revertToSnapShot(initSnapshotId);
-                    });
+    const uniswapArtifact = await artifacts.readArtifact("IUniswapV2Router02");
+    this.uniswap = new ethers.Contract(
+      "0x7a250d5630b4cf539739df2c5dacb4c659f2488d",
+      uniswapArtifact.abi,
+      ethers.provider
+    );
+    this.uniswap = this.uniswap.connect(userSigner);
 
-          describe("#protocolName", () => {
-                      it("matches the protocol name", async function () {
-                                    assert.equal(await this.adapter.protocolName(), this.protocolName);
-                                  });
-                    });
+    initSnapshotId = await time.takeSnapshot();
+  });
 
-          describe("#nonFungible", () => {
-                      it("matches the nonFungible bool", async function () {
-                                    assert.equal(await this.adapter.nonFungible(), this.nonFungible);
-                                  });
-                    });
+  after(async () => {
+    await time.revertToSnapShot(initSnapshotId);
+  });
 
-          describe("#ProtectedSlippage", () => {
-                    beforeEach(async () => {
-                                   snapshotId = await time.takeSnapshot();
-                                 });
-                    afterEach(async () => {
-                                    await time.revertToSnapShot(snapshotId);
-                                 });
-                   it("wont let non owner modify slippage", async function () {
-                                const promise = this.adapter.modifySlippage(1, {from:user});
-                                await expect(promise).to.be.revertedWith('Ownable: caller is not the owner');
-                   });
-                   });
+  describe("#protocolName", () => {
+    it("matches the protocol name", async function () {
+      assert.equal(await this.adapter.protocolName(), this.protocolName);
+    });
+  });
 
-         describe("#purchase", () => {
-                    beforeEach(async () => {
-                                    snapshotId = await time.takeSnapshot();
-                                 });
+  describe("#nonFungible", () => {
+    it("matches the nonFungible bool", async function () {
+      assert.equal(await this.adapter.nonFungible(), this.nonFungible);
+    });
+  });
 
-                    afterEach(async () => {
-                                    await time.revertToSnapShot(snapshotId);
-                                 });
+  behavesLikeHegicOptions({
+    inputAddress: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+    wbtcAmt: BigNumber.from("10"),
+    ethAmt: BigNumber.from("10000000000000"),
+    exchangeName: "UNISWAP",
+  });
 
-                    it("buys through sushiswap with eth", async function () {
-                                 //const wbtc = await ethers.getContractAt("IERC20", '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599');
-                                 //const Wbtc = await wbtc.attach('0x2260fac5e5542a773aa44fbcfedf7c193bc2c599');
-                                // const approval = await wbtc.approve(this.adapter.address,  BigNumber.from("1"), {from:user});
-                                 const promise = this.adapter.buyLp(
-                                         '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-                                         BigNumber.from("10000000000000000"),
-                                         'SUSHISWAP',
+  behavesLikeHegicOptions({
+    inputAddress: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+    wbtcAmt: BigNumber.from("10"),
+    ethAmt: BigNumber.from("10000000000000"),
+    exchangeName: "SUSHISWAP",
+  });
 
-                                         {
-                                           from: user,
-                                           value: BigNumber.from("10000000000000000")
-                                         }
-                                );
+  function behavesLikeHegicOptions(params) {
+    describe(`buying on ${params.exchangeName}`, () => {
+      before(async function () {
+        const { inputAddress, ethAmt, wbtcAmt, exchangeName } = params;
+        this.ethAmt = ethAmt;
+        this.wbtcAmt = wbtcAmt;
+        this.exchangeName = exchangeName;
+      });
 
-                        });
-
-
-                        it("buys through uniswap with eth", async function () {
-                                const promise = this.adapter.buyLp(
-                                         '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-                                         BigNumber.from("10000000000000000"),
-                                         'UNISWAP',
-                                         {
-                                          from:user,
-                                          value: BigNumber.from("10000000000000000"),
-                                         }
-                                );
-                        });
-
-                        it("handles invalid exchange", async function () {
-                                 const promise = this.adapter.buyLp(
-                                        '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-                                         BigNumber.from("1"),
-                                         'MUNISWAP',
-                                         {
-                                          from: user,
-                                          value:  BigNumber.from("1")
-                                         }
-                                );
-                                await expect(promise).to.be.revertedWith('invalid exchange');
-                        });
-
-                        it("handles excessive input amt uniswap", async function () {
-                                const promise = this.adapter.buyLp(
-                                         '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-                                          BigNumber.from("110000000000000"),
-                                          "UNISWAP",
-                                          {
-                                           from: user,
-                                           value: BigNumber.from("100000000000000"),
-                                          }
-                                );
-                                await expect(promise).to.be.revertedWith('not enough funds');
-                        });
-
-                        it("handles excessive input amt sushiswap", async function () {
-                                const promise = this.adapter.buyLp(
-                                         '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-                                         BigNumber.from("110000000000000"),
-                                         "UNISWAP",
-                                        {
-                                         from: user,
-                                         value: BigNumber.from("100000000000000"),
-                                        }
-                                );
-                                await expect(promise).to.be.revertedWith('not enough funds');
-                        });
-
-                  //  it("buys through uniswap with wbtc", async function () {
-                //              const Box = await ethers.getContractFactory("ERC20");
-                //              const box = await Box.attach('0x2260fac5e5542a773aa44fbcfedf7c193bc2c599');
-                //              const promise = this.adapter.buyLp(
-                //                      '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
-                //                      BigNumber.from("1"),
-                //                      'UNISWAP',
-
-                //                      {
-                //                      from: user
-                //                      }
-                //              );
-                //      });
-
+      describe("#buyLp", () => {
+        beforeEach(async function () {
+          snapshotId = await time.takeSnapshot();
         });
+        afterEach(async () => {
+          await time.revertToSnapShot(snapshotId);
+        });
+
+        it("handles invalid exchange using eth", async function () {
+          const promise = this.adapter.buyLp(
+            "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+            this.ethAmt,
+            "MUNISWAP",
+            0,
+            0,
+            {
+              from: user,
+              value: this.ethAmt,
+            }
+          );
+          await expect(promise).to.be.revertedWith("invalid exchange");
+        });
+
+        it("handles invalid exchange using wbtc", async function () {
+          const btc_amt = await this.token.balanceOf(user, { from: user });
+
+          await this.weth.deposit({
+            from: user,
+            value: BigNumber.from("100000000000000000"),
+          });
+          await this.weth.approve(
+            this.uniswap.address,
+            BigNumber.from("1000000000000000000000000000000000"),
+            { from: user }
+          );
+          await this.uniswap.swapExactTokensForTokens(
+            BigNumber.from("1000000000000000"),
+            0,
+            [
+              "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+              "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+            ],
+            user,
+            BigNumber.from("10000000000000000000000000000000"),
+            { from: user }
+          );
+          const approval = await this.token.approve(
+            this.adapter.address,
+            BigNumber.from("1000000000000000000000000000000000"),
+            { from: user }
+          );
+          const promise = this.adapter.buyLp(
+            "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+            this.wbtcAmt,
+            "MUNISWAP",
+            0,
+            0,
+            {
+              from: user,
+            }
+          );
+          await expect(promise).to.be.revertedWith("invalid exchange");
+        });
+
+        it("reverts excessive input amt using eth", async function () {
+          const promise = this.adapter.buyLp(
+            "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+            BigNumber.from(
+              "10000000000000000000000000000000000000000000000000000"
+            ),
+            this.exchangeName,
+            0,
+            0,
+            {
+              from: user,
+              value: this.amtEth,
+            }
+          );
+          await expect(promise).to.be.revertedWith("not enough funds");
+        });
+        it("reverts excessive input amt using wbtc", async function () {
+          const btc_amt = await this.token.balanceOf(user, { from: user });
+
+          await this.weth.deposit({
+            from: user,
+            value: BigNumber.from("100000000000000000"),
+          });
+          await this.weth.approve(
+            this.uniswap.address,
+            BigNumber.from("1000000000000000000000000000000000"),
+            { from: user }
+          );
+          await this.uniswap.swapExactTokensForTokens(
+            BigNumber.from("1000000000000000"),
+            0,
+            [
+              "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+              "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+            ],
+            user,
+            BigNumber.from("10000000000000000000000000000000"),
+            { from: user }
+          );
+          const approval = await this.token.approve(
+            this.adapter.address,
+            BigNumber.from("1000000000000000000000000000000000"),
+            { from: user }
+          );
+
+          const promise = this.adapter.buyLp(
+            "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+            BigNumber.from("10000000000000"),
+            this.exchangeName,
+            0,
+            0,
+            {
+              from: user,
+            }
+          );
+          await expect(promise).to.be.revertedWith("not enough funds");
+        });
+
+        it("valid purchase with eth", async function () {
+          const promise = this.adapter.buyLp(
+            "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+            this.ethAmt,
+            this.exchangeName,
+            0,
+            0,
+            {
+              from: user,
+              value: this.ethAmt,
+            }
+          );
+        });
+
+        it("valid purchase with wbtc", async function () {
+          const btc_amt = await this.token.balanceOf(user, { from: user });
+
+          await this.weth.deposit({
+            from: user,
+            value: BigNumber.from("100000000000000000"),
+          });
+          await this.weth.approve(
+            this.uniswap.address,
+            BigNumber.from("1000000000000000000000000000000000"),
+            { from: user }
+          );
+          await this.uniswap.swapExactTokensForTokens(
+            BigNumber.from("1000000000000000"),
+            0,
+            [
+              "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+              "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+            ],
+            user,
+            BigNumber.from("10000000000000000000000000000000"),
+            { from: user }
+          );
+          const approval = await this.token.approve(
+            this.adapter.address,
+            BigNumber.from("1000000000000000000000000000000000"),
+            { from: user }
+          );
+          const promise = this.adapter.buyLp(
+            "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+            this.wbtcAmt,
+            this.exchangeName,
+            0,
+            0,
+            {
+              from: user,
+            }
+          );
+        });
+
+        it("purchase with eth using expected amounts out from adapter", async function () {
+          const expWbtc = await this.adapter.expectedWbtcOut(
+            this.ethAmt,
+            this.exchangeName,
+            {
+              from: user,
+            }
+          );
+          const expDigg = await this.adapter.expectedDiggOut(
+            expWbtc,
+            this.exchangeName,
+            {
+              from: user,
+            }
+          );
+          const promise = this.adapter.buyLp(
+            "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+            this.ethAmt,
+            this.exchangeName,
+            expWbtc - 1,
+            expDigg - 1,
+            {
+              from: user,
+              value: this.ethAmt,
+            }
+          );
+        });
+
+        it("purchase with wbtc using expected amountOuts from adapter", async function () {
+          wbtc_amt = await this.token.balanceOf(user, { from: user });
+
+          await this.weth.deposit({
+            from: user,
+            value: BigNumber.from("100000000000000000"),
+          });
+          await this.weth.approve(
+            this.uniswap.address,
+            BigNumber.from("1000000000000000000000000000000000"),
+            { from: user }
+          );
+          await this.uniswap.swapExactTokensForTokens(
+            BigNumber.from("1000000000000000"),
+            0,
+            [
+              "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+              "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+            ],
+            user,
+            BigNumber.from("10000000000000000000000000000000"),
+            { from: user }
+          );
+          const approval = await this.token.approve(
+            this.adapter.address,
+            BigNumber.from("1000000000000000000000000000000000"),
+            { from: user }
+          );
+
+          const expDigg = await this.adapter.expectedDiggOut(
+            this.wbtcAmt,
+            this.exchangeName,
+            {
+              from: user,
+            }
+          );
+          const promise = this.adapter.buyLp(
+            "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+            this.wbtcAmt,
+            this.exchangeName,
+            0,
+            expDigg - 1,
+            {
+              from: user,
+            }
+          );
+        });
+      });
+    });
+  }
 });

@@ -90,8 +90,22 @@ describe("UniswapAdapter", () => {
 
   coreUniswapTests({
     inputAddress: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+    wbtcAmt: BigNumber.from("10000"),
+    ethAmt: BigNumber.from("1000000000000000000"),
+    exchangeName: "UNISWAP",
+  });
+
+  coreUniswapTests({
+    inputAddress: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
     wbtcAmt: BigNumber.from("10"),
     ethAmt: BigNumber.from("10000000000000"),
+    exchangeName: "SUSHISWAP",
+  });
+
+  coreUniswapTests({
+    inputAddress: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+    wbtcAmt: BigNumber.from("10000"),
+    ethAmt: BigNumber.from("100000000000000000000"),
     exchangeName: "SUSHISWAP",
   });
 
@@ -152,7 +166,7 @@ describe("UniswapAdapter", () => {
 
           await this.weth.deposit({
             from: user,
-            value: BigNumber.from("100000000000000000"),
+            value: BigNumber.from("10000000000000000000"),
           });
           await this.weth.approve(
             this.uniswap.address,
@@ -160,7 +174,7 @@ describe("UniswapAdapter", () => {
             { from: user }
           );
           await this.uniswap.swapExactTokensForTokens(
-            BigNumber.from("1000000000000000"),
+            BigNumber.from("10000000000000000000"),
             0,
             [
               "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
@@ -209,7 +223,7 @@ describe("UniswapAdapter", () => {
 
           await this.weth.deposit({
             from: user,
-            value: BigNumber.from("100000000000000000"),
+            value: BigNumber.from("10000000000000000000"),
           });
           await this.weth.approve(
             this.uniswap.address,
@@ -217,7 +231,7 @@ describe("UniswapAdapter", () => {
             { from: user }
           );
           await this.uniswap.swapExactTokensForTokens(
-            BigNumber.from("1000000000000000"),
+            BigNumber.from("10000000000000000000"),
             0,
             [
               "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
@@ -235,7 +249,7 @@ describe("UniswapAdapter", () => {
 
           const promise = this.adapter.buyLp(
             "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
-            BigNumber.from("10000000000000"),
+            BigNumber.from("10000000000000000"),
             this.exchangeName,
             0,
             0,
@@ -271,7 +285,7 @@ describe("UniswapAdapter", () => {
 
           await this.weth.deposit({
             from: user,
-            value: BigNumber.from("100000000000000000"),
+            value: BigNumber.from("10000000000000000000"),
           });
           await this.weth.approve(
             this.uniswap.address,
@@ -279,7 +293,7 @@ describe("UniswapAdapter", () => {
             { from: user }
           );
           await this.uniswap.swapExactTokensForTokens(
-            BigNumber.from("1000000000000000"),
+            BigNumber.from("10000000000000000000"),
             0,
             [
               "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
@@ -347,7 +361,7 @@ describe("UniswapAdapter", () => {
 
           await this.weth.deposit({
             from: user,
-            value: BigNumber.from("100000000000000000"),
+            value: BigNumber.from("10000000000000000000"),
           });
           await this.weth.approve(
             this.uniswap.address,
@@ -355,7 +369,7 @@ describe("UniswapAdapter", () => {
             { from: user }
           );
           await this.uniswap.swapExactTokensForTokens(
-            BigNumber.from("1000000000000000"),
+            BigNumber.from("10000000000000000000"),
             0,
             [
               "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
@@ -453,5 +467,7 @@ describe("UniswapAdapter", () => {
     }
   }
 });
+
+
 
 

@@ -141,7 +141,7 @@ contract UniswapAdapter {
 
     function addLiquidity(address token1,address token2,uint256 amount1,uint256 amount2,Exchange exchange) internal {
         IUniswapV2Router02 router = exchange == Exchange.Uniswap ? uniswapRouter : sushiswapRouter;
-                _addLiquidity(token1, token2, amount1, amount2, router);
+        _addLiquidity(token1, token2, amount1, amount2, router);
     }
 
     function _convertEthToToken( uint256 inputAmount, address addr, uint256 amountOutMin,IUniswapV2Router02 router) internal {

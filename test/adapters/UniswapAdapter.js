@@ -81,21 +81,21 @@ describe("UniswapAdapter", () => {
     });
   });
 
-  behavesLikeHegicOptions({
+  coreUniswapTests({
     inputAddress: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
     wbtcAmt: BigNumber.from("10"),
     ethAmt: BigNumber.from("10000000000000"),
     exchangeName: "UNISWAP",
   });
 
-  behavesLikeHegicOptions({
+  coreUniswapTests({
     inputAddress: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
     wbtcAmt: BigNumber.from("10"),
     ethAmt: BigNumber.from("10000000000000"),
     exchangeName: "SUSHISWAP",
   });
 
-  function behavesLikeHegicOptions(params) {
+  function coreUniswapTests(params) {
     describe(`buying on ${params.exchangeName}`, () => {
       before(async function () {
         const { inputAddress, ethAmt, wbtcAmt, exchangeName } = params;

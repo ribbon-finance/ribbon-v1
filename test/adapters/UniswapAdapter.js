@@ -104,13 +104,33 @@ describe("UniswapAdapter", () => {
         this.exchangeName = exchangeName;
       });
 
+      describe("#expectedAmountsOut", () => {
+        time.revertToSnapshotAfterEach();
+
+        it("handles invalid exchange for expectedWbtcOut", async function () {
+          const promise = this.adapter.expectedWbtcOut(
+            this.ethAmt,
+            "MUNISWAP",
+            {
+              from: user,
+            }
+          );
+          await expect(promise).to.be.revertedWith("invalid exchange");
+        });
+        it("handles invalid exchange for expectedDiggOut", async function () {
+          const promise = this.adapter.expectedDiggOut(
+            this.wbtcAmt,
+            "MUNISWAP",
+            {
+              from: user,
+            }
+          );
+          await expect(promise).to.be.revertedWith("invalid exchange");
+        });
+      });
+
       describe("#buyLp", () => {
-        beforeEach(async function () {
-          snapshotId = await time.takeSnapshot();
-        });
-        afterEach(async () => {
-          await time.revertToSnapShot(snapshotId);
-        });
+        time.revertToSnapshotAfterEach();
 
         it("handles invalid exchange using eth", async function () {
           const promise = this.adapter.buyLp(
@@ -227,6 +247,8 @@ describe("UniswapAdapter", () => {
         });
 
         it("valid purchase with eth", async function () {
+          //console.log('checking state before purchase');
+          await checkState(this.exchangeName, this.adapter.address, false);
           const promise = this.adapter.buyLp(
             "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
             this.ethAmt,
@@ -238,9 +260,13 @@ describe("UniswapAdapter", () => {
               value: this.ethAmt,
             }
           );
+          //console.log('checking state after purchase');
+          await checkState(this.exchangeName, this.adapter.address, true);
         });
 
         it("valid purchase with wbtc", async function () {
+          //console.log('checking state before purchase');
+          await checkState(this.exchangeName, this.adapter.address, false);
           const btc_amt = await this.token.balanceOf(user, { from: user });
 
           await this.weth.deposit({
@@ -278,9 +304,13 @@ describe("UniswapAdapter", () => {
               from: user,
             }
           );
+          //console.log('checking state after purchase');
+          await checkState(this.exchangeName, this.adapter.address, true);
         });
 
         it("purchase with eth using expected amounts out from adapter", async function () {
+          //console.log('checking state before purchase');
+          await checkState(this.exchangeName, this.adapter.address, false);
           const expWbtc = await this.adapter.expectedWbtcOut(
             this.ethAmt,
             this.exchangeName,
@@ -306,9 +336,13 @@ describe("UniswapAdapter", () => {
               value: this.ethAmt,
             }
           );
+          //console.log('checking state after purchase');
+          await checkState(this.exchangeName, this.adapter.address, true);
         });
 
         it("purchase with wbtc using expected amountOuts from adapter", async function () {
+          //console.log('checking state before purchase');
+          await checkState(this.exchangeName, this.adapter.address, false);
           wbtc_amt = await this.token.balanceOf(user, { from: user });
 
           await this.weth.deposit({
@@ -354,8 +388,70 @@ describe("UniswapAdapter", () => {
               from: user,
             }
           );
+          //console.log('checking state after purchase');
+          await checkState(this.exchangeName, this.adapter.address, true);
         });
       });
     });
   }
+  async function checkState(exchangeName, adapterAddress, isAfter) {
+    const [, , userSigner, recipientSigner] = await ethers.getSigners();
+    user = userSigner.address;
+    recipient = recipientSigner.address;
+    if (exchangeName == "UNISWAP") {
+      lpAddress = UNISWAP_LP;
+    }
+    if (exchangeName == "SUSHISWAP") {
+      lpAddress = SUSHISWAP_LP;
+    }
+    const wethArtifact = await artifacts.readArtifact("IWETH");
+    this.weth = new ethers.Contract(
+      "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+      wethArtifact.abi,
+      ethers.provider
+    );
+    this.weth = this.weth.connect(userSigner);
+
+    const tokenArtifact = await artifacts.readArtifact("ERC20");
+    this.wbtc = new ethers.Contract(
+      "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+      tokenArtifact.abi,
+      ethers.provider
+    );
+    this.wbtc = this.wbtc.connect(userSigner);
+
+    this.digg = new ethers.Contract(
+      "0x798d1be841a82a273720ce31c822c61a67a601c3",
+      tokenArtifact.abi,
+      ethers.provider
+    );
+    this.digg = this.digg.connect(userSigner);
+
+    const uniswapArtifact = await artifacts.readArtifact("IUniswapV2Pair");
+    this.uniswapLp = new ethers.Contract(
+      lpAddress,
+      uniswapArtifact.abi,
+      ethers.provider
+    );
+    this.uniswapLp = this.uniswapLp.connect(userSigner);
+
+    const ethBalance = await provider.getBalance(user);
+    //console.log(`eth balance of user is ${ethBalance}`);
+    const ethBalanceAdapter = await provider.getBalance(adapterAddress);
+    //console.log(`eth balance of adapter is ${ethBalanceAdapter}`);
+    const wbtcBalanceAdapter = await this.wbtc.balanceOf(adapterAddress);
+    //console.log(`wbtc balance of adapter is ${wbtcBalanceAdapter}`);
+    const diggBalanceAdapter = await this.digg.balanceOf(adapterAddress);
+    //console.log(`digg balance of adapter is ${diggBalanceAdapter}`);
+    const lpBalance = await this.uniswapLp.balanceOf(user);
+    //console.log(`lp balance of user is ${lpBalance}`);
+    if (isAfter) {
+      assert.isTrue(diggBalanceAdapter < 3);
+      assert.isTrue(wbtcBalanceAdapter < 3);
+      assert.isTrue(lpBalance > 0);
+      assert.equal(ethBalanceAdapter, 0);
+    }
+  }
 });
+
+

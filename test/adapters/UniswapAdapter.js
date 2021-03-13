@@ -530,8 +530,6 @@ describe("UniswapAdapter", () => {
   }
 
   async function checkBalances(beforeBals, afterBals, wbtcAmt) {
-    //console.log(afterBals[0].toString());
-    //                                              console.log(afterBals[1].toString());
     //digg balance should not change
     assert.equal(afterBals[1].toNumber(), beforeBals[1].toNumber());
     //wbtc bal should equal the wbtc input from the user + before pool balance - any leftover wbtc in the contract

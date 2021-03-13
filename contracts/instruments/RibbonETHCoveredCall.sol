@@ -119,6 +119,10 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorage {
         _swapContract.authorizeSigner(newManager);
     }
 
+    /**
+     * @notice Sets the new fee recipient
+     * @param newFeeRecipient is the address of the new fee recipient
+     */
     function setFeeRecipient(address newFeeRecipient) external onlyOwner {
         require(newFeeRecipient != address(0), "!newFeeRecipient");
         feeRecipient = newFeeRecipient;

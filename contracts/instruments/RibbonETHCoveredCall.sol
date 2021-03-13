@@ -16,10 +16,11 @@ import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {ISwap} from "../interfaces/ISwap.sol";
 import {OtokenInterface} from "../interfaces/GammaInterface.sol";
+import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 
-import {OptionsVaultStorageV1} from "../storage/OptionsVaultStorage.sol";
+import "hardhat/console.sol";
 
-contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
+contract RibbonETHCoveredCall is DSMath, OptionsVaultStorage {
     using ProtocolAdapter for IProtocolAdapter;
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -39,9 +40,6 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
     address public constant asset = _WETH;
     ExchangeMechanism public constant exchangeMechanism =
         ExchangeMechanism.AirSwap;
-
-    // 1% for an instant withdrawal
-    uint256 public constant instantWithdrawalFee = 0.01 ether;
 
     // 90% locked in options protocol, 10% of the pool reserved for withdrawals
     uint256 public constant lockedRatio = 0.9 ether;
@@ -99,24 +97,31 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
         transferOwnership(_owner);
         cap = _initCap;
 
+        // hardcode the initial withdrawal fee
+        instantWithdrawalFee = 0.005 ether;
         feeRecipient = _feeRecipient;
     }
 
     /**
      * @notice Sets the new manager of the vault. Revoke the airswap signer authorization from the old manager, and authorize the manager.
-     * @param _manager is the new manager of the vault
+     * @param newManager is the new manager of the vault
      */
-    function setManager(address _manager) external onlyOwner {
-        require(_manager != address(0), "New manager cannot be 0x0");
+    function setManager(address newManager) external onlyOwner {
+        require(newManager != address(0), "!newManager");
         address oldManager = manager;
-        manager = _manager;
+        manager = newManager;
 
-        emit ManagerChanged(oldManager, _manager);
+        emit ManagerChanged(oldManager, newManager);
 
         if (oldManager != address(0)) {
             _swapContract.revokeSigner(oldManager);
         }
-        _swapContract.authorizeSigner(_manager);
+        _swapContract.authorizeSigner(newManager);
+    }
+
+    function setFeeRecipient(address newFeeRecipient) external onlyOwner {
+        require(newFeeRecipient != address(0), "!newFeeRecipient");
+        feeRecipient = newFeeRecipient;
     }
 
     /**

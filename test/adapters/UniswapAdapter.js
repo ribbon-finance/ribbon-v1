@@ -101,7 +101,6 @@ describe("UniswapAdapter", () => {
     ethAmt: BigNumber.from("10000000000000"),
     exchangeName: "SUSHISWAP",
   });
-
   coreUniswapTests({
     inputAddress: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
     wbtcAmt: BigNumber.from("10000"),
@@ -147,10 +146,26 @@ describe("UniswapAdapter", () => {
         time.revertToSnapshotAfterEach();
 
         it("handles invalid exchange using eth", async function () {
+          const expWbtc = await this.adapter.expectedWbtcOut(
+            this.ethAmt,
+            this.exchangeName,
+            {
+              from: user,
+            }
+          );
+          const inputVars = await this.adapter.expectedDiggOut(
+            expWbtc,
+            this.exchangeName,
+            {
+              from: user,
+            }
+          );
+          const trade_amt = inputVars[1];
           const promise = this.adapter.buyLp(
             "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
             this.ethAmt,
             "MUNISWAP",
+            trade_amt,
             0,
             0,
             {
@@ -166,7 +181,7 @@ describe("UniswapAdapter", () => {
 
           await this.weth.deposit({
             from: user,
-            value: BigNumber.from("10000000000000000000"),
+            value: BigNumber.from("1000000000000000000"),
           });
           await this.weth.approve(
             this.uniswap.address,
@@ -174,7 +189,7 @@ describe("UniswapAdapter", () => {
             { from: user }
           );
           await this.uniswap.swapExactTokensForTokens(
-            BigNumber.from("10000000000000000000"),
+            BigNumber.from("1000000000000000000"),
             0,
             [
               "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
@@ -189,10 +204,19 @@ describe("UniswapAdapter", () => {
             BigNumber.from("1000000000000000000000000000000000"),
             { from: user }
           );
+          const inputVars = await this.adapter.expectedDiggOut(
+            this.wbtcAmt,
+            this.exchangeName,
+            {
+              from: user,
+            }
+          );
+          const trade_amt = inputVars[1];
           const promise = this.adapter.buyLp(
             "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
             this.wbtcAmt,
             "MUNISWAP",
+            trade_amt,
             0,
             0,
             {
@@ -203,12 +227,28 @@ describe("UniswapAdapter", () => {
         });
 
         it("reverts excessive input amt using eth", async function () {
+          const expWbtc = await this.adapter.expectedWbtcOut(
+            this.ethAmt,
+            this.exchangeName,
+            {
+              from: user,
+            }
+          );
+          const inputVars = await this.adapter.expectedDiggOut(
+            expWbtc,
+            this.exchangeName,
+            {
+              from: user,
+            }
+          );
+          const trade_amt = inputVars[1];
           const promise = this.adapter.buyLp(
             "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
             BigNumber.from(
               "10000000000000000000000000000000000000000000000000000"
             ),
             this.exchangeName,
+            trade_amt,
             0,
             0,
             {
@@ -223,7 +263,7 @@ describe("UniswapAdapter", () => {
 
           await this.weth.deposit({
             from: user,
-            value: BigNumber.from("10000000000000000000"),
+            value: BigNumber.from("1000000000000000000"),
           });
           await this.weth.approve(
             this.uniswap.address,
@@ -231,7 +271,7 @@ describe("UniswapAdapter", () => {
             { from: user }
           );
           await this.uniswap.swapExactTokensForTokens(
-            BigNumber.from("10000000000000000000"),
+            BigNumber.from("1000000000000000000"),
             0,
             [
               "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
@@ -246,11 +286,20 @@ describe("UniswapAdapter", () => {
             BigNumber.from("1000000000000000000000000000000000"),
             { from: user }
           );
+          const inputVars = await this.adapter.expectedDiggOut(
+            this.wbtcAmt,
+            this.exchangeName,
+            {
+              from: user,
+            }
+          );
+          const trade_amt = inputVars[1];
 
           const promise = this.adapter.buyLp(
             "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
-            BigNumber.from("10000000000000000"),
+            BigNumber.from("10000000000000"),
             this.exchangeName,
+            trade_amt,
             0,
             0,
             {
@@ -262,11 +311,31 @@ describe("UniswapAdapter", () => {
 
         it("valid purchase with eth", async function () {
           //console.log('checking state before purchase');
-          await checkState(this.exchangeName, this.adapter.address, false);
+          const beforeBals = await checkState(
+            this.exchangeName,
+            this.adapter.address,
+            false
+          );
+          const expWbtc = await this.adapter.expectedWbtcOut(
+            this.ethAmt,
+            this.exchangeName,
+            {
+              from: user,
+            }
+          );
+          const inputVars = await this.adapter.expectedDiggOut(
+            expWbtc,
+            this.exchangeName,
+            {
+              from: user,
+            }
+          );
+          const trade_amt = inputVars[1];
           const promise = this.adapter.buyLp(
             "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
             this.ethAmt,
             this.exchangeName,
+            trade_amt,
             0,
             0,
             {
@@ -275,17 +344,26 @@ describe("UniswapAdapter", () => {
             }
           );
           //console.log('checking state after purchase');
-          await checkState(this.exchangeName, this.adapter.address, true);
+          const afterBals = await checkState(
+            this.exchangeName,
+            this.adapter.address,
+            true
+          );
+          checkBalances(beforeBals, afterBals, expWbtc.toNumber());
         });
 
         it("valid purchase with wbtc", async function () {
           //console.log('checking state before purchase');
-          await checkState(this.exchangeName, this.adapter.address, false);
+          const beforeBals = await checkState(
+            this.exchangeName,
+            this.adapter.address,
+            false
+          );
           const btc_amt = await this.token.balanceOf(user, { from: user });
 
           await this.weth.deposit({
             from: user,
-            value: BigNumber.from("10000000000000000000"),
+            value: BigNumber.from("1000000000000000000"),
           });
           await this.weth.approve(
             this.uniswap.address,
@@ -293,7 +371,7 @@ describe("UniswapAdapter", () => {
             { from: user }
           );
           await this.uniswap.swapExactTokensForTokens(
-            BigNumber.from("10000000000000000000"),
+            BigNumber.from("1000000000000000000"),
             0,
             [
               "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
@@ -308,10 +386,21 @@ describe("UniswapAdapter", () => {
             BigNumber.from("1000000000000000000000000000000000"),
             { from: user }
           );
+
+          const inputVars = await this.adapter.expectedDiggOut(
+            this.wbtcAmt,
+            this.exchangeName,
+            {
+              from: user,
+            }
+          );
+          const trade_amt = inputVars[1];
+
           const promise = this.adapter.buyLp(
             "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
             this.wbtcAmt,
             this.exchangeName,
+            trade_amt,
             0,
             0,
             {
@@ -319,12 +408,21 @@ describe("UniswapAdapter", () => {
             }
           );
           //console.log('checking state after purchase');
-          await checkState(this.exchangeName, this.adapter.address, true);
+          const afterBals = await checkState(
+            this.exchangeName,
+            this.adapter.address,
+            true
+          );
+          checkBalances(beforeBals, afterBals, this.wbtcAmt.toNumber());
         });
 
         it("purchase with eth using expected amounts out from adapter", async function () {
           //console.log('checking state before purchase');
-          await checkState(this.exchangeName, this.adapter.address, false);
+          const beforeBals = await checkState(
+            this.exchangeName,
+            this.adapter.address,
+            false
+          );
           const expWbtc = await this.adapter.expectedWbtcOut(
             this.ethAmt,
             this.exchangeName,
@@ -332,17 +430,21 @@ describe("UniswapAdapter", () => {
               from: user,
             }
           );
-          const expDigg = await this.adapter.expectedDiggOut(
+          const inputVars = await this.adapter.expectedDiggOut(
             expWbtc,
             this.exchangeName,
             {
               from: user,
             }
           );
+          const expDigg = inputVars[0];
+          const trade_amt = inputVars[1];
+
           const promise = this.adapter.buyLp(
             "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
             this.ethAmt,
             this.exchangeName,
+            trade_amt,
             expWbtc - 1,
             expDigg - 1,
             {
@@ -351,17 +453,27 @@ describe("UniswapAdapter", () => {
             }
           );
           //console.log('checking state after purchase');
-          await checkState(this.exchangeName, this.adapter.address, true);
+          const afterBals = await checkState(
+            this.exchangeName,
+            this.adapter.address,
+            true
+          );
+          checkBalances(beforeBals, afterBals, expWbtc.toNumber());
         });
 
         it("purchase with wbtc using expected amountOuts from adapter", async function () {
           //console.log('checking state before purchase');
-          await checkState(this.exchangeName, this.adapter.address, false);
+          const beforeBals = await checkState(
+            this.exchangeName,
+            this.adapter.address,
+            false
+          );
+
           wbtc_amt = await this.token.balanceOf(user, { from: user });
 
           await this.weth.deposit({
             from: user,
-            value: BigNumber.from("10000000000000000000"),
+            value: BigNumber.from("1000000000000000000"),
           });
           await this.weth.approve(
             this.uniswap.address,
@@ -369,7 +481,7 @@ describe("UniswapAdapter", () => {
             { from: user }
           );
           await this.uniswap.swapExactTokensForTokens(
-            BigNumber.from("10000000000000000000"),
+            BigNumber.from("1000000000000000000"),
             0,
             [
               "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
@@ -385,17 +497,20 @@ describe("UniswapAdapter", () => {
             { from: user }
           );
 
-          const expDigg = await this.adapter.expectedDiggOut(
+          inputVars = await this.adapter.expectedDiggOut(
             this.wbtcAmt,
             this.exchangeName,
             {
               from: user,
             }
           );
+          const expDigg = inputVars[0];
+          const trade_amt = inputVars[1];
           const promise = this.adapter.buyLp(
             "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
             this.wbtcAmt,
             this.exchangeName,
+            trade_amt,
             0,
             expDigg - 1,
             {
@@ -403,10 +518,27 @@ describe("UniswapAdapter", () => {
             }
           );
           //console.log('checking state after purchase');
-          await checkState(this.exchangeName, this.adapter.address, true);
+          const afterBals = await checkState(
+            this.exchangeName,
+            this.adapter.address,
+            true
+          );
+          checkBalances(beforeBals, afterBals, this.wbtcAmt.toNumber());
         });
       });
     });
+  }
+
+  async function checkBalances(beforeBals, afterBals, wbtcAmt) {
+    //console.log(afterBals[0].toString());
+    //                                              console.log(afterBals[1].toString());
+    //digg balance should not change
+    assert.equal(afterBals[1].toNumber(), beforeBals[1].toNumber());
+    //wbtc bal should equal the wbtc input from the user + before pool balance - any leftover wbtc in the contract
+    assert.equal(
+      beforeBals[0].toNumber() + wbtcAmt - afterBals[2],
+      afterBals[0].toNumber()
+    );
   }
   async function checkState(exchangeName, adapterAddress, isAfter) {
     const [, , userSigner, recipientSigner] = await ethers.getSigners();
@@ -459,14 +591,18 @@ describe("UniswapAdapter", () => {
     //console.log(`digg balance of adapter is ${diggBalanceAdapter}`);
     const lpBalance = await this.uniswapLp.balanceOf(user);
     //console.log(`lp balance of user is ${lpBalance}`);
+    const reserveBals = await this.uniswapLp.getReserves();
+    //console.log(reserveBals.reserve0.toString());
     if (isAfter) {
       assert.isTrue(diggBalanceAdapter < 3);
       assert.isTrue(wbtcBalanceAdapter < 3);
       assert.isTrue(lpBalance > 0);
       assert.equal(ethBalanceAdapter, 0);
     }
+    return [reserveBals.reserve0, reserveBals.reserve1, wbtcBalanceAdapter];
   }
 });
+
 
 
 

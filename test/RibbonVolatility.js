@@ -588,7 +588,7 @@ function behavesLikeRibbonVolatility(params) {
           BigNumber.from(receipt.gasUsed)
         );
 
-        expect(res)
+        await expect(res)
           .to.emit(this.contract, "Exercised")
           .withArgs(
             user,

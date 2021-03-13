@@ -905,7 +905,12 @@ describe("RibbonETHCoveredCall", () => {
 
       expect(res)
         .to.emit(this.vault, "Withdraw")
-        .withArgs(user, parseEther("0.099"), parseEther("0.9"));
+        .withArgs(
+          user,
+          parseEther("0.0995"),
+          parseEther("0.9"),
+          parseEther("0.0005")
+        );
     });
 
     it("should withdraw funds up to 10% of pool", async function () {

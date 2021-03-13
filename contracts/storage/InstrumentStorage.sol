@@ -79,7 +79,7 @@ contract InstrumentStorageV3 {
       uint256 strikeIndex;
   }
 
-  mapping(bytes32 => address) private idToAddress;
-  mapping(address => OptionType) private addressToOptionType;
-  mapping(address => bool) private seenMarket;
+  mapping(bytes32 => address) internal idToAddress;
+  mapping(address => OptionType) internal addressToOptionType;
+  mapping(address => bool) internal seenMarket;
 }

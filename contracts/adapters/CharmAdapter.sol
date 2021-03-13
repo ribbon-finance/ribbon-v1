@@ -173,7 +173,7 @@ contract CharmAdapter is IProtocolAdapter, InstrumentStorageV1, InstrumentStorag
       //get token address
       address tokenAddress = lookupOToken(optionTerms);
       if(tokenAddress == address(0)){
-        populateOTokenMappings();
+        this.populateOTokenMappings();
       }
 
       tokenAddress = lookupOToken(optionTerms);

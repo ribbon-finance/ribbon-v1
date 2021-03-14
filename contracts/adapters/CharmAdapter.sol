@@ -15,33 +15,35 @@ import {
     IOptionToken,
     IOptionViews
 } from "../interfaces/CharmInterface.sol";
-import {
-    InstrumentStorageV1,
-    InstrumentStorageV2,
-    InstrumentStorageV3
-} from "../storage/InstrumentStorage.sol";
+import {AdapterStorage, AdapterStorageTypes} from "../storage/AdapterStorage.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {UniERC20} from "../lib/UniERC20.sol";
 
-contract CharmAdapter is IProtocolAdapter, InstrumentStorageV1, InstrumentStorageV2, InstrumentStorageV3{
+import "hardhat/console.sol";
+
+contract CharmAdapter is IProtocolAdapter{
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using UniERC20 for IERC20;
 
     IOptionFactory public immutable optionFactory;
     IOptionViews public immutable optionViews;
+    AdapterStorage public immutable adapterStorage;
 
     string private constant _name = "CHARM";
     bool private constant _nonFungible = false;
 
     constructor(
         address _optionFactory,
-        address _optionViews
+        address _optionViews,
+        address _adapterStorage
     ) {
         require(_optionFactory != address(0), "!_optionFactory");
         require(_optionViews != address(0), "!_optionViews");
+        require(_adapterStorage != address(0), "!_adapterStorage");
         optionFactory = IOptionFactory(_optionFactory);
         optionViews = IOptionViews(_optionViews);
+        adapterStorage = AdapterStorage(_adapterStorage);
     }
 
     receive() external payable {}
@@ -103,7 +105,7 @@ contract CharmAdapter is IProtocolAdapter, InstrumentStorageV1, InstrumentStorag
         require(tokenAddress != address(0), "Must be valid option terms!");
 
         // Get strike index, whether is long
-        OptionType memory optionType = addressToOptionType[tokenAddress];
+        AdapterStorageTypes.CharmOptionType memory optionType = adapterStorage.addressToOptionType(tokenAddress);
 
         //get token
         IOptionToken token = IOptionToken(tokenAddress);
@@ -122,17 +124,21 @@ contract CharmAdapter is IProtocolAdapter, InstrumentStorageV1, InstrumentStorag
         address options,
         uint256,
         uint256 amount
-    ) public view override returns (uint256 profit) {
+    ) public view override returns (uint256) {
       //get token
       IOptionToken token = IOptionToken(options);
       //get market
       IOptionMarket market = IOptionMarket(token.market());
 
       // Get strike index, whether is long
-      OptionType memory optionType = addressToOptionType[options];
+      AdapterStorageTypes.CharmOptionType memory optionType = adapterStorage.addressToOptionType(options);
 
       //profit of exercising
-      profit = optionViews.getSellOptionCost(market, optionType.isLongToken, optionType.strikeIndex, amount);
+      try optionViews.getSellOptionCost(market, optionType.isLongToken, optionType.strikeIndex, amount) returns (uint v) {
+        return v;
+      } catch {
+        return 0;
+      }
     }
 
     function canExercise(
@@ -181,12 +187,12 @@ contract CharmAdapter is IProtocolAdapter, InstrumentStorageV1, InstrumentStorag
       require(tokenAddress != address(0), "Market needs to exist!");
 
       // Get strike index, whether is long
-      OptionType memory optionType = addressToOptionType[tokenAddress];
+      AdapterStorageTypes.CharmOptionType memory optionType = adapterStorage.addressToOptionType(tokenAddress);
       //get token
       IOptionToken token = IOptionToken(tokenAddress);
       //get market
       IOptionMarket market = IOptionMarket(token.market());
-      IERC20 baseToken = IERC20(optionTerms.underlying);
+      IERC20 baseToken = IERC20(market.baseToken());
 
       uint256 amountIn;
 
@@ -198,11 +204,17 @@ contract CharmAdapter is IProtocolAdapter, InstrumentStorageV1, InstrumentStorag
           maxCost
         );
       }else{
-        uint256 balanceBefore = baseToken.uniBalanceOf(address(this));
-        baseToken.uniTransferFromSenderToThis(amount);
-        uint256 balanceAfter = baseToken.uniBalanceOf(address(this));
+        uint256 premium = optionViews.getBuyOptionCost(market, optionType.isLongToken, optionType.strikeIndex, amount);
 
+        console.log("allowance from msg.sender -> charmadapter %s", baseToken.allowance(msg.sender, address(this)));
+        console.log("amount is %s", amount);
+        console.log("premium is %s", premium);
+        uint256 balanceBefore = baseToken.uniBalanceOf(address(this));
+        baseToken.uniTransferFromSenderToThis(premium);
+        uint256 balanceAfter = baseToken.uniBalanceOf(address(this));
         baseToken.safeApprove(address(market), balanceAfter.sub(balanceBefore));
+        console.log("allowance from charmadapter -> market %s", baseToken.allowance(address(this), address(market)));
+
         amountIn = market.buy(
           optionType.isLongToken,
           optionType.strikeIndex,
@@ -234,20 +246,20 @@ contract CharmAdapter is IProtocolAdapter, InstrumentStorageV1, InstrumentStorag
     ) public payable override {
 
       // Get strike index, whether is long
-      OptionType memory optionType = addressToOptionType[options];
+      AdapterStorageTypes.CharmOptionType memory optionType = adapterStorage.addressToOptionType(options);
 
       //get token
       IOptionToken token = IOptionToken(options);
       //get market
       IOptionMarket market = IOptionMarket(token.market());
 
-      uint256 profit = exerciseProfit(options, 0, amount);
-      require(profit > 0, "Not profitable to exercise");
-
       // if we are exercising but market has not settled, do it
       if(market.isExpired() && !market.isSettled()){
         market.settle();
       }
+
+      uint256 profit = exerciseProfit(options, 0, amount);
+      require(profit > 0, "Not profitable to exercise");
 
       uint256 amountOut = market.sell(optionType.isLongToken, optionType.strikeIndex, amount, profit);
 
@@ -297,30 +309,19 @@ contract CharmAdapter is IProtocolAdapter, InstrumentStorageV1, InstrumentStorag
         // refer to mapping after encoding with _getOptionId
         bytes32 id = _getOptionId(underlying, isShort, optionTerms.strikePrice, optionTerms.expiry, isPut);
 
-        token = idToAddress[id];
+        token = adapterStorage.idToAddress(id);
     }
 
     // Populate mappings to option token addresses
     function populateOTokenMappings()
         external
     {
-<<<<<<< HEAD
       uint256 i = optionFactory.numMarkets() - 1;
 
       while (i >= 0) {
         IOptionMarket market = IOptionMarket(optionFactory.markets(i));
 
-        if(seenMarket[address(market)] || market.isSettled()){
-=======
-      address[] memory markets = optionFactory.markets();
-
-      uint256 i = markets.length - 1;
-
-      while (i > 0) {
-        IOptionMarket market = IOptionMarket(markets[i]);
-
-        if(seenMarket[address(market)]){
->>>>>>> 0840ed2cbb1851996f28a44de4f2441414b2b49f
+        if(adapterStorage.seenMarket(address(market)) || market.isSettled()){
           break;
         }
 
@@ -329,10 +330,7 @@ contract CharmAdapter is IProtocolAdapter, InstrumentStorageV1, InstrumentStorag
         IERC20 baseToken = market.baseToken();
 
         populateMarket(market, baseToken, isMarketPut, marketExpiry);
-<<<<<<< HEAD
-        seenMarket[address(market)] = true;
-=======
->>>>>>> 0840ed2cbb1851996f28a44de4f2441414b2b49f
+        adapterStorage.setSeenMarket(address(market), true);
 
         i -= 1;
       }
@@ -344,46 +342,21 @@ contract CharmAdapter is IProtocolAdapter, InstrumentStorageV1, InstrumentStorag
       bool isPut,
       uint256 expiry
     ) internal {
-<<<<<<< HEAD
         for(uint j = 0; j < market.numStrikes(); j++) {
           // For long tokens
           bytes32 idLong = _getOptionId(address(baseToken), false, market.strikePrices(j), expiry, isPut);
           address longToken = address(market.longTokens(j));
-=======
-        IOptionToken[] memory longTokens = market.longTokens();
-        IOptionToken[] memory shortTokens = market.shortTokens();
-        uint256[] memory strikePrices = market.strikePrices();
-
-        uint256 j = 0;
-        while(j < longTokens.length){
-          // For long tokens
-          bytes32 idLong = _getOptionId(address(baseToken), false, strikePrices[j], expiry, isPut);
-          address longToken = address(longTokens[j]);
->>>>>>> 0840ed2cbb1851996f28a44de4f2441414b2b49f
-          idToAddress[idLong] = longToken;
-          OptionType memory lo = OptionType(true, j);
-          addressToOptionType[longToken] = lo;
+          AdapterStorageTypes.CharmOptionType memory lo = AdapterStorageTypes.CharmOptionType(true, j);
+          adapterStorage.setIdToAddress(idLong, longToken);
+          adapterStorage.setAddressToOptionType(longToken, lo);
 
           // For short tokens
-<<<<<<< HEAD
           bytes32 idShort = _getOptionId(address(baseToken), true, market.strikePrices(j), expiry, isPut);
           address shortToken = address(market.shortTokens(j));
-          idToAddress[idShort] = shortToken;
-          OptionType memory sh = OptionType(false, j);
-          addressToOptionType[shortToken] = sh;
+          AdapterStorageTypes.CharmOptionType memory sh = AdapterStorageTypes.CharmOptionType(false, j);
+          adapterStorage.setIdToAddress(idShort, shortToken);
+          adapterStorage.setAddressToOptionType(shortToken, sh);
         }
-=======
-          bytes32 idShort = _getOptionId(address(baseToken), true, strikePrices[j], expiry, isPut);
-          address shortToken = address(shortTokens[j]);
-          idToAddress[idShort] = shortToken;
-          OptionType memory sh = OptionType(false, j);
-          addressToOptionType[shortToken] = sh;
-
-          j+=1;
-        }
-
-        seenMarket[address(market)] = true;
->>>>>>> 0840ed2cbb1851996f28a44de4f2441414b2b49f
     }
 
     /**

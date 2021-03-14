@@ -29,6 +29,7 @@ contract UniswapAdapter {
     IUniswapV2Pair public immutable wbtcDiggUniswap;
     IUniswapV2Pair public immutable wbtcDiggSushiswap;
     IERC20 public immutable wbtcToken;
+    IERC20 public immutable diggToken;
     uint256 public constant deadlineBuffer = 150;
 
     constructor(
@@ -49,7 +50,8 @@ contract UniswapAdapter {
         wbtcDiggUniswap = IUniswapV2Pair(_wbtcDiggUniswap);
         wbtcDiggSushiswap = IUniswapV2Pair(_wbtcDiggSushiswap);
         wbtcToken = IERC20(_wbtcAddress);
-        
+        diggToken = IERC20(_diggAddress);
+
      }
 
     receive() external payable {}
@@ -158,12 +160,21 @@ contract UniswapAdapter {
         address[] memory path = new address[](2);
         path[0] = addr1;
         path[1] = addr2;
+        if (wbtcToken.allowance(address(this), address(router)) == 0){
+                SafeERC20.safeApprove(wbtcToken, address(router), type(uint256).max);
+        }
         uint256 amtOut = router.swapExactTokensForTokens(amount,amountOutMin, path, address(this), deadline)[1];
         return amtOut;
     }
 
     function _addLiquidity(address token1,address token2,uint256 amount1,uint256 amount2, IUniswapV2Router02 router) internal returns (uint256){
         uint deadline = block.timestamp + deadlineBuffer;
+        if (wbtcToken.allowance(address(this), address(router)) < amount1){
+                        SafeERC20.safeApprove(wbtcToken, address(router), type(uint256).max);
+                }
+        if (diggToken.allowance(address(this), address(router)) < amount2){
+                        SafeERC20.safeApprove(diggToken, address(router), type(uint256).max);
+                }
         (,, uint256 lpAmt) = router.addLiquidity(token1,token2, amount1, amount2, 0, 0, address(this), deadline);
         return lpAmt;
     }

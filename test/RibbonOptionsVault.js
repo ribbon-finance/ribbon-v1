@@ -264,7 +264,7 @@ describe("RibbonETHCoveredCall", () => {
         (await this.vault.balanceOf(user)).toString(),
         depositAmount
       );
-      expect(res)
+      await expect(res)
         .to.emit(this.vault, "Deposit")
         .withArgs(user, depositAmount, depositAmount);
     });
@@ -300,7 +300,7 @@ describe("RibbonETHCoveredCall", () => {
         (await this.vault.balanceOf(counterparty)).toString(),
         parseEther("0.75")
       );
-      expect(res)
+      await expect(res)
         .to.emit(this.vault, "Deposit")
         .withArgs(counterparty, parseEther("1"), parseEther("0.75"));
     });
@@ -440,9 +440,9 @@ describe("RibbonETHCoveredCall", () => {
         .connect(managerSigner)
         .rollToNextOption(this.optionTerms, { from: manager });
 
-      expect(res).to.not.emit(this.vault, "CloseShort");
+      await expect(res).to.not.emit(this.vault, "CloseShort");
 
-      expect(res)
+      await expect(res)
         .to.emit(this.vault, "OpenShort")
         .withArgs(this.oTokenAddress, lockedAmount, manager);
 
@@ -492,7 +492,7 @@ describe("RibbonETHCoveredCall", () => {
           { from: manager }
         );
 
-      expect(firstTx)
+      await expect(firstTx)
         .to.emit(this.vault, "OpenShort")
         .withArgs(firstOption, wmul(this.depositAmount, LOCKED_RATIO), manager);
 
@@ -521,11 +521,11 @@ describe("RibbonETHCoveredCall", () => {
       assert.equal(await this.vault.currentOptionExpiry(), 1614326400);
 
       // Withdraw the original short position, which is 90% of the vault
-      expect(secondTx)
+      await expect(secondTx)
         .to.emit(this.vault, "CloseShort")
         .withArgs(firstOption, parseEther("0.9"), manager);
 
-      expect(secondTx)
+      await expect(secondTx)
         .to.emit(this.vault, "OpenShort")
         .withArgs(secondOption, parseEther("0.9"), manager);
 
@@ -610,7 +610,7 @@ describe("RibbonETHCoveredCall", () => {
       assert.equal(await this.vault.currentOption(), firstOption);
       assert.equal(await this.vault.currentOptionExpiry(), 1610697600);
 
-      expect(firstTx)
+      await expect(firstTx)
         .to.emit(this.vault, "OpenShort")
         .withArgs(firstOption, wmul(this.depositAmount, LOCKED_RATIO), manager);
 
@@ -658,11 +658,11 @@ describe("RibbonETHCoveredCall", () => {
       assert.equal(await this.vault.currentOption(), secondOption);
       assert.equal(await this.vault.currentOptionExpiry(), 1614326400);
 
-      expect(secondTx)
+      await expect(secondTx)
         .to.emit(this.vault, "CloseShort")
         .withArgs(firstOption, wmul(this.depositAmount, LOCKED_RATIO), manager);
 
-      expect(secondTx)
+      await expect(secondTx)
         .to.emit(this.vault, "OpenShort")
         .withArgs(secondOption, parseEther("0.99"), manager);
 
@@ -691,7 +691,7 @@ describe("RibbonETHCoveredCall", () => {
           { from: manager }
         );
 
-      expect(firstTx)
+      await expect(firstTx)
         .to.emit(this.vault, "OpenShort")
         .withArgs(firstOption, wmul(this.depositAmount, LOCKED_RATIO), manager);
 
@@ -739,11 +739,11 @@ describe("RibbonETHCoveredCall", () => {
       assert.equal(await this.vault.currentOption(), secondOption);
       assert.equal(await this.vault.currentOptionExpiry(), 1614326400);
 
-      expect(secondTx)
+      await expect(secondTx)
         .to.emit(this.vault, "CloseShort")
         .withArgs(firstOption, parseEther("0.8325"), manager);
 
-      expect(secondTx)
+      await expect(secondTx)
         .to.emit(this.vault, "OpenShort")
         .withArgs(secondOption, parseEther("0.92925"), manager);
 
@@ -792,13 +792,13 @@ describe("RibbonETHCoveredCall", () => {
         .connect(counterpartySigner)
         .swap(signedOrder);
 
-      expect(res)
+      await expect(res)
         .to.emit(this.oToken, "Transfer")
         .withArgs(this.vault.address, counterparty, this.sellAmount);
 
       const wethERC20 = await getContractAt("IERC20", this.weth.address);
 
-      expect(res)
+      await expect(res)
         .to.emit(wethERC20, "Transfer")
         .withArgs(counterparty, this.vault.address, this.premium);
 
@@ -903,9 +903,14 @@ describe("RibbonETHCoveredCall", () => {
         parseEther("0.9")
       );
 
-      expect(res)
+      await expect(res)
         .to.emit(this.vault, "Withdraw")
-        .withArgs(user, parseEther("0.099"), parseEther("0.9"));
+        .withArgs(
+          user,
+          parseEther("0.0995"),
+          parseEther("0.1"),
+          parseEther("0.0005")
+        );
     });
 
     it("should withdraw funds up to 10% of pool", async function () {

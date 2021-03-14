@@ -48,7 +48,12 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorage {
 
     event Deposit(address indexed account, uint256 amount, uint256 share);
 
-    event Withdraw(address indexed account, uint256 amount, uint256 share);
+    event Withdraw(
+        address indexed account,
+        uint256 amount,
+        uint256 share,
+        uint256 fee
+    );
 
     event OpenShort(
         address indexed options,
@@ -211,7 +216,7 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorage {
         uint256 feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
         uint256 amountAfterFee = withdrawAmount.sub(feeAmount);
 
-        emit Withdraw(msg.sender, amountAfterFee, share);
+        emit Withdraw(msg.sender, amountAfterFee, share, feeAmount);
 
         _burn(msg.sender, share);
         assetToken.safeTransfer(feeRecipient, feeAmount);

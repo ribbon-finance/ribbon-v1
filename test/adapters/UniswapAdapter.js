@@ -331,7 +331,7 @@ describe("UniswapAdapter", () => {
             }
           );
           const trade_amt = inputVars[1];
-          const promise = this.adapter.buyLp(
+          const res = await this.adapter.buyLp(
             "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
             this.ethAmt,
             this.exchangeName,
@@ -343,6 +343,8 @@ describe("UniswapAdapter", () => {
               value: this.ethAmt,
             }
           );
+          const receipt = await res.wait();
+          assert.isAtMost(receipt.gasUsed.toNumber(), 500000);
           //console.log('checking state after purchase');
           const afterBals = await checkState(
             this.exchangeName,
@@ -396,7 +398,7 @@ describe("UniswapAdapter", () => {
           );
           const trade_amt = inputVars[1];
 
-          const promise = this.adapter.buyLp(
+          const res = await this.adapter.buyLp(
             "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
             this.wbtcAmt,
             this.exchangeName,
@@ -407,6 +409,8 @@ describe("UniswapAdapter", () => {
               from: user,
             }
           );
+          const receipt = await res.wait();
+          assert.isAtMost(receipt.gasUsed.toNumber(), 500000);
           //console.log('checking state after purchase');
           const afterBals = await checkState(
             this.exchangeName,
@@ -440,7 +444,7 @@ describe("UniswapAdapter", () => {
           const expDigg = inputVars[0];
           const trade_amt = inputVars[1];
 
-          const promise = this.adapter.buyLp(
+          const res = await this.adapter.buyLp(
             "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
             this.ethAmt,
             this.exchangeName,
@@ -452,6 +456,8 @@ describe("UniswapAdapter", () => {
               value: this.ethAmt,
             }
           );
+          const receipt = await res.wait();
+          assert.isAtMost(receipt.gasUsed.toNumber(), 500000);
           //console.log('checking state after purchase');
           const afterBals = await checkState(
             this.exchangeName,
@@ -600,8 +606,3 @@ describe("UniswapAdapter", () => {
     return [reserveBals.reserve0, reserveBals.reserve1, wbtcBalanceAdapter];
   }
 });
-
-
-
-
-

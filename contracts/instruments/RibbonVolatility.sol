@@ -9,7 +9,6 @@ import {DSMath} from "../lib/DSMath.sol";
 import {
     InstrumentStorageV1,
     InstrumentStorageV2,
-    InstrumentStorageV3,
     Venues
 } from "../storage/InstrumentStorage.sol";
 import {
@@ -20,7 +19,7 @@ import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {Ownable} from "../lib/Ownable.sol";
 
-contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2, InstrumentStorageV3 {
+contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using ProtocolAdapter for IProtocolAdapter;

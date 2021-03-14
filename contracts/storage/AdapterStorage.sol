@@ -7,14 +7,17 @@ import {
 } from "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 
-contract AdapterStorageV1 {
-    struct OptionType {
+library AdapterStorageTypes {
+    struct CharmOptionType {
         bool isLongToken;
         uint256 strikeIndex;
     }
+}
 
+contract AdapterStorageV1 {
     mapping(bytes32 => address) internal _idToAddress;
-    mapping(address => OptionType) internal _addressToOptionType;
+    mapping(address => AdapterStorageTypes.CharmOptionType)
+        internal _addressToOptionType;
     mapping(address => bool) internal _seenMarket;
 }
 
@@ -37,7 +40,7 @@ contract AdapterStorage is Initializable, AdapterStorageV1 {
 
     function setAddressToOptionType(
         address option,
-        OptionType calldata optionType
+        AdapterStorageTypes.CharmOptionType calldata optionType
     ) external onlyInstrument {
         _addressToOptionType[option] = optionType;
     }
@@ -56,7 +59,7 @@ contract AdapterStorage is Initializable, AdapterStorageV1 {
     function addressToOptionType(address option)
         external
         view
-        returns (OptionType memory)
+        returns (AdapterStorageTypes.CharmOptionType memory)
     {
         return _addressToOptionType[option];
     }

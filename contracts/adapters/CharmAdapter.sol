@@ -15,7 +15,7 @@ import {
     IOptionToken,
     IOptionViews
 } from "../interfaces/CharmInterface.sol";
-import {AdapterStorage} from "../storage/AdapterStorage.sol";
+import {AdapterStorage, AdapterStorageTypes} from "../storage/AdapterStorage.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {UniERC20} from "../lib/UniERC20.sol";
 
@@ -103,7 +103,7 @@ contract CharmAdapter is IProtocolAdapter {
         require(tokenAddress != address(0), "Must be valid option terms!");
 
         // Get strike index, whether is long
-        OptionType memory optionType = addressToOptionType[tokenAddress];
+        AdapterStorageTypes.CharmOptionType memory optionType = adapterStorage.addressToOptionType(tokenAddress);
 
         //get token
         IOptionToken token = IOptionToken(tokenAddress);
@@ -129,7 +129,7 @@ contract CharmAdapter is IProtocolAdapter {
       IOptionMarket market = IOptionMarket(token.market());
 
       // Get strike index, whether is long
-      OptionType memory optionType = addressToOptionType[options];
+      AdapterStorageTypes.CharmOptionType memory optionType = adapterStorage.addressToOptionType(options);
 
       //profit of exercising
       profit = optionViews.getSellOptionCost(market, optionType.isLongToken, optionType.strikeIndex, amount);
@@ -181,7 +181,7 @@ contract CharmAdapter is IProtocolAdapter {
       require(tokenAddress != address(0), "Market needs to exist!");
 
       // Get strike index, whether is long
-      OptionType memory optionType = addressToOptionType[tokenAddress];
+      AdapterStorageTypes.CharmOptionType memory optionType = adapterStorage.addressToOptionType(tokenAddress);
       //get token
       IOptionToken token = IOptionToken(tokenAddress);
       //get market
@@ -234,7 +234,7 @@ contract CharmAdapter is IProtocolAdapter {
     ) public payable override {
 
       // Get strike index, whether is long
-      OptionType memory optionType = addressToOptionType[options];
+      AdapterStorageTypes.CharmOptionType memory optionType = adapterStorage.addressToOptionType(options);
 
       //get token
       IOptionToken token = IOptionToken(options);
@@ -297,7 +297,7 @@ contract CharmAdapter is IProtocolAdapter {
         // refer to mapping after encoding with _getOptionId
         bytes32 id = _getOptionId(underlying, isShort, optionTerms.strikePrice, optionTerms.expiry, isPut);
 
-        token = idToAddress[id];
+        token = adapterStorage.idToAddress(id);
     }
 
     // Populate mappings to option token addresses
@@ -311,7 +311,7 @@ contract CharmAdapter is IProtocolAdapter {
       while (i > 0) {
         IOptionMarket market = IOptionMarket(markets[i]);
 
-        if(seenMarket[address(market)]){
+        if(adapterStorage.seenMarket(address(market))){
           break;
         }
 
@@ -340,21 +340,21 @@ contract CharmAdapter is IProtocolAdapter {
           // For long tokens
           bytes32 idLong = _getOptionId(address(baseToken), false, strikePrices[j], expiry, isPut);
           address longToken = address(longTokens[j]);
-          idToAddress[idLong] = longToken;
-          OptionType memory lo = OptionType(true, j);
-          addressToOptionType[longToken] = lo;
+          AdapterStorageTypes.CharmOptionType memory lo = AdapterStorageTypes.CharmOptionType(true, j);
+          adapterStorage.setIdToAddress(idLong, longToken);
+          adapterStorage.setAddressToOptionType(longToken, lo);
 
           // For short tokens
           bytes32 idShort = _getOptionId(address(baseToken), true, strikePrices[j], expiry, isPut);
           address shortToken = address(shortTokens[j]);
-          idToAddress[idShort] = shortToken;
-          OptionType memory sh = OptionType(false, j);
-          addressToOptionType[shortToken] = sh;
+          AdapterStorageTypes.CharmOptionType memory sh = AdapterStorageTypes.CharmOptionType(false, j);
+          adapterStorage.setIdToAddress(idShort, shortToken);
+          adapterStorage.setAddressToOptionType(shortToken, sh);
 
           j+=1;
         }
 
-        seenMarket[address(market)] = true;
+        adapterStorage.setSeenMarket(address(market), true);
     }
 
     /**

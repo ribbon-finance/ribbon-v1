@@ -304,12 +304,23 @@ contract CharmAdapter is IProtocolAdapter, InstrumentStorageV1, InstrumentStorag
     function populateOTokenMappings()
         external
     {
+<<<<<<< HEAD
       uint256 i = optionFactory.numMarkets() - 1;
 
       while (i >= 0) {
         IOptionMarket market = IOptionMarket(optionFactory.markets(i));
 
         if(seenMarket[address(market)] || market.isSettled()){
+=======
+      address[] memory markets = optionFactory.markets();
+
+      uint256 i = markets.length - 1;
+
+      while (i > 0) {
+        IOptionMarket market = IOptionMarket(markets[i]);
+
+        if(seenMarket[address(market)]){
+>>>>>>> 0840ed2cbb1851996f28a44de4f2441414b2b49f
           break;
         }
 
@@ -318,7 +329,10 @@ contract CharmAdapter is IProtocolAdapter, InstrumentStorageV1, InstrumentStorag
         IERC20 baseToken = market.baseToken();
 
         populateMarket(market, baseToken, isMarketPut, marketExpiry);
+<<<<<<< HEAD
         seenMarket[address(market)] = true;
+=======
+>>>>>>> 0840ed2cbb1851996f28a44de4f2441414b2b49f
 
         i -= 1;
       }
@@ -330,21 +344,46 @@ contract CharmAdapter is IProtocolAdapter, InstrumentStorageV1, InstrumentStorag
       bool isPut,
       uint256 expiry
     ) internal {
+<<<<<<< HEAD
         for(uint j = 0; j < market.numStrikes(); j++) {
           // For long tokens
           bytes32 idLong = _getOptionId(address(baseToken), false, market.strikePrices(j), expiry, isPut);
           address longToken = address(market.longTokens(j));
+=======
+        IOptionToken[] memory longTokens = market.longTokens();
+        IOptionToken[] memory shortTokens = market.shortTokens();
+        uint256[] memory strikePrices = market.strikePrices();
+
+        uint256 j = 0;
+        while(j < longTokens.length){
+          // For long tokens
+          bytes32 idLong = _getOptionId(address(baseToken), false, strikePrices[j], expiry, isPut);
+          address longToken = address(longTokens[j]);
+>>>>>>> 0840ed2cbb1851996f28a44de4f2441414b2b49f
           idToAddress[idLong] = longToken;
           OptionType memory lo = OptionType(true, j);
           addressToOptionType[longToken] = lo;
 
           // For short tokens
+<<<<<<< HEAD
           bytes32 idShort = _getOptionId(address(baseToken), true, market.strikePrices(j), expiry, isPut);
           address shortToken = address(market.shortTokens(j));
           idToAddress[idShort] = shortToken;
           OptionType memory sh = OptionType(false, j);
           addressToOptionType[shortToken] = sh;
         }
+=======
+          bytes32 idShort = _getOptionId(address(baseToken), true, strikePrices[j], expiry, isPut);
+          address shortToken = address(shortTokens[j]);
+          idToAddress[idShort] = shortToken;
+          OptionType memory sh = OptionType(false, j);
+          addressToOptionType[shortToken] = sh;
+
+          j+=1;
+        }
+
+        seenMarket[address(market)] = true;
+>>>>>>> 0840ed2cbb1851996f28a44de4f2441414b2b49f
     }
 
     /**

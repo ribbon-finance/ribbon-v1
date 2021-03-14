@@ -49,17 +49,10 @@ describe.skip("CharmAdapter", () => {
       ownerSigner
     );
 
-    // const RibbonFactory = await ethers.getContractFactory(
-    //   "RibbonFactory",
-    //   ownerSigner
-    // );
-
     this.protocolName = "CHARM";
     this.nonFungible = false;
 
-    // this.ribbonFactory = await RibbonFactory.deploy();
-
-    // this.adapterStorage = await AdapterStorage.deploy(this.ribbonFactory.address);
+    // this.adapterStorage = await AdapterStorage.deploy(RIBBON_FACTORY_ADDRESS);
     this.adapterStorage = await AdapterStorage.deploy(ONE_ADDRESS);
 
     this.adapter = (

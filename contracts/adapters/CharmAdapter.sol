@@ -19,8 +19,6 @@ import {AdapterStorage, AdapterStorageTypes} from "../storage/AdapterStorage.sol
 import {IWETH} from "../interfaces/IWETH.sol";
 import {UniERC20} from "../lib/UniERC20.sol";
 
-import "hardhat/console.sol";
-
 contract CharmAdapter is IProtocolAdapter{
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -206,14 +204,11 @@ contract CharmAdapter is IProtocolAdapter{
       }else{
         uint256 premium = optionViews.getBuyOptionCost(market, optionType.isLongToken, optionType.strikeIndex, amount);
 
-        console.log("allowance from msg.sender -> charmadapter %s", baseToken.allowance(msg.sender, address(this)));
-        console.log("amount is %s", amount);
-        console.log("premium is %s", premium);
         uint256 balanceBefore = baseToken.uniBalanceOf(address(this));
         baseToken.uniTransferFromSenderToThis(premium);
         uint256 balanceAfter = baseToken.uniBalanceOf(address(this));
+
         baseToken.safeApprove(address(market), balanceAfter.sub(balanceBefore));
-        console.log("allowance from charmadapter -> market %s", baseToken.allowance(address(this), address(market)));
 
         amountIn = market.buy(
           optionType.isLongToken,

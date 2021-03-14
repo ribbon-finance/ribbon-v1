@@ -31,7 +31,7 @@ module.exports = {
       forking: {
         url: process.env.TEST_URI,
         gasLimit: 8e6,
-        blockNumber: 11811333,
+        blockNumber: 11611333,
       },
     },
   },

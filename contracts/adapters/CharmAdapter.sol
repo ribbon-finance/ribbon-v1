@@ -15,33 +15,33 @@ import {
     IOptionToken,
     IOptionViews
 } from "../interfaces/CharmInterface.sol";
-import {
-    InstrumentStorageV1,
-    InstrumentStorageV2,
-    InstrumentStorageV3
-} from "../storage/InstrumentStorage.sol";
+import {AdapterStorage} from "../storage/AdapterStorage.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {UniERC20} from "../lib/UniERC20.sol";
 
-contract CharmAdapter is IProtocolAdapter, InstrumentStorageV1, InstrumentStorageV2, InstrumentStorageV3{
+contract CharmAdapter is IProtocolAdapter {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using UniERC20 for IERC20;
 
     IOptionFactory public immutable optionFactory;
     IOptionViews public immutable optionViews;
+    AdapterStorage public immutable adapterStorage;
 
     string private constant _name = "CHARM";
     bool private constant _nonFungible = false;
 
     constructor(
         address _optionFactory,
-        address _optionViews
+        address _optionViews,
+        address _adapterStorage
     ) {
         require(_optionFactory != address(0), "!_optionFactory");
         require(_optionViews != address(0), "!_optionViews");
+        require(_adapterStorage!=address(0),"!_adapterStorage");
         optionFactory = IOptionFactory(_optionFactory);
         optionViews = IOptionViews(_optionViews);
+        adapterStorage = AdapterStorage(_adapterStorage);
     }
 
     receive() external payable {}

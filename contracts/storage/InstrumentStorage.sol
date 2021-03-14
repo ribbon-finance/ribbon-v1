@@ -72,14 +72,3 @@ contract InstrumentStorageV2 {
         return instrumentPositions[account][positionID];
     }
 }
-
-contract InstrumentStorageV3 {
-  struct OptionType {
-      bool isLongToken;
-      uint256 strikeIndex;
-  }
-
-  mapping(bytes32 => address) internal idToAddress;
-  mapping(address => OptionType) internal addressToOptionType;
-  mapping(address => bool) internal seenMarket;
-}

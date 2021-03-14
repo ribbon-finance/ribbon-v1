@@ -16,10 +16,11 @@ import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {ISwap} from "../interfaces/ISwap.sol";
 import {OtokenInterface} from "../interfaces/GammaInterface.sol";
+import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 
-import {OptionsVaultStorageV1} from "../storage/OptionsVaultStorage.sol";
+import "hardhat/console.sol";
 
-contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
+contract RibbonETHCoveredCall is DSMath, OptionsVaultStorage {
     using ProtocolAdapter for IProtocolAdapter;
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -40,9 +41,6 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
     ExchangeMechanism public constant exchangeMechanism =
         ExchangeMechanism.AirSwap;
 
-    // 1% for an instant withdrawal
-    uint256 public constant instantWithdrawalFee = 0.01 ether;
-
     // 90% locked in options protocol, 10% of the pool reserved for withdrawals
     uint256 public constant lockedRatio = 0.9 ether;
 
@@ -50,7 +48,12 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
 
     event Deposit(address indexed account, uint256 amount, uint256 share);
 
-    event Withdraw(address indexed account, uint256 amount, uint256 share);
+    event Withdraw(
+        address indexed account,
+        uint256 amount,
+        uint256 share,
+        uint256 fee
+    );
 
     event OpenShort(
         address indexed options,
@@ -85,30 +88,49 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
      * @param _owner is the owner of the contract who can set the manager
      * @param _initCap is the initial vault's cap on deposits, the manager can increase this as necessary
      */
-    function initialize(address _owner, uint256 _initCap) external initializer {
+    function initialize(
+        address _owner,
+        address _feeRecipient,
+        uint256 _initCap
+    ) external initializer {
         require(_owner != address(0), "!_owner");
+        require(_feeRecipient != address(0), "!_feeRecipient");
         require(_initCap > 0, "_initCap > 0");
+
         __ERC20_init(_tokenName, _tokenSymbol);
         __Ownable_init();
         transferOwnership(_owner);
         cap = _initCap;
+
+        // hardcode the initial withdrawal fee
+        instantWithdrawalFee = 0.005 ether;
+        feeRecipient = _feeRecipient;
     }
 
     /**
      * @notice Sets the new manager of the vault. Revoke the airswap signer authorization from the old manager, and authorize the manager.
-     * @param _manager is the new manager of the vault
+     * @param newManager is the new manager of the vault
      */
-    function setManager(address _manager) external onlyOwner {
-        require(_manager != address(0), "New manager cannot be 0x0");
+    function setManager(address newManager) external onlyOwner {
+        require(newManager != address(0), "!newManager");
         address oldManager = manager;
-        manager = _manager;
+        manager = newManager;
 
-        emit ManagerChanged(oldManager, _manager);
+        emit ManagerChanged(oldManager, newManager);
 
         if (oldManager != address(0)) {
             _swapContract.revokeSigner(oldManager);
         }
-        _swapContract.authorizeSigner(_manager);
+        _swapContract.authorizeSigner(newManager);
+    }
+
+    /**
+     * @notice Sets the new fee recipient
+     * @param newFeeRecipient is the address of the new fee recipient
+     */
+    function setFeeRecipient(address newFeeRecipient) external onlyOwner {
+        require(newFeeRecipient != address(0), "!newFeeRecipient");
+        feeRecipient = newFeeRecipient;
     }
 
     /**
@@ -169,10 +191,7 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
      */
     function withdraw(uint256 share) external nonReentrant {
         uint256 withdrawAmount = _withdraw(share);
-        require(
-            IERC20(asset).transfer(msg.sender, withdrawAmount),
-            "ERC20 transfer failed"
-        );
+        IERC20(asset).safeTransfer(msg.sender, withdrawAmount);
     }
 
     /**
@@ -181,7 +200,8 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
      */
     function _withdraw(uint256 share) private returns (uint256) {
         uint256 _lockedAmount = lockedAmount;
-        uint256 currentAssetBalance = IERC20(asset).balanceOf(address(this));
+        IERC20 assetToken = IERC20(asset);
+        uint256 currentAssetBalance = assetToken.balanceOf(address(this));
         uint256 total = _lockedAmount.add(currentAssetBalance);
         uint256 availableForWithdrawal =
             _availableToWithdraw(_lockedAmount, currentAssetBalance);
@@ -196,9 +216,10 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorageV1 {
         uint256 feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
         uint256 amountAfterFee = withdrawAmount.sub(feeAmount);
 
-        emit Withdraw(msg.sender, amountAfterFee, share);
+        emit Withdraw(msg.sender, amountAfterFee, share, feeAmount);
 
         _burn(msg.sender, share);
+        assetToken.safeTransfer(feeRecipient, feeAmount);
 
         return amountAfterFee;
     }

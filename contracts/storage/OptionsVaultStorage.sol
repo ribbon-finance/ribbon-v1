@@ -13,6 +13,10 @@ import {
 
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 
+contract OptionsVaultStorageV0 {
+    uint256[50] __gap;
+}
+
 contract OptionsVaultStorageV1 is
     OwnableUpgradeable,
     ERC20Upgradeable,
@@ -29,4 +33,12 @@ contract OptionsVaultStorageV1 is
 
     // Cap for total amount deposited into vault
     uint256 public cap;
+
+    // Fee incurred when withdrawing out of the vault
+    uint256 public instantWithdrawalFee;
+
+    // Recipient for withdrawal fees
+    address public feeRecipient;
 }
+
+contract OptionsVaultStorage is OptionsVaultStorageV1 {}

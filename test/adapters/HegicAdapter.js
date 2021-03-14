@@ -309,7 +309,7 @@ describe("HegicAdapter", () => {
             }
           );
 
-          expect(res)
+          await expect(res)
             .to.emit(this.adapter, "Purchased")
             .withArgs(
               user,
@@ -479,7 +479,7 @@ describe("HegicAdapter", () => {
 
             const receipt = await provider.waitForTransaction(res.hash);
 
-            expect(res)
+            await expect(res)
               .to.emit(this.adapter, "Exercised")
               .withArgs(
                 user,

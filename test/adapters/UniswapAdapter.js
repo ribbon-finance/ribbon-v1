@@ -14,7 +14,7 @@ const SUSHISWAP_LP = "0x9a13867048e01c663ce8ce2fe0cdae69ff9f35e3";
 const UNISWAP_LP = "0xe86204c4eddd2f70ee00ead6805f917671f56c52";
 let user, recipient;
 
-describe("UniswapAdapter", () => {
+describe.skip("UniswapAdapter", () => {
   let initSnapshotId, snapshotId;
   const gasPrice = ethers.utils.parseUnits("1", "gwei");
 

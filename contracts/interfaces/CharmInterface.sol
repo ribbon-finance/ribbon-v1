@@ -5,14 +5,15 @@ pragma experimental ABIEncoderV2;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IOptionFactory {
-  function markets() external view returns (address[] memory);
+  function markets(uint256 index) external view returns (address);
+  function numMarkets() external view returns (uint256);
 }
 
 interface IOptionMarket {
   function baseToken() external view returns (IERC20);
-  function longTokens() external view returns (IOptionToken[] memory);
-  function shortTokens() external view returns (IOptionToken[] memory);
-  function strikePrices() external view returns (uint256[] memory);
+  function longTokens(uint256 index) external view returns (IOptionToken);
+  function shortTokens(uint256 index) external view returns (IOptionToken);
+  function strikePrices(uint256 index) external view returns (uint256);
   function expiryTime() external view returns (uint256);
   function isPut() external view returns (bool);
   function isSettled() external view returns (bool);
@@ -34,6 +35,8 @@ interface IOptionMarket {
   function settle() external;
 
   function isExpired() external view returns (bool);
+
+  function numStrikes() external view returns (uint256);
 }
 
 interface IOptionToken {

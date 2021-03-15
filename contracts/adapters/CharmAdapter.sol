@@ -316,7 +316,7 @@ contract CharmAdapter is IProtocolAdapter{
       while (i >= 0) {
         IOptionMarket market = IOptionMarket(optionFactory.markets(i));
 
-        if(adapterStorage.seenMarket(address(market)) || market.isSettled()){
+        if(adapterStorage.seenMarket(address(market)) || market.isExpired()){
           break;
         }
 

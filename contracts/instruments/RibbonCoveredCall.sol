@@ -20,12 +20,11 @@ import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 
 import "hardhat/console.sol";
 
-contract RibbonETHCoveredCall is DSMath, OptionsVaultStorage {
+contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     using ProtocolAdapter for IProtocolAdapter;
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
-    enum ExchangeMechanism {Unknown, AirSwap}
     IRibbonFactory public immutable factory;
     IProtocolAdapter public immutable adapter;
     string private constant _adapterName = "OPYN_GAMMA";
@@ -36,10 +35,6 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorage {
     // AirSwap Swap contract https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
     ISwap private constant _swapContract =
         ISwap(0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA);
-
-    address public constant asset = _WETH;
-    ExchangeMechanism public constant exchangeMechanism =
-        ExchangeMechanism.AirSwap;
 
     // 90% locked in options protocol, 10% of the pool reserved for withdrawals
     uint256 public constant lockedRatio = 0.9 ether;
@@ -89,6 +84,7 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorage {
      * @param _initCap is the initial vault's cap on deposits, the manager can increase this as necessary
      */
     function initialize(
+        address _asset,
         address _owner,
         address _feeRecipient,
         uint256 _initCap
@@ -96,6 +92,7 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorage {
         require(_owner != address(0), "!_owner");
         require(_feeRecipient != address(0), "!_feeRecipient");
         require(_initCap > 0, "_initCap > 0");
+        require(_asset != address(0), "!_asset");
 
         __ERC20_init(_tokenName, _tokenSymbol);
         __Ownable_init();
@@ -105,6 +102,7 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorage {
         // hardcode the initial withdrawal fee
         instantWithdrawalFee = 0.005 ether;
         feeRecipient = _feeRecipient;
+        asset = _asset;
     }
 
     /**
@@ -134,9 +132,10 @@ contract RibbonETHCoveredCall is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Deposits ETH into the contract and mint vault shares.
+     * @notice Deposits ETH into the contract and mint vault shares. Reverts if the underlying is not WETH.
      */
     function depositETH() external payable nonReentrant {
+        require(asset == _WETH, "asset is not WETH");
         require(msg.value > 0, "No value passed");
 
         IWETH(_WETH).deposit{value: msg.value}();

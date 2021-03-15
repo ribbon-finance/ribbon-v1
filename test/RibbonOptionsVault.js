@@ -29,7 +29,7 @@ const LOCKED_RATIO = parseEther("0.9");
 const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
 const gasPrice = parseUnits("1", "gwei");
 
-describe("RibbonETHCoveredCall", () => {
+describe("RibbonCoveredCall", () => {
   let initSnapshotId;
 
   before(async function () {
@@ -64,13 +64,18 @@ describe("RibbonETHCoveredCall", () => {
     this.factory = factory;
     this.protocolAdapterLib = protocolAdapterLib;
 
-    const initializeTypes = ["address", "address", "uint256"];
-    const initializeArgs = [owner, feeRecipient, parseEther("500")];
+    const initializeTypes = ["address", "address", "address", "uint256"];
+    const initializeArgs = [
+      WETH_ADDRESS,
+      owner,
+      feeRecipient,
+      parseEther("500"),
+    ];
     const deployArgs = [factory.address];
 
     this.vault = (
       await deployProxy(
-        "RibbonETHCoveredCall",
+        "RibbonCoveredCall",
         adminSigner,
         initializeTypes,
         initializeArgs,
@@ -95,6 +100,8 @@ describe("RibbonETHCoveredCall", () => {
       WETH_ADDRESS,
     ];
 
+    this.asset = WETH_ADDRESS;
+
     this.oTokenAddress = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
 
     this.oToken = await getContractAt("IERC20", this.oTokenAddress);
@@ -113,7 +120,7 @@ describe("RibbonETHCoveredCall", () => {
 
     it("reverts when deployed with 0x0 factory", async function () {
       const VaultContract = await ethers.getContractFactory(
-        "RibbonETHCoveredCall",
+        "RibbonCoveredCall",
         {
           libraries: {
             ProtocolAdapter: this.protocolAdapterLib.address,
@@ -127,7 +134,7 @@ describe("RibbonETHCoveredCall", () => {
 
     it("reverts when adapter not set yet", async function () {
       const VaultContract = await ethers.getContractFactory(
-        "RibbonETHCoveredCall",
+        "RibbonCoveredCall",
         {
           libraries: {
             ProtocolAdapter: this.protocolAdapterLib.address,
@@ -144,11 +151,24 @@ describe("RibbonETHCoveredCall", () => {
   });
 
   describe("#initialize", () => {
+    time.revertToSnapshotAfterEach(async function () {
+      const RibbonCoveredCall = await ethers.getContractFactory(
+        "RibbonCoveredCall",
+        {
+          libraries: {
+            ProtocolAdapter: this.protocolAdapterLib.address,
+          },
+        }
+      );
+      this.testVault = await RibbonCoveredCall.deploy(this.factory.address);
+    });
+
     it("initializes with correct values", async function () {
       assert.equal((await this.vault.cap()).toString(), parseEther("500"));
       assert.equal(await this.vault.factory(), this.factory.address);
       assert.equal(await this.vault.owner(), owner);
       assert.equal(await this.vault.feeRecipient(), feeRecipient);
+      assert.equal(await this.vault.asset(), this.asset);
       assert.equal(
         (await this.vault.instantWithdrawalFee()).toString(),
         parseEther("0.005").toString()
@@ -157,8 +177,52 @@ describe("RibbonETHCoveredCall", () => {
 
     it("cannot be initialized twice", async function () {
       await expect(
-        this.vault.initialize(owner, feeRecipient, parseEther("500"))
+        this.vault.initialize(
+          WETH_ADDRESS,
+          owner,
+          feeRecipient,
+          parseEther("500")
+        )
       ).to.be.revertedWith("Initializable: contract is already initialized");
+    });
+
+    it("reverts when initializing with 0 owner", async function () {
+      await expect(
+        this.testVault.initialize(
+          WETH_ADDRESS,
+          constants.AddressZero,
+          feeRecipient,
+          parseEther("500")
+        )
+      ).to.be.revertedWith("!_owner");
+    });
+
+    it("reverts when initializing with 0 feeRecipient", async function () {
+      await expect(
+        this.testVault.initialize(
+          WETH_ADDRESS,
+          owner,
+          constants.AddressZero,
+          parseEther("500")
+        )
+      ).to.be.revertedWith("!_feeRecipient");
+    });
+
+    it("reverts when initializing with 0 asset", async function () {
+      await expect(
+        this.testVault.initialize(
+          constants.AddressZero,
+          owner,
+          feeRecipient,
+          parseEther("500")
+        )
+      ).to.be.revertedWith("!_asset");
+    });
+
+    it("reverts when initializing with 0 initCap", async function () {
+      await expect(
+        this.testVault.initialize(WETH_ADDRESS, owner, feeRecipient, "0")
+      ).to.be.revertedWith("_initCap > 0");
     });
   });
 
@@ -177,12 +241,6 @@ describe("RibbonETHCoveredCall", () => {
   describe("#asset", () => {
     it("returns the asset", async function () {
       assert.equal(await this.vault.asset(), WETH_ADDRESS);
-    });
-  });
-
-  describe("#exchangeMechanism", () => {
-    it("returns the exchange mechanism", async function () {
-      assert.equal(await this.vault.exchangeMechanism(), 1);
     });
   });
 

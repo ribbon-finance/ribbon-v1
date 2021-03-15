@@ -25,7 +25,6 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
-    enum ExchangeMechanism {Unknown, AirSwap}
     IRibbonFactory public immutable factory;
     IProtocolAdapter public immutable adapter;
     string private constant _adapterName = "OPYN_GAMMA";
@@ -36,9 +35,6 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     // AirSwap Swap contract https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
     ISwap private constant _swapContract =
         ISwap(0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA);
-
-    ExchangeMechanism public constant exchangeMechanism =
-        ExchangeMechanism.AirSwap;
 
     // 90% locked in options protocol, 10% of the pool reserved for withdrawals
     uint256 public constant lockedRatio = 0.9 ether;
@@ -71,7 +67,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     /**
      * @notice Initializes the factory and adapter contract addresses
      */
-    constructor(address _factory, address _asset) {
+    constructor(address _factory) {
         require(_factory != address(0), "!_factory");
         IRibbonFactory factoryInstance = IRibbonFactory(_factory);
 
@@ -136,10 +132,10 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Deposits ETH into the contract and mint vault shares.
+     * @notice Deposits ETH into the contract and mint vault shares. Reverts if the underlying is not WETH.
      */
     function depositETH() external payable nonReentrant {
-        require(asset != _WETH, "asset is not WETH");
+        require(asset == _WETH, "asset is not WETH");
         require(msg.value > 0, "No value passed");
 
         IWETH(_WETH).deposit{value: msg.value}();

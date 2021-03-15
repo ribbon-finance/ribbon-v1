@@ -28,7 +28,7 @@ const CALL_OPTION_TYPE = 2;
 
 // NOTE: USE WITH BLOCKNUM 12039266 when FORKING
 
-describe("CharmAdapter", () => {
+describes.skip("CharmAdapter", () => {
   let initSnapshotId;
 
   before(async function () {

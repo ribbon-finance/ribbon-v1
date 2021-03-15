@@ -28,7 +28,7 @@ const CALL_OPTION_TYPE = 2;
 
 // NOTE: USE WITH BLOCKNUM 12039266 when FORKING
 
-describe.skip("CharmAdapter", () => {
+describe("CharmAdapter", () => {
   let initSnapshotId;
 
   before(async function () {
@@ -49,11 +49,17 @@ describe.skip("CharmAdapter", () => {
       ownerSigner
     );
 
+    const MockRibbonFactory = await ethers.getContractFactory(
+      "MockRibbonFactory",
+      ownerSigner
+    );
+
     this.protocolName = "CHARM";
     this.nonFungible = false;
 
-    // this.adapterStorage = await AdapterStorage.deploy(RIBBON_FACTORY_ADDRESS);
-    this.adapterStorage = await AdapterStorage.deploy(ONE_ADDRESS);
+    this.mockRibbonFactory = await MockRibbonFactory.deploy();
+
+    this.adapterStorage = await AdapterStorage.deploy(this.mockRibbonFactory.address);
 
     this.adapter = (
       await CharmAdapter.deploy(
@@ -62,6 +68,8 @@ describe.skip("CharmAdapter", () => {
         this.adapterStorage.address
       )
     ).connect(userSigner);
+
+    await this.mockRibbonFactory.setInstrument(this.adapter.address);
   });
 
   after(async () => {
@@ -135,6 +143,23 @@ describe.skip("CharmAdapter", () => {
       assert.equal(actualOTokenAddress, constants.AddressZero);
     });
 
+    it("looks up oToken correctly after 2 populateOTokenMappings", async function () {
+      await this.adapter.populateOTokenMappings();
+      await this.adapter.populateOTokenMappings();
+
+      const actualOTokenAddress = await this.adapter.lookupOToken([
+        constants.AddressZero,
+        USDC_ADDRESS,
+        ONE_ADDRESS,
+        "1612540800",
+        parseEther("963"),
+        CALL_OPTION_TYPE,
+        constants.AddressZero,
+      ]);
+
+      assert.equal(actualOTokenAddress, constants.AddressZero);
+    });
+
     it("looks up oToken without populating mappings first", async function () {
       const actualOTokenAddress = await this.adapter.lookupOToken([
         constants.AddressZero,
@@ -188,7 +213,7 @@ describe.skip("CharmAdapter", () => {
     strikePrice: parseEther("4000"),
     expiry: "1624608000",
     optionType: PUT_OPTION_TYPE,
-    purchaseAmount: BigNumber.from("1000000"),
+    purchaseAmount: BigNumber.from("10000000"),
     strikeIndex: 8,
   });
 
@@ -202,7 +227,7 @@ describe.skip("CharmAdapter", () => {
     strikePrice: parseEther("640"),
     expiry: "1624608000",
     optionType: PUT_OPTION_TYPE,
-    purchaseAmount: BigNumber.from("1000000"),
+    purchaseAmount: BigNumber.from("10000000"),
     strikeIndex: 1,
   });
 

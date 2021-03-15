@@ -190,7 +190,7 @@ contract CharmAdapter is IProtocolAdapter{
       IOptionToken token = IOptionToken(tokenAddress);
       //get market
       IOptionMarket market = IOptionMarket(token.market());
-      IERC20 baseToken = IERC20(market.baseToken());
+      IERC20 baseToken = IERC20(optionTerms.optionType == ProtocolAdapterTypes.OptionType.Put ? optionTerms.strikeAsset : optionTerms.underlying);
 
       uint256 amountIn;
 

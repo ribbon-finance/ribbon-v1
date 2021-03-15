@@ -1,0 +1,8 @@
+## `ProtocolAdapterTypes`
+
+
+
+
+
+
+

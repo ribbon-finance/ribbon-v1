@@ -31,6 +31,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     string private constant _tokenName = "Ribbon ETH Covered Call Vault";
     string private constant _tokenSymbol = "rETH-COVCALL";
     address private constant _WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address private constant _USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
     // AirSwap Swap contract https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
     ISwap private constant _swapContract =
@@ -38,6 +39,8 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
 
     // 90% locked in options protocol, 10% of the pool reserved for withdrawals
     uint256 public constant lockedRatio = 0.9 ether;
+
+    uint256 public constant delay = 1 days;
 
     event ManagerChanged(address oldManager, address newManager);
 
@@ -223,17 +226,26 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         return amountAfterFee;
     }
 
-    /**
-     * @notice Rolls from one short option position to another. Closes the expired short position, withdraw from it, then open a new position.
-     * @param optionTerms are the option contract terms the vault will be short
-     */
-    function rollToNextOption(
+    function setNextOption(
         ProtocolAdapterTypes.OptionTerms calldata optionTerms
     ) external onlyManager nonReentrant {
+        address option = adapter.getOptionsAddress(optionTerms);
+        require(option != address(0), "!option");
+        nextOption = option;
+        nextOptionCommittedAt = block.timestamp;
+    }
+
+    /**
+     * @notice Rolls from one short option position to another. Closes the expired short position, withdraw from it, then open a new position.
+     */
+    function rollToNextOption() external onlyManager nonReentrant {
         address oldOption = currentOption;
-        address newOption = adapter.getOptionsAddress(optionTerms);
+        address newOption = nextOption;
         require(newOption != address(0), "No found option");
-        currentOption = newOption;
+        require(
+            block.timestamp > nextOptionCommittedAt.add(delay),
+            "Delay not passed"
+        );
 
         if (oldOption != address(0)) {
             uint256 withdrawAmount = adapter.delegateCloseShort();
@@ -243,10 +255,25 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         uint256 shortAmount = wmul(currentBalance, lockedRatio);
         lockedAmount = shortAmount;
 
+        OtokenInterface otoken = OtokenInterface(newOption);
+
+        ProtocolAdapterTypes.OptionTerms memory optionTerms =
+            ProtocolAdapterTypes.OptionTerms(
+                asset,
+                _USDC,
+                otoken.collateralAsset(),
+                otoken.expiryTimestamp(),
+                otoken.strikePrice(),
+                ProtocolAdapterTypes.OptionType.Call, // isPut
+                address(0)
+            );
+
         uint256 shortBalance =
             adapter.delegateCreateShort(optionTerms, shortAmount);
         IERC20 optionToken = IERC20(newOption);
         optionToken.safeApprove(address(_swapContract), shortBalance);
+
+        currentOption = newOption;
 
         emit OpenShort(newOption, shortAmount, msg.sender);
     }

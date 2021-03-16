@@ -28,6 +28,12 @@ contract OptionsVaultStorageV1 is
     // Privileged role that is able to select the option terms (strike price, expiry) to short
     address public manager;
 
+    // Option that the vault is shorting in the next cycle
+    address public nextOption;
+
+    // The timestamp when the `nextOption` can be used by the vault
+    uint256 public nextOptionReadyAt;
+
     // Option that the vault is currently shorting
     address public currentOption;
 

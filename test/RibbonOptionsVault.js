@@ -25,6 +25,7 @@ const SWAP_ADDRESS = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
 const SWAP_CONTRACT = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
 const TRADER_AFFILIATE = "0xFf98F0052BdA391F8FaD266685609ffb192Bef25";
 
+const OPTION_DELAY = 60 * 60 * 24; // 1 day
 const LOCKED_RATIO = parseEther("0.9");
 const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
 const gasPrice = parseUnits("1", "gwei");
@@ -109,6 +110,14 @@ describe("RibbonCoveredCall", () => {
     this.weth = await getContractAt("IWETH", WETH_ADDRESS);
 
     this.airswap = await getContractAt("ISwap", SWAP_ADDRESS);
+
+    this.rollToNextOption = async () => {
+      await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
+      await time.increaseTo(
+        (await this.vault.nextOptionReadyAt()).toNumber() + 1
+      );
+      await this.vault.connect(managerSigner).rollToNextOption();
+    };
   });
 
   after(async () => {
@@ -375,9 +384,7 @@ describe("RibbonCoveredCall", () => {
         .connect(userSigner)
         .transfer(this.vault.address, parseEther("1"));
 
-      await this.vault
-        .connect(managerSigner)
-        .rollToNextOption(this.optionTerms);
+      await this.rollToNextOption();
 
       // formula:
       // (depositAmount * totalSupply) / total
@@ -460,6 +467,47 @@ describe("RibbonCoveredCall", () => {
     });
   });
 
+  describe("#setNextOption", () => {
+    it("reverts when not called with manager", async function () {
+      await expect(
+        this.vault
+          .connect(userSigner)
+          .setNextOption(this.optionTerms, { from: user })
+      ).to.be.revertedWith("Only manager");
+    });
+
+    it("reverts when option is 0x0", async function () {
+      const optionTerms = [
+        WETH_ADDRESS,
+        USDC_ADDRESS,
+        WETH_ADDRESS,
+        "1610697601",
+        parseEther("1480"),
+        2,
+        WETH_ADDRESS,
+      ];
+
+      await expect(
+        this.vault.connect(managerSigner).setNextOption(optionTerms)
+      ).to.be.revertedWith("!option");
+    });
+
+    it("sets the next option", async function () {
+      const res = await this.vault
+        .connect(managerSigner)
+        .setNextOption(this.optionTerms, { from: manager });
+
+      const receipt = await res.wait();
+      const block = await provider.getBlock(receipt.blockNumber);
+
+      assert.equal(await this.vault.nextOption(), this.oTokenAddress);
+      assert.equal(
+        (await this.vault.nextOptionReadyAt()).toNumber(),
+        parseInt(block.timestamp) + OPTION_DELAY
+      );
+    });
+  });
+
   describe("#rollToNextOption", () => {
     time.revertToSnapshotAfterEach(async function () {
       this.premium = parseEther("0.1");
@@ -479,9 +527,7 @@ describe("RibbonCoveredCall", () => {
 
     it("reverts when not called with manager", async function () {
       await expect(
-        this.vault
-          .connect(userSigner)
-          .rollToNextOption(this.optionTerms, { from: user })
+        this.vault.connect(userSigner).rollToNextOption()
       ).to.be.revertedWith("Only manager");
     });
 
@@ -494,9 +540,13 @@ describe("RibbonCoveredCall", () => {
 
       const startMarginBalance = await this.weth.balanceOf(MARGIN_POOL);
 
-      const res = await this.vault
-        .connect(managerSigner)
-        .rollToNextOption(this.optionTerms, { from: manager });
+      await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
+
+      await time.increaseTo(
+        (await this.vault.nextOptionReadyAt()).toNumber() + 1
+      );
+
+      const res = this.vault.connect(managerSigner).rollToNextOption();
 
       await expect(res).to.not.emit(this.vault, "CloseShort");
 
@@ -535,20 +585,25 @@ describe("RibbonCoveredCall", () => {
       const firstOption = "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3";
       const secondOption = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
 
+      await this.vault
+        .connect(managerSigner)
+        .setNextOption([
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          WETH_ADDRESS,
+          "1610697600",
+          parseEther("1480"),
+          2,
+          WETH_ADDRESS,
+        ]);
+
+      await time.increaseTo(
+        (await this.vault.nextOptionReadyAt()).toNumber() + 1
+      );
+
       const firstTx = await this.vault
         .connect(managerSigner)
-        .rollToNextOption(
-          [
-            WETH_ADDRESS,
-            USDC_ADDRESS,
-            WETH_ADDRESS,
-            "1610697600",
-            parseEther("1480"),
-            2,
-            WETH_ADDRESS,
-          ],
-          { from: manager }
-        );
+        .rollToNextOption();
 
       await expect(firstTx)
         .to.emit(this.vault, "OpenShort")
@@ -560,20 +615,25 @@ describe("RibbonCoveredCall", () => {
         parseEther("0.1").toString()
       );
 
+      await this.vault
+        .connect(managerSigner)
+        .setNextOption([
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          WETH_ADDRESS,
+          "1614326400",
+          parseEther("960"),
+          2,
+          WETH_ADDRESS,
+        ]);
+
+      await time.increaseTo(
+        (await this.vault.nextOptionReadyAt()).toNumber() + 1
+      );
+
       const secondTx = await this.vault
         .connect(managerSigner)
-        .rollToNextOption(
-          [
-            WETH_ADDRESS,
-            USDC_ADDRESS,
-            WETH_ADDRESS,
-            "1614326400",
-            parseEther("960"),
-            2,
-            WETH_ADDRESS,
-          ],
-          { from: manager }
-        );
+        .rollToNextOption();
 
       assert.equal(await this.vault.currentOption(), secondOption);
       assert.equal(await this.vault.currentOptionExpiry(), 1614326400);
@@ -598,22 +658,24 @@ describe("RibbonCoveredCall", () => {
 
     it("reverts when not enough otokens to burn", async function () {
       const firstOption = "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3";
-      const secondOption = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
 
       await this.vault
         .connect(managerSigner)
-        .rollToNextOption(
-          [
-            WETH_ADDRESS,
-            USDC_ADDRESS,
-            WETH_ADDRESS,
-            "1610697600",
-            parseEther("1480"),
-            2,
-            WETH_ADDRESS,
-          ],
-          { from: manager }
-        );
+        .setNextOption([
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          WETH_ADDRESS,
+          "1610697600",
+          parseEther("1480"),
+          2,
+          WETH_ADDRESS,
+        ]);
+
+      await time.increaseTo(
+        (await this.vault.nextOptionReadyAt()).toNumber() + 1
+      );
+
+      await this.vault.connect(managerSigner).rollToNextOption();
 
       // Perform the swap to deposit premiums and remove otokens
       const signedOrder = await signOrderForSwap({
@@ -628,21 +690,23 @@ describe("RibbonCoveredCall", () => {
 
       await this.airswap.connect(counterpartySigner).swap(signedOrder);
 
+      await this.vault
+        .connect(managerSigner)
+        .setNextOption([
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          WETH_ADDRESS,
+          "1614326400",
+          parseEther("960"),
+          2,
+          WETH_ADDRESS,
+        ]);
+      await time.increaseTo(
+        (await this.vault.nextOptionReadyAt()).toNumber() + 1
+      );
+
       await expect(
-        this.vault
-          .connect(managerSigner)
-          .rollToNextOption(
-            [
-              WETH_ADDRESS,
-              USDC_ADDRESS,
-              WETH_ADDRESS,
-              "1614326400",
-              parseEther("960"),
-              2,
-              WETH_ADDRESS,
-            ],
-            { from: manager }
-          )
+        this.vault.connect(managerSigner).rollToNextOption()
       ).to.be.revertedWith("ERC20: burn amount exceeds balance");
     });
 
@@ -650,20 +714,24 @@ describe("RibbonCoveredCall", () => {
       const firstOption = "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3";
       const secondOption = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
 
+      await this.vault
+        .connect(managerSigner)
+        .setNextOption([
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          WETH_ADDRESS,
+          "1610697600",
+          parseEther("1480"),
+          2,
+          WETH_ADDRESS,
+        ]);
+      await time.increaseTo(
+        (await this.vault.nextOptionReadyAt()).toNumber() + 1
+      );
+
       const firstTx = await this.vault
         .connect(managerSigner)
-        .rollToNextOption(
-          [
-            WETH_ADDRESS,
-            USDC_ADDRESS,
-            WETH_ADDRESS,
-            "1610697600",
-            parseEther("1480"),
-            2,
-            WETH_ADDRESS,
-          ],
-          { from: manager }
-        );
+        .rollToNextOption();
 
       assert.equal(await this.vault.currentOption(), firstOption);
       assert.equal(await this.vault.currentOptionExpiry(), 1610697600);
@@ -698,20 +766,24 @@ describe("RibbonCoveredCall", () => {
         BigNumber.from("148000000000").sub(BigNumber.from("1"))
       );
 
+      await this.vault
+        .connect(managerSigner)
+        .setNextOption([
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          WETH_ADDRESS,
+          "1614326400",
+          parseEther("960"),
+          2,
+          WETH_ADDRESS,
+        ]);
+      await time.increaseTo(
+        (await this.vault.nextOptionReadyAt()).toNumber() + 1
+      );
+
       const secondTx = await this.vault
         .connect(managerSigner)
-        .rollToNextOption(
-          [
-            WETH_ADDRESS,
-            USDC_ADDRESS,
-            WETH_ADDRESS,
-            "1614326400",
-            parseEther("960"),
-            2,
-            WETH_ADDRESS,
-          ],
-          { from: manager }
-        );
+        .rollToNextOption();
 
       assert.equal(await this.vault.currentOption(), secondOption);
       assert.equal(await this.vault.currentOptionExpiry(), 1614326400);
@@ -734,20 +806,24 @@ describe("RibbonCoveredCall", () => {
       const firstOption = "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3";
       const secondOption = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
 
+      await this.vault
+        .connect(managerSigner)
+        .setNextOption([
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          WETH_ADDRESS,
+          "1610697600",
+          parseEther("1480"),
+          2,
+          WETH_ADDRESS,
+        ]);
+      await time.increaseTo(
+        (await this.vault.nextOptionReadyAt()).toNumber() + 1
+      );
+
       const firstTx = await this.vault
         .connect(managerSigner)
-        .rollToNextOption(
-          [
-            WETH_ADDRESS,
-            USDC_ADDRESS,
-            WETH_ADDRESS,
-            "1610697600",
-            parseEther("1480"),
-            2,
-            WETH_ADDRESS,
-          ],
-          { from: manager }
-        );
+        .rollToNextOption();
 
       await expect(firstTx)
         .to.emit(this.vault, "OpenShort")
@@ -779,20 +855,24 @@ describe("RibbonCoveredCall", () => {
         BigNumber.from("160000000000")
       );
 
+      await this.vault
+        .connect(managerSigner)
+        .setNextOption([
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          WETH_ADDRESS,
+          "1614326400",
+          parseEther("960"),
+          2,
+          WETH_ADDRESS,
+        ]);
+      await time.increaseTo(
+        (await this.vault.nextOptionReadyAt()).toNumber() + 1
+      );
+
       const secondTx = await this.vault
         .connect(managerSigner)
-        .rollToNextOption(
-          [
-            WETH_ADDRESS,
-            USDC_ADDRESS,
-            WETH_ADDRESS,
-            "1614326400",
-            parseEther("960"),
-            2,
-            WETH_ADDRESS,
-          ],
-          { from: manager }
-        );
+        .rollToNextOption();
 
       assert.equal(await this.vault.currentOption(), secondOption);
       assert.equal(await this.vault.currentOptionExpiry(), 1614326400);
@@ -823,9 +903,8 @@ describe("RibbonCoveredCall", () => {
       await weth.approve(SWAP_ADDRESS, this.premium);
 
       await this.vault.depositETH({ value: this.depositAmount });
-      await this.vault
-        .connect(managerSigner)
-        .rollToNextOption(this.optionTerms, { from: manager });
+
+      await this.rollToNextOption();
     });
 
     it("completes the trade with the counterparty", async function () {
@@ -882,9 +961,7 @@ describe("RibbonCoveredCall", () => {
         this.depositAmount
       );
 
-      await this.vault
-        .connect(managerSigner)
-        .rollToNextOption(this.optionTerms, { from: manager });
+      await this.rollToNextOption();
     });
 
     it("returns the 10% reserve amount", async function () {

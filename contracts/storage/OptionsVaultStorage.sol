@@ -31,8 +31,8 @@ contract OptionsVaultStorageV1 is
     // Option that the vault is shorting in the next cycle
     address public nextOption;
 
-    // The timestamp when the `nextOption` variable was set by the manager
-    uint256 public nextOptionCommittedAt;
+    // The timestamp when the `nextOption` can be used by the vault
+    uint256 public nextOptionReadyAt;
 
     // Option that the vault is currently shorting
     address public currentOption;

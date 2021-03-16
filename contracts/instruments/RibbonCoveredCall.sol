@@ -232,7 +232,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         address option = adapter.getOptionsAddress(optionTerms);
         require(option != address(0), "!option");
         nextOption = option;
-        nextOptionCommittedAt = block.timestamp;
+        nextOptionReadyAt = block.timestamp.add(delay);
     }
 
     /**
@@ -242,10 +242,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         address oldOption = currentOption;
         address newOption = nextOption;
         require(newOption != address(0), "No found option");
-        require(
-            block.timestamp > nextOptionCommittedAt.add(delay),
-            "Delay not passed"
-        );
+        require(block.timestamp > nextOptionReadyAt, "Delay not passed");
 
         if (oldOption != address(0)) {
             uint256 withdrawAmount = adapter.delegateCloseShort();
@@ -263,7 +260,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
                 _USDC,
                 otoken.collateralAsset(),
                 otoken.expiryTimestamp(),
-                otoken.strikePrice(),
+                otoken.strikePrice().mul(10**10), // scale back to 10**18
                 ProtocolAdapterTypes.OptionType.Call, // isPut
                 address(0)
             );

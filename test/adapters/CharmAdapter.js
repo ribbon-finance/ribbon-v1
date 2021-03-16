@@ -147,17 +147,20 @@ describe.skip("CharmAdapter", () => {
       await this.adapter.populateOTokenMappings();
       await this.adapter.populateOTokenMappings();
 
+      //Charm ETH 25JUN2021 480 C
+      const oTokenAddress = "0x50dBA362A22D1ab4b152F556D751Cb696ecCEefD";
+
       const actualOTokenAddress = await this.adapter.lookupOToken([
         constants.AddressZero,
         USDC_ADDRESS,
         ONE_ADDRESS,
-        "1612540800",
-        parseEther("963"),
+        "1624608000",
+        parseEther("480"),
         CALL_OPTION_TYPE,
         constants.AddressZero,
       ]);
 
-      assert.equal(actualOTokenAddress, constants.AddressZero);
+      assert.equal(actualOTokenAddress, oTokenAddress);
     });
 
     it("looks up oToken without populating mappings first", async function () {
@@ -319,21 +322,11 @@ function behavesLikeOTokens(params) {
 
       this.optionViews = await ethers.getContractAt("IOptionViews", CHARM_OPTION_VIEWS);
       this.market = await (await ethers.getContractAt("IOptionToken", oTokenAddress)).market();
+      this.marketContract = await (await ethers.getContractAt("IOptionMarket", this.market));
       this.donor = "0x875abe6F1E2Aba07bED4A3234d8555A0d7656d12";
 
       this.premium = await this.optionViews.getBuyOptionCost(this.market, this.collateralAsset == ONE_ADDRESS ? true : false, this.strikeIndex, this.purchaseAmount);
       this.maxCost = this.maxCost || parseEther("9999999999");
-
-      // For getting expiry exerciseProfit
-      snapshotId = await time.takeSnapshot();
-      await time.increaseTo(this.expiry + 1);
-      this.exerciseProfit = 0;
-
-      try {
-        this.exerciseProfit = (await this.optionViews.getSellOptionCost(this.market, this.collateralAsset == ONE_ADDRESS ? true : false, this.strikeIndex, this.purchaseAmount)).toString();
-      } catch {}
-
-      await time.revertToSnapShot(snapshotId);
 
       this.optionTerms = [
         this.underlying,
@@ -345,15 +338,19 @@ function behavesLikeOTokens(params) {
         this.paymentToken,
       ];
 
-      await this.adapter.populateOTokenMappings();
+      //await this.adapter.populateOTokenMappings();
 
       // console.log("this.underlying is %s", this.underlying);
       // console.log("this.strikeAsset is %s", this.strikeAsset);
       // console.log("this.collateralAsset is %s", this.collateralAsset);
       // console.log("this.expiry is %s", this.expiry);
+      // console.log("this.strikeIndex is %s", this.strikeIndex);
+      // console.log("this.market is %s", this.market);
+      // console.log("isLong is %s", this.collateralAsset == ONE_ADDRESS ? true : false);
       // console.log("this.strikePrice is %s", this.strikePrice);
       // console.log("this.optionType is %s", this.optionType);
       // console.log("this.paymentToken is %s", this.paymentToken);
+      // console.log("this.exerciseProfit is %s", this.exerciseProfit);
       // console.log("this.purchaseAmount is %s", this.purchaseAmount);
       // console.log("this.maxCost is %s", this.maxCost);
       // console.log("user is %s", user);
@@ -402,6 +399,15 @@ function behavesLikeOTokens(params) {
               )
 
         await time.increaseTo(this.expiry + 1);
+
+        await this.marketContract.settle();
+
+        // For getting expiry exerciseProfit
+        this.exerciseProfit = 0;
+
+        try {
+          this.exerciseProfit = (await this.optionViews.getSellOptionCost(this.market, this.collateralAsset == ONE_ADDRESS ? true : false, this.strikeIndex, this.purchaseAmount)).toString();
+        } catch {}
 
         assert.equal(
           (
@@ -589,11 +595,20 @@ function behavesLikeOTokens(params) {
 
         const recipientStartBalance = await provider.getBalance(recipient);
 
+        await time.increaseTo(this.expiry + 1);
+
+        await this.marketContract.settle();
+
+        // For getting expiry exerciseProfit
+        this.exerciseProfit = 0;
+
+        try {
+          this.exerciseProfit = (await this.optionViews.getSellOptionCost(this.market, this.collateralAsset == ONE_ADDRESS ? true : false, this.strikeIndex, this.purchaseAmount)).toString();
+        } catch {}
+
         if (BigNumber.from(this.exerciseProfit).isZero()) {
           return;
         }
-
-        await time.increaseTo(this.expiry + 1);
 
         const res = await this.adapter.exercise(
           this.oTokenAddress,
@@ -634,7 +649,7 @@ function behavesLikeOTokens(params) {
             this.paymentToken
           );
           assert.equal(
-            (await paymentToken.balanceOf(user)).toString(),
+            (await paymentToken.balanceOf(recipient)).toString(),
             this.exerciseProfit
           );
         }
@@ -654,12 +669,20 @@ function behavesLikeOTokens(params) {
 
       it.skip("can exercise", async function () {
         await time.increaseTo(this.expiry + 7201);
+        await this.marketContract.settle();
 
         const res = await this.adapter.canExercise(
           this.oTokenAddress,
           0,
           this.purchaseAmount
         );
+
+        // For getting expiry exerciseProfit
+        this.exerciseProfit = 0;
+
+        try {
+          this.exerciseProfit = (await this.optionViews.getSellOptionCost(this.market, this.collateralAsset == ONE_ADDRESS ? true : false, this.strikeIndex, this.purchaseAmount)).toString();
+        } catch {}
 
         if (this.exerciseProfit.isZero()) {
           assert.isFalse(res);

@@ -296,17 +296,13 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         view
         returns (uint256 amountAfterFee, uint256 feeAmount)
     {
-        uint256 _lockedAmount = lockedAmount;
-        uint256 currentAssetBalance = IERC20(asset).balanceOf(address(this));
-        uint256 total = _lockedAmount.add(currentAssetBalance);
-
-        uint256 availableForWithdrawal =
-            _availableToWithdraw(_lockedAmount, currentAssetBalance);
+        uint256 currentAssetBalance = assetBalance();
+        uint256 total = lockedAmount.add(currentAssetBalance);
 
         // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L111
         uint256 withdrawAmount = share.mul(total).div(totalSupply());
         require(
-            withdrawAmount <= availableForWithdrawal,
+            withdrawAmount <= currentAssetBalance,
             "Cannot withdraw more than available"
         );
 
@@ -315,14 +311,9 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     }
 
     function maxWithdrawableShares() public view returns (uint256) {
-        uint256 _lockedAmount = lockedAmount;
-        uint256 currentAssetBalance = IERC20(asset).balanceOf(address(this));
-        uint256 total = _lockedAmount.add(currentAssetBalance);
-
-        uint256 availableForWithdrawal =
-            _availableToWithdraw(_lockedAmount, currentAssetBalance);
-
-        return availableForWithdrawal.mul(totalSupply()).div(total);
+        uint256 withdrawableBalance = assetBalance();
+        uint256 total = lockedAmount.add(assetBalance());
+        return withdrawableBalance.mul(totalSupply()).div(total);
     }
 
     /**
@@ -352,29 +343,10 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Returns the amount available for users to withdraw. MIN(10% * (locked + assetBalance), assetBalance)
+     * @notice Returns the asset balance on the vault. This balance is freely withdrawable by users.
      */
-    function availableToWithdraw() external view returns (uint256) {
-        return
-            _availableToWithdraw(
-                lockedAmount,
-                IERC20(asset).balanceOf(address(this))
-            );
-    }
-
-    /**
-     * @notice Helper function that returns amount available to withdraw. Used to save gas.
-     */
-    function _availableToWithdraw(uint256 lockedBalance, uint256 freeBalance)
-        private
-        pure
-        returns (uint256)
-    {
-        uint256 total = lockedBalance.add(freeBalance);
-        uint256 reserveRatio = uint256(1 ether).sub(lockedRatio);
-        uint256 reserve = wmul(total, reserveRatio);
-
-        return min(reserve, freeBalance);
+    function assetBalance() public view returns (uint256) {
+        return IERC20(asset).balanceOf(address(this));
     }
 
     /**

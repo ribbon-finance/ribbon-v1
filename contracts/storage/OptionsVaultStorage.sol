@@ -14,6 +14,7 @@ import {
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 
 contract OptionsVaultStorageV0 {
+    // Gap just in case we push storage in front of the OptionsVaultStorage contract
     uint256[50] __gap;
 }
 

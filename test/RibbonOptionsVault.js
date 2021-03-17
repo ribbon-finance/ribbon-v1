@@ -1139,6 +1139,63 @@ describe("RibbonCoveredCall", () => {
     });
   });
 
+  describe("#withdrawAmountWithShares", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("returns the correct withdrawal amount", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      const [
+        withdrawAmount,
+        feeAmount,
+      ] = await this.vault.withdrawAmountWithShares(parseEther("0.1"));
+
+      assert.equal(withdrawAmount.toString(), parseEther("0.0995"));
+      assert.equal(feeAmount.toString(), parseEther("0.0005"));
+
+      await this.vault.withdraw(parseEther("0.1"));
+
+      assert.equal(
+        (await this.weth.balanceOf(user)).toString(),
+        withdrawAmount
+      );
+    });
+  });
+
+  describe("#maxWithdrawAmount", () => {
+    it("returns the max withdrawable amount when the withdrawal amount is more than available", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      assert.equal(
+        (await this.vault.maxWithdrawAmount(user)).toString(),
+        parseEther("0.0995")
+      );
+    });
+
+    it("returns the max withdrawable amount", async function () {
+      await this.vault
+        .connect(managerSigner)
+        .depositETH({ value: parseEther("9") });
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      assert.equal(
+        (await this.vault.maxWithdrawAmount(user)).toString(),
+        parseEther("0.995")
+      );
+    });
+  });
+
+  describe("#maxWithdrawableShares", () => {
+    it("returns the max shares withdrawable of the system", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      assert.equal(
+        (await this.vault.maxWithdrawableShares()).toString(),
+        parseEther("0.1")
+      );
+    });
+  });
+
   describe("#withdraw", () => {
     time.revertToSnapshotAfterEach();
 

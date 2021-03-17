@@ -202,7 +202,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
      */
     function _withdraw(uint256 share) private returns (uint256) {
         (uint256 amountAfterFee, uint256 feeAmount) =
-            withdrawAmountWithShare(share);
+            withdrawAmountWithShares(share);
 
         emit Withdraw(msg.sender, amountAfterFee, share, feeAmount);
 
@@ -284,7 +284,13 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         return oToken.expiryTimestamp();
     }
 
-    function withdrawAmountWithShare(uint256 share)
+    /**
+     * @notice Returns the amount withdrawable (in `asset` tokens) using the `share` amount
+     * @param share is the number of shares burned to withdraw asset from the vault
+     * @return amountAfterFee is the amount of asset tokens withdrawable from the vault
+     * @return feeAmount is the fee amount (in asset tokens) sent to the feeRecipient
+     */
+    function withdrawAmountWithShares(uint256 share)
         public
         view
         returns (uint256 amountAfterFee, uint256 feeAmount)
@@ -307,18 +313,38 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         amountAfterFee = withdrawAmount.sub(feeAmount);
     }
 
+    function maxWithdrawableShares() public view returns (uint256) {
+        uint256 _lockedAmount = lockedAmount;
+        uint256 currentAssetBalance = IERC20(asset).balanceOf(address(this));
+        uint256 total = _lockedAmount.add(currentAssetBalance);
+
+        uint256 availableForWithdrawal =
+            _availableToWithdraw(_lockedAmount, currentAssetBalance);
+
+        return availableForWithdrawal.mul(totalSupply()).div(total);
+    }
+
+    /**
+     * @notice Returns the max amount withdrawable by an account using the account's vault share balance
+     * @param account is the address of the vault share holder
+     * @return amount of `asset` withdrawable from vault, with fees accounted
+     */
     function maxWithdrawAmount(address account)
         external
         view
         returns (uint256)
     {
-        (uint256 withdrawAmount, ) =
-            withdrawAmountWithShare(balanceOf(account));
+        uint256 maxShares = maxWithdrawableShares();
+        uint256 share = balanceOf(account);
+        uint256 numShares = min(maxShares, share);
+
+        (uint256 withdrawAmount, ) = withdrawAmountWithShares(numShares);
         return withdrawAmount;
     }
 
     /**
      * @notice Returns the vault's total balance, including the amounts locked into a short position
+     * @return total balance of the vault, including the amounts locked in third party protocols
      */
     function totalBalance() public view returns (uint256) {
         return lockedAmount.add(IERC20(asset).balanceOf(address(this)));

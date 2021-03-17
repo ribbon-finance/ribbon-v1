@@ -1140,19 +1140,9 @@ describe("RibbonCoveredCall", () => {
       ).to.be.revertedWith("ERC20: burn amount exceeds balance");
     });
 
-    it("should be able to withdraw 10% at a time until vault is empty", async function () {
+    it("should be able to withdraw everything from the vault", async function () {
       await this.vault.depositETH({ value: parseEther("1") });
-
-      await this.vault.withdraw(parseEther("0.1"));
-      await this.vault.withdraw(parseEther("0.09"));
-      await this.vault.withdraw(parseEther("0.081"));
-      await this.vault.withdraw(parseEther("0.0729"));
-      await this.vault.withdraw(parseEther("0.06561"));
-      // await this.vault.withdraw(parseEther("0.06"));
-      // await this.vault.withdraw(parseEther("0.055"));
-      // await this.vault.withdraw(parseEther("0.048"));
-      // await this.vault.withdraw(parseEther("0.046"));
-      // await this.vault.withdraw(parseEther("0.01"));
+      await this.vault.withdrawETH(parseEther("1"));
     });
   });
 

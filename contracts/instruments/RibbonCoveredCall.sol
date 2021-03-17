@@ -263,6 +263,14 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     }
 
     /**
+     * @notice Withdraw from the options protocol by closing short in an event of a emergency
+     */
+    function emergencyWithdrawFromShort() external onlyManager nonReentrant {
+        uint256 withdrawAmount = adapter.delegateCloseShort();
+        emit CloseShort(currentOption, withdrawAmount, msg.sender);
+    }
+
+    /**
      * @notice Sets a new cap for deposits
      * @param newCap is the new cap for deposits
      */

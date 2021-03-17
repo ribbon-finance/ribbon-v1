@@ -903,6 +903,28 @@ describe("RibbonCoveredCall", () => {
     });
   });
 
+  describe("#emergencyWithdrawFromShort", () => {
+    time.revertToSnapshotAfterTest();
+    it("withdraws locked funds by closing short", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+      await this.rollToNextOption();
+      assert.equal(
+        (await this.vault.assetBalance()).toString(),
+        parseEther("0.1")
+      );
+      // this assumes that we found a way to get back the otokens
+      await this.vault.connect(managerSigner).emergencyWithdrawFromShort();
+      assert.equal(
+        (await this.vault.assetBalance()).toString(),
+        parseEther("1")
+      );
+      assert.equal(
+        (await this.oToken.balanceOf(this.vault.address)).toString(),
+        "0"
+      );
+    });
+  });
+
   describe("Swapping with counterparty", () => {
     time.revertToSnapshotAfterEach(async function () {
       this.premium = parseEther("0.1");

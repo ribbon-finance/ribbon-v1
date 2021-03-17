@@ -201,27 +201,13 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
      * @param share is the number of vault shares to be burned
      */
     function _withdraw(uint256 share) private returns (uint256) {
-        uint256 _lockedAmount = lockedAmount;
-        IERC20 assetToken = IERC20(asset);
-        uint256 currentAssetBalance = assetToken.balanceOf(address(this));
-        uint256 total = _lockedAmount.add(currentAssetBalance);
-        uint256 availableForWithdrawal =
-            _availableToWithdraw(_lockedAmount, currentAssetBalance);
-
-        // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L111
-        uint256 withdrawAmount = share.mul(total).div(totalSupply());
-        require(
-            withdrawAmount <= availableForWithdrawal,
-            "Cannot withdraw more than available"
-        );
-
-        uint256 feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
-        uint256 amountAfterFee = withdrawAmount.sub(feeAmount);
+        (uint256 amountAfterFee, uint256 feeAmount) =
+            withdrawAmountWithShare(share);
 
         emit Withdraw(msg.sender, amountAfterFee, share, feeAmount);
 
         _burn(msg.sender, share);
-        assetToken.safeTransfer(feeRecipient, feeAmount);
+        IERC20(asset).safeTransfer(feeRecipient, feeAmount);
 
         return amountAfterFee;
     }
@@ -296,6 +282,39 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
 
         OtokenInterface oToken = OtokenInterface(currentOption);
         return oToken.expiryTimestamp();
+    }
+
+    function withdrawAmountWithShare(uint256 share)
+        public
+        view
+        returns (uint256 amountAfterFee, uint256 feeAmount)
+    {
+        uint256 _lockedAmount = lockedAmount;
+        uint256 currentAssetBalance = IERC20(asset).balanceOf(address(this));
+        uint256 total = _lockedAmount.add(currentAssetBalance);
+
+        uint256 availableForWithdrawal =
+            _availableToWithdraw(_lockedAmount, currentAssetBalance);
+
+        // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L111
+        uint256 withdrawAmount = share.mul(total).div(totalSupply());
+        require(
+            withdrawAmount <= availableForWithdrawal,
+            "Cannot withdraw more than available"
+        );
+
+        feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
+        amountAfterFee = withdrawAmount.sub(feeAmount);
+    }
+
+    function maxWithdrawAmount(address account)
+        external
+        view
+        returns (uint256)
+    {
+        (uint256 withdrawAmount, ) =
+            withdrawAmountWithShare(balanceOf(account));
+        return withdrawAmount;
     }
 
     /**

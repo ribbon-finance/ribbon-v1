@@ -180,6 +180,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
      * @param share is the number of vault shares to be burned
      */
     function withdrawETH(uint256 share) external nonReentrant {
+        require(asset == _WETH, "!WETH");
         uint256 withdrawAmount = _withdraw(share);
 
         IWETH(_WETH).withdraw(withdrawAmount);
@@ -201,27 +202,13 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
      * @param share is the number of vault shares to be burned
      */
     function _withdraw(uint256 share) private returns (uint256) {
-        uint256 _lockedAmount = lockedAmount;
-        IERC20 assetToken = IERC20(asset);
-        uint256 currentAssetBalance = assetToken.balanceOf(address(this));
-        uint256 total = _lockedAmount.add(currentAssetBalance);
-        uint256 availableForWithdrawal =
-            _availableToWithdraw(_lockedAmount, currentAssetBalance);
-
-        // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L111
-        uint256 withdrawAmount = share.mul(total).div(totalSupply());
-        require(
-            withdrawAmount <= availableForWithdrawal,
-            "Cannot withdraw more than available"
-        );
-
-        uint256 feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
-        uint256 amountAfterFee = withdrawAmount.sub(feeAmount);
+        (uint256 amountAfterFee, uint256 feeAmount) =
+            withdrawAmountWithShares(share);
 
         emit Withdraw(msg.sender, amountAfterFee, share, feeAmount);
 
         _burn(msg.sender, share);
-        assetToken.safeTransfer(feeRecipient, feeAmount);
+        IERC20(asset).safeTransfer(feeRecipient, feeAmount);
 
         return amountAfterFee;
     }
@@ -276,6 +263,14 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     }
 
     /**
+     * @notice Withdraw from the options protocol by closing short in an event of a emergency
+     */
+    function emergencyWithdrawFromShort() external onlyManager nonReentrant {
+        uint256 withdrawAmount = adapter.delegateCloseShort();
+        emit CloseShort(currentOption, withdrawAmount, msg.sender);
+    }
+
+    /**
      * @notice Sets a new cap for deposits
      * @param newCap is the new cap for deposits
      */
@@ -299,36 +294,67 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     }
 
     /**
+     * @notice Returns the amount withdrawable (in `asset` tokens) using the `share` amount
+     * @param share is the number of shares burned to withdraw asset from the vault
+     * @return amountAfterFee is the amount of asset tokens withdrawable from the vault
+     * @return feeAmount is the fee amount (in asset tokens) sent to the feeRecipient
+     */
+    function withdrawAmountWithShares(uint256 share)
+        public
+        view
+        returns (uint256 amountAfterFee, uint256 feeAmount)
+    {
+        uint256 currentAssetBalance = assetBalance();
+        uint256 total = lockedAmount.add(currentAssetBalance);
+
+        // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L111
+        uint256 withdrawAmount = share.mul(total).div(totalSupply());
+        require(
+            withdrawAmount <= currentAssetBalance,
+            "Cannot withdraw more than available"
+        );
+
+        feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
+        amountAfterFee = withdrawAmount.sub(feeAmount);
+    }
+
+    function maxWithdrawableShares() public view returns (uint256) {
+        uint256 withdrawableBalance = assetBalance();
+        uint256 total = lockedAmount.add(assetBalance());
+        return withdrawableBalance.mul(totalSupply()).div(total);
+    }
+
+    /**
+     * @notice Returns the max amount withdrawable by an account using the account's vault share balance
+     * @param account is the address of the vault share holder
+     * @return amount of `asset` withdrawable from vault, with fees accounted
+     */
+    function maxWithdrawAmount(address account)
+        external
+        view
+        returns (uint256)
+    {
+        uint256 maxShares = maxWithdrawableShares();
+        uint256 share = balanceOf(account);
+        uint256 numShares = min(maxShares, share);
+
+        (uint256 withdrawAmount, ) = withdrawAmountWithShares(numShares);
+        return withdrawAmount;
+    }
+
+    /**
      * @notice Returns the vault's total balance, including the amounts locked into a short position
+     * @return total balance of the vault, including the amounts locked in third party protocols
      */
     function totalBalance() public view returns (uint256) {
         return lockedAmount.add(IERC20(asset).balanceOf(address(this)));
     }
 
     /**
-     * @notice Returns the amount available for users to withdraw. MIN(10% * (locked + assetBalance), assetBalance)
+     * @notice Returns the asset balance on the vault. This balance is freely withdrawable by users.
      */
-    function availableToWithdraw() external view returns (uint256) {
-        return
-            _availableToWithdraw(
-                lockedAmount,
-                IERC20(asset).balanceOf(address(this))
-            );
-    }
-
-    /**
-     * @notice Helper function that returns amount available to withdraw. Used to save gas.
-     */
-    function _availableToWithdraw(uint256 lockedBalance, uint256 freeBalance)
-        private
-        pure
-        returns (uint256)
-    {
-        uint256 total = lockedBalance.add(freeBalance);
-        uint256 reserveRatio = uint256(1 ether).sub(lockedRatio);
-        uint256 reserve = wmul(total, reserveRatio);
-
-        return min(reserve, freeBalance);
+    function assetBalance() public view returns (uint256) {
+        return IERC20(asset).balanceOf(address(this));
     }
 
     /**

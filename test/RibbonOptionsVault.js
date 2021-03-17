@@ -336,6 +336,17 @@ describe("RibbonCoveredCall", () => {
         .withArgs(user, depositAmount, depositAmount);
     });
 
+    it("consumes less than 100k gas in ideal scenario", async function () {
+      await this.vault
+        .connect(managerSigner)
+        .depositETH({ value: parseEther("0.1") });
+
+      const res = await this.vault.depositETH({ value: parseEther("0.1") });
+      const receipt = await res.wait();
+      console.log(receipt.gasUsed.toNumber());
+      assert.isAtMost(receipt.gasUsed.toNumber(), 100000);
+    });
+
     it("returns the correct number of shares back", async function () {
       // first user gets 3 shares
       await this.vault
@@ -557,7 +568,7 @@ describe("RibbonCoveredCall", () => {
       assert.equal((await this.vault.lockedAmount()).toString(), lockedAmount);
 
       assert.equal(
-        (await this.vault.availableToWithdraw()).toString(),
+        (await this.vault.assetBalance()).toString(),
         availableAmount
       );
 
@@ -892,6 +903,28 @@ describe("RibbonCoveredCall", () => {
     });
   });
 
+  describe("#emergencyWithdrawFromShort", () => {
+    time.revertToSnapshotAfterTest();
+    it("withdraws locked funds by closing short", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+      await this.rollToNextOption();
+      assert.equal(
+        (await this.vault.assetBalance()).toString(),
+        parseEther("0.1")
+      );
+      // this assumes that we found a way to get back the otokens
+      await this.vault.connect(managerSigner).emergencyWithdrawFromShort();
+      assert.equal(
+        (await this.vault.assetBalance()).toString(),
+        parseEther("1")
+      );
+      assert.equal(
+        (await this.oToken.balanceOf(this.vault.address)).toString(),
+        "0"
+      );
+    });
+  });
+
   describe("Swapping with counterparty", () => {
     time.revertToSnapshotAfterEach(async function () {
       this.premium = parseEther("0.1");
@@ -950,7 +983,7 @@ describe("RibbonCoveredCall", () => {
     });
   });
 
-  describe("#availableToWithdraw", () => {
+  describe("#assetBalance", () => {
     time.revertToSnapshotAfterEach(async function () {
       this.depositAmount = parseEther("1");
 
@@ -964,37 +997,33 @@ describe("RibbonCoveredCall", () => {
       await this.rollToNextOption();
     });
 
-    it("returns the 10% reserve amount", async function () {
+    it("returns the free balance, after locking", async function () {
       assert.equal(
-        (await this.vault.availableToWithdraw()).toString(),
+        (await this.vault.assetBalance()).toString(),
         wmul(this.depositAmount, parseEther("0.1")).toString()
       );
     });
 
     it("returns the free balance - locked, if free > locked", async function () {
-      await this.vault.availableToWithdraw();
-
       await this.vault.depositETH({ value: parseEther("10") });
 
-      const freeAmount = wmul(
-        parseEther("10").add(this.depositAmount),
-        parseEther("0.1")
+      const freeAmount = parseEther("10").add(
+        wmul(this.depositAmount, parseEther("0.1"))
       );
 
-      assert.equal(
-        (await this.vault.availableToWithdraw()).toString(),
-        freeAmount
-      );
+      assert.equal((await this.vault.assetBalance()).toString(), freeAmount);
     });
   });
 
   describe("#withdrawETH", () => {
     time.revertToSnapshotAfterEach();
 
-    it("reverts when withdrawing more than 10%", async function () {
-      await this.vault.depositETH({ value: parseEther("1") });
+    it("reverts when withdrawing more than balance", async function () {
+      await this.vault.depositETH({ value: parseEther("10") });
 
-      await expect(this.vault.withdrawETH(parseEther("1"))).to.be.revertedWith(
+      await this.rollToNextOption();
+
+      await expect(this.vault.withdrawETH(parseEther("2"))).to.be.revertedWith(
         "Cannot withdraw more than available"
       );
     });
@@ -1058,14 +1087,9 @@ describe("RibbonCoveredCall", () => {
         .transfer(this.vault.address, parseEther("1"));
 
       assert.equal(
-        (await this.vault.availableToWithdraw()).toString(),
-        parseEther("0.2")
+        (await this.vault.assetBalance()).toString(),
+        parseEther("2").toString()
       );
-
-      // reverts when withdrawing >0.2 ETH
-      await expect(
-        this.vault.withdrawETH(parseEther("0.2").add(BigNumber.from("1")))
-      ).to.be.revertedWith("Cannot withdraw more than available");
 
       const tx = await this.vault.withdrawETH(parseEther("0.1"));
       const receipt = await tx.wait();
@@ -1136,6 +1160,72 @@ describe("RibbonCoveredCall", () => {
       await expect(
         this.vault.withdrawETH(parseEther("1").add(BigNumber.from("1")))
       ).to.be.revertedWith("ERC20: burn amount exceeds balance");
+    });
+
+    it("should be able to withdraw everything from the vault", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+      await this.vault.withdrawETH(parseEther("1"));
+    });
+  });
+
+  describe("#withdrawAmountWithShares", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("returns the correct withdrawal amount", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      const [
+        withdrawAmount,
+        feeAmount,
+      ] = await this.vault.withdrawAmountWithShares(parseEther("0.1"));
+
+      assert.equal(withdrawAmount.toString(), parseEther("0.0995"));
+      assert.equal(feeAmount.toString(), parseEther("0.0005"));
+
+      await this.vault.withdraw(parseEther("0.1"));
+
+      assert.equal(
+        (await this.weth.balanceOf(user)).toString(),
+        withdrawAmount
+      );
+    });
+  });
+
+  describe("#maxWithdrawAmount", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("returns the max withdrawable amount when the withdrawal amount is more than available", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      assert.equal(
+        (await this.vault.maxWithdrawAmount(user)).toString(),
+        parseEther("0.995")
+      );
+    });
+
+    it("returns the max withdrawable amount", async function () {
+      await this.vault
+        .connect(managerSigner)
+        .depositETH({ value: parseEther("9") });
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      assert.equal(
+        (await this.vault.maxWithdrawAmount(user)).toString(),
+        parseEther("0.995")
+      );
+    });
+  });
+
+  describe("#maxWithdrawableShares", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("returns the max shares withdrawable of the system", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      assert.equal(
+        (await this.vault.maxWithdrawableShares()).toString(),
+        parseEther("1").toString()
+      );
     });
   });
 

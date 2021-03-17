@@ -1137,6 +1137,21 @@ describe("RibbonCoveredCall", () => {
         this.vault.withdrawETH(parseEther("1").add(BigNumber.from("1")))
       ).to.be.revertedWith("ERC20: burn amount exceeds balance");
     });
+
+    it("should be able to withdraw 10% at a time until vault is empty", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      await this.vault.withdraw(parseEther("0.1"));
+      await this.vault.withdraw(parseEther("0.09"));
+      await this.vault.withdraw(parseEther("0.081"));
+      await this.vault.withdraw(parseEther("0.0729"));
+      await this.vault.withdraw(parseEther("0.06561"));
+      // await this.vault.withdraw(parseEther("0.06"));
+      // await this.vault.withdraw(parseEther("0.055"));
+      // await this.vault.withdraw(parseEther("0.048"));
+      // await this.vault.withdraw(parseEther("0.046"));
+      // await this.vault.withdraw(parseEther("0.01"));
+    });
   });
 
   describe("#withdrawAmountWithShares", () => {
@@ -1163,6 +1178,8 @@ describe("RibbonCoveredCall", () => {
   });
 
   describe("#maxWithdrawAmount", () => {
+    time.revertToSnapshotAfterEach();
+
     it("returns the max withdrawable amount when the withdrawal amount is more than available", async function () {
       await this.vault.depositETH({ value: parseEther("1") });
 
@@ -1186,6 +1203,8 @@ describe("RibbonCoveredCall", () => {
   });
 
   describe("#maxWithdrawableShares", () => {
+    time.revertToSnapshotAfterEach();
+
     it("returns the max shares withdrawable of the system", async function () {
       await this.vault.depositETH({ value: parseEther("1") });
 

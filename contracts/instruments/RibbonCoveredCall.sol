@@ -180,6 +180,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
      * @param share is the number of vault shares to be burned
      */
     function withdrawETH(uint256 share) external nonReentrant {
+        require(asset == _WETH, "!WETH");
         uint256 withdrawAmount = _withdraw(share);
 
         IWETH(_WETH).withdraw(withdrawAmount);

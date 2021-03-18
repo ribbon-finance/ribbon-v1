@@ -18,8 +18,6 @@ import {ISwap} from "../interfaces/ISwap.sol";
 import {OtokenInterface} from "../interfaces/GammaInterface.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 
-import "hardhat/console.sol";
-
 contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     using ProtocolAdapter for IProtocolAdapter;
     using SafeERC20 for IERC20;
@@ -108,6 +106,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         require(_initCap > 0, "_initCap > 0");
         require(_asset != address(0), "!_asset");
 
+        __ReentrancyGuard_init();
         __ERC20_init(_tokenName, _tokenSymbol);
         __Ownable_init();
         transferOwnership(_owner);

@@ -24,8 +24,8 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     using SafeMath for uint256;
 
     string private constant _adapterName = "OPYN_GAMMA";
-    string private constant _tokenName = "Ribbon ETH Covered Call Vault";
-    string private constant _tokenSymbol = "rETH-COVCALL";
+    string private constant _tokenName = "Ribbon ETH Theta Vault";
+    string private constant _tokenSymbol = "rETH-THETA";
 
     IRibbonFactory public immutable factory;
     IProtocolAdapter public immutable adapter;

@@ -479,6 +479,8 @@ describe("RibbonCoveredCall", () => {
   });
 
   describe("#setNextOption", () => {
+    time.revertToSnapshotAfterEach();
+
     it("reverts when not called with manager", async function () {
       await expect(
         this.vault
@@ -516,6 +518,32 @@ describe("RibbonCoveredCall", () => {
         (await this.vault.nextOptionReadyAt()).toNumber(),
         parseInt(block.timestamp) + OPTION_DELAY
       );
+    });
+
+    it("should set the next option twice", async function () {
+      await this.vault
+        .connect(managerSigner)
+        .setNextOption([
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          WETH_ADDRESS,
+          "1610697600",
+          parseEther("1480"),
+          2,
+          WETH_ADDRESS,
+        ]);
+
+      await this.vault
+        .connect(managerSigner)
+        .setNextOption([
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          WETH_ADDRESS,
+          "1614326400",
+          parseEther("960"),
+          2,
+          WETH_ADDRESS,
+        ]);
     });
   });
 
@@ -1180,6 +1208,11 @@ describe("RibbonCoveredCall", () => {
 
     it("should be able to withdraw everything from the vault", async function () {
       await this.vault.depositETH({ value: parseEther("1") });
+
+      // simulate setting a bad otoken
+      await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
+
+      // users should have time to withdraw
       await this.vault.withdrawETH(parseEther("1"));
     });
   });

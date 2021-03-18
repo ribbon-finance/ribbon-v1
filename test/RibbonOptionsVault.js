@@ -72,7 +72,12 @@ describe("RibbonCoveredCall", () => {
       feeRecipient,
       parseEther("500"),
     ];
-    const deployArgs = [factory.address];
+    const deployArgs = [
+      factory.address,
+      WETH_ADDRESS,
+      USDC_ADDRESS,
+      SWAP_ADDRESS,
+    ];
 
     this.vault = (
       await deployProxy(
@@ -137,7 +142,12 @@ describe("RibbonCoveredCall", () => {
         }
       );
       await expect(
-        VaultContract.deploy(constants.AddressZero)
+        VaultContract.deploy(
+          constants.AddressZero,
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          SWAP_ADDRESS
+        )
       ).to.be.revertedWith("!_factory");
     });
 
@@ -154,7 +164,12 @@ describe("RibbonCoveredCall", () => {
       await this.factory.setAdapter("OPYN_GAMMA", constants.AddressZero);
 
       await expect(
-        VaultContract.deploy(this.factory.address)
+        VaultContract.deploy(
+          this.factory.address,
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          SWAP_ADDRESS
+        )
       ).to.be.revertedWith("Adapter not set");
     });
   });
@@ -169,7 +184,12 @@ describe("RibbonCoveredCall", () => {
           },
         }
       );
-      this.testVault = await RibbonCoveredCall.deploy(this.factory.address);
+      this.testVault = await RibbonCoveredCall.deploy(
+        this.factory.address,
+        WETH_ADDRESS,
+        USDC_ADDRESS,
+        SWAP_ADDRESS
+      );
     });
 
     it("initializes with correct values", async function () {

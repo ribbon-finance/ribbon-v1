@@ -257,13 +257,13 @@ describe("RibbonCoveredCall", () => {
 
   describe("#name", () => {
     it("returns the name", async function () {
-      assert.equal(await this.vault.name(), "Ribbon ETH Covered Call Vault");
+      assert.equal(await this.vault.name(), "Ribbon ETH Theta Vault");
     });
   });
 
   describe("#symbol", () => {
     it("returns the symbol", async function () {
-      assert.equal(await this.vault.symbol(), "rETH-COVCALL");
+      assert.equal(await this.vault.symbol(), "rETH-THETA");
     });
   });
 

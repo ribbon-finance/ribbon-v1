@@ -12,6 +12,8 @@ const {
   setOpynOracleExpiryPrice,
 } = require("../helpers/utils");
 
+const USDCETH_PRICE_FEED = "0x986b5E1e1755e3C2440e960477f25201B0a8bbD4";
+const ZERO_EX_EXCHANGE_V3 = "0xDef1C0ded9bec7F1a1670819833240f027b25EfF";
 const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
@@ -71,11 +73,29 @@ describe("GammaAdapter", () => {
     );
 
     this.mockAdapter = (
-      await MockGammaAdapter.deploy(OTOKEN_FACTORY, this.mockController.address)
+      await MockGammaAdapter.deploy(
+        OTOKEN_FACTORY,
+        this.mockController.address,
+        MARGIN_POOL,
+        USDCETH_PRICE_FEED,
+        UNISWAP_ROUTER,
+        WETH_ADDRESS,
+        USDC_ADDRESS,
+        ZERO_EX_EXCHANGE_V3
+      )
     ).connect(userSigner);
 
     this.adapter = (
-      await GammaAdapter.deploy(OTOKEN_FACTORY, GAMMA_CONTROLLER)
+      await GammaAdapter.deploy(
+        OTOKEN_FACTORY,
+        GAMMA_CONTROLLER,
+        MARGIN_POOL,
+        USDCETH_PRICE_FEED,
+        UNISWAP_ROUTER,
+        WETH_ADDRESS,
+        USDC_ADDRESS,
+        ZERO_EX_EXCHANGE_V3
+      )
     ).connect(userSigner);
 
     this.oracle = await setupOracle(ownerSigner);

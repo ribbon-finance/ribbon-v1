@@ -67,6 +67,9 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
 
     /**
      * @notice Initializes the factory and adapter contract addresses
+     * It's important to bake the _factory variable into the contract with the constructor
+     * If we do it in the `initialize` function, users get to set the factory variable and
+     * subsequently the adapter, which allows them to make a delegatecall, then selfdestruct the contract.
      */
     constructor(
         address _factory,

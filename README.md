@@ -93,11 +93,15 @@ npx truffle compile
 yarn merge-contracts
 ```
 
-The merged contract files are in the `build/merged/` directory. Run slither on individual contract files:
+The merged contract files are in the `build/merged/` directory.
+
+Because it's a pain to fix the merge results. We have already pre-merged the major contracts. Run slither on individual contract files:
 
 ```sh
-slither build/merged/RibbonETHCoveredCall.sol
-slither build/merged/GammaAdapter.sol
+slither merged-contracts/RibbonCoveredCall.sol
+slither merged-contracts/RibbonFactory.sol
+slither merged-contracts/GammaAdapter.sol
+slither merged-contracts/ProtocolAdapter.sol
 ```
 
 ## Test coverage

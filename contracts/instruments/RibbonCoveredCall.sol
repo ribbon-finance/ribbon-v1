@@ -67,6 +67,9 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
 
     /**
      * @notice Initializes the factory and adapter contract addresses
+     * It's important to bake the _factory variable into the contract with the constructor
+     * If we do it in the `initialize` function, users get to set the factory variable and
+     * subsequently the adapter, which allows them to make a delegatecall, then selfdestruct the contract.
      */
     constructor(
         address _factory,
@@ -253,6 +256,8 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         require(newOption != address(0), "No found option");
         require(block.timestamp > nextOptionReadyAt, "Delay not passed");
 
+        currentOption = newOption;
+
         if (oldOption != address(0)) {
             uint256 withdrawAmount = adapter.delegateCloseShort();
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
@@ -279,8 +284,6 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         IERC20 optionToken = IERC20(newOption);
         optionToken.safeApprove(address(SWAP_CONTRACT), shortBalance);
 
-        currentOption = newOption;
-
         emit OpenShort(newOption, shortAmount, msg.sender);
     }
 
@@ -290,10 +293,12 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     function emergencyWithdrawFromShort() external onlyManager nonReentrant {
         address oldOption = currentOption;
         require(oldOption != address(0), "!currentOption");
-        uint256 withdrawAmount = adapter.delegateCloseShort();
-        emit CloseShort(oldOption, withdrawAmount, msg.sender);
+
         currentOption = address(0);
         nextOption = address(0);
+
+        uint256 withdrawAmount = adapter.delegateCloseShort();
+        emit CloseShort(oldOption, withdrawAmount, msg.sender);
     }
 
     /**

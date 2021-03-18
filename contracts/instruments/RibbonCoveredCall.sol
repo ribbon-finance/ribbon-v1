@@ -135,6 +135,14 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     }
 
     /**
+     * @notice Sets the new withdrawal fee
+     * @param withdrawalFee is the fee paid in tokens when withdrawing
+     */
+    function setWithdrawalFee(uint256 withdrawalFee) external onlyManager {
+        instantWithdrawalFee = withdrawalFee;
+    }
+
+    /**
      * @notice Deposits ETH into the contract and mint vault shares. Reverts if the underlying is not WETH.
      */
     function depositETH() external payable nonReentrant {
@@ -266,8 +274,12 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
      * @notice Withdraw from the options protocol by closing short in an event of a emergency
      */
     function emergencyWithdrawFromShort() external onlyManager nonReentrant {
+        address oldOption = currentOption;
+        require(oldOption != address(0), "!currentOption");
         uint256 withdrawAmount = adapter.delegateCloseShort();
-        emit CloseShort(currentOption, withdrawAmount, msg.sender);
+        emit CloseShort(oldOption, withdrawAmount, msg.sender);
+        currentOption = address(0);
+        nextOption = address(0);
     }
 
     /**

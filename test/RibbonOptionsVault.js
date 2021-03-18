@@ -905,6 +905,20 @@ describe("RibbonCoveredCall", () => {
 
   describe("#emergencyWithdrawFromShort", () => {
     time.revertToSnapshotAfterTest();
+
+    it("reverts when not allocated to a short", async function () {
+      await expect(
+        this.vault.connect(managerSigner).emergencyWithdrawFromShort()
+      ).to.be.revertedWith("!currentOption");
+
+      // doesn't matter if the nextOption is set
+      await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
+
+      await expect(
+        this.vault.connect(managerSigner).emergencyWithdrawFromShort()
+      ).to.be.revertedWith("!currentOption");
+    });
+
     it("withdraws locked funds by closing short", async function () {
       await this.vault.depositETH({ value: parseEther("1") });
       await this.rollToNextOption();
@@ -922,6 +936,8 @@ describe("RibbonCoveredCall", () => {
         (await this.oToken.balanceOf(this.vault.address)).toString(),
         "0"
       );
+      assert.equal(await this.vault.currentOption(), constants.AddressZero);
+      assert.equal(await this.vault.nextOption(), constants.AddressZero);
     });
   });
 
@@ -1264,6 +1280,25 @@ describe("RibbonCoveredCall", () => {
           value: parseEther("1").add(BigNumber.from("1")),
         })
       ).to.be.revertedWith("Cap exceeded");
+    });
+  });
+
+  describe("#setWithdrawalFee", () => {
+    it("reverts when not manager", async function () {
+      await expect(
+        this.vault.connect(userSigner).setWithdrawalFee(parseEther("0.1"))
+      ).to.be.revertedWith("Only manager");
+    });
+
+    it("sets the withdrawal fee", async function () {
+      await this.vault
+        .connect(managerSigner)
+        .setWithdrawalFee(parseEther("0.1"));
+
+      assert.equal(
+        (await this.vault.instantWithdrawalFee()).toString(),
+        parseEther("0.1").toString()
+      );
     });
   });
 

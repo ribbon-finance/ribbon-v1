@@ -221,6 +221,10 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         return amountAfterFee;
     }
 
+    /**
+     * @notice Sets the next option address and the timestamp at which the admin can call `rollToNextOption` to open a short for the option
+     * @param optionTerms is the terms of the option contract
+     */
     function setNextOption(
         ProtocolAdapterTypes.OptionTerms calldata optionTerms
     ) external onlyManager nonReentrant {

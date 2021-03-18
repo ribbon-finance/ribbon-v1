@@ -570,6 +570,15 @@ describe("RibbonCoveredCall", () => {
       ).to.be.revertedWith("Only manager");
     });
 
+    it("reverts when delay not passed", async function () {
+      await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
+
+      // will revert when trying to roll immediately
+      await expect(
+        this.vault.connect(managerSigner).rollToNextOption()
+      ).to.be.revertedWith("Delay not passed");
+    });
+
     it("mints oTokens and deposits collateral into vault", async function () {
       const lockedAmount = wmul(this.depositAmount, LOCKED_RATIO);
       const availableAmount = wmul(

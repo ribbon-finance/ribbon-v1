@@ -72,7 +72,12 @@ describe("RibbonCoveredCall", () => {
       feeRecipient,
       parseEther("500"),
     ];
-    const deployArgs = [factory.address];
+    const deployArgs = [
+      factory.address,
+      WETH_ADDRESS,
+      USDC_ADDRESS,
+      SWAP_ADDRESS,
+    ];
 
     this.vault = (
       await deployProxy(
@@ -137,7 +142,12 @@ describe("RibbonCoveredCall", () => {
         }
       );
       await expect(
-        VaultContract.deploy(constants.AddressZero)
+        VaultContract.deploy(
+          constants.AddressZero,
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          SWAP_ADDRESS
+        )
       ).to.be.revertedWith("!_factory");
     });
 
@@ -154,7 +164,12 @@ describe("RibbonCoveredCall", () => {
       await this.factory.setAdapter("OPYN_GAMMA", constants.AddressZero);
 
       await expect(
-        VaultContract.deploy(this.factory.address)
+        VaultContract.deploy(
+          this.factory.address,
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          SWAP_ADDRESS
+        )
       ).to.be.revertedWith("Adapter not set");
     });
   });
@@ -169,7 +184,12 @@ describe("RibbonCoveredCall", () => {
           },
         }
       );
-      this.testVault = await RibbonCoveredCall.deploy(this.factory.address);
+      this.testVault = await RibbonCoveredCall.deploy(
+        this.factory.address,
+        WETH_ADDRESS,
+        USDC_ADDRESS,
+        SWAP_ADDRESS
+      );
     });
 
     it("initializes with correct values", async function () {
@@ -479,6 +499,8 @@ describe("RibbonCoveredCall", () => {
   });
 
   describe("#setNextOption", () => {
+    time.revertToSnapshotAfterEach();
+
     it("reverts when not called with manager", async function () {
       await expect(
         this.vault
@@ -517,6 +539,32 @@ describe("RibbonCoveredCall", () => {
         parseInt(block.timestamp) + OPTION_DELAY
       );
     });
+
+    it("should set the next option twice", async function () {
+      await this.vault
+        .connect(managerSigner)
+        .setNextOption([
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          WETH_ADDRESS,
+          "1610697600",
+          parseEther("1480"),
+          2,
+          WETH_ADDRESS,
+        ]);
+
+      await this.vault
+        .connect(managerSigner)
+        .setNextOption([
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          WETH_ADDRESS,
+          "1614326400",
+          parseEther("960"),
+          2,
+          WETH_ADDRESS,
+        ]);
+    });
   });
 
   describe("#rollToNextOption", () => {
@@ -540,6 +588,15 @@ describe("RibbonCoveredCall", () => {
       await expect(
         this.vault.connect(userSigner).rollToNextOption()
       ).to.be.revertedWith("Only manager");
+    });
+
+    it("reverts when delay not passed", async function () {
+      await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
+
+      // will revert when trying to roll immediately
+      await expect(
+        this.vault.connect(managerSigner).rollToNextOption()
+      ).to.be.revertedWith("Delay not passed");
     });
 
     it("mints oTokens and deposits collateral into vault", async function () {
@@ -905,6 +962,20 @@ describe("RibbonCoveredCall", () => {
 
   describe("#emergencyWithdrawFromShort", () => {
     time.revertToSnapshotAfterTest();
+
+    it("reverts when not allocated to a short", async function () {
+      await expect(
+        this.vault.connect(managerSigner).emergencyWithdrawFromShort()
+      ).to.be.revertedWith("!currentOption");
+
+      // doesn't matter if the nextOption is set
+      await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
+
+      await expect(
+        this.vault.connect(managerSigner).emergencyWithdrawFromShort()
+      ).to.be.revertedWith("!currentOption");
+    });
+
     it("withdraws locked funds by closing short", async function () {
       await this.vault.depositETH({ value: parseEther("1") });
       await this.rollToNextOption();
@@ -922,6 +993,8 @@ describe("RibbonCoveredCall", () => {
         (await this.oToken.balanceOf(this.vault.address)).toString(),
         "0"
       );
+      assert.equal(await this.vault.currentOption(), constants.AddressZero);
+      assert.equal(await this.vault.nextOption(), constants.AddressZero);
     });
   });
 
@@ -1164,6 +1237,11 @@ describe("RibbonCoveredCall", () => {
 
     it("should be able to withdraw everything from the vault", async function () {
       await this.vault.depositETH({ value: parseEther("1") });
+
+      // simulate setting a bad otoken
+      await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
+
+      // users should have time to withdraw
       await this.vault.withdrawETH(parseEther("1"));
     });
   });
@@ -1264,6 +1342,25 @@ describe("RibbonCoveredCall", () => {
           value: parseEther("1").add(BigNumber.from("1")),
         })
       ).to.be.revertedWith("Cap exceeded");
+    });
+  });
+
+  describe("#setWithdrawalFee", () => {
+    it("reverts when not manager", async function () {
+      await expect(
+        this.vault.connect(userSigner).setWithdrawalFee(parseEther("0.1"))
+      ).to.be.revertedWith("Only manager");
+    });
+
+    it("sets the withdrawal fee", async function () {
+      await this.vault
+        .connect(managerSigner)
+        .setWithdrawalFee(parseEther("0.1"));
+
+      assert.equal(
+        (await this.vault.instantWithdrawalFee()).toString(),
+        parseEther("0.1").toString()
+      );
     });
   });
 

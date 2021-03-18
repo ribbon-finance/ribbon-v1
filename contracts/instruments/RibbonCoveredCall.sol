@@ -25,17 +25,17 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
-    IRibbonFactory public immutable factory;
-    IProtocolAdapter public immutable adapter;
     string private constant _adapterName = "OPYN_GAMMA";
     string private constant _tokenName = "Ribbon ETH Covered Call Vault";
     string private constant _tokenSymbol = "rETH-COVCALL";
-    address private constant _WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    address private constant _USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
+    IRibbonFactory public immutable factory;
+    IProtocolAdapter public immutable adapter;
+    address public immutable WETH;
+    address public immutable USDC;
 
     // AirSwap Swap contract https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
-    ISwap private constant _swapContract =
-        ISwap(0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA);
+    ISwap public immutable SWAP_CONTRACT;
 
     // 90% locked in options protocol, 10% of the pool reserved for withdrawals
     uint256 public constant lockedRatio = 0.9 ether;
@@ -70,8 +70,16 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     /**
      * @notice Initializes the factory and adapter contract addresses
      */
-    constructor(address _factory) {
+    constructor(
+        address _factory,
+        address _weth,
+        address _usdc,
+        address _swapContract
+    ) {
         require(_factory != address(0), "!_factory");
+        require(_weth != address(0), "!_weth");
+        require(_usdc != address(0), "!_usdc");
+        require(_swapContract != address(0), "!_swapContract");
         IRibbonFactory factoryInstance = IRibbonFactory(_factory);
 
         address adapterAddr = factoryInstance.getAdapter(_adapterName);
@@ -79,6 +87,9 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
 
         factory = factoryInstance;
         adapter = IProtocolAdapter(adapterAddr);
+        WETH = _weth;
+        USDC = _usdc;
+        SWAP_CONTRACT = ISwap(_swapContract);
     }
 
     /**
@@ -120,9 +131,9 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         emit ManagerChanged(oldManager, newManager);
 
         if (oldManager != address(0)) {
-            _swapContract.revokeSigner(oldManager);
+            SWAP_CONTRACT.revokeSigner(oldManager);
         }
-        _swapContract.authorizeSigner(newManager);
+        SWAP_CONTRACT.authorizeSigner(newManager);
     }
 
     /**
@@ -135,13 +146,21 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     }
 
     /**
+     * @notice Sets the new withdrawal fee
+     * @param withdrawalFee is the fee paid in tokens when withdrawing
+     */
+    function setWithdrawalFee(uint256 withdrawalFee) external onlyManager {
+        instantWithdrawalFee = withdrawalFee;
+    }
+
+    /**
      * @notice Deposits ETH into the contract and mint vault shares. Reverts if the underlying is not WETH.
      */
     function depositETH() external payable nonReentrant {
-        require(asset == _WETH, "asset is not WETH");
+        require(asset == WETH, "asset is not WETH");
         require(msg.value > 0, "No value passed");
 
-        IWETH(_WETH).deposit{value: msg.value}();
+        IWETH(WETH).deposit{value: msg.value}();
         _deposit(msg.value);
     }
 
@@ -180,10 +199,10 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
      * @param share is the number of vault shares to be burned
      */
     function withdrawETH(uint256 share) external nonReentrant {
-        require(asset == _WETH, "!WETH");
+        require(asset == WETH, "!WETH");
         uint256 withdrawAmount = _withdraw(share);
 
-        IWETH(_WETH).withdraw(withdrawAmount);
+        IWETH(WETH).withdraw(withdrawAmount);
         (bool success, ) = msg.sender.call{value: withdrawAmount}("");
         require(success, "ETH transfer failed");
     }
@@ -213,6 +232,10 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         return amountAfterFee;
     }
 
+    /**
+     * @notice Sets the next option address and the timestamp at which the admin can call `rollToNextOption` to open a short for the option
+     * @param optionTerms is the terms of the option contract
+     */
     function setNextOption(
         ProtocolAdapterTypes.OptionTerms calldata optionTerms
     ) external onlyManager nonReentrant {
@@ -244,7 +267,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         ProtocolAdapterTypes.OptionTerms memory optionTerms =
             ProtocolAdapterTypes.OptionTerms(
                 asset,
-                _USDC,
+                USDC,
                 otoken.collateralAsset(),
                 otoken.expiryTimestamp(),
                 otoken.strikePrice().mul(10**10), // scale back to 10**18
@@ -255,7 +278,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         uint256 shortBalance =
             adapter.delegateCreateShort(optionTerms, shortAmount);
         IERC20 optionToken = IERC20(newOption);
-        optionToken.safeApprove(address(_swapContract), shortBalance);
+        optionToken.safeApprove(address(SWAP_CONTRACT), shortBalance);
 
         currentOption = newOption;
 
@@ -266,8 +289,12 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
      * @notice Withdraw from the options protocol by closing short in an event of a emergency
      */
     function emergencyWithdrawFromShort() external onlyManager nonReentrant {
+        address oldOption = currentOption;
+        require(oldOption != address(0), "!currentOption");
         uint256 withdrawAmount = adapter.delegateCloseShort();
-        emit CloseShort(currentOption, withdrawAmount, msg.sender);
+        emit CloseShort(oldOption, withdrawAmount, msg.sender);
+        currentOption = address(0);
+        nextOption = address(0);
     }
 
     /**

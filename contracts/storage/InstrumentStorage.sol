@@ -32,7 +32,7 @@ contract InstrumentStorageV1 is Initializable, Ownable, ReentrancyGuard {
     }
 }
 
-enum Venues {Unknown, Hegic, OpynGamma}
+enum Venues {Unknown, Hegic, OpynGamma, Charm}
 
 contract InstrumentStorageV2 {
     struct InstrumentPosition {

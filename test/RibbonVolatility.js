@@ -3,7 +3,7 @@ const { assert, expect } = require("chai");
 
 const { ethers } = require("hardhat");
 const { provider, constants, BigNumber } = ethers;
-const { parseEther, parseUnits } = ethers.utils;
+const { parseEther, parseUnits, formatEther } = ethers.utils;
 
 const time = require("./helpers/time");
 const { wmul } = require("./helpers/utils");
@@ -21,12 +21,21 @@ const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
 const HEGIC_PROTOCOL = "HEGIC";
 const GAMMA_PROTOCOL = "OPYN_GAMMA";
+const CHARM_PROTOCOL = "CHARM";
+const protocolBlockMap = {
+  [HEGIC_PROTOCOL]: 11611333,
+  [GAMMA_PROTOCOL]: 11611333,
+  [CHARM_PROTOCOL]: 12071263,
+};
+
 const protocolMap = {
   [HEGIC_PROTOCOL]: 1,
   [GAMMA_PROTOCOL]: 2,
+  [CHARM_PROTOCOL]: 3,
 };
 
 const ETH_ADDRESS = constants.AddressZero;
+const ONE_ADDRESS = "0x0000000000000000000000000000000000000001";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
@@ -171,6 +180,156 @@ describe("RibbonVolatility", () => {
     exerciseProfit: BigNumber.from("9897877"),
     actualExerciseProfit: BigNumber.from("9897877"),
   });
+
+  behavesLikeRibbonVolatility({
+    name: "Charm OTM Put, Charm ITM Call (ETH)",
+    cTokens: [
+      "0xCbD1D4d55bA855451446D586760DEB6247c3bFAB",
+      "0x0Ec2785765e673F3AB13A04D405F7C52e62AC6f3",
+    ],
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: ONE_ADDRESS,
+    venues: [CHARM_PROTOCOL, CHARM_PROTOCOL],
+    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+    amounts: [parseEther("0.1"), parseEther("0.1")],
+    optionsExercised: [false, true],
+    strikePrices: [parseEther("640"), parseEther("640")],
+    premiums: [
+      BigNumber.from("3261832069511974"),
+      BigNumber.from("62331449010889199"),
+    ],
+    purchaseAmount: parseEther("0.1"),
+    expiry: "1624608000",
+    optionIDs: ["0", "0"],
+    exerciseProfit: BigNumber.from("64983476722302642"),
+    actualExerciseProfit: BigNumber.from("64983476722302642"),
+  });
+
+  behavesLikeRibbonVolatility({
+    name: "Charm OTM Put, Charm OTM Call (ETH)",
+    cTokens: [
+      "0xCbD1D4d55bA855451446D586760DEB6247c3bFAB",
+      "0x823884Aa887B97966dA9F9f13BD24f5548C5359B",
+    ],
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: ONE_ADDRESS,
+    venues: [CHARM_PROTOCOL, CHARM_PROTOCOL],
+    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+    amounts: [parseEther("0.1"), parseEther("0.1")],
+    optionsExercised: [false, false],
+    strikePrices: [parseEther("640"), parseEther("4000")],
+    premiums: [
+      BigNumber.from("3261832069511974"),
+      BigNumber.from("12370768589479235"),
+    ],
+    purchaseAmount: parseEther("0.1"),
+    expiry: "1624608000",
+    optionIDs: ["0", "0"],
+    exerciseProfit: BigNumber.from("0"),
+    actualExerciseProfit: BigNumber.from("0"),
+  });
+
+  behavesLikeRibbonVolatility({
+    name: "Charm ITM Put, Charm OTM Call (ETH)",
+    cTokens: [
+      "0xaa595806bbf24A1B1FD4e6ea3060F4bD3E80F61a",
+      "0x823884Aa887B97966dA9F9f13BD24f5548C5359B",
+    ],
+    underlying: ETH_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: ONE_ADDRESS,
+    venues: [CHARM_PROTOCOL, CHARM_PROTOCOL],
+    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+    amounts: [parseEther("0.1"), parseEther("0.1")],
+    optionsExercised: [true, false],
+    strikePrices: [parseEther("4000"), parseEther("4000")],
+    premiums: [
+      BigNumber.from("118269264466708686"),
+      BigNumber.from("12370768589479235"),
+    ],
+    purchaseAmount: parseEther("0.1"),
+    expiry: "1624608000",
+    optionIDs: ["0", "0"],
+    exerciseProfit: BigNumber.from("217229142"),
+    actualExerciseProfit: BigNumber.from("118339150580744801"),
+  });
+
+  behavesLikeRibbonVolatility({
+    name: "Charm OTM Put, Charm ITM Call (WBTC)",
+    cTokens: [
+      "0x009DfeD0B46a990D327717946f09de4A95a7AA1B",
+      "0x1aa6Df53Ef4f2f8464C4728C787906439483eB78",
+    ],
+    underlying: WBTC_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: ONE_ADDRESS,
+    venues: [CHARM_PROTOCOL, CHARM_PROTOCOL],
+    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+    amounts: [parseEther("0.1"), parseEther("0.1")],
+    optionsExercised: [false, true],
+    strikePrices: [parseEther("20000"), parseEther("20000")],
+    premiums: [
+      BigNumber.from("89685326485079566"),
+      BigNumber.from("2223041511776544477"),
+    ],
+    purchaseAmount: parseEther("0.1"),
+    expiry: "1624608000",
+    optionIDs: ["0", "0"],
+    exerciseProfit: BigNumber.from("6603800"),
+    actualExerciseProfit: BigNumber.from("2122049991936097738"),
+  });
+
+  behavesLikeRibbonVolatility({
+    name: "Charm OTM Put, Charm OTM Call (WBTC)",
+    cTokens: [
+      "0x009DfeD0B46a990D327717946f09de4A95a7AA1B",
+      "0x9299b81cad5432333F9aceCb39c628Bf7240A1e2",
+    ],
+    underlying: WBTC_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: ONE_ADDRESS,
+    venues: [CHARM_PROTOCOL, CHARM_PROTOCOL],
+    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+    amounts: [parseEther("0.1"), parseEther("0.1")],
+    optionsExercised: [false, false],
+    strikePrices: [parseEther("20000"), parseEther("80000")],
+    premiums: [
+      BigNumber.from("89685326485079566"),
+      BigNumber.from("328976665985046195"),
+    ],
+    purchaseAmount: parseEther("0.1"),
+    expiry: "1624608000",
+    optionIDs: ["0", "0"],
+    exerciseProfit: BigNumber.from("0"),
+    actualExerciseProfit: BigNumber.from("0"),
+  });
+
+  behavesLikeRibbonVolatility({
+    name: "Charm ITM Put, Charm OTM Call (WBTC)",
+    cTokens: [
+      "0x2DD26C5dbcDE2b45562939E5A915F0eA3AC74d51",
+      "0x9299b81cad5432333F9aceCb39c628Bf7240A1e2",
+    ],
+    underlying: WBTC_ADDRESS,
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: ONE_ADDRESS,
+    venues: [CHARM_PROTOCOL, CHARM_PROTOCOL],
+    optionTypes: [PUT_OPTION_TYPE, CALL_OPTION_TYPE],
+    amounts: [parseEther("0.1"), parseEther("0.1")],
+    optionsExercised: [true, false],
+    strikePrices: [parseEther("80000"), parseEther("80000")],
+    premiums: [
+      BigNumber.from("2035207606065395561"),
+      BigNumber.from("328976665985046195"),
+    ],
+    purchaseAmount: parseEther("0.1"),
+    expiry: "1624608000",
+    optionIDs: ["0", "0"],
+    exerciseProfit: BigNumber.from("2111066355"),
+    actualExerciseProfit: BigNumber.from("1150083504798236505"),
+  });
 });
 
 function behavesLikeRibbonVolatility(params) {
@@ -188,6 +347,7 @@ function behavesLikeRibbonVolatility(params) {
       const venueIDMap = {
         HEGIC: 1,
         OPYN_GAMMA: 2,
+        CHARM: 3,
       };
 
       const {
@@ -209,6 +369,7 @@ function behavesLikeRibbonVolatility(params) {
         collateralAsset,
         optionsExercised,
         paymentToken,
+        cTokens,
         maxCosts,
       } = params;
       this.name = name;
@@ -229,6 +390,7 @@ function behavesLikeRibbonVolatility(params) {
       this.paymentToken = paymentToken || ETH_ADDRESS;
       this.maxCosts = maxCosts || [parseEther("9999999"), parseEther("999999")];
       this.apiResponses = apiResponses;
+      this.cTokens = cTokens;
 
       this.callIndex = optionTypes.indexOf(CALL_OPTION_TYPE);
       this.putIndex = optionTypes.indexOf(PUT_OPTION_TYPE);
@@ -238,6 +400,18 @@ function behavesLikeRibbonVolatility(params) {
       this.putStrikePrice = strikePrices[this.putIndex];
       this.callMaxCost = this.maxCosts[this.callIndex];
       this.putMaxCost = this.maxCosts[this.putIndex];
+
+      await network.provider.request({
+        method: "hardhat_reset",
+        params: [
+          {
+            forking: {
+              jsonRpcUrl: process.env.TEST_URI,
+              blockNumber: protocolBlockMap[this.venues[0]],
+            },
+          },
+        ],
+      });
 
       this.premiums = venues.map((venue, i) => {
         return venue === GAMMA_PROTOCOL
@@ -262,12 +436,19 @@ function behavesLikeRibbonVolatility(params) {
         BigNumber.from("0")
       );
 
+      this.premiumBuffered =
+        this.venues.includes(CHARM_PROTOCOL) == true
+          ? this.totalPremium
+              .mul(BigNumber.from("1100"))
+              .div(BigNumber.from("1000"))
+          : this.totalPremium;
+
       if (this.paymentToken == WBTC_ADDRESS)
         this.totalPremium = BigNumber.from("0");
 
       this.cost = BigNumber.from("0");
       venues.forEach((venue, index) => {
-        if (venue === "OPYN_GAMMA") {
+        if (venue === "OPYN_GAMMA" || venue === "CHARM") {
           return;
         }
         this.cost = this.cost.add(premiums[index]);
@@ -293,12 +474,14 @@ function behavesLikeRibbonVolatility(params) {
         factory,
         hegicAdapter,
         mockGammaAdapter,
+        charmAdapter,
         protocolAdapterLib,
         mockGammaController,
       } = await getDefaultArgs();
       this.factory = factory;
       this.hegicAdapter = hegicAdapter;
       this.gammaAdapter = mockGammaAdapter;
+      this.charmAdapter = charmAdapter;
       this.mockGammaController = mockGammaController;
 
       await factory.setAdapter("OPYN_GAMMA", mockGammaAdapter.address);
@@ -391,11 +574,14 @@ function behavesLikeRibbonVolatility(params) {
       it("can exercise when there's exercise profit", async function () {
         await this.contract.buyInstrument(this.buyInstrumentParams, {
           from: user,
-          value: this.totalPremium,
+          value: this.premiumBuffered,
           gasPrice: this.gasPrice,
         });
 
-        if (this.venues.includes(GAMMA_PROTOCOL)) {
+        if (
+          this.venues.includes(GAMMA_PROTOCOL) ||
+          this.venues.includes(CHARM_PROTOCOL)
+        ) {
           await time.increaseTo(this.expiry + 1);
           await this.mockGammaController.setPrice("110000000000");
         }
@@ -429,7 +615,7 @@ function behavesLikeRibbonVolatility(params) {
         await expect(
           this.contract.buyInstrument(this.buyInstrumentParams, {
             from: user,
-            value: this.totalPremium,
+            value: this.premiumBuffered,
             gasPrice: this.gasPrice,
           })
         ).to.be.revertedWith("Cannot purchase after expiry");
@@ -440,7 +626,7 @@ function behavesLikeRibbonVolatility(params) {
           this.buyInstrumentParams,
           {
             from: user,
-            value: this.totalPremium,
+            value: this.premiumBuffered,
             gasPrice: this.gasPrice,
           }
         );
@@ -502,6 +688,17 @@ function behavesLikeRibbonVolatility(params) {
               parseInt(apiResponse.buyAmount)
             );
             assert.equal(await sellToken.balanceOf(this.contract.address), "0");
+          } else if (venue === CHARM_PROTOCOL) {
+            const cToken = await ethers.getContractAt("ERC20", this.cTokens[i]);
+            assert.isAtLeast(
+              parseInt(await cToken.balanceOf(this.contract.address)),
+              parseInt(
+                this.amounts[i]
+                  .mul(parseUnits("1", parseInt(await cToken.decimals())))
+                  .div(parseEther("1"))
+              )
+            );
+            assert.equal(await provider.getBalance(this.contract.address), "0");
           } else {
             throw new Error(`No venue found ${venue}`);
           }
@@ -514,14 +711,14 @@ function behavesLikeRibbonVolatility(params) {
           this.buyInstrumentParams,
           {
             from: user,
-            value: this.totalPremium,
+            value: this.premiumBuffered,
             gasPrice: this.gasPrice,
           }
         );
         const receipt = await res.wait();
         console.log(receipt.gasUsed.toString());
 
-        assert.isAtMost(receipt.gasUsed, 1400000);
+        assert.isAtMost(receipt.gasUsed, 3000000);
       });
     });
 
@@ -532,7 +729,7 @@ function behavesLikeRibbonVolatility(params) {
         snapshotId = await time.takeSnapshot();
         await this.contract.buyInstrument(this.buyInstrumentParams, {
           from: user,
-          value: this.totalPremium,
+          value: this.premiumBuffered,
           gasPrice: this.gasPrice,
         });
         this.positionID = 0;
@@ -557,6 +754,21 @@ function behavesLikeRibbonVolatility(params) {
 
           await Promise.all(promises);
         }
+
+        if (this.venues.includes(CHARM_PROTOCOL)) {
+          await time.increaseTo(this.expiry + 1);
+          const promises = this.cTokens.map(async function (cToken) {
+            market = await (
+              await ethers.getContractAt("IOptionToken", cToken)
+            ).market();
+            marketContract = await await ethers.getContractAt(
+              "IOptionMarket",
+              market
+            );
+            await marketContract.settle();
+          });
+          await Promise.all(promises);
+        }
       });
 
       afterEach(async () => {
@@ -572,7 +784,11 @@ function behavesLikeRibbonVolatility(params) {
 
       it("exercises one of the options", async function () {
         let startUserBalance, underlying;
-        if (this.underlying == constants.AddressZero) {
+
+        if (
+          this.underlying == constants.AddressZero ||
+          this.venues.includes(CHARM_PROTOCOL)
+        ) {
           startUserBalance = await provider.getBalance(user);
         } else {
           underlying = await ethers.getContractAt("IERC20", this.underlying);
@@ -604,7 +820,10 @@ function behavesLikeRibbonVolatility(params) {
           );
         }
 
-        if (this.underlying == constants.AddressZero) {
+        if (
+          this.underlying == constants.AddressZero ||
+          this.venues.includes(CHARM_PROTOCOL)
+        ) {
           assert.equal(
             (await provider.getBalance(user)).sub(startUserBalance).toString(),
             this.actualExerciseProfit.sub(gasUsed).toString()
@@ -632,7 +851,7 @@ function behavesLikeRibbonVolatility(params) {
       it("returns the exercise profit", async function () {
         await this.contract.buyInstrument(this.buyInstrumentParams, {
           from: user,
-          value: this.totalPremium,
+          value: this.premiumBuffered,
           gasPrice: this.gasPrice,
         });
         this.positionID = 0;
@@ -661,7 +880,7 @@ function behavesLikeRibbonVolatility(params) {
       time.revertToSnapshotAfterEach(async function () {
         await this.contract.buyInstrument(this.buyInstrumentParams, {
           from: user,
-          value: this.totalPremium,
+          value: this.premiumBuffered,
           gasPrice: this.gasPrice,
         });
       });
@@ -697,7 +916,7 @@ function behavesLikeRibbonVolatility(params) {
             : HEGIC_WBTC_REWARDS;
         res = await this.contract.buyInstrument(this.buyInstrumentParams, {
           from: user,
-          value: this.totalPremium,
+          value: this.premiumBuffered,
           gasPrice: this.gasPrice,
         });
       });
@@ -738,7 +957,7 @@ function behavesLikeRibbonVolatility(params) {
 
         const _ = await this.contract.buyInstrument(this.buyInstrumentParams, {
           from: user,
-          value: this.totalPremium,
+          value: this.premiumBuffered,
           gasPrice: this.gasPrice,
         });
 

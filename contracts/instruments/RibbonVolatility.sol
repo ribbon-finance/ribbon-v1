@@ -26,6 +26,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
 
     bytes32 private constant hegicHash = keccak256(bytes("HEGIC"));
     bytes32 private constant opynHash = keccak256(bytes("OPYN_GAMMA"));
+    bytes32 private constant charmHash = keccak256(bytes("CHARM"));
 
     event PositionCreated(
         address indexed account,
@@ -280,7 +281,7 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
                 buyData,
                 _expiry
             );
-        } else if (venueID == Venues.Hegic) {
+        } else if (venueID == Venues.Hegic || venueID == Venues.Charm) {
             optionID = purchaseWithContract(
                 adapter,
                 optionType,
@@ -482,6 +483,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
             return "HEGIC";
         } else if (venueID == uint8(Venues.OpynGamma)) {
             return "OPYN_GAMMA";
+        } else if (venueID == uint8(Venues.Charm)) {
+            return "CHARM";
         }
         return "";
     }
@@ -491,6 +494,8 @@ contract RibbonVolatility is DSMath, InstrumentStorageV1, InstrumentStorageV2 {
             return Venues.Hegic;
         } else if (keccak256(bytes(venueName)) == opynHash) {
             return Venues.OpynGamma;
+        } else if (keccak256(bytes(venueName)) == charmHash) {
+            return Venues.Charm;
         }
         return Venues.Unknown;
     }

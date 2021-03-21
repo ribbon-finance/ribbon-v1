@@ -1,19 +1,19 @@
 const { assert, expect } = require("chai");
 const { ethers } = require("hardhat");
 const { provider, BigNumber, constants } = ethers;
-const { parseEther } = ethers.utils;
+const { parseEther, parseUnits, formatEther } = ethers.utils;
+
+require("dotenv").config();
 
 const time = require("../helpers/time.js");
-const {
-  wmul,
-  wdiv,
-} = require("../helpers/utils");
+const { wmul, wdiv } = require("../helpers/utils");
 
-const CHARM_OPTION_FACTORY = "0xCDFE169dF3D64E2e43D88794A21048A52C742F2B";
 const CHARM_OPTION_VIEWS = "0x3cb5d4aeb622A72CF971D4F308e767C53be4E815";
+const CHARM_OPTION_REGISTRY = "0x574467e54F1E145d0d1a9a96560a7704fEdAd1CD";
 
 const WAD = BigNumber.from("10").pow(BigNumber.from("18"));
 
+const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
@@ -25,13 +25,22 @@ let ownerSigner;
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
 
-
-// NOTE: USE WITH BLOCKNUM 12039266 when FORKING
-
-describe.skip("CharmAdapter", () => {
+describe("CharmAdapter", () => {
   let initSnapshotId;
 
   before(async function () {
+    await network.provider.request({
+      method: "hardhat_reset",
+      params: [
+        {
+          forking: {
+            jsonRpcUrl: process.env.TEST_URI,
+            blockNumber: 12071263,
+          },
+        },
+      ],
+    });
+
     initSnapshotId = await time.takeSnapshot();
 
     [, ownerSigner, userSigner, recipientSigner] = await ethers.getSigners();
@@ -39,37 +48,26 @@ describe.skip("CharmAdapter", () => {
     user = userSigner.address;
     recipient = recipientSigner.address;
 
+    this.protocolName = "CHARM";
+    this.nonFungible = false;
+
     const CharmAdapter = await ethers.getContractFactory(
       "CharmAdapter",
       ownerSigner
     );
 
-    const AdapterStorage = await ethers.getContractFactory(
-      "AdapterStorage",
-      ownerSigner
-    );
-
-    const MockRibbonFactory = await ethers.getContractFactory(
-      "MockRibbonFactory",
-      ownerSigner
-    );
-
-    this.protocolName = "CHARM";
-    this.nonFungible = false;
-
-    this.mockRibbonFactory = await MockRibbonFactory.deploy();
-
-    this.adapterStorage = await AdapterStorage.deploy(this.mockRibbonFactory.address);
-
     this.adapter = (
-      await CharmAdapter.deploy(
-        CHARM_OPTION_FACTORY,
-        CHARM_OPTION_VIEWS,
-        this.adapterStorage.address
-      )
+      await CharmAdapter.deploy(CHARM_OPTION_VIEWS, CHARM_OPTION_REGISTRY)
     ).connect(userSigner);
 
-    await this.mockRibbonFactory.setInstrument(this.adapter.address);
+    this.optionRegistry = await ethers.getContractAt(
+      "IOptionRegistry",
+      CHARM_OPTION_REGISTRY
+    );
+
+    this.router = (
+      await ethers.getContractAt("IUniswapV2Router01", UNISWAP_ROUTER)
+    ).connect(ownerSigner);
   });
 
   after(async () => {
@@ -88,14 +86,17 @@ describe.skip("CharmAdapter", () => {
     });
   });
 
-  describe("#lookupOtoken", () => {
-    it("looks up call oToken correctly", async function () {
+  describe("#lookupCtoken", () => {
+    time.revertToSnapshotAfterEach();
+    it("looks up call cToken correctly", async function () {
+      try {
+        await this.optionRegistry.populateMarkets();
+      } catch {}
+
       //Charm ETH 25JUN2021 480 C
-      const oTokenAddress = "0x50dBA362A22D1ab4b152F556D751Cb696ecCEefD";
+      const cTokenAddress = "0x50dBA362A22D1ab4b152F556D751Cb696ecCEefD";
 
-      await this.adapter.populateOTokenMappings();
-
-      const actualOTokenAddress = await this.adapter.lookupOToken([
+      const actualCTokenAddress = await this.adapter.lookupCToken([
         constants.AddressZero,
         USDC_ADDRESS,
         ONE_ADDRESS,
@@ -105,16 +106,18 @@ describe.skip("CharmAdapter", () => {
         constants.AddressZero,
       ]);
 
-      assert.equal(actualOTokenAddress, oTokenAddress);
+      assert.equal(actualCTokenAddress, cTokenAddress);
     });
 
-    it("looks up put oToken correctly", async function () {
+    it("looks up put cToken correctly", async function () {
+      try {
+        await this.optionRegistry.populateMarkets();
+      } catch {}
+
       //Charm WBTC 25JUN2021 80000 P
-      const oTokenAddress = "0x2DD26C5dbcDE2b45562939E5A915F0eA3AC74d51";
+      const cTokenAddress = "0x2DD26C5dbcDE2b45562939E5A915F0eA3AC74d51";
 
-      await this.adapter.populateOTokenMappings();
-
-      const actualOTokenAddress = await this.adapter.lookupOToken([
+      const actualCTokenAddress = await this.adapter.lookupCToken([
         WBTC_ADDRESS,
         USDC_ADDRESS,
         ONE_ADDRESS,
@@ -124,13 +127,14 @@ describe.skip("CharmAdapter", () => {
         WBTC_ADDRESS,
       ]);
 
-      assert.equal(actualOTokenAddress, oTokenAddress);
+      assert.equal(actualCTokenAddress, cTokenAddress);
     });
 
-    it("looks up invalid oToken correctly (change strike price, expiry)", async function () {
-      await this.adapter.populateOTokenMappings();
-
-      const actualOTokenAddress = await this.adapter.lookupOToken([
+    it("looks up invalid cToken correctly (change strike price, expiry)", async function () {
+      try {
+        await this.optionRegistry.populateMarkets();
+      } catch {}
+      const actualCTokenAddress = await this.adapter.lookupCToken([
         constants.AddressZero,
         USDC_ADDRESS,
         ONE_ADDRESS,
@@ -140,62 +144,28 @@ describe.skip("CharmAdapter", () => {
         constants.AddressZero,
       ]);
 
-      assert.equal(actualOTokenAddress, constants.AddressZero);
-    });
-
-    it("looks up oToken correctly after 2 populateOTokenMappings", async function () {
-      await this.adapter.populateOTokenMappings();
-      await this.adapter.populateOTokenMappings();
-
-      //Charm ETH 25JUN2021 480 C
-      const oTokenAddress = "0x50dBA362A22D1ab4b152F556D751Cb696ecCEefD";
-
-      const actualOTokenAddress = await this.adapter.lookupOToken([
-        constants.AddressZero,
-        USDC_ADDRESS,
-        ONE_ADDRESS,
-        "1624608000",
-        parseEther("480"),
-        CALL_OPTION_TYPE,
-        constants.AddressZero,
-      ]);
-
-      assert.equal(actualOTokenAddress, oTokenAddress);
-    });
-
-    it("looks up oToken without populating mappings first", async function () {
-      const actualOTokenAddress = await this.adapter.lookupOToken([
-        constants.AddressZero,
-        USDC_ADDRESS,
-        ONE_ADDRESS,
-        "1612540800",
-        parseEther("960"),
-        CALL_OPTION_TYPE,
-        constants.AddressZero,
-      ]);
-
-      assert.equal(actualOTokenAddress, constants.AddressZero);
+      assert.equal(actualCTokenAddress, constants.AddressZero);
     });
   });
 
   //Charm ETH 25JUN2021 480 C
-  behavesLikeOTokens({
+  behavesLikeCTokens({
     name: "ETH CALL ITM",
-    oTokenAddress: "0x50dBA362A22D1ab4b152F556D751Cb696ecCEefD",
+    cTokenAddress: "0x0Ec2785765e673F3AB13A04D405F7C52e62AC6f3",
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: ONE_ADDRESS,
-    strikePrice: parseEther("480"),
+    strikePrice: parseEther("640"),
     expiry: "1624608000",
     optionType: CALL_OPTION_TYPE,
     purchaseAmount: parseEther("0.1"),
-    strikeIndex: 0,
+    strikeIndex: 1,
   });
 
   //Charm ETH 25JUN2021 4000 C
-  behavesLikeOTokens({
+  behavesLikeCTokens({
     name: "ETH CALL OTM",
-    oTokenAddress: "0x823884Aa887B97966dA9F9f13BD24f5548C5359B",
+    cTokenAddress: "0x823884Aa887B97966dA9F9f13BD24f5548C5359B",
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: ONE_ADDRESS,
@@ -207,91 +177,91 @@ describe.skip("CharmAdapter", () => {
   });
 
   //Charm ETH 25JUN2021 4000 P
-  behavesLikeOTokens({
+  behavesLikeCTokens({
     name: "ETH PUT ITM",
-    oTokenAddress: "0xaa595806bbf24A1B1FD4e6ea3060F4bD3E80F61a",
+    cTokenAddress: "0xaa595806bbf24A1B1FD4e6ea3060F4bD3E80F61a",
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: ONE_ADDRESS,
     strikePrice: parseEther("4000"),
     expiry: "1624608000",
     optionType: PUT_OPTION_TYPE,
-    purchaseAmount: BigNumber.from("10000000"),
+    purchaseAmount: parseEther("0.1"),
     strikeIndex: 8,
   });
 
   //Charm ETH 25JUN2021 640 P
-  behavesLikeOTokens({
+  behavesLikeCTokens({
     name: "ETH PUT OTM",
-    oTokenAddress: "0xCbD1D4d55bA855451446D586760DEB6247c3bFAB",
+    cTokenAddress: "0xCbD1D4d55bA855451446D586760DEB6247c3bFAB",
     underlying: ETH_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: ONE_ADDRESS,
     strikePrice: parseEther("640"),
     expiry: "1624608000",
     optionType: PUT_OPTION_TYPE,
-    purchaseAmount: BigNumber.from("10000000"),
+    purchaseAmount: parseEther("0.1"),
     strikeIndex: 1,
   });
 
   //Charm WBTC 25JUN2021 20000 C
-  behavesLikeOTokens({
+  behavesLikeCTokens({
     name: "WBTC CALL ITM",
-    oTokenAddress: "0x1aa6Df53Ef4f2f8464C4728C787906439483eB78",
+    cTokenAddress: "0x1aa6Df53Ef4f2f8464C4728C787906439483eB78",
     underlying: WBTC_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: ONE_ADDRESS,
     strikePrice: parseEther("20000"),
     expiry: "1624608000",
     optionType: CALL_OPTION_TYPE,
-    purchaseAmount: BigNumber.from("100000000"),
+    purchaseAmount: parseEther("0.1"),
     strikeIndex: 1,
   });
 
   //Charm WBTC 25JUN2021 80000 C
-  behavesLikeOTokens({
+  behavesLikeCTokens({
     name: "WBTC CALL OTM",
-    oTokenAddress: "0x9299b81cad5432333F9aceCb39c628Bf7240A1e2",
+    cTokenAddress: "0x9299b81cad5432333F9aceCb39c628Bf7240A1e2",
     underlying: WBTC_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: ONE_ADDRESS,
     strikePrice: parseEther("80000"),
     expiry: "1624608000",
     optionType: CALL_OPTION_TYPE,
-    purchaseAmount: BigNumber.from("100000000"),
+    purchaseAmount: parseEther("0.1"),
     strikeIndex: 7,
   });
 
   //Charm WBTC 25JUN2021 80000 P
-  behavesLikeOTokens({
+  behavesLikeCTokens({
     name: "WBTC PUT ITM",
-    oTokenAddress: "0x2DD26C5dbcDE2b45562939E5A915F0eA3AC74d51",
+    cTokenAddress: "0x2DD26C5dbcDE2b45562939E5A915F0eA3AC74d51",
     underlying: WBTC_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: ONE_ADDRESS,
     strikePrice: parseEther("80000"),
     expiry: "1624608000",
     optionType: PUT_OPTION_TYPE,
-    purchaseAmount: BigNumber.from("1000000"),
+    purchaseAmount: parseEther("0.1"),
     strikeIndex: 7,
   });
 
   //Charm WBTC 25JUN2021 20000 P
-  behavesLikeOTokens({
+  behavesLikeCTokens({
     name: "WBTC PUT OTM",
-    oTokenAddress: "0x009DfeD0B46a990D327717946f09de4A95a7AA1B",
+    cTokenAddress: "0x009DfeD0B46a990D327717946f09de4A95a7AA1B",
     underlying: WBTC_ADDRESS,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: ONE_ADDRESS,
     strikePrice: parseEther("20000"),
     expiry: "1624608000",
     optionType: PUT_OPTION_TYPE,
-    purchaseAmount: BigNumber.from("1000000"),
+    purchaseAmount: parseEther("0.1"),
     strikeIndex: 1,
   });
 });
 
-function behavesLikeOTokens(params) {
+function behavesLikeCTokens(params) {
   describe(`${params.name}`, () => {
     before(async function () {
       const {
@@ -301,13 +271,13 @@ function behavesLikeOTokens(params) {
         strikePrice,
         expiry,
         optionType,
-        oTokenAddress,
+        cTokenAddress,
         purchaseAmount,
         strikeIndex,
         maxCost,
       } = params;
 
-      this.oTokenAddress = oTokenAddress;
+      this.cTokenAddress = cTokenAddress;
       this.underlying = underlying;
       this.strikeAsset = strikeAsset;
       this.collateralAsset = collateralAsset;
@@ -316,16 +286,63 @@ function behavesLikeOTokens(params) {
       this.optionType = optionType;
       this.purchaseAmount = purchaseAmount;
       this.strikeIndex = strikeIndex;
-      this.paymentToken = this.optionType == PUT_OPTION_TYPE ? this.strikeAsset : this.underlying;
+      this.paymentToken =
+        this.optionType == PUT_OPTION_TYPE ? this.strikeAsset : this.underlying;
+      this.cToken = await ethers.getContractAt("IERC20", cTokenAddress);
 
-      this.oToken = await ethers.getContractAt("IERC20", oTokenAddress);
-
-      this.optionViews = await ethers.getContractAt("IOptionViews", CHARM_OPTION_VIEWS);
-      this.market = await (await ethers.getContractAt("IOptionToken", oTokenAddress)).market();
-      this.marketContract = await (await ethers.getContractAt("IOptionMarket", this.market));
+      this.optionViews = await ethers.getContractAt(
+        "IOptionViews",
+        CHARM_OPTION_VIEWS
+      );
+      this.market = await (
+        await ethers.getContractAt("IOptionToken", cTokenAddress)
+      ).market();
+      this.marketContract = await await ethers.getContractAt(
+        "IOptionMarket",
+        this.market
+      );
       this.donor = "0x875abe6F1E2Aba07bED4A3234d8555A0d7656d12";
 
-      this.premium = await this.optionViews.getBuyOptionCost(this.market, this.collateralAsset == ONE_ADDRESS ? true : false, this.strikeIndex, this.purchaseAmount);
+      this.shiftedPurchaseAmount = this.purchaseAmount;
+      if (this.paymentToken == USDC_ADDRESS) {
+        this.shiftedPurchaseAmount = parseUnits(
+          formatEther(this.shiftedPurchaseAmount.toString()).toString(),
+          6
+        );
+      } else if (this.paymentToken == WBTC_ADDRESS) {
+        this.shiftedPurchaseAmount = parseUnits(
+          formatEther(this.shiftedPurchaseAmount.toString()).toString(),
+          8
+        );
+      }
+
+      this.baseTokenPremium = (
+        await this.optionViews.getBuyOptionCost(
+          this.market,
+          this.collateralAsset == ONE_ADDRESS ? true : false,
+          this.strikeIndex,
+          this.shiftedPurchaseAmount
+        )
+      ).toString();
+
+      this.premium =
+        this.paymentToken == ETH_ADDRESS
+          ? this.baseTokenPremium
+          : (
+              await this.router.getAmountsOut(this.baseTokenPremium, [
+                this.paymentToken,
+                WETH_ADDRESS,
+              ])
+            )[1];
+
+      this.premiumBuffered =
+        this.paymentToken == ETH_ADDRESS
+          ? this.premium
+          : this.premium
+              .mul(BigNumber.from("1100"))
+              .div(BigNumber.from("1000"));
+
+      console.log("the premium is %s", this.premium);
       this.maxCost = this.maxCost || parseEther("9999999999");
 
       this.optionTerms = [
@@ -338,65 +355,44 @@ function behavesLikeOTokens(params) {
         this.paymentToken,
       ];
 
-      //await this.adapter.populateOTokenMappings();
-
-      // console.log("this.underlying is %s", this.underlying);
-      // console.log("this.strikeAsset is %s", this.strikeAsset);
-      // console.log("this.collateralAsset is %s", this.collateralAsset);
-      // console.log("this.expiry is %s", this.expiry);
-      // console.log("this.strikeIndex is %s", this.strikeIndex);
-      // console.log("this.market is %s", this.market);
-      // console.log("isLong is %s", this.collateralAsset == ONE_ADDRESS ? true : false);
-      // console.log("this.strikePrice is %s", this.strikePrice);
-      // console.log("this.optionType is %s", this.optionType);
-      // console.log("this.paymentToken is %s", this.paymentToken);
-      // console.log("this.exerciseProfit is %s", this.exerciseProfit);
-      // console.log("this.purchaseAmount is %s", this.purchaseAmount);
-      // console.log("this.maxCost is %s", this.maxCost);
-      // console.log("user is %s", user);
-      // console.log("this.premium is %s", this.premium);
+      try {
+        await this.optionRegistry.populateMarkets();
+      } catch {}
     });
 
     describe("#premium", () => {
+      time.revertToSnapshotAfterEach();
       it("gets premium of option", async function () {
         assert.equal(
-          (await this.adapter.premium(this.optionTerms, this.purchaseAmount)).toString(),
-          this.premium
+          (
+            await this.adapter.premium(this.optionTerms, this.purchaseAmount)
+          ).toString(),
+          this.baseTokenPremium
         );
       });
     });
 
     describe("#exerciseProfit", () => {
-      let snapshotId;
-
-      beforeEach(async () => {
-        snapshotId = await time.takeSnapshot();
-      });
-
-      afterEach(async () => {
-        await time.revertToSnapShot(snapshotId);
-      });
+      time.revertToSnapshotAfterEach();
 
       it("gets exercise profit", async function () {
-        await depositAndApprove(this.donor, user, USDC_ADDRESS, this.adapter.address);
-        await depositAndApprove(this.donor, user, WBTC_ADDRESS, this.adapter.address);
-        await this.adapter.purchase(
-                [
-                  this.underlying,
-                  this.strikeAsset,
-                  this.collateralAsset,
-                  this.expiry,
-                  this.strikePrice,
-                  this.optionType,
-                  this.paymentToken,
-                ],
-                this.purchaseAmount,
-                this.maxCost,
-                {
-                  from: user,
-                  value: this.premium,
-                }
-              )
+        const res = await this.adapter.purchase(
+          [
+            this.underlying,
+            this.strikeAsset,
+            this.collateralAsset,
+            this.expiry,
+            this.strikePrice,
+            this.optionType,
+            this.paymentToken,
+          ],
+          this.purchaseAmount,
+          this.maxCost,
+          {
+            from: user,
+            value: this.premiumBuffered,
+          }
+        );
 
         await time.increaseTo(this.expiry + 1);
 
@@ -406,32 +402,73 @@ function behavesLikeOTokens(params) {
         this.exerciseProfit = 0;
 
         try {
-          this.exerciseProfit = (await this.optionViews.getSellOptionCost(this.market, this.collateralAsset == ONE_ADDRESS ? true : false, this.strikeIndex, this.purchaseAmount)).toString();
+          this.exerciseProfit = (
+            await this.optionViews.getSellOptionCost(
+              this.market,
+              this.collateralAsset == ONE_ADDRESS ? true : false,
+              this.strikeIndex,
+              this.shiftedPurchaseAmount
+            )
+          ).toString();
         } catch {}
 
         assert.equal(
           (
             await this.adapter.exerciseProfit(
-              this.oTokenAddress,
+              this.cTokenAddress,
               0,
               this.purchaseAmount
             )
           ).toString(),
           this.exerciseProfit
         );
+
+        const receipt = await res.wait();
+        assert.isAtMost(receipt.gasUsed, 1400900);
+      });
+
+      it("gets exercise profit when not settled", async function () {
+        const res = await this.adapter.purchase(
+          [
+            this.underlying,
+            this.strikeAsset,
+            this.collateralAsset,
+            this.expiry,
+            this.strikePrice,
+            this.optionType,
+            this.paymentToken,
+          ],
+          this.purchaseAmount,
+          this.maxCost,
+          {
+            from: user,
+            value: this.premiumBuffered,
+          }
+        );
+
+        await time.increaseTo(this.expiry + 1);
+
+        // For getting expiry exerciseProfit
+        this.exerciseProfit = 0;
+
+        assert.equal(
+          (
+            await this.adapter.exerciseProfit(
+              this.cTokenAddress,
+              0,
+              this.purchaseAmount
+            )
+          ).toString(),
+          this.exerciseProfit
+        );
+
+        const receipt = await res.wait();
+        assert.isAtMost(receipt.gasUsed, 1400900);
       });
     });
 
     describe("#purchase", () => {
-      let snapshotId;
-
-      beforeEach(async () => {
-        snapshotId = await time.takeSnapshot();
-      });
-
-      afterEach(async () => {
-        await time.revertToSnapShot(snapshotId);
-      });
+      time.revertToSnapshotAfterEach();
 
       it("reverts when buying after expiry", async function () {
         await time.increaseTo(this.expiry + 1);
@@ -451,7 +488,7 @@ function behavesLikeOTokens(params) {
             this.maxCost,
             {
               from: user,
-              value: this.premium,
+              value: this.premiumBuffered,
             }
           )
         ).to.be.revertedWith("Cannot purchase after expiry");
@@ -473,15 +510,13 @@ function behavesLikeOTokens(params) {
             this.maxCost,
             {
               from: user,
-              value: this.purchaseAmount,
+              value: this.premiumBuffered,
             }
           )
         ).to.be.reverted;
       });
 
       it("purchase mints us tokens", async function () {
-        await depositAndApprove(this.donor, user, USDC_ADDRESS, this.adapter.address);
-        await depositAndApprove(this.donor, user, WBTC_ADDRESS, this.adapter.address);
         const res = await this.adapter.purchase(
           [
             this.underlying,
@@ -496,7 +531,7 @@ function behavesLikeOTokens(params) {
           this.maxCost,
           {
             from: user,
-            value: this.premium,
+            value: this.premiumBuffered,
           }
         );
 
@@ -510,16 +545,17 @@ function behavesLikeOTokens(params) {
             0
           );
 
+        const receipt = await res.wait();
+        assert.isAtMost(receipt.gasUsed, 1400900);
+
         assert.isAtLeast(
-          parseInt(await this.oToken.balanceOf(this.adapter.address)),
-          parseInt(this.purchaseAmount)
+          parseInt(await this.cToken.balanceOf(this.adapter.address)),
+          parseInt(this.shiftedPurchaseAmount)
         );
       });
 
       it("purchases twice", async function () {
-        await depositAndApprove(this.donor, user, USDC_ADDRESS, this.adapter.address);
-        await depositAndApprove(this.donor, user, WBTC_ADDRESS, this.adapter.address);
-        await this.adapter.purchase(
+        const res = await this.adapter.purchase(
           [
             this.underlying,
             this.strikeAsset,
@@ -533,14 +569,39 @@ function behavesLikeOTokens(params) {
           this.maxCost,
           {
             from: user,
-            value: this.premium,
+            value: this.premiumBuffered,
           }
         );
+
+        const receipt = await res.wait();
+        assert.isAtMost(receipt.gasUsed, 1400900);
+
+        baseTokenPremium = (
+          await this.optionViews.getBuyOptionCost(
+            this.market,
+            this.collateralAsset == ONE_ADDRESS ? true : false,
+            this.strikeIndex,
+            this.shiftedPurchaseAmount
+          )
+        ).toString();
 
         // Premium will change after first one bought
-        premium = await this.optionViews.getBuyOptionCost(this.market, this.collateralAsset == ONE_ADDRESS ? true : false, this.strikeIndex, this.purchaseAmount);
+        premium =
+          this.paymentToken == ETH_ADDRESS
+            ? baseTokenPremium
+            : (
+                await this.router.getAmountsOut(baseTokenPremium, [
+                  this.paymentToken,
+                  WETH_ADDRESS,
+                ])
+              )[1];
 
-        await this.adapter.purchase(
+        premiumBuffered =
+          this.paymentToken == ETH_ADDRESS
+            ? premium
+            : premium.mul(BigNumber.from("1100")).div(BigNumber.from("1000"));
+
+        const res2 = await this.adapter.purchase(
           [
             this.underlying,
             this.strikeAsset,
@@ -554,28 +615,21 @@ function behavesLikeOTokens(params) {
           this.maxCost,
           {
             from: user,
-            value: premium,
+            value: premiumBuffered,
           }
         );
+
+        const receipt2 = await res2.wait();
+        assert.isAtMost(receipt2.gasUsed, 1400900);
       });
     });
 
     describe("#exercise", () => {
-      let snapshotId;
+      time.revertToSnapshotAfterEach();
 
-      beforeEach(async function () {
-        snapshotId = await time.takeSnapshot();
-      });
-
-      afterEach(async () => {
-        await time.revertToSnapShot(snapshotId);
-      });
-
-      it("exercises otokens", async function () {
-        await depositAndApprove(this.donor, user, USDC_ADDRESS, this.adapter.address);
-        await depositAndApprove(this.donor, user, WBTC_ADDRESS, this.adapter.address);
+      it("exercises ctokens", async function () {
         // Purchase
-        await this.adapter.purchase(
+        const res = await this.adapter.purchase(
           [
             this.underlying,
             this.strikeAsset,
@@ -589,7 +643,7 @@ function behavesLikeOTokens(params) {
           this.maxCost,
           {
             from: user,
-            value: this.premium,
+            value: this.premiumBuffered,
           }
         );
 
@@ -603,76 +657,85 @@ function behavesLikeOTokens(params) {
         this.exerciseProfit = 0;
 
         try {
-          this.exerciseProfit = (await this.optionViews.getSellOptionCost(this.market, this.collateralAsset == ONE_ADDRESS ? true : false, this.strikeIndex, this.purchaseAmount)).toString();
+          profitInBaseToken = (
+            await this.optionViews.getSellOptionCost(
+              this.market,
+              this.collateralAsset == ONE_ADDRESS ? true : false,
+              this.strikeIndex,
+              this.shiftedPurchaseAmount
+            )
+          ).toString();
+          console.log(
+            "exercise profit is %s (in base token)",
+            profitInBaseToken
+          );
+          this.exerciseProfit =
+            this.paymentToken == ETH_ADDRESS
+              ? profitInBaseToken
+              : (
+                  await this.router.getAmountsOut(profitInBaseToken, [
+                    this.paymentToken,
+                    WETH_ADDRESS,
+                  ])
+                )[1];
         } catch {}
+
+        console.log(
+          "actual exercise profit is %s (in eth)",
+          this.exerciseProfit
+        );
 
         if (BigNumber.from(this.exerciseProfit).isZero()) {
           return;
         }
 
-        const res = await this.adapter.exercise(
-          this.oTokenAddress,
+        const receipt = await res.wait();
+        assert.isAtMost(receipt.gasUsed, 1400900);
+
+        const res2 = await this.adapter.exercise(
+          this.cTokenAddress,
           0,
           this.purchaseAmount,
           recipient,
           { from: user }
         );
 
-        expect(res)
+        expect(res2)
           .to.emit(this.adapter, "Exercised")
           .withArgs(
             user,
-            this.oTokenAddress,
+            this.cTokenAddress,
             "0",
-            this.purchaseAmount,
+            this.shiftedPurchaseAmount,
             this.exerciseProfit
           );
 
-        const otoken = await ethers.getContractAt("IERC20", this.oTokenAddress);
+        const ctoken = await ethers.getContractAt("IERC20", this.cTokenAddress);
 
-        assert.equal((await otoken.balanceOf(user)).toString(), "0");
+        assert.equal((await ctoken.balanceOf(user)).toString(), "0");
         assert.equal(
-          (await otoken.balanceOf(this.adapter.address)).toString(),
+          (await ctoken.balanceOf(this.adapter.address)).toString(),
           "0"
         );
 
-        if (this.paymentToken == ETH_ADDRESS) {
-          assert.equal(
-            (await provider.getBalance(recipient))
-              .sub(recipientStartBalance)
-              .toString(),
-            this.exerciseProfit
-          );
-        } else {
-          const paymentToken = await ethers.getContractAt(
-            "IERC20",
-            this.paymentToken
-          );
-          assert.equal(
-            (await paymentToken.balanceOf(recipient)).toString(),
-            this.exerciseProfit
-          );
-        }
+        assert.equal(
+          (await provider.getBalance(recipient))
+            .sub(recipientStartBalance)
+            .toString(),
+          this.exerciseProfit
+        );
       });
     });
 
     describe("#canExercise", () => {
-      let snapshotId;
-
-      beforeEach(async () => {
-        snapshotId = await time.takeSnapshot();
-      });
-
-      afterEach(async () => {
-        await time.revertToSnapShot(snapshotId);
-      });
+      time.revertToSnapshotAfterEach();
 
       it.skip("can exercise", async function () {
         await time.increaseTo(this.expiry + 7201);
         await this.marketContract.settle();
 
         const res = await this.adapter.canExercise(
-          this.oTokenAddress,
+          this.cTokenAddress,
           0,
           this.purchaseAmount
         );
@@ -681,7 +744,14 @@ function behavesLikeOTokens(params) {
         this.exerciseProfit = 0;
 
         try {
-          this.exerciseProfit = (await this.optionViews.getSellOptionCost(this.market, this.collateralAsset == ONE_ADDRESS ? true : false, this.strikeIndex, this.purchaseAmount)).toString();
+          this.exerciseProfit = (
+            await this.optionViews.getSellOptionCost(
+              this.market,
+              this.collateralAsset == ONE_ADDRESS ? true : false,
+              this.strikeIndex,
+              this.shiftedPurchaseAmount
+            )
+          ).toString();
         } catch {}
 
         if (this.exerciseProfit.isZero()) {
@@ -694,7 +764,7 @@ function behavesLikeOTokens(params) {
 
       it("cannot exercise before expiry", async function () {
         const res = await this.adapter.canExercise(
-          this.oTokenAddress,
+          this.cTokenAddress,
           0,
           this.purchaseAmount
         );
@@ -703,16 +773,17 @@ function behavesLikeOTokens(params) {
     });
 
     describe("#getOptionsAddress", () => {
-      it("returns the correct otoken address", async function () {
+      it("returns the correct ctoken address", async function () {
         assert.equal(
           await this.adapter.getOptionsAddress(this.optionTerms),
-          this.oTokenAddress
+          this.cTokenAddress
         );
       });
     });
   });
 }
 
+/*
 async function depositAndApprove(fromAddress, toAddress, tokenAddress, approveAddress) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
@@ -732,3 +803,4 @@ async function depositAndApprove(fromAddress, toAddress, tokenAddress, approveAd
   let withSigner2 = await token2.connect(signer2);
   await withSigner2.approve(approveAddress, amount);
 }
+*/

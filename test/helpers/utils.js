@@ -68,7 +68,10 @@ const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 
-let factory, hegicAdapter, opynV1Adapter, gammaAdapter;
+const CHARM_OPTION_VIEWS = "0x3cb5d4aeb622A72CF971D4F308e767C53be4E815";
+const CHARM_OPTION_REGISTRY = "0x574467e54F1E145d0d1a9a96560a7704fEdAd1CD";
+
+let factory, hegicAdapter, opynV1Adapter, gammaAdapter, charmAdapter;
 
 async function getDefaultArgs() {
   // ensure we just return the cached instances instead of re-initializing everything
@@ -77,12 +80,14 @@ async function getDefaultArgs() {
     hegicAdapter &&
     opynV1Adapter &&
     gammaAdapter &&
+    charnAdapter &&
     mockGammaController
   ) {
     return {
       factory,
       hegicAdapter,
       opynV1Adapter,
+      charmAdapter,
       gammaAdapter,
       mockGammaController,
     };
@@ -98,6 +103,10 @@ async function getDefaultArgs() {
   );
   const GammaAdapter = await ethers.getContractFactory(
     "GammaAdapter",
+    ownerSigner
+  );
+  const CharmAdapter = await ethers.getContractFactory(
+    "CharmAdapter",
     ownerSigner
   );
   const MockGammaController = await ethers.getContractFactory(
@@ -151,10 +160,15 @@ async function getDefaultArgs() {
     ZERO_EX_EXCHANGE_V3
   );
 
-  // await mintGasTokens(admin, factory.address);
+  let charmAdapter = await CharmAdapter.deploy(
+    CHARM_OPTION_VIEWS,
+    CHARM_OPTION_REGISTRY
+  );
 
+  // await mintGasTokens(admin, factory.address);
   await factory.setAdapter("HEGIC", hegicAdapter.address, { from: owner });
   await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address, { from: owner });
+  await factory.setAdapter("CHARM", charmAdapter.address, { from: owner });
 
   const protocolAdapterLib = await ProtocolAdapter.deploy();
 
@@ -162,6 +176,7 @@ async function getDefaultArgs() {
     factory,
     hegicAdapter,
     mockGammaAdapter,
+    charmAdapter,
     gammaAdapter,
     mockGammaController,
     protocolAdapterLib,

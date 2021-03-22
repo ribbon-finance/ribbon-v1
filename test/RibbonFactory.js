@@ -33,10 +33,16 @@ describe("RibbonFactory", function () {
     owner = ownerSigner.address;
     user = userSigner.address;
 
-    const { factory, hegicAdapter, opynV1Adapter } = await getDefaultArgs();
+    const {
+      factory,
+      hegicAdapter,
+      charmAdapter,
+      opynV1Adapter,
+    } = await getDefaultArgs();
     this.factory = factory.connect(ownerSigner);
     this.hegicAdapter = hegicAdapter;
     this.opynV1Adapter = opynV1Adapter;
+    this.charmAdapter = charmAdapter;
   });
 
   it("initializes factory correctly", async function () {
@@ -108,7 +114,7 @@ describe("RibbonFactory", function () {
         await this.factory.getAdapter("TEST"),
         "0x0000000000000000000000000000000000000001"
       );
-      assert.equal((await this.factory.getAdapters()).length, 3);
+      assert.equal((await this.factory.getAdapters()).length, 4);
     });
 
     it("reverts when not owner", async function () {

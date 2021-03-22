@@ -436,15 +436,15 @@ function behavesLikeRibbonVolatility(params) {
         BigNumber.from("0")
       );
 
+      if (this.paymentToken == WBTC_ADDRESS)
+        this.totalPremium = BigNumber.from("0");
+
       this.premiumBuffered =
         this.venues.includes(CHARM_PROTOCOL)
           ? this.totalPremium
               .mul(BigNumber.from("1100"))
               .div(BigNumber.from("1000"))
           : this.totalPremium;
-
-      if (this.paymentToken == WBTC_ADDRESS)
-        this.totalPremium = BigNumber.from("0");
 
       this.cost = BigNumber.from("0");
       venues.forEach((venue, index) => {

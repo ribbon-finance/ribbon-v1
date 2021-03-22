@@ -437,7 +437,7 @@ function behavesLikeRibbonVolatility(params) {
       );
 
       this.premiumBuffered =
-        this.venues.includes(CHARM_PROTOCOL) == true
+        this.venues.includes(CHARM_PROTOCOL)
           ? this.totalPremium
               .mul(BigNumber.from("1100"))
               .div(BigNumber.from("1000"))

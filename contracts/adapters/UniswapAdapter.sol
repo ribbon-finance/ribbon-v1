@@ -40,7 +40,7 @@ contract UniswapAdapter {
         address _wbtcDiggUniswap,
         address _wbtcDiggSushiswap,
         address _diggAddress
-    ) public {
+    ) {
 
         wbtcAddress = _wbtcAddress;
         ethAddress = _ethAddress;
@@ -83,7 +83,7 @@ contract UniswapAdapter {
         return sqrt(amtA.mul(resA.mul(3988000) + amtA.mul(3988009))).sub(amtA.mul(1997))/1994;
     }
 
-    function validateExchange(string memory exchangeName) internal view returns (Exchange){
+    function validateExchange(string memory exchangeName) internal pure returns (Exchange){
         if (keccak256(abi.encodePacked(exchangeName)) == uniswapHash){
                 return Exchange.Uniswap;
         }
@@ -109,21 +109,19 @@ contract UniswapAdapter {
         Exchange exchange = validateExchange(exchangeName);
         if (exchange == Exchange.Uniswap){
                 (uint112 reserveAmt,,) = IUniswapV2Pair(wbtcDiggUniswap).getReserves();
-                uint256 tradeAmt = getSwapAmt(reserveAmt,wbtcAmt);
+                tradeAmt = getSwapAmt(reserveAmt, wbtcAmt);
                 address[] memory path = new address[](2);
                 path[0] = wbtcAddress;
                 path[1] = diggAddress;
-                uint256 diggOut = uniswapRouter.getAmountsOut(tradeAmt, path)[1];
-                return (diggOut, tradeAmt);
+                diggOut = uniswapRouter.getAmountsOut(tradeAmt, path)[1];
         }
         else if (exchange == Exchange.Sushiswap){
                 (uint112 reserveAmt,,) = IUniswapV2Pair(wbtcDiggSushiswap).getReserves();
-                uint256 tradeAmt = getSwapAmt(reserveAmt,wbtcAmt);
+                tradeAmt = getSwapAmt(reserveAmt,wbtcAmt);
                 address[] memory path = new address[](2);
                 path[0] = wbtcAddress;
                 path[1] = diggAddress;
-                uint256 diggOut = uniswapRouter.getAmountsOut(tradeAmt, path)[1];
-                return (diggOut, tradeAmt);
+                diggOut = uniswapRouter.getAmountsOut(tradeAmt, path)[1];
         }
     }
 

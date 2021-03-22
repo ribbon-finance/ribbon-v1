@@ -16,13 +16,6 @@ struct InstrumentPosition {
 }
 
 interface IAggregatedOptionsInstrument {
-    function cost(
-        string[] calldata venues,
-        ProtocolAdapterTypes.OptionType[] calldata optionTypes,
-        uint256[] calldata amounts,
-        uint256[] calldata strikePrices
-    ) external view returns (uint256);
-
     function exerciseProfit(address account, uint256 positionID)
         external
         view
@@ -33,13 +26,23 @@ interface IAggregatedOptionsInstrument {
         view
         returns (bool);
 
-    function buyInstrument(
-        string[] calldata venues,
-        ProtocolAdapterTypes.OptionType[] calldata optionTypes,
-        uint256 amount,
-        uint256[] calldata strikePrices,
-        bytes[] calldata buyData
-    ) external payable returns (uint256 positionID);
+    struct BuyInstrumentParams {
+        uint8 callVenue;
+        uint8 putVenue;
+        address paymentToken;
+        uint256 callStrikePrice;
+        uint256 putStrikePrice;
+        uint256 amount;
+        uint256 callMaxCost;
+        uint256 putMaxCost;
+        bytes callBuyData;
+        bytes putBuyData;
+    }
+
+    function buyInstrument(BuyInstrumentParams calldata params)
+        external
+        payable
+        returns (uint256 positionID);
 
     function exercisePosition(uint256 positionID)
         external

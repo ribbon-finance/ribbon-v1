@@ -40,37 +40,55 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     uint256 private constant OTOKEN_DECIMALS = 10**8;
 
     // MARGIN_POOL is Gamma protocol's collateral pool. Needed to approve collateral.safeTransferFrom for minting otokens. https://github.com/opynfinance/GammaProtocol/blob/master/contracts/MarginPool.sol
-    address private constant MARGIN_POOL =
-        0x5934807cC0654d46755eBd2848840b616256C6Ef;
+    address public immutable MARGIN_POOL;
 
     // USDCETHPriceFeed is the USDC/ETH Chainlink price feed used to perform swaps, as an alternative to getAmountsIn
-    AggregatorV3Interface private constant USDCETHPriceFeed =
-        AggregatorV3Interface(0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
+    AggregatorV3Interface public immutable USDCETHPriceFeed;
 
     // UNISWAP_ROUTER is Uniswap's periphery contract for conducting trades. Using this contract is gas inefficient and should only used for convenience i.e. admin functions
-    address private constant UNISWAP_ROUTER =
-        0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    address public immutable UNISWAP_ROUTER;
 
     // WETH9 contract
-    address private constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address public immutable WETH;
 
     // USDC is the strike asset in Gamma Protocol
-    address private constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address public immutable USDC;
 
     // 0x proxy for performing buys
-    address private constant ZERO_EX_EXCHANGE_V3 =
-        0xDef1C0ded9bec7F1a1670819833240f027b25EfF;
+    address public immutable ZERO_EX_EXCHANGE_V3;
 
     /**
      * @notice Constructor for the GammaAdapter which initializes a few immutable variables to be used by instrument contracts.
      * @param _oTokenFactory is the Gamma protocol factory contract which spawns otokens https://github.com/opynfinance/GammaProtocol/blob/master/contracts/OtokenFactory.sol
      * @param _gammaController is a top-level contract which allows users to perform multiple actions in the Gamma protocol https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
      */
-    constructor(address _oTokenFactory, address _gammaController) {
+    constructor(
+        address _oTokenFactory,
+        address _gammaController,
+        address _marginPool,
+        address _usdcEthPriceFeed,
+        address _uniswapRouter,
+        address _weth,
+        address _usdc,
+        address _zeroExExchange
+    ) {
         require(_oTokenFactory != address(0), "!_oTokenFactory");
         require(_gammaController != address(0), "!_gammaController");
+        require(_marginPool != address(0), "!_marginPool");
+        require(_usdcEthPriceFeed != address(0), "!_usdcEthPriceFeed");
+        require(_uniswapRouter != address(0), "!_uniswapRouter");
+        require(_weth != address(0), "!_weth");
+        require(_usdc != address(0), "!_usdc");
+        require(_zeroExExchange != address(0), "!_zeroExExchange");
+
         oTokenFactory = _oTokenFactory;
         gammaController = _gammaController;
+        MARGIN_POOL = _marginPool;
+        USDCETHPriceFeed = AggregatorV3Interface(_usdcEthPriceFeed);
+        UNISWAP_ROUTER = _uniswapRouter;
+        WETH = _weth;
+        USDC = _usdc;
+        ZERO_EX_EXCHANGE_V3 = _zeroExExchange;
     }
 
     receive() external payable {}
@@ -560,7 +578,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
      * @notice Helper function to get the decimals of an asset. Will just hardcode for the time being.
      * @param asset is the token which we want to know the decimals
      */
-    function assetDecimals(address asset) private pure returns (uint256) {
+    function assetDecimals(address asset) private view returns (uint256) {
         // USDC
         if (asset == USDC) {
             return 6;

@@ -12,7 +12,7 @@ let network;
 
 module.exports = async function (deployer, _network) {
   network = _network;
-  console.log(network)
+  console.log(network);
   const { admin, owner } = ACCOUNTS[network.replace("-fork", "")];
 
   let wethAddress;
@@ -34,18 +34,18 @@ async function deployFactory(deployer, admin, owner) {
     ["address", "address"],
     [owner, admin]
   );
-  // await deployer.deploy(
-  //   AdminUpgradeabilityProxy,
-  //   Factory.address,
-  //   admin,
-  //   initBytes,
-  //   {
-  //     from: admin,
-  //   }
-  // );
-  // await updateDeployedAddresses(
-  //   network,
-  //   "RibbonFactory",
-  //   AdminUpgradeabilityProxy.address
-  // );
+  await deployer.deploy(
+    AdminUpgradeabilityProxy,
+    Factory.address,
+    admin,
+    initBytes,
+    {
+      from: admin,
+    }
+  );
+  await updateDeployedAddresses(
+    network,
+    "RibbonFactory",
+    AdminUpgradeabilityProxy.address
+  );
 }

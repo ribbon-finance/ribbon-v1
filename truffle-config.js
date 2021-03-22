@@ -25,14 +25,14 @@ module.exports = {
     kovan: {
       provider: () =>
         new HDWalletProvider(
-          process.env.MNEMONIC,
+          process.env.KOVAN_MNEMONIC,
           process.env.INFURA_KOVAN_URI
         ),
       network_id: 42,
       gas: 5500000,
-      networkCheckTimeout: 1000,
+      networkCheckTimeout: 20000,
       confirmations: 1,
-      timeoutBlocks: 200,
+      timeoutBlocks: 20000,
       skipDryRun: true,
     },
     "mainnet-sim": {

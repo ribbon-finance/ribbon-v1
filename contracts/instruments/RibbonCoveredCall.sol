@@ -137,9 +137,9 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         emit ManagerChanged(oldManager, newManager);
 
         if (oldManager != address(0)) {
-            SWAP_CONTRACT.revokeSigner(oldManager);
+            SWAP_CONTRACT.revokeSender(oldManager);
         }
-        SWAP_CONTRACT.authorizeSigner(newManager);
+        SWAP_CONTRACT.authorizeSender(newManager);
     }
 
     /**

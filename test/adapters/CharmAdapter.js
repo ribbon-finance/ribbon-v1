@@ -68,10 +68,25 @@ describe("CharmAdapter", () => {
     this.router = (
       await ethers.getContractAt("IUniswapV2Router01", UNISWAP_ROUTER)
     ).connect(ownerSigner);
+
+    try {
+      await this.optionRegistry.populateMarkets();
+    } catch {}
   });
 
   after(async () => {
     await time.revertToSnapShot(initSnapshotId);
+    await network.provider.request({
+      method: "hardhat_reset",
+      params: [
+        {
+          forking: {
+            jsonRpcUrl: process.env.TEST_URI,
+            blockNumber: 11611333,
+          },
+        },
+      ],
+    });
   });
 
   describe("#protocolName", () => {
@@ -343,7 +358,8 @@ function behavesLikeCTokens(params) {
               .div(BigNumber.from("1000"));
 
       console.log("the premium is %s", this.premium);
-      this.maxCost = this.maxCost || parseEther("9999999999");
+      console.log("the base token premium is %s", this.baseTokenPremium);
+      this.maxCost = this.maxCost || parseEther("9999");
 
       this.optionTerms = [
         this.underlying,
@@ -354,10 +370,6 @@ function behavesLikeCTokens(params) {
         this.optionType,
         this.paymentToken,
       ];
-
-      try {
-        await this.optionRegistry.populateMarkets();
-      } catch {}
     });
 
     describe("#premium", () => {
@@ -387,7 +399,7 @@ function behavesLikeCTokens(params) {
             this.paymentToken,
           ],
           this.purchaseAmount,
-          this.maxCost,
+          this.baseTokenPremium,
           {
             from: user,
             value: this.premiumBuffered,
@@ -424,7 +436,7 @@ function behavesLikeCTokens(params) {
         );
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed, 1400900);
+        assert.isAtMost(receipt.gasUsed, 1400000);
       });
 
       it("gets exercise profit when not settled", async function () {
@@ -439,7 +451,7 @@ function behavesLikeCTokens(params) {
             this.paymentToken,
           ],
           this.purchaseAmount,
-          this.maxCost,
+          this.baseTokenPremium,
           {
             from: user,
             value: this.premiumBuffered,
@@ -463,7 +475,7 @@ function behavesLikeCTokens(params) {
         );
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed, 1400900);
+        assert.isAtMost(receipt.gasUsed, 1400000);
       });
     });
 
@@ -485,7 +497,7 @@ function behavesLikeCTokens(params) {
               this.paymentToken,
             ],
             this.purchaseAmount,
-            this.maxCost,
+            this.baseTokenPremium,
             {
               from: user,
               value: this.premiumBuffered,
@@ -507,7 +519,7 @@ function behavesLikeCTokens(params) {
               this.paymentToken,
             ],
             this.purchaseAmount,
-            this.maxCost,
+            this.baseTokenPremium,
             {
               from: user,
               value: this.premiumBuffered,
@@ -528,25 +540,25 @@ function behavesLikeCTokens(params) {
             this.paymentToken,
           ],
           this.purchaseAmount,
-          this.maxCost,
+          this.baseTokenPremium,
           {
             from: user,
             value: this.premiumBuffered,
           }
         );
 
-        expect(res)
+        await expect(res)
           .to.emit(this.adapter, "Purchased")
           .withArgs(
             user,
             ethers.utils.keccak256(ethers.utils.toUtf8Bytes("CHARM")),
             this.underlying,
-            this.premium,
+            this.baseTokenPremium,
             0
           );
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed, 1400900);
+        assert.isAtMost(receipt.gasUsed, 1400000);
 
         assert.isAtLeast(
           parseInt(await this.cToken.balanceOf(this.adapter.address)),
@@ -566,7 +578,7 @@ function behavesLikeCTokens(params) {
             this.paymentToken,
           ],
           this.purchaseAmount,
-          this.maxCost,
+          this.baseTokenPremium,
           {
             from: user,
             value: this.premiumBuffered,
@@ -574,7 +586,7 @@ function behavesLikeCTokens(params) {
         );
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed, 1400900);
+        assert.isAtMost(receipt.gasUsed, 1400000);
 
         baseTokenPremium = (
           await this.optionViews.getBuyOptionCost(
@@ -612,7 +624,7 @@ function behavesLikeCTokens(params) {
             this.paymentToken,
           ],
           this.purchaseAmount,
-          this.maxCost,
+          baseTokenPremium,
           {
             from: user,
             value: premiumBuffered,
@@ -620,7 +632,7 @@ function behavesLikeCTokens(params) {
         );
 
         const receipt2 = await res2.wait();
-        assert.isAtMost(receipt2.gasUsed, 1400900);
+        assert.isAtMost(receipt2.gasUsed, 1400000);
       });
     });
 
@@ -640,7 +652,7 @@ function behavesLikeCTokens(params) {
             this.paymentToken,
           ],
           this.purchaseAmount,
-          this.maxCost,
+          this.baseTokenPremium,
           {
             from: user,
             value: this.premiumBuffered,
@@ -657,7 +669,7 @@ function behavesLikeCTokens(params) {
         this.exerciseProfit = 0;
 
         try {
-          profitInBaseToken = (
+          this.profitInBaseToken = (
             await this.optionViews.getSellOptionCost(
               this.market,
               this.collateralAsset == ONE_ADDRESS ? true : false,
@@ -690,7 +702,7 @@ function behavesLikeCTokens(params) {
         }
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed, 1400900);
+        assert.isAtMost(receipt.gasUsed, 1400000);
 
         const res2 = await this.adapter.exercise(
           this.cTokenAddress,
@@ -700,14 +712,14 @@ function behavesLikeCTokens(params) {
           { from: user }
         );
 
-        expect(res2)
+        await expect(res2)
           .to.emit(this.adapter, "Exercised")
           .withArgs(
             user,
             this.cTokenAddress,
             "0",
             this.shiftedPurchaseAmount,
-            this.exerciseProfit
+            this.profitInBaseToken
           );
 
         const ctoken = await ethers.getContractAt("IERC20", this.cTokenAddress);

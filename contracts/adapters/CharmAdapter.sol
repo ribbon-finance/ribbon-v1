@@ -199,14 +199,13 @@ contract CharmAdapter is IProtocolAdapter{
       IOptionMarket market = IOptionMarket(token.market());
       IERC20 baseToken = IERC20(optionTerms.optionType == ProtocolAdapterTypes.OptionType.Put ? optionTerms.strikeAsset : optionTerms.underlying);
 
-      uint256 shiftedAmount = amount.mul(10 ** token.decimals()).div(10 ** 18);
       bool isETH = address(baseToken) == address(0);
 
       if(!isETH){
-        uint256 premium = optionViews.getBuyOptionCost(market, optionType.isLongToken, optionType.strikeIndex, shiftedAmount);
-
-        _swapETHToBaseToken(baseToken, maxCost, premium, market);
+        _swapETHToBaseToken(baseToken, maxCost, market);
       }
+
+      uint256 shiftedAmount = amount.mul(10 ** token.decimals()).div(10 ** 18);
 
       uint256 amountIn = market.buy{value: isETH ? address(this).balance : 0}(
         optionType.isLongToken,
@@ -349,18 +348,14 @@ contract CharmAdapter is IProtocolAdapter{
        * @notice Swaps the ETH into the `base` token.
        *         This simplifies the buying of an option since you only pay in ETH for any option
        * @param baseToken is the base token of the market
-       * @param maxCost max cost we want to spend
        * @param premium premium to buy option
        * @param market market of token
        */
        function _swapETHToBaseToken(
            IERC20 baseToken,
-           uint256 maxCost,
            uint256 premium,
            IOptionMarket market
        ) private{
-        //uint256 premium = optionViews.getBuyOptionCost(IOptionMarket(market), isLong, strikeIndex, shiftedAmount);
-
         IUniswapV2Router02 router = IUniswapV2Router02(UNISWAP_ROUTER);
 
         address[] memory path = new address[](2);
@@ -375,7 +370,6 @@ contract CharmAdapter is IProtocolAdapter{
         );
 
         uint256 balanceOfToken = baseToken.uniBalanceOf(address(this));
-        require(maxCost >= balanceOfToken, "MaxCost is too low");
         baseToken.safeApprove(address(market), balanceOfToken);
       }
 }

@@ -166,9 +166,9 @@ async function getDefaultArgs() {
   );
 
   // await mintGasTokens(admin, factory.address);
-  await factory.setAdapter("CHARM", charmAdapter.address, { from: owner });
   await factory.setAdapter("HEGIC", hegicAdapter.address, { from: owner });
   await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address, { from: owner });
+  await factory.setAdapter("CHARM", charmAdapter.address, { from: owner });
 
   const protocolAdapterLib = await ProtocolAdapter.deploy();
 

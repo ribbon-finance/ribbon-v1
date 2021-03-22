@@ -13,6 +13,8 @@ const ZERO_EX_API_RESPONSES = require("./fixtures/GammaAdapter.json");
 
 const rHEGICJSON = require("../constants/abis/rHEGIC2.json");
 
+require("dotenv").config();
+
 let owner, user;
 let userSigner;
 const gasPrice = parseUnits("1", "gwei");
@@ -49,6 +51,20 @@ describe("RibbonVolatility", () => {
    * Current price for ETH-USD = ~$1100
    * Current price for BTC-USD = ~$38000
    */
+
+  after(async () => {
+    await network.provider.request({
+      method: "hardhat_reset",
+      params: [
+        {
+          forking: {
+            jsonRpcUrl: process.env.TEST_URI,
+            blockNumber: protocolBlockMap[HEGIC_PROTOCOL],
+          },
+        },
+      ],
+    });
+  });
 
   behavesLikeRibbonVolatility({
     name: "Gamma OTM Put, Gamma ITM Call",
@@ -199,6 +215,7 @@ describe("RibbonVolatility", () => {
       BigNumber.from("3261832069511974"),
       BigNumber.from("62331449010889199"),
     ],
+    maxCosts: [BigNumber.from("5987589"), BigNumber.from("62331449010889199")],
     purchaseAmount: parseEther("0.1"),
     expiry: "1624608000",
     optionIDs: ["0", "0"],
@@ -224,6 +241,7 @@ describe("RibbonVolatility", () => {
       BigNumber.from("3261832069511974"),
       BigNumber.from("12370768589479235"),
     ],
+    maxCosts: [BigNumber.from("5987589"), BigNumber.from("12370768589479235")],
     purchaseAmount: parseEther("0.1"),
     expiry: "1624608000",
     optionIDs: ["0", "0"],
@@ -247,6 +265,10 @@ describe("RibbonVolatility", () => {
     strikePrices: [parseEther("4000"), parseEther("4000")],
     premiums: [
       BigNumber.from("118269264466708686"),
+      BigNumber.from("12370768589479235"),
+    ],
+    maxCosts: [
+      BigNumber.from("217101577"),
       BigNumber.from("12370768589479235"),
     ],
     purchaseAmount: parseEther("0.1"),
@@ -274,6 +296,7 @@ describe("RibbonVolatility", () => {
       BigNumber.from("89685326485079566"),
       BigNumber.from("2223041511776544477"),
     ],
+    maxCosts: [BigNumber.from("164631260"), BigNumber.from("6918427")],
     purchaseAmount: parseEther("0.1"),
     expiry: "1624608000",
     optionIDs: ["0", "0"],
@@ -299,6 +322,7 @@ describe("RibbonVolatility", () => {
       BigNumber.from("89685326485079566"),
       BigNumber.from("328976665985046195"),
     ],
+    maxCosts: [BigNumber.from("164631260"), BigNumber.from("1023802")],
     purchaseAmount: parseEther("0.1"),
     expiry: "1624608000",
     optionIDs: ["0", "0"],
@@ -324,6 +348,7 @@ describe("RibbonVolatility", () => {
       BigNumber.from("2035207606065395561"),
       BigNumber.from("328976665985046195"),
     ],
+    maxCosts: [BigNumber.from("3736039377"), BigNumber.from("1023802")],
     purchaseAmount: parseEther("0.1"),
     expiry: "1624608000",
     optionIDs: ["0", "0"],
@@ -439,12 +464,11 @@ function behavesLikeRibbonVolatility(params) {
       if (this.paymentToken == WBTC_ADDRESS)
         this.totalPremium = BigNumber.from("0");
 
-      this.premiumBuffered =
-        this.venues.includes(CHARM_PROTOCOL)
-          ? this.totalPremium
-              .mul(BigNumber.from("1100"))
-              .div(BigNumber.from("1000"))
-          : this.totalPremium;
+      this.premiumBuffered = this.venues.includes(CHARM_PROTOCOL)
+        ? this.totalPremium
+            .mul(BigNumber.from("1100"))
+            .div(BigNumber.from("1000"))
+        : this.totalPremium;
 
       this.cost = BigNumber.from("0");
       venues.forEach((venue, index) => {

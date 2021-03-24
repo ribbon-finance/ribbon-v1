@@ -44,7 +44,7 @@
   "scripts": {
     "compile": "npx hardhat compile",
     "test": "npx hardhat test",
-    "verify": "npx truffle run verify RibbonFactory HegicAdapter GammaAdapter ProtocolAdapter AdminUpgradeabilityProxy RibbonVolatility RibbonETHCoveredCall --network mainnet --license MIT",
+    "verify": "npx truffle run verify RibbonFactory HegicAdapter GammaAdapter ProtocolAdapter AdminUpgradeabilityProxy RibbonVolatility RibbonCoveredCall --network mainnet --license MIT",
     "merge-contracts": "sol-merger  --export-plugin SPDXLicenseRemovePlugin \"./contracts/**/*.sol\" ./build/merged",
     "export-artefacts": "node ./scripts/exportArtefacts.js",
     "upgrade-instrument": "node ./scripts/upgradeInstrument.js",

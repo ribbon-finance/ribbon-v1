@@ -2,7 +2,7 @@ require("dotenv").config();
 const Web3 = require("web3");
 const HDWalletProvider = require("@truffle/hdwallet-provider");
 
-const getWeb3 = (network) => {
+const getWeb3 = (network = "mainnet") => {
   const uris = {
     mainnet: process.env.MAINNET_URI,
     "mainnet-sim": "http://127.0.0.1:8545",

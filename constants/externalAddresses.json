@@ -10,7 +10,7 @@
 			"link": "0xa36085f69e2889c224210f603d836748e7dc0088",
 			"eth": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
 			"weth": "0xd0A1E359811322d97991E03f863a0C30C2cF029C",
-			"usdc": "0x2F375e94FC336Cdec2Dc0cCB5277FE59CBf1cAe5"
+			"usdc": "0xb7a4F3E9097C08dA09517b5aB877F7a917224ede"
 		},
 		"airswapSwap": "0x79fb4604f2D7bD558Cda0DFADb7d61D98b28CA9f",
 		"oTokenFactory": "0xb9D17Ab06e27f63d0FD75099d5874a194eE623e2",
@@ -119,6 +119,7 @@
 				"isPut": true
 			}
 		],
+		"oTokenFactory": "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E",
 		"multicall": "0xeefBa1e63905eF1D7ACbA5a8513c70307C1cE441",
 		"feeds": {
 			"dai/eth": "0x22B58f1EbEDfCA50feF632bD73368b2FdA96D541",

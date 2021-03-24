@@ -1,6 +1,8 @@
 require("dotenv").config();
 const getWeb3 = require("./helpers/web3");
 const { Command } = require("commander");
+const { ethers } = require("ethers");
+const { parseEther } = ethers.utils;
 const program = new Command();
 
 const externalAddresses = require("../constants/externalAddresses");
@@ -8,25 +10,27 @@ const accountAddresses = require("../constants/accounts.json");
 const oTokenFactoryABI = require("../constants/abis/OtokenFactory.json");
 const { sleep } = require("@openzeppelin/upgrades");
 const getGasPrice = require("./helpers/getGasPrice");
-
-const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
+const { parseUnits } = require("ethers/lib/utils");
 
 program.version("0.0.1");
+
+program.requiredOption("-n, --network <network>", "Network", "kovan");
+
 program
   .option(
     "-u, --underlying <underlying>",
     "Underlying",
-    externalAddresses.mainnet.assets.weth
+    externalAddresses[program.network].assets.weth
   )
   .option(
     "-s, --strikeAsset <strikeAsset>",
     "Strike asset",
-    externalAddresses.mainnet.assets.usdc
+    externalAddresses[program.network].assets.usdc
   )
   .option(
     "-c, --collateralAsset <collateralAsset>",
     "Collateral asset",
-    externalAddresses.mainnet.assets.weth
+    externalAddresses[program.network].assets.weth
   )
   .requiredOption("-x, --strikePrice <strikePrice>", "Strike price")
   .requiredOption("-e, --expiry <expiry>", "Expiry")
@@ -35,7 +39,9 @@ program
 program.parse(process.argv);
 
 async function deployOToken() {
-  const web3 = await getWeb3();
+  const network = program.network;
+  const web3 = await getWeb3(network);
+  const owner = accountAddresses[network].owner;
 
   const {
     underlying,
@@ -46,9 +52,18 @@ async function deployOToken() {
     isPut,
   } = program;
 
-  const factory = new web3.eth.Contract(oTokenFactoryABI, OTOKEN_FACTORY);
+  const factory = new web3.eth.Contract(
+    oTokenFactoryABI,
+    externalAddresses[network].oTokenFactory
+  );
 
-  const gasPrice = await getGasPrice();
+  let gasPrice;
+  if (network === "mainnet") {
+    gasPrice = await getGasPrice();
+  } else {
+    gasPrice = parseUnits("20", "gwei");
+  }
+
   console.log(`Gas price: ${gasPrice.toString()}`);
 
   const receipt = await factory.methods
@@ -61,7 +76,7 @@ async function deployOToken() {
       isPut
     )
     .send({
-      from: accountAddresses.mainnet.owner,
+      from: owner,
       gasPrice,
     });
   const txhash = receipt.transactionHash;

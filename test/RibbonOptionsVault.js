@@ -161,6 +161,9 @@ describe("RibbonCoveredCall", () => {
     });
 
     it("reverts when adapter not set yet", async function () {
+      const Factory = await ethers.getContractFactory("RibbonFactory");
+      const factory = await Factory.deploy();
+
       const VaultContract = await ethers.getContractFactory(
         "RibbonCoveredCall",
         {
@@ -170,11 +173,9 @@ describe("RibbonCoveredCall", () => {
         }
       );
 
-      await this.factory.setAdapter("OPYN_GAMMA", constants.AddressZero);
-
       await expect(
         VaultContract.deploy(
-          this.factory.address,
+          factory.address,
           WETH_ADDRESS,
           USDC_ADDRESS,
           SWAP_ADDRESS

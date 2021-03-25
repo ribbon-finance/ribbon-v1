@@ -8,8 +8,9 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import {IUniswapV2Pair} from "../interfaces/IUniswapV2Pair.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
+import {IAmmAdapter} from "./IAmmAdapter.sol";
 
-contract UniswapAdapter {
+contract UniswapAdapter is IAmmAdapter{
 
     enum Exchange {Uniswap, Sushiswap}
 
@@ -56,11 +57,11 @@ contract UniswapAdapter {
 
     receive() external payable {}
 
-    function protocolName() public pure returns (string memory) {
+    function protocolName() public pure override returns (string memory) {
         return _name;
     }
 
-    function nonFungible() external pure  returns (bool) {
+    function nonFungible() external pure override returns (bool) {
         return _nonFungible;
     }
 
@@ -93,7 +94,7 @@ contract UniswapAdapter {
         require(false, 'invalid exchange');
     }
 
-    function expectedWbtcOut(uint256 ethAmt, string memory exchangeName) public view returns (uint256){
+    function expectedWbtcOut(uint256 ethAmt, string memory exchangeName) public view override returns (uint256){
         Exchange exchange = validateExchange(exchangeName);
         IUniswapV2Router02 router = exchange == Exchange.Uniswap ? uniswapRouter : sushiswapRouter;
         address[] memory path = new address[](2);
@@ -105,7 +106,7 @@ contract UniswapAdapter {
 
     //this function returns both the expected digg amount out as well as the input trade amt of wbtc used
     //these are both needed as inputs to buyLp
-    function expectedDiggOut(uint256 wbtcAmt, string memory exchangeName) public view returns (uint256 diggOut, uint256 tradeAmt){
+    function expectedDiggOut(uint256 wbtcAmt, string memory exchangeName) public view override returns (uint256 diggOut, uint256 tradeAmt){
         Exchange exchange = validateExchange(exchangeName);
         if (exchange == Exchange.Uniswap){
                 (uint112 reserveAmt,,) = IUniswapV2Pair(wbtcDiggUniswap).getReserves();
@@ -121,7 +122,7 @@ contract UniswapAdapter {
                 address[] memory path = new address[](2);
                 path[0] = wbtcAddress;
                 path[1] = diggAddress;
-                diggOut = uniswapRouter.getAmountsOut(tradeAmt, path)[1];
+                diggOut = sushiswapRouter.getAmountsOut(tradeAmt, path)[1];
         }
     }
 
@@ -197,7 +198,7 @@ contract UniswapAdapter {
     // valid exchange venues are sushiswap and uniswap
     // the minWbtcAmtOut param isnt used when users pass in wbtc directly
     // use the  expectedWbtcAmtOut and expectedDiggAmtOut functions off chain to calculate trade_amt, minWbtcAmtOut and minDiggAmtOut
-    function buyLp(address tokenInput, uint256 amt, string memory exchangeName, uint256 tradeAmt, uint256 minWbtcAmtOut, uint256 minDiggAmtOut) payable public{
+    function buyLp(address tokenInput, uint256 amt, string memory exchangeName, uint256 tradeAmt, uint256 minWbtcAmtOut, uint256 minDiggAmtOut) payable public override {
         Exchange exchange = validateExchange(exchangeName);
         if (tokenInput == ethAddress){
                 require(msg.value >= amt, 'not enough funds');

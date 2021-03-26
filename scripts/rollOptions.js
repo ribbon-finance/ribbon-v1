@@ -1,23 +1,28 @@
 require("dotenv").config();
 const getWeb3 = require("./helpers/web3");
+const { ethers } = require("ethers");
 const { Command } = require("commander");
 const { sleep } = require("@openzeppelin/upgrades");
 const program = new Command();
 
+const { parseUnits } = ethers.utils;
 const OtokenInterface = require("../build/contracts/OtokenInterface.json");
-const RibbonETHCoveredCall = require("../build/contracts/RibbonETHCoveredCall.json");
+const RibbonCoveredCall = require("../build/contracts/RibbonCoveredCall.json");
 const GammaAdapter = require("../build/contracts/GammaAdapter.json");
 const deployments = require("../constants/deployments");
 const accountAddresses = require("../constants/accounts.json");
 const getGasPrice = require("./helpers/getGasPrice");
 
 program.version("0.0.1");
-program.requiredOption("-a, --address <address>", "OToken address");
+program
+  .requiredOption("-a, --address <address>", "OToken address")
+  .requiredOption("-n, --network <network>", "Network", "kovan");
 
 program.parse(process.argv);
 
 async function rollOptions() {
-  const web3 = await getWeb3();
+  const network = program.network;
+  const web3 = await getWeb3(network);
   const { BN } = web3.utils;
   const { address } = program;
   const otoken = new web3.eth.Contract(OtokenInterface.abi, address);
@@ -31,11 +36,17 @@ async function rollOptions() {
     .toString();
   const optionType = (await otoken.methods.isPut().call()) ? 1 : 2;
   const paymentToken = underlying;
-  const gasPrice = await getGasPrice();
+  let gasPrice;
+
+  if (network === "mainnet") {
+    gasPrice = await getGasPrice();
+  } else {
+    gasPrice = parseUnits("10", "gwei");
+  }
 
   const vault = new web3.eth.Contract(
-    RibbonETHCoveredCall.abi,
-    deployments.mainnet.RibbonETHCoveredCall
+    RibbonCoveredCall.abi,
+    deployments[network].RibbonETHCoveredCall
   );
 
   const optionTerms = [
@@ -51,7 +62,7 @@ async function rollOptions() {
 
   const gammaAdapter = new web3.eth.Contract(
     GammaAdapter.abi,
-    deployments.mainnet.GammaAdapterLogic
+    deployments[network].GammaAdapterLogic
   );
 
   const otokenAddress = await gammaAdapter.methods
@@ -64,8 +75,8 @@ async function rollOptions() {
 
   console.log(`Matched with oToken ${otokenAddress}`);
 
-  const receipt = await vault.methods.rollToNextOption(optionTerms).send({
-    from: accountAddresses.mainnet.owner,
+  const receipt = await vault.methods.setNextOption(optionTerms).send({
+    from: accountAddresses[network].manager,
     gasPrice,
   });
 

@@ -131,9 +131,7 @@ function getCurrentPrice() public view returns(uint256)
         return currentPrice.mul(10000000000);
     }
 
-function getInputs(address inputToken, uint256 amt, string memory exchangeName) public view returns(uint256 wbtcSize, uint256 expDigg, uint256 tradeAmt, uint256 premium, uint256 tota
-lCost,
- uint256 currentPrice, uint256 expiry)
+function getInputs(address inputToken, uint256 amt, string memory exchangeName) public view returns(uint256 wbtcSize, uint256 expDigg, uint256 tradeAmt, uint256 premium, uint256 totalCost,uint256 currentPrice, uint256 expiry)
     {
         if (inputToken == ethAddress){
                 wbtcSize = iUniswapAdapter.expectedWbtcOut(amt, exchangeName);

@@ -167,8 +167,7 @@ function getInputs(address inputToken, uint256 amt, string memory exchangeName) 
         totalCost = amt + premium;
     }
 
-function buyInstrument(BuyInstrumentParams calldata params, uint256 expiry, address tokenInput, uint256 amt, string memory exchangeName, uint256 tradeAmt, uint256 minWbtcAmtOut, uint
-256 minDiggAmtOut) public payable
+function buyInstrument(BuyInstrumentParams calldata params, uint256 expiry, address tokenInput, uint256 amt, string memory exchangeName, uint256 tradeAmt, uint256 minWbtcAmtOut, uint256 minDiggAmtOut) public payable
     {
         buyLpFromAdapter(tokenInput, amt, exchangeName, tradeAmt, minWbtcAmtOut, minDiggAmtOut);
         uint256 positionID = buyPutFromAdapter(params, expiry);

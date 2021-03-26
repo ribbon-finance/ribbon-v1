@@ -27,7 +27,7 @@ const WBTC_OPTIONS_ADDRESS = "0x3961245db602ed7c03eeccda33ea3846bd8723bd";
 
 const gasPrice = parseUnits("1", "gwei");
 
-describe("StakedPut", () => {
+describe.skip("StakedPut", () => {
   let initSnapshotId;
   this.gasPrice = ethers.utils.parseUnits("1", "gwei");
   before(async function () {
@@ -173,7 +173,7 @@ describe("StakedPut", () => {
     await time.revertToSnapShot(initSnapshotId);
   });
 
-  describe("constructor", () => {
+  describe.skip("constructor", () => {
     time.revertToSnapshotAfterEach();
 
     it("reverts when deployed with 0x0 factory", async function () {
@@ -195,7 +195,7 @@ describe("StakedPut", () => {
       ).to.be.revertedWith("!_factory");
     });
   });
-  describe("#initialize", () => {
+  describe.skip("#initialize", () => {
     it("initializes with correct values", async function () {
       assert.equal(await this.instrument.factory(), this.factory.address);
       //                        assert.equal(await this.vault.owner(), owner);
@@ -214,7 +214,7 @@ describe("StakedPut", () => {
       ).to.be.revertedWith("Initializable: contract is already initialized");
     });
   });
-  describe("#name", () => {
+  describe.skip("#name", () => {
     it("returns the name", async function () {
       assert.equal(await this.instrument.getName(), "wbtc/digg-staked-put");
     });
@@ -291,7 +291,7 @@ describe("StakedPut", () => {
 });
 
 function behavesLikeStakedPut(params) {
-  describe(`${params.name}`, () => {
+  describe.skip(`${params.name}`, () => {
     time.revertToSnapshotAfterEach();
 
     it("test oracle", async function () {

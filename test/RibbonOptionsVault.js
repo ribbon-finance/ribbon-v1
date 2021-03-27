@@ -1506,6 +1506,32 @@ describe("RibbonCoveredCall", () => {
     });
   });
 
+  describe("#assetAmountToShares", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("should return the correct number of shares", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      // Will be exactly the same number of Ether deposited initially
+      assert.equal(
+        (await this.vault.assetAmountToShares(parseEther("1"))).toString(),
+        parseEther("1")
+      );
+
+      // simulate the vault accumulating more WETH
+      await this.weth.connect(userSigner).deposit({ value: parseEther("1") });
+      await this.weth
+        .connect(userSigner)
+        .transfer(this.vault.address, parseEther("1"));
+
+      // User should be able to withdraw 2 ETH with 1 share
+      assert.equal(
+        (await this.vault.assetAmountToShares(parseEther("2"))).toString(),
+        parseEther("1")
+      );
+    });
+  });
+
   describe("#withdraw", () => {
     time.revertToSnapshotAfterEach();
 

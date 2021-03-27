@@ -427,6 +427,15 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         return withdrawAmount;
     }
 
+    function assetAmountToShares(uint256 assetAmount)
+        external
+        view
+        returns (uint256)
+    {
+        uint256 total = lockedAmount.add(assetBalance());
+        return assetAmount.mul(totalSupply()).div(total);
+    }
+
     function accountVaultBalance(address account)
         external
         view

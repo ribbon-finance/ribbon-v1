@@ -370,12 +370,8 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         returns (uint256 amountAfterFee, uint256 feeAmount)
     {
         uint256 currentAssetBalance = assetBalance();
-        uint256 total = lockedAmount.add(currentAssetBalance);
-
-        // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L111
-        uint256 shareSupply = totalSupply();
-
-        uint256 withdrawAmount = share.mul(total).div(shareSupply);
+        uint256 withdrawAmount =
+            _withdrawAmountWithShares(share, currentAssetBalance);
         require(
             withdrawAmount <= currentAssetBalance,
             "Cannot withdraw more than available"
@@ -391,6 +387,17 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
 
         feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
         amountAfterFee = withdrawAmount.sub(feeAmount);
+    }
+
+    function _withdrawAmountWithShares(
+        uint256 share,
+        uint256 currentAssetBalance
+    ) private view returns (uint256) {
+        uint256 total = lockedAmount.add(currentAssetBalance);
+
+        // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L111
+        uint256 withdrawAmount = share.mul(total).div(totalSupply());
+        return withdrawAmount;
     }
 
     function maxWithdrawableShares() public view returns (uint256) {
@@ -418,6 +425,14 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
 
         (uint256 withdrawAmount, ) = withdrawAmountWithShares(numShares);
         return withdrawAmount;
+    }
+
+    function accountVaultBalance(address account)
+        external
+        view
+        returns (uint256)
+    {
+        return _withdrawAmountWithShares(balanceOf(account), assetBalance());
     }
 
     /**

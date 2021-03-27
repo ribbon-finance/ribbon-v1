@@ -1480,6 +1480,32 @@ describe("RibbonCoveredCall", () => {
     });
   });
 
+  describe("#accountVaultBalance", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("returns the ETH balance of the account in the vault", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      // Will be exactly the same number of Ether deposited initiall
+      assert.equal(
+        (await this.vault.accountVaultBalance(user)).toString(),
+        parseEther("1")
+      );
+
+      // simulate the vault accumulating more WETH
+      await this.weth.connect(userSigner).deposit({ value: parseEther("1") });
+      await this.weth
+        .connect(userSigner)
+        .transfer(this.vault.address, parseEther("1"));
+
+      // User should be entitled to withdraw 2 ETH because the vault's balance expanded by 1 ETH
+      assert.equal(
+        (await this.vault.accountVaultBalance(user)).toString(),
+        parseEther("2")
+      );
+    });
+  });
+
   describe("#withdraw", () => {
     time.revertToSnapshotAfterEach();
 

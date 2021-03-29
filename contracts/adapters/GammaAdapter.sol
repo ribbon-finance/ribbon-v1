@@ -254,6 +254,11 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
             "Not enough takerAsset balance"
         );
 
+        // double approve to fix non-compliant ERC20s
+        IERC20(zeroExOrder.sellTokenAddress).safeApprove(
+            zeroExOrder.allowanceTarget,
+            0
+        );
         IERC20(zeroExOrder.sellTokenAddress).safeApprove(
             zeroExOrder.allowanceTarget,
             zeroExOrder.takerAssetAmount
@@ -430,6 +435,8 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
                 .div(10**collateralDecimals);
         }
 
+        // double approve to fix non-compliant ERC20s
+        collateralToken.safeApprove(MARGIN_POOL, 0);
         collateralToken.safeApprove(MARGIN_POOL, depositAmount);
 
         IController.ActionArgs[] memory actions =

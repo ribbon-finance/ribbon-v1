@@ -63,6 +63,8 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         address manager
     );
 
+    event WithdrawalFeeSet(uint256 oldFee, uint256 newFee);
+
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
     /**
@@ -149,10 +151,18 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
 
     /**
      * @notice Sets the new withdrawal fee
-     * @param withdrawalFee is the fee paid in tokens when withdrawing
+     * @param newWithdrawalFee is the fee paid in tokens when withdrawing
      */
-    function setWithdrawalFee(uint256 withdrawalFee) external onlyManager {
-        instantWithdrawalFee = withdrawalFee;
+    function setWithdrawalFee(uint256 newWithdrawalFee) external onlyManager {
+        require(newWithdrawalFee > 0, "withdrawalFee != 0");
+
+        // cap max withdrawal fees to 100% of the withdrawal amount
+        require(newWithdrawalFee < 1 ether, "withdrawalFee >= 100%");
+
+        uint256 oldFee = instantWithdrawalFee;
+        emit WithdrawalFeeSet(oldFee, newWithdrawalFee);
+
+        instantWithdrawalFee = newWithdrawalFee;
     }
 
     /**

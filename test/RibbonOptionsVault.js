@@ -1481,10 +1481,26 @@ describe("RibbonCoveredCall", () => {
       ).to.be.revertedWith("Only manager");
     });
 
+    it("reverts when withdrawal fee is 0", async function () {
+      await expect(
+        this.vault.connect(managerSigner).setWithdrawalFee(0)
+      ).to.be.revertedWith("withdrawalFee != 0");
+    });
+
+    it("reverts when withdrawal fee set to 100%", async function () {
+      await expect(
+        this.vault.connect(managerSigner).setWithdrawalFee(parseEther("100"))
+      ).to.be.revertedWith("withdrawalFee >= 100%");
+    });
+
     it("sets the withdrawal fee", async function () {
-      await this.vault
+      const res = await this.vault
         .connect(managerSigner)
         .setWithdrawalFee(parseEther("0.1"));
+
+      await expect(res)
+        .to.emit(this.vault, "WithdrawalFeeSet")
+        .withArgs(parseEther("0.005"), parseEther("0.1"));
 
       assert.equal(
         (await this.vault.instantWithdrawalFee()).toString(),

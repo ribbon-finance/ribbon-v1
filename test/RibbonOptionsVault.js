@@ -442,6 +442,21 @@ describe("RibbonCoveredCall", () => {
         this.vault.connect(userSigner).depositETH({ value: 0 })
       ).to.be.revertedWith("No value passed");
     });
+
+    it("does not inflate the share tokens on initialization", async function () {
+      await this.weth.connect(adminSigner).deposit({ value: parseEther("10") });
+      await this.weth
+        .connect(adminSigner)
+        .transfer(this.vault.address, parseEther("10"));
+
+      await this.vault
+        .connect(userSigner)
+        .depositETH({ value: parseEther("1") });
+
+      // user needs to get back exactly 1 ether
+      // even though the total has been incremented
+      assert.isFalse((await this.vault.balanceOf(user)).isZero());
+    });
   });
 
   describe("#deposit", () => {

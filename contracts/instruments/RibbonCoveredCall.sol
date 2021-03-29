@@ -197,9 +197,11 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         // added to it from either IWETH.deposit and IERC20.safeTransferFrom
         uint256 total = totalWithDepositedAmount.sub(amount);
 
+        uint256 shareSupply = totalSupply();
+
         // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L104
         uint256 share =
-            total == 0 ? amount : amount.mul(totalSupply()).div(total);
+            shareSupply == 0 ? amount : amount.mul(shareSupply).div(total);
 
         emit Deposit(msg.sender, amount, share);
 

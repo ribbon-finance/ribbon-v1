@@ -66,6 +66,15 @@ async function deployOToken() {
 
   console.log(`Gas price: ${gasPrice.toString()}`);
 
+  console.log([
+    underlying,
+    strikeAsset,
+    collateralAsset,
+    strikePrice,
+    expiry,
+    isPut,
+  ]);
+
   const receipt = await factory.methods
     .createOtoken(
       underlying,

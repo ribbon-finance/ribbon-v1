@@ -243,8 +243,18 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     ) external onlyManager nonReentrant {
         address option = adapter.getOptionsAddress(optionTerms);
         require(option != address(0), "!option");
+        OtokenInterface otoken = OtokenInterface(option);
+        require(otoken.underlyingAsset() == asset, "!asset");
+        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC"); // we just assume all options use USDC as the strike
+
+        uint256 readyAt = block.timestamp.add(delay);
+        require(
+            otoken.expiryTimestamp() >= readyAt,
+            "Option expiry cannot be before delay"
+        );
+
         nextOption = option;
-        nextOptionReadyAt = block.timestamp.add(delay);
+        nextOptionReadyAt = readyAt;
     }
 
     /**

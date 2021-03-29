@@ -13,13 +13,19 @@ const {
   wmul,
   setupOracle,
   setOpynOracleExpiryPrice,
+  whitelistProduct,
+  parseLog,
 } = require("./helpers/utils");
+const moment = require("moment");
 
 let owner, user, feeRecipient;
 let userSigner, ownerSigner, managerSigner, counterpartySigner;
 
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+
+const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const SWAP_ADDRESS = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
 const SWAP_CONTRACT = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
@@ -111,6 +117,8 @@ describe("RibbonCoveredCall", () => {
     this.oTokenAddress = "0x3cF86d40988309AF3b90C14544E1BB0673BFd439";
 
     this.oToken = await getContractAt("IERC20", this.oTokenAddress);
+
+    this.oTokenFactory = await getContractAt("IOtokenFactory", OTOKEN_FACTORY);
 
     this.weth = await getContractAt("IWETH", WETH_ADDRESS);
 
@@ -523,6 +531,127 @@ describe("RibbonCoveredCall", () => {
       await expect(
         this.vault.connect(managerSigner).setNextOption(optionTerms)
       ).to.be.revertedWith("!option");
+    });
+
+    it("reverts when otoken underlying is different from asset", async function () {
+      await whitelistProduct(WBTC_ADDRESS, USDC_ADDRESS, WBTC_ADDRESS, false);
+
+      const underlying = WBTC_ADDRESS;
+      const strike = USDC_ADDRESS;
+      const strikePrice = parseEther("50000");
+      const expiry = "1614326400";
+      const isPut = false;
+
+      await this.oTokenFactory.createOtoken(
+        underlying,
+        strike,
+        underlying,
+        strikePrice.div(BigNumber.from("10").pow(BigNumber.from("10"))),
+        expiry,
+        isPut
+      );
+
+      const optionTerms = [
+        underlying,
+        strike,
+        underlying,
+        expiry,
+        strikePrice,
+        2,
+        USDC_ADDRESS,
+      ];
+
+      await expect(
+        this.vault.connect(managerSigner).setNextOption(optionTerms)
+      ).to.be.revertedWith("!asset");
+    });
+
+    it("reverts when the strike is not USDC", async function () {
+      const underlying = WETH_ADDRESS;
+      const strike = WBTC_ADDRESS;
+      const strikePrice = parseEther("50000");
+      const expiry = "1614326400";
+      const isPut = false;
+
+      await whitelistProduct(underlying, strike, underlying, false);
+
+      await this.oTokenFactory.createOtoken(
+        underlying,
+        strike,
+        underlying,
+        strikePrice.div(BigNumber.from("10").pow(BigNumber.from("10"))),
+        expiry,
+        isPut
+      );
+
+      const optionTerms = [
+        underlying,
+        strike,
+        underlying,
+        expiry,
+        strikePrice,
+        2,
+        USDC_ADDRESS,
+      ];
+
+      await expect(
+        this.vault.connect(managerSigner).setNextOption(optionTerms)
+      ).to.be.revertedWith("strikeAsset != USDC");
+    });
+
+    it("reverts when the expiry is before the delay", async function () {
+      const block = await provider.getBlock();
+
+      const underlying = WETH_ADDRESS;
+      const strike = USDC_ADDRESS;
+      const strikePrice = parseEther("1480");
+      const isPut = false;
+
+      let expiryDate;
+
+      const currentBlock = moment.utc(block.timestamp * 1000);
+
+      // get the same day's 8am
+      const sameDay8AM = moment
+        .utc()
+        .year(currentBlock.year())
+        .month(currentBlock.month())
+        .date(currentBlock.date())
+        .hour(8)
+        .minute(0)
+        .second(0)
+        .millisecond(0);
+
+      if (currentBlock.isBefore(sameDay8AM)) {
+        expiryDate = sameDay8AM;
+      } else {
+        // use next day's 8am
+        expiryDate = sameDay8AM.add(1, "day");
+      }
+      const expiry = Math.round(expiryDate.valueOf() / 1000);
+
+      await this.oTokenFactory.createOtoken(
+        underlying,
+        strike,
+        underlying,
+        strikePrice.div(BigNumber.from("10").pow(BigNumber.from("10"))),
+        expiry,
+        isPut
+      );
+
+      const optionTerms = [
+        underlying,
+        strike,
+        underlying,
+        expiry,
+        strikePrice,
+        2,
+        USDC_ADDRESS,
+      ];
+
+      await expect(
+        this.vault.connect(managerSigner).setNextOption(optionTerms)
+      ).to.be.revertedWith("Option expiry cannot be before delay");
     });
 
     it("sets the next option", async function () {

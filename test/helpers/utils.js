@@ -16,6 +16,7 @@ module.exports = {
   mintAndApprove,
   setupOracle,
   setOpynOracleExpiryPrice,
+  whitelistProduct,
 };
 
 async function deployProxy(
@@ -64,6 +65,7 @@ const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
+const GAMMA_WHITELIST = "0xa5EA18ac6865f315ff5dD9f1a7fb1d41A30a6779";
 const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
@@ -244,6 +246,33 @@ async function mintAndApprove(tokenAddress, userSigner, spender, amount) {
   //   method: "hardhat_stopImpersonatingAccount",
   //   params: ["0xca06411bd7a7296d7dbdd0050dfc846e95febeb7"]}
   // )
+}
+
+async function whitelistProduct(underlying, strike, collateral, isPut) {
+  [adminSigner] = await ethers.getSigners();
+
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [ORACLE_OWNER],
+  });
+
+  const ownerSigner = await provider.getSigner(ORACLE_OWNER);
+
+  const whitelist = await ethers.getContractAt(
+    "IGammaWhitelist",
+    GAMMA_WHITELIST
+  );
+
+  await adminSigner.sendTransaction({
+    to: ORACLE_OWNER,
+    value: parseEther("0.5"),
+  });
+
+  await whitelist.connect(ownerSigner).whitelistCollateral(underlying);
+
+  await whitelist
+    .connect(ownerSigner)
+    .whitelistProduct(underlying, strike, collateral, isPut);
 }
 
 async function setupOracle(signer) {

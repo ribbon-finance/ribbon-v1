@@ -208,6 +208,8 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
 
     /**
      * @notice Purchases otokens using a 0x order struct
+     * It is the obligation of the delegate-calling contract to return the remaining
+     * msg.value back to the user.
      * @param optionTerms is the terms of the option contract
      * @param zeroExOrder is the 0x order struct constructed using the 0x API response passed by the frontend.
      */
@@ -219,6 +221,10 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
             msg.value >= zeroExOrder.protocolFee,
             "Value cannot cover protocolFee"
         );
+        require(
+            zeroExOrder.sellTokenAddress == USDC,
+            "Sell token has to be USDC"
+        );
 
         IUniswapV2Router02 router = IUniswapV2Router02(UNISWAP_ROUTER);
 
@@ -228,8 +234,12 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
 
         (, int256 latestPrice, , , ) = USDCETHPriceFeed.latestRoundData();
 
+        // Because we guard that zeroExOrder.sellTokenAddress == USDC
+        // We can assume that the decimals == 6
         uint256 soldETH =
-            zeroExOrder.takerAssetAmount.mul(uint256(latestPrice)).div(10**6);
+            zeroExOrder.takerAssetAmount.mul(uint256(latestPrice)).div(
+                10**assetDecimals(zeroExOrder.sellTokenAddress)
+            );
 
         router.swapETHForExactTokens{value: soldETH}(
             zeroExOrder.takerAssetAmount,

@@ -309,7 +309,7 @@ function behavesLikeOTokens(params) {
       });
 
       it("purchases with 0x exchange", async function () {
-        const res = await this.adapter.purchaseWithZeroEx(
+        await this.adapter.purchaseWithZeroEx(
           this.optionTerms,
           this.zeroExOrder,
           {
@@ -365,6 +365,27 @@ function behavesLikeOTokens(params) {
             value: calculateZeroExOrderCost(this.apiResponse),
           }
         );
+      });
+
+      it("reverts when sellTokenAddress is not USDC", async function () {
+        const zeroExOrder = [
+          this.apiResponse.to,
+          this.apiResponse.buyTokenAddress,
+          WETH_ADDRESS,
+          this.apiResponse.to,
+          this.apiResponse.protocolFee,
+          this.apiResponse.buyAmount,
+          this.apiResponse.sellAmount,
+          this.apiResponse.data,
+        ];
+
+        await expect(
+          this.adapter.purchaseWithZeroEx(this.optionTerms, zeroExOrder, {
+            from: user,
+            gasPrice: this.apiResponse.gasPrice,
+            value: calculateZeroExOrderCost(this.apiResponse),
+          })
+        ).to.be.revertedWith("Sell token has to be USDC");
       });
     });
 

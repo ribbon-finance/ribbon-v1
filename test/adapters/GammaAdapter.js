@@ -152,6 +152,24 @@ describe("GammaAdapter", () => {
     });
   });
 
+  describe("#swapExercisedProfitsToUnderlying", () => {
+    it("swaps the exercised profit", async function () {
+      const oTokenAddress = "0x006583fEea92C695A9dE02C3AC2d4cd321f2F341";
+
+      const depositAmount = await this.depositToVaultForShorts(
+        USDC_ADDRESS,
+        parseEther("1"),
+        this.mockAdapter
+      );
+
+      await this.mockAdapter.swapExercisedProfits(
+        oTokenAddress,
+        depositAmount,
+        user
+      );
+    });
+  });
+
   behavesLikeOTokens({
     name: "Call ITM",
     oTokenAddress: "0x3cF86d40988309AF3b90C14544E1BB0673BFd439",
@@ -309,7 +327,7 @@ function behavesLikeOTokens(params) {
       });
 
       it("purchases with 0x exchange", async function () {
-        const res = await this.adapter.purchaseWithZeroEx(
+        await this.adapter.purchaseWithZeroEx(
           this.optionTerms,
           this.zeroExOrder,
           {
@@ -365,6 +383,27 @@ function behavesLikeOTokens(params) {
             value: calculateZeroExOrderCost(this.apiResponse),
           }
         );
+      });
+
+      it("reverts when sellTokenAddress is not USDC", async function () {
+        const zeroExOrder = [
+          this.apiResponse.to,
+          this.apiResponse.buyTokenAddress,
+          WETH_ADDRESS,
+          this.apiResponse.to,
+          this.apiResponse.protocolFee,
+          this.apiResponse.buyAmount,
+          this.apiResponse.sellAmount,
+          this.apiResponse.data,
+        ];
+
+        await expect(
+          this.adapter.purchaseWithZeroEx(this.optionTerms, zeroExOrder, {
+            from: user,
+            gasPrice: this.apiResponse.gasPrice,
+            value: calculateZeroExOrderCost(this.apiResponse),
+          })
+        ).to.be.revertedWith("Sell token has to be USDC");
       });
     });
 
@@ -489,7 +528,10 @@ function behavesLikeOTokens(params) {
 
     describe("#createShort", () => {
       time.revertToSnapshotAfterEach(async function () {
-        await this.depositToVaultForShorts(parseEther("10"));
+        await this.depositToVaultForShorts(
+          this.collateralAsset,
+          parseEther("10")
+        );
       });
 
       it("reverts when no matched oToken", async function () {
@@ -573,6 +615,7 @@ function behavesLikeOTokens(params) {
         const ethDepositAmount = parseEther("10");
 
         this.depositAmount = await this.depositToVaultForShorts(
+          this.collateralAsset,
           ethDepositAmount
         );
 
@@ -664,13 +707,24 @@ function behavesLikeOTokens(params) {
   });
 }
 
-async function depositToVaultForShorts(depositAmount) {
-  if (this.collateralAsset === WETH_ADDRESS) {
+async function depositToVaultForShorts(
+  collateralAsset,
+  depositAmount,
+  defaultAdapter = true
+) {
+  let adapter;
+  if (defaultAdapter === true) {
+    adapter = this.adapter;
+  } else {
+    adapter = defaultAdapter;
+  }
+
+  if (collateralAsset === WETH_ADDRESS) {
     const wethContract = (
       await ethers.getContractAt("IWETH", WETH_ADDRESS)
     ).connect(ownerSigner);
     await wethContract.deposit({ from: owner, value: depositAmount });
-    await wethContract.transfer(this.adapter.address, depositAmount, {
+    await wethContract.transfer(adapter.address, depositAmount, {
       from: owner,
     });
 
@@ -680,12 +734,12 @@ async function depositToVaultForShorts(depositAmount) {
       await ethers.getContractAt("IUniswapV2Router01", UNISWAP_ROUTER)
     ).connect(ownerSigner);
     const collateralToken = (
-      await ethers.getContractAt("IERC20", this.collateralAsset)
+      await ethers.getContractAt("IERC20", collateralAsset)
     ).connect(ownerSigner);
 
     const amountsOut = await router.getAmountsOut(depositAmount, [
       WETH_ADDRESS,
-      this.collateralAsset,
+      collateralAsset,
     ]);
 
     const amountOutMin = amountsOut[1];
@@ -694,7 +748,7 @@ async function depositToVaultForShorts(depositAmount) {
 
     await router.swapExactETHForTokens(
       amountOutMin,
-      [WETH_ADDRESS, this.collateralAsset],
+      [WETH_ADDRESS, collateralAsset],
       owner,
       Math.floor(Date.now() / 1000) + 69,
       { from: owner, value: depositAmount }
@@ -704,13 +758,9 @@ async function depositToVaultForShorts(depositAmount) {
 
     const depositedCollateralAmount = endBalance.sub(startBalance);
 
-    await collateralToken.transfer(
-      this.adapter.address,
-      depositedCollateralAmount,
-      {
-        from: owner,
-      }
-    );
+    await collateralToken.transfer(adapter.address, depositedCollateralAmount, {
+      from: owner,
+    });
 
     return depositedCollateralAmount;
   }

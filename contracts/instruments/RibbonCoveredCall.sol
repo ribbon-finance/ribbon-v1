@@ -63,6 +63,8 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         address manager
     );
 
+    event WithdrawalFeeSet(uint256 oldFee, uint256 newFee);
+
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
     /**
@@ -149,10 +151,18 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
 
     /**
      * @notice Sets the new withdrawal fee
-     * @param withdrawalFee is the fee paid in tokens when withdrawing
+     * @param newWithdrawalFee is the fee paid in tokens when withdrawing
      */
-    function setWithdrawalFee(uint256 withdrawalFee) external onlyManager {
-        instantWithdrawalFee = withdrawalFee;
+    function setWithdrawalFee(uint256 newWithdrawalFee) external onlyManager {
+        require(newWithdrawalFee > 0, "withdrawalFee != 0");
+
+        // cap max withdrawal fees to 100% of the withdrawal amount
+        require(newWithdrawalFee < 1 ether, "withdrawalFee >= 100%");
+
+        uint256 oldFee = instantWithdrawalFee;
+        emit WithdrawalFeeSet(oldFee, newWithdrawalFee);
+
+        instantWithdrawalFee = newWithdrawalFee;
     }
 
     /**
@@ -187,9 +197,11 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         // added to it from either IWETH.deposit and IERC20.safeTransferFrom
         uint256 total = totalWithDepositedAmount.sub(amount);
 
+        uint256 shareSupply = totalSupply();
+
         // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L104
         uint256 share =
-            total == 0 ? amount : amount.mul(totalSupply()).div(total);
+            shareSupply == 0 ? amount : amount.mul(shareSupply).div(total);
 
         emit Deposit(msg.sender, amount, share);
 
@@ -243,8 +255,18 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     ) external onlyManager nonReentrant {
         address option = adapter.getOptionsAddress(optionTerms);
         require(option != address(0), "!option");
+        OtokenInterface otoken = OtokenInterface(option);
+        require(otoken.underlyingAsset() == asset, "!asset");
+        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC"); // we just assume all options use USDC as the strike
+
+        uint256 readyAt = block.timestamp.add(delay);
+        require(
+            otoken.expiryTimestamp() >= readyAt,
+            "Option expiry cannot be before delay"
+        );
+
         nextOption = option;
-        nextOptionReadyAt = block.timestamp.add(delay);
+        nextOptionReadyAt = readyAt;
     }
 
     /**

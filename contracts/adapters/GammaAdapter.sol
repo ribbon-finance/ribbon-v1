@@ -39,6 +39,8 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
     uint256 private constant OTOKEN_DECIMALS = 10**8;
 
+    uint256 private constant SLIPPAGE_TOLERANCE = 0.75 ether;
+
     // MARGIN_POOL is Gamma protocol's collateral pool. Needed to approve collateral.safeTransferFrom for minting otokens. https://github.com/opynfinance/GammaProtocol/blob/master/contracts/MarginPool.sol
     address public immutable MARGIN_POOL;
 
@@ -208,6 +210,8 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
 
     /**
      * @notice Purchases otokens using a 0x order struct
+     * It is the obligation of the delegate-calling contract to return the remaining
+     * msg.value back to the user.
      * @param optionTerms is the terms of the option contract
      * @param zeroExOrder is the 0x order struct constructed using the 0x API response passed by the frontend.
      */
@@ -219,6 +223,10 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
             msg.value >= zeroExOrder.protocolFee,
             "Value cannot cover protocolFee"
         );
+        require(
+            zeroExOrder.sellTokenAddress == USDC,
+            "Sell token has to be USDC"
+        );
 
         IUniswapV2Router02 router = IUniswapV2Router02(UNISWAP_ROUTER);
 
@@ -228,8 +236,12 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
 
         (, int256 latestPrice, , , ) = USDCETHPriceFeed.latestRoundData();
 
+        // Because we guard that zeroExOrder.sellTokenAddress == USDC
+        // We can assume that the decimals == 6
         uint256 soldETH =
-            zeroExOrder.takerAssetAmount.mul(uint256(latestPrice)).div(10**6);
+            zeroExOrder.takerAssetAmount.mul(uint256(latestPrice)).div(
+                10**assetDecimals(zeroExOrder.sellTokenAddress)
+            );
 
         router.swapETHForExactTokens{value: soldETH}(
             zeroExOrder.takerAssetAmount,
@@ -244,6 +256,11 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
             "Not enough takerAsset balance"
         );
 
+        // double approve to fix non-compliant ERC20s
+        IERC20(zeroExOrder.sellTokenAddress).safeApprove(
+            zeroExOrder.allowanceTarget,
+            0
+        );
         IERC20(zeroExOrder.sellTokenAddress).safeApprove(
             zeroExOrder.allowanceTarget,
             zeroExOrder.takerAssetAmount
@@ -339,7 +356,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         address otokenAddress,
         uint256 profitInCollateral,
         address recipient
-    ) private returns (uint256 profitInUnderlying) {
+    ) internal returns (uint256 profitInUnderlying) {
         OtokenInterface otoken = OtokenInterface(otokenAddress);
         address collateral = otoken.collateralAsset();
         IERC20 collateralToken = IERC20(collateral);
@@ -359,22 +376,35 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
             (bool success, ) = recipient.call{value: profitInCollateral}("");
             require(success, "Failed to transfer exercise profit");
         } else {
+            // just guard against anything that's not USDC
+            // we will revisit opening up other collateral types for puts
+            // when they get added
+            require(collateral == USDC, "!USDC");
+
             address[] memory path = new address[](2);
             path[0] = collateral;
             path[1] = address(weth);
 
-            uint256[] memory amountsOut =
-                router.getAmountsOut(profitInCollateral, path);
-            profitInUnderlying = amountsOut[1];
+            (, int256 latestPrice, , , ) = USDCETHPriceFeed.latestRoundData();
+
+            profitInUnderlying = wdiv(profitInCollateral, uint256(latestPrice))
+                .mul(10**assetDecimals(collateral));
+
             require(profitInUnderlying > 0, "Swap is unprofitable");
 
-            router.swapExactTokensForETH(
-                profitInCollateral,
-                profitInUnderlying,
-                path,
-                recipient,
-                block.timestamp + SWAP_WINDOW
-            );
+            collateralToken.safeApprove(UNISWAP_ROUTER, 0);
+            collateralToken.safeApprove(UNISWAP_ROUTER, profitInCollateral);
+
+            uint256[] memory amountsOut =
+                router.swapExactTokensForETH(
+                    profitInCollateral,
+                    wmul(profitInUnderlying, SLIPPAGE_TOLERANCE),
+                    path,
+                    recipient,
+                    block.timestamp + SWAP_WINDOW
+                );
+
+            profitInUnderlying = amountsOut[1];
         }
     }
 
@@ -420,6 +450,8 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
                 .div(10**collateralDecimals);
         }
 
+        // double approve to fix non-compliant ERC20s
+        collateralToken.safeApprove(MARGIN_POOL, 0);
         collateralToken.safeApprove(MARGIN_POOL, depositAmount);
 
         IController.ActionArgs[] memory actions =

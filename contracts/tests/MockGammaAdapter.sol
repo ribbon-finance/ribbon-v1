@@ -43,4 +43,16 @@ contract MockGammaAdapter is GammaAdapter {
 
         exercise(options, optionID, amount, recipient);
     }
+
+    function swapExercisedProfits(
+        address otokenAddress,
+        uint256 profitInCollateral,
+        address recipient
+    ) external {
+        swapExercisedProfitsToUnderlying(
+            otokenAddress,
+            profitInCollateral,
+            recipient
+        );
+    }
 }

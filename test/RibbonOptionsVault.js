@@ -457,6 +457,14 @@ describe("RibbonCoveredCall", () => {
       // even though the total has been incremented
       assert.isFalse((await this.vault.balanceOf(user)).isZero());
     });
+
+    it("reverts when minimum shares are not minted", async function () {
+      await expect(
+        this.vault.connect(userSigner).depositETH({
+          value: BigNumber.from("10").pow("10").sub(BigNumber.from("1")),
+        })
+      ).to.be.revertedWith(/Minimum share supply needs to be >=10\*\*10/);
+    });
   });
 
   describe("#deposit", () => {

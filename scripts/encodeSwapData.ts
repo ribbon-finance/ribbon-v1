@@ -110,7 +110,7 @@ async function encodeSwapData(orderJSON: any) {
           type: "tuple",
         },
       ],
-      name: "swap",
+      name: "sellOptions",
       outputs: [],
       payable: false,
       stateMutability: "nonpayable",
@@ -120,7 +120,7 @@ async function encodeSwapData(orderJSON: any) {
   let iface = new ethers.utils.Interface(ABI);
 
   console.log("Order JSON:", orderJSON);
-  const encoded = iface.encodeFunctionData("swap", [orderJSON]);
+  const encoded = iface.encodeFunctionData("sellOptions", [orderJSON]);
 
   console.log(`Encoded hex data: ${encoded}`);
 }

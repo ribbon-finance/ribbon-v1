@@ -370,18 +370,23 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         returns (uint256 amountAfterFee, uint256 feeAmount)
     {
         uint256 currentAssetBalance = assetBalance();
-        uint256 withdrawAmount =
-            _withdrawAmountWithShares(share, currentAssetBalance);
+        (
+            uint256 withdrawAmount,
+            uint256 newAssetBalance,
+            uint256 newShareSupply
+        ) = _withdrawAmountWithShares(share, currentAssetBalance);
+
         require(
             withdrawAmount <= currentAssetBalance,
             "Cannot withdraw more than available"
         );
+
         require(
-            shareSupply.sub(share) >= MINIMUM_SUPPLY,
+            newShareSupply >= MINIMUM_SUPPLY,
             "Minimum share supply needs to be >=10**10"
         );
         require(
-            total.sub(withdrawAmount) >= MINIMUM_SUPPLY,
+            newAssetBalance >= MINIMUM_SUPPLY,
             "Minimum asset balance needs to be >=10**10"
         );
 
@@ -392,12 +397,23 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     function _withdrawAmountWithShares(
         uint256 share,
         uint256 currentAssetBalance
-    ) private view returns (uint256) {
+    )
+        private
+        view
+        returns (
+            uint256 withdrawAmount,
+            uint256 newAssetBalance,
+            uint256 newShareSupply
+        )
+    {
         uint256 total = lockedAmount.add(currentAssetBalance);
 
+        uint256 shareSupply = totalSupply();
+
         // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L111
-        uint256 withdrawAmount = share.mul(total).div(totalSupply());
-        return withdrawAmount;
+        withdrawAmount = share.mul(total).div(shareSupply);
+        newAssetBalance = total.sub(withdrawAmount);
+        newShareSupply = shareSupply.sub(share);
     }
 
     function maxWithdrawableShares() public view returns (uint256) {
@@ -441,7 +457,9 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         view
         returns (uint256)
     {
-        return _withdrawAmountWithShares(balanceOf(account), assetBalance());
+        (uint256 withdrawAmount, , ) =
+            _withdrawAmountWithShares(balanceOf(account), assetBalance());
+        return withdrawAmount;
     }
 
     /**

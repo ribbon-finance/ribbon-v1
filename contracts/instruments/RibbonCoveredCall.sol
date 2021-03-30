@@ -40,6 +40,8 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
 
     uint256 public constant delay = 1 days;
 
+    uint256 public constant MINIMUM_SUPPLY = 10**10;
+
     event ManagerChanged(address oldManager, address newManager);
 
     event Deposit(address indexed account, uint256 amount, uint256 share);
@@ -189,6 +191,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
      * @notice Mints the vault shares to the msg.sender
      * @param amount is the amount of `asset` deposited
      */
+
     function _deposit(uint256 amount) private {
         uint256 totalWithDepositedAmount = totalBalance();
         require(totalWithDepositedAmount < cap, "Cap exceeded");
@@ -202,6 +205,15 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L104
         uint256 share =
             shareSupply == 0 ? amount : amount.mul(shareSupply).div(total);
+
+        require(
+            shareSupply.add(share) >= MINIMUM_SUPPLY,
+            "Minimum share supply needs to be >=10**12"
+        );
+        require(
+            total >= MINIMUM_SUPPLY,
+            "Minimum asset balance needs to be >=10**12"
+        );
 
         emit Deposit(msg.sender, amount, share);
 

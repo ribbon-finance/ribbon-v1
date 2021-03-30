@@ -463,7 +463,7 @@ describe("RibbonCoveredCall", () => {
         this.vault.connect(userSigner).depositETH({
           value: BigNumber.from("10").pow("10").sub(BigNumber.from("1")),
         })
-      ).to.be.revertedWith(/Minimum share supply needs to be >=10\*\*12/);
+      ).to.be.revertedWith(/Minimum share supply needs to be >=10\*\*10/);
     });
   });
 

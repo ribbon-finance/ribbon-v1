@@ -208,11 +208,11 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
 
         require(
             shareSupply.add(share) >= MINIMUM_SUPPLY,
-            "Minimum share supply needs to be >=10**12"
+            "Minimum share supply needs to be >=10**10"
         );
         require(
-            total >= MINIMUM_SUPPLY,
-            "Minimum asset balance needs to be >=10**12"
+            totalWithDepositedAmount >= MINIMUM_SUPPLY,
+            "Minimum asset balance needs to be >=10**10"
         );
 
         emit Deposit(msg.sender, amount, share);

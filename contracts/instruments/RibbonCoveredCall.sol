@@ -373,10 +373,20 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         uint256 total = lockedAmount.add(currentAssetBalance);
 
         // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L111
-        uint256 withdrawAmount = share.mul(total).div(totalSupply());
+        uint256 shareSupply = totalSupply();
+
+        uint256 withdrawAmount = share.mul(total).div(shareSupply);
         require(
             withdrawAmount <= currentAssetBalance,
             "Cannot withdraw more than available"
+        );
+        require(
+            shareSupply.sub(share) >= MINIMUM_SUPPLY,
+            "Minimum share supply needs to be >=10**10"
+        );
+        require(
+            total.sub(withdrawAmount) >= MINIMUM_SUPPLY,
+            "Minimum asset balance needs to be >=10**10"
         );
 
         feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
@@ -386,7 +396,10 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     function maxWithdrawableShares() public view returns (uint256) {
         uint256 withdrawableBalance = assetBalance();
         uint256 total = lockedAmount.add(assetBalance());
-        return withdrawableBalance.mul(totalSupply()).div(total);
+        return
+            withdrawableBalance.mul(totalSupply()).div(total).sub(
+                MINIMUM_SUPPLY
+            );
     }
 
     /**

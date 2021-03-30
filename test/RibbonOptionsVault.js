@@ -14,7 +14,6 @@ const {
   setupOracle,
   setOpynOracleExpiryPrice,
   whitelistProduct,
-  parseLog,
 } = require("./helpers/utils");
 const moment = require("moment");
 
@@ -212,6 +211,9 @@ describe("RibbonCoveredCall", () => {
         (await this.vault.instantWithdrawalFee()).toString(),
         parseEther("0.005").toString()
       );
+      assert.equal(await this.vault.SWAP_CONTRACT(), SWAP_ADDRESS);
+      assert.equal(await this.vault.WETH(), WETH_ADDRESS);
+      assert.equal(await this.vault.USDC(), USDC_ADDRESS);
     });
 
     it("cannot be initialized twice", async function () {
@@ -307,7 +309,7 @@ describe("RibbonCoveredCall", () => {
     it("sets the first manager", async function () {
       await this.vault.connect(ownerSigner).setManager(manager);
       assert.equal(await this.vault.manager(), manager);
-      assert.isTrue(
+      assert.isFalse(
         await this.airswap.senderAuthorizations(this.vault.address, manager)
       );
     });
@@ -319,7 +321,7 @@ describe("RibbonCoveredCall", () => {
       assert.isFalse(
         await this.airswap.senderAuthorizations(this.vault.address, owner)
       );
-      assert.isTrue(
+      assert.isFalse(
         await this.airswap.senderAuthorizations(this.vault.address, manager)
       );
     });
@@ -910,7 +912,7 @@ describe("RibbonCoveredCall", () => {
         buyAmount: this.premium.toString(),
       });
 
-      await this.airswap.connect(managerSigner).swap(signedOrder);
+      await this.vault.connect(managerSigner).sellOptions(signedOrder);
 
       await this.vault
         .connect(managerSigner)
@@ -973,7 +975,7 @@ describe("RibbonCoveredCall", () => {
         buyAmount: this.premium.toString(),
       });
 
-      await this.airswap.connect(managerSigner).swap(signedOrder);
+      await this.vault.connect(managerSigner).sellOptions(signedOrder);
 
       // only the premium should be left over because the funds are locked into Opyn
       assert.equal(
@@ -1062,7 +1064,7 @@ describe("RibbonCoveredCall", () => {
         buyAmount: this.premium.toString(),
       });
 
-      await this.airswap.connect(managerSigner).swap(signedOrder);
+      await this.vault.connect(managerSigner).sellOptions(signedOrder);
 
       // only the premium should be left over because the funds are locked into Opyn
       assert.equal(
@@ -1152,7 +1154,7 @@ describe("RibbonCoveredCall", () => {
     });
   });
 
-  describe("Swapping with counterparty", () => {
+  describe("#sellOptions", () => {
     time.revertToSnapshotAfterEach(async function () {
       this.premium = parseEther("0.1");
       this.depositAmount = parseEther("1");
@@ -1185,7 +1187,9 @@ describe("RibbonCoveredCall", () => {
         buyAmount: this.premium.toString(),
       });
 
-      const res = await this.airswap.connect(managerSigner).swap(signedOrder);
+      const res = await this.vault
+        .connect(managerSigner)
+        .sellOptions(signedOrder);
 
       await expect(res)
         .to.emit(this.oToken, "Transfer")

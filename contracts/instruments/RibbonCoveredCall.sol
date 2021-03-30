@@ -14,7 +14,7 @@ import {
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
-import {ISwap} from "../interfaces/ISwap.sol";
+import {ISwap, Types} from "../interfaces/ISwap.sol";
 import {OtokenInterface} from "../interfaces/GammaInterface.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 
@@ -126,7 +126,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Sets the new manager of the vault. Revoke the airswap signer authorization from the old manager, and authorize the manager.
+     * @notice Sets the new manager of the vault.
      * @param newManager is the new manager of the vault
      */
     function setManager(address newManager) external onlyOwner {
@@ -135,11 +135,6 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         manager = newManager;
 
         emit ManagerChanged(oldManager, newManager);
-
-        if (oldManager != address(0)) {
-            SWAP_CONTRACT.revokeSender(oldManager);
-        }
-        SWAP_CONTRACT.authorizeSender(newManager);
     }
 
     /**
@@ -333,6 +328,24 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
 
         uint256 withdrawAmount = adapter.delegateCloseShort();
         emit CloseShort(oldOption, withdrawAmount, msg.sender);
+    }
+
+    /**
+     * @notice Performs a swap of `currentOption` token to `asset` token with a counterparty
+     * @param order is an Airswap order
+     */
+    function sellOptions(Types.Order calldata order) external onlyManager {
+        require(
+            order.sender.wallet == address(this),
+            "Sender can only be vault"
+        );
+        require(
+            order.sender.token == currentOption,
+            "Can only sell currentOption"
+        );
+        require(order.signer.token == asset, "Can only buy with asset token");
+
+        SWAP_CONTRACT.swap(order);
     }
 
     /**

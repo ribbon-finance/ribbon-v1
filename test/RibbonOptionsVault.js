@@ -1210,6 +1210,54 @@ describe("RibbonCoveredCall", () => {
         startBuyTokenBalance.add(this.premium)
       );
     });
+
+    it("reverts when not selling option token", async function () {
+      const signedOrder = await signOrderForSwap({
+        vaultAddress: this.vault.address,
+        counterpartyAddress: counterparty,
+        signerPrivateKey: this.counterpartyWallet.privateKey,
+        sellToken: constants.AddressZero,
+        buyToken: WETH_ADDRESS,
+        sellAmount: this.sellAmount.toString(),
+        buyAmount: this.premium.toString(),
+      });
+
+      await expect(
+        this.vault.connect(managerSigner).sellOptions(signedOrder)
+      ).to.be.revertedWith("Can only sell currentOption");
+    });
+
+    it("reverts when not buying asset token", async function () {
+      const signedOrder = await signOrderForSwap({
+        vaultAddress: this.vault.address,
+        counterpartyAddress: counterparty,
+        signerPrivateKey: this.counterpartyWallet.privateKey,
+        sellToken: this.oTokenAddress,
+        buyToken: constants.AddressZero,
+        sellAmount: this.sellAmount.toString(),
+        buyAmount: this.premium.toString(),
+      });
+
+      await expect(
+        this.vault.connect(managerSigner).sellOptions(signedOrder)
+      ).to.be.revertedWith("Can only buy with asset token");
+    });
+
+    it("reverts when sender.wallet is not vault", async function () {
+      const signedOrder = await signOrderForSwap({
+        vaultAddress: constants.AddressZero,
+        counterpartyAddress: counterparty,
+        signerPrivateKey: this.counterpartyWallet.privateKey,
+        sellToken: this.oTokenAddress,
+        buyToken: WETH_ADDRESS,
+        sellAmount: this.sellAmount.toString(),
+        buyAmount: this.premium.toString(),
+      });
+
+      await expect(
+        this.vault.connect(managerSigner).sellOptions(signedOrder)
+      ).to.be.revertedWith("Sender can only be vault");
+    });
   });
 
   describe("#assetBalance", () => {

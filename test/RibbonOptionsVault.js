@@ -35,6 +35,7 @@ const OPTION_DELAY = 60 * 60 * 24; // 1 day
 const LOCKED_RATIO = parseEther("0.9");
 const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
 const gasPrice = parseUnits("1", "gwei");
+const WITHDRAWAL_FEE = parseEther("0.005");
 
 describe("RibbonCoveredCall", () => {
   let initSnapshotId;
@@ -1387,14 +1388,25 @@ describe("RibbonCoveredCall", () => {
       ).to.be.revertedWith("ERC20: burn amount exceeds balance");
     });
 
-    it("should be able to withdraw everything from the vault", async function () {
+    it("should be able to withdraw everything from the vault, leaving behind minimum", async function () {
       await this.vault.depositETH({ value: parseEther("1") });
 
       // simulate setting a bad otoken
       await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
 
       // users should have time to withdraw
-      await this.vault.withdrawETH(parseEther("1"));
+      await this.vault.withdrawETH(
+        parseEther("1").sub(await this.vault.MINIMUM_SUPPLY())
+      );
+    });
+
+    it("should revert when burning past minimum supply", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      // Only 1 ether - MINIMUM_SUPPLY works
+      await expect(
+        this.vault.withdrawETH(parseEther("1").sub(BigNumber.from("1")))
+      ).to.be.revertedWith(/Minimum share supply needs to be >=10\*\*10/);
     });
   });
 
@@ -1425,11 +1437,19 @@ describe("RibbonCoveredCall", () => {
     time.revertToSnapshotAfterEach();
 
     it("returns the max withdrawable amount when the withdrawal amount is more than available", async function () {
-      await this.vault.depositETH({ value: parseEther("1") });
+      const depositAmount = parseEther("1");
+
+      const minWithdrawAmount = depositAmount.sub(
+        await this.vault.MINIMUM_SUPPLY()
+      );
+
+      await this.vault.depositETH({ value: depositAmount });
 
       assert.equal(
         (await this.vault.maxWithdrawAmount(user)).toString(),
-        parseEther("0.995")
+        minWithdrawAmount
+          .sub(wmul(minWithdrawAmount, WITHDRAWAL_FEE))
+          .toString()
       );
     });
 
@@ -1441,7 +1461,7 @@ describe("RibbonCoveredCall", () => {
 
       assert.equal(
         (await this.vault.maxWithdrawAmount(user)).toString(),
-        parseEther("0.995")
+        parseEther("0.995").toString()
       );
     });
   });
@@ -1454,7 +1474,9 @@ describe("RibbonCoveredCall", () => {
 
       assert.equal(
         (await this.vault.maxWithdrawableShares()).toString(),
-        parseEther("1").toString()
+        parseEther("1")
+          .sub(await this.vault.MINIMUM_SUPPLY())
+          .toString()
       );
     });
   });

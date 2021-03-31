@@ -45,17 +45,20 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     event Exercised(
         address indexed account,
         uint256 indexed positionID,
-        uint256 totalProfit,
-        bool[] optionsExercised
+        uint256 totalProfit
     );
 
     struct BuyInstrumentParams {
-        uint8 putVenue;
         address paymentToken;
         uint256 putStrikePrice;
-        uint256 amount;
+        uint256 optionAmount;
         uint256 putMaxCost;
-        bytes putBuyData;
+        uint256 expiry;
+        uint256 lpAmt;
+        string exchangeName;
+        uint256 tradeAmt;
+        uint256 minWbtcAmtOut;
+        uint256 minDiggAmtOut;
     }
 
     using AmmAdapter for IAmmAdapter;
@@ -68,6 +71,7 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     IAmmAdapter public immutable iUniswapAdapter;
     IUniswapV2Pair public immutable ethWbtcPair;
     IHegicOptions public immutable options;
+
     address payable public uniswapAdapterAddress;
     string private constant adapterName = "HEGIC";
     string private constant instrumentName = "wbtc/digg-staked-put";
@@ -76,72 +80,59 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     uint256 private constant month = 172800;
     bytes32 private constant uniswapHash = keccak256(abi.encodePacked("UNISWAP"));
     string public constant venue = 'HEGIC';
+    uint8 public constant venueID = 1;
     ProtocolAdapterTypes.OptionType public constant optionType = ProtocolAdapterTypes.OptionType.Put;
     address public immutable ethAddress;
     address public immutable wbtcAddress;
-    address public underlying;
-    address public strikeAsset;
-    address public collateralAsset;
-    address public optionsAddress;
+    address public immutable underlying;
+    address public immutable strikeAsset;
+    address public immutable collateralAsset;
+    address public immutable optionsAddress;
 
 
-    constructor(address _factory, address payable _uniswapAdapterAddress, address ethWbtcPairAddr, address _ethAddress, address _wbtcAddress, address _wbtcOptionsAddress) {
+    constructor(address _factory, address payable _uniswapAdapterAddress, address ethWbtcPairAddr, address _ethAddress, address _wbtcAddress, address _wbtcOptionsAddress, address _collateralAsset) {
         require(_factory != address(0), "!_factory");
         IRibbonFactory factoryInstance = IRibbonFactory(_factory);
 
         ethAddress = _ethAddress;
         wbtcAddress = _wbtcAddress;
+        underlying = _wbtcAddress;
+        strikeAsset = _wbtcAddress;
+        collateralAsset = _collateralAsset;
+
         iUniswapAdapter = IAmmAdapter(_uniswapAdapterAddress);
         uniswapAdapterAddress = _uniswapAdapterAddress;
         ethWbtcPair = IUniswapV2Pair(ethWbtcPairAddr);
         address adapterAddress = factoryInstance.getAdapter(adapterName);
         require(adapterAddress != address(0), "Adapter not set");
         options = IHegicOptions(_wbtcOptionsAddress);
+
         factory = factoryInstance;
         adapter = IProtocolAdapter(adapterAddress);
         optionsAddress = _wbtcOptionsAddress;
-    }
-
-    /**
-     * @notice Initializes the OptionVault contract with an owner and a factory.
-     * @param _owner is the owner of the contract who can set the manager
-     * @param _initCap is the initial vault's cap on deposits, the manager can increase this as necessary
-     */
-    function initialize(address _owner, uint256 _initCap, address _underlying, address _strikeAsset, address _collateralAsset) external initializer {
-        require(_owner != address(0), "!_owner");
-        require(_initCap > 0, "_initCap > 0");
-        underlying = _underlying;
-        strikeAsset = _strikeAsset;
-        collateralAsset = _collateralAsset;
 
     }
 
-function getName() public view returns(string memory)
+    function initialize() external initializer {
+    }
+
+    function getName() public pure returns(string memory)
     {
         return instrumentName;
     }
 
-function getCurrentPrice() public view returns(uint256)
+    function getCurrentPrice() public view returns(uint256)
     {
-
-        AggregatorV3Interface priceProvider =
-            AggregatorV3Interface(options.priceProvider());
+        AggregatorV3Interface priceProvider = AggregatorV3Interface(options.priceProvider());
         (, int256 latestPrice, , , ) = priceProvider.latestRoundData();
         uint256 currentPrice = uint256(latestPrice);
         return currentPrice.mul(10000000000);
     }
 
-function getInputs(address inputToken, uint256 amt, string memory exchangeName) public view returns(uint256 wbtcSize, uint256 expDigg, uint256 tradeAmt, uint256 premium, uint256 totalCost,uint256 currentPrice, uint256 expiry)
+    function getInputs(address inputToken, uint256 amt, string memory exchangeName) public view returns(uint256 wbtcSize, uint256 expDigg, uint256 tradeAmt, uint256 premium, uint256 totalCost,uint256 currentPrice, uint256 expiry)
     {
-        if (inputToken == ethAddress){
-                wbtcSize = iUniswapAdapter.expectedWbtcOut(amt, exchangeName);
-        }
-        else if (inputToken == wbtcAddress) {
-                wbtcSize = amt;
-        }
-        else{
-                require(false, 'invalid input token');
-        }
+        require(inputToken == ethAddress, 'invalid input token');
+        wbtcSize = iUniswapAdapter.expectedWbtcOut(amt, exchangeName);
 
         (expDigg, tradeAmt) = iUniswapAdapter.expectedDiggOut(wbtcSize, exchangeName);
 
@@ -159,33 +150,33 @@ function getInputs(address inputToken, uint256 amt, string memory exchangeName) 
                     inputToken
                 );
 
-        IProtocolAdapter adapter =
-            IProtocolAdapter(factory.getAdapter(venue));
 
         premium = adapter.premium(optionTerms, wbtcSize);
 
         totalCost = amt + premium;
     }
 
-function buyInstrument(BuyInstrumentParams calldata params, uint256 expiry, address tokenInput, uint256 amt, string memory exchangeName, uint256 tradeAmt, uint256 minWbtcAmtOut, uint256 minDiggAmtOut) public payable
+    function buyInstrument(BuyInstrumentParams calldata params) public payable
     {
-        buyLpFromAdapter(tokenInput, amt, exchangeName, tradeAmt, minWbtcAmtOut, minDiggAmtOut);
-        uint256 positionID = buyPutFromAdapter(params, expiry);
+        require(params.paymentToken == ethAddress, 'input must be eth');
+        buyLpFromAdapter(params.paymentToken, params.lpAmt, params.exchangeName, params.tradeAmt, params.minWbtcAmtOut,params.minDiggAmtOut);
+
+        uint256 positionID = buyPutFromAdapter(params);
 
         emit PositionCreated(
                 msg.sender,
                 positionID,
-                exchangeName,
-                amt
+                params.exchangeName,
+                params.lpAmt
         );
     }
 
-function buyLpFromAdapter(address tokenInput, uint256 amt, string memory exchangeName, uint256 tradeAmt, uint256 minWbtcAmtOut, uint256 minDiggAmtOut) public payable
+    function buyLpFromAdapter(address tokenInput, uint256 amt, string memory exchangeName, uint256 tradeAmt, uint256 minWbtcAmtOut, uint256 minDiggAmtOut) public payable
     {
         iUniswapAdapter.delegateBuyLp(tokenInput, amt, exchangeName, tradeAmt, minWbtcAmtOut, minDiggAmtOut);
     }
 
-function exercisePosition(uint256 positionID)
+    function exercisePosition(uint256 positionID)
         external
         nonReentrant
         returns (uint256 totalProfit)
@@ -194,32 +185,11 @@ function exercisePosition(uint256 positionID)
             instrumentPositions[msg.sender][positionID];
         require(!position.exercised, "Already exercised");
 
-        bool[] memory optionsExercised = new bool[](2);
-        IProtocolAdapter adapter =
-            IProtocolAdapter(factory.getAdapter(adapterName));
-
         uint256 strikePrice;
         uint32 optionID;
 
         strikePrice = position.putStrikePrice;
         optionID = position.putOptionID;
-
-        address paymentToken = address(0); // it is irrelevant at this stage
-
-        address optionsAddress =
-            adapter.getOptionsAddress(
-                ProtocolAdapterTypes.OptionTerms(
-                    underlying,
-                    strikeAsset,
-                    collateralAsset,
-                    position.expiry,
-                    strikePrice,
-                    optionType,
-                    paymentToken
-                )
-            );
-
-        require(optionsAddress != address(0), "Options address must exist");
 
         uint256 amount = position.amount;
 
@@ -236,18 +206,16 @@ function exercisePosition(uint256 positionID)
                 amount,
                 msg.sender
             );
-            optionsExercised[0] = true;
-        } else {
-            optionsExercised[0] = false;
         }
+
         totalProfit += profit;
 
         position.exercised = true;
 
-        emit Exercised(msg.sender, positionID, totalProfit, optionsExercised);
+        emit Exercised(msg.sender, positionID, totalProfit);
     }
 
-function exerciseProfit(address account, uint256 positionID)
+    function exerciseProfit(address account, uint256 positionID)
         external
         view
         returns (uint256)
@@ -269,26 +237,13 @@ function exerciseProfit(address account, uint256 positionID)
 
         address adapterAddress = factory.getAdapter(venue);
         require(adapterAddress != address(0), "Adapter does not exist");
-        IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
-        address options =
-            adapter.getOptionsAddress(
-                ProtocolAdapterTypes.OptionTerms(
-                    underlying,
-                    strikeAsset,
-                    collateralAsset,
-                    position.expiry,
-                    strikePrice,
-                    optionType,
-                    address(0) // paymentToken is not used at all nor stored in storage
-                )
-            );
 
-        bool exercisable = adapter.canExercise(options, optionID, amount);
+        bool exercisable = adapter.canExercise(optionsAddress, optionID, amount);
         if (!exercisable) {
             return 0;
         }
 
-        profit += adapter.delegateExerciseProfit(options, optionID, amount);
+        profit += adapter.delegateExerciseProfit(optionsAddress, optionID, amount);
         return profit;
     }
 
@@ -302,7 +257,7 @@ function exerciseProfit(address account, uint256 positionID)
 
         if (position.exercised) return false;
 
-        bool eitherOneCanExercise = false;
+        bool canExercisePut = false;
 
         uint256 strikePrice;
         uint32 optionID;
@@ -312,59 +267,50 @@ function exerciseProfit(address account, uint256 positionID)
 
         address adapterAddress = factory.getAdapter(venue);
         require(adapterAddress != address(0), "Adapter does not exist");
-        IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
-
-        address options =
-            adapter.getOptionsAddress(
-                ProtocolAdapterTypes.OptionTerms(
-                    underlying,
-                    strikeAsset,
-                    address(0), // collateralAsset not needed
-                    position.expiry,
-                    strikePrice,
-                    optionType,
-                    address(0) // paymentToken is not used nor stored in storage
-                )
-            );
 
         bool canExerciseOptions =
-            adapter.canExercise(options, optionID, position.amount);
+            adapter.canExercise(optionsAddress, optionID, position.amount);
 
         if (canExerciseOptions) {
-            eitherOneCanExercise = true;
+            canExercisePut = true;
         }
-        return eitherOneCanExercise;
+        return canExercisePut;
     }
 
-//make this private for production
-function buyPutFromAdapter(BuyInstrumentParams calldata params, uint256 expiry)
+//make this internal for production
+    function buyPutFromAdapter(BuyInstrumentParams calldata params)
        public
         payable
         nonReentrant
         returns (uint256 positionID)
     {
-        require(block.timestamp < expiry, "Cannot purchase after expiry");
+        require(block.timestamp < params.expiry, "Cannot purchase after expiry");
 
-        uint32 putOptionID =
-            purchaseOptionAtVenue(
-                venue,
-                ProtocolAdapterTypes.OptionType.Put,
-                params.amount,
+        address adapterAddress = factory.getAdapter(venue);
+        require(adapterAddress != address(0), "Adapter does not exist");
+
+        ProtocolAdapterTypes.OptionTerms memory optionTerms = ProtocolAdapterTypes.OptionTerms(
+                underlying,
+                strikeAsset,
+                collateralAsset,
+                params.expiry,
                 params.putStrikePrice,
-                params.putBuyData,
-                params.paymentToken,
-                params.putMaxCost,
-                expiry
+                optionType,
+                params.paymentToken
             );
+
+        uint256 optionID256 =
+            adapter.delegatePurchase(optionTerms, params.optionAmount, params.putMaxCost);
+        uint32 optionID = uint32(optionID256);
 
         InstrumentPosition memory position =
             InstrumentPosition(
                 false,
-                params.putVenue,
-                putOptionID,
-                params.amount,
+                venueID,
+                optionID,
+                params.optionAmount,
                 params.putStrikePrice,
-                expiry
+                params.expiry
             );
 
         positionID = instrumentPositions[msg.sender].length;
@@ -373,65 +319,5 @@ function buyPutFromAdapter(BuyInstrumentParams calldata params, uint256 expiry)
         uint256 balance = address(this).balance;
         if (balance > 0) payable(msg.sender).transfer(balance);
     }
-
-    function purchaseOptionAtVenue(
-        string memory venue,
-        ProtocolAdapterTypes.OptionType optionType,
-        uint256 amount,
-        uint256 strikePrice,
-        bytes memory buyData,
-        address paymentToken,
-        uint256 maxCost,
-        uint256 expiry
-    ) private returns (uint32 optionID) {
-        address adapterAddress = factory.getAdapter(venue);
-        require(adapterAddress != address(0), "Adapter does not exist");
-        IProtocolAdapter adapter = IProtocolAdapter(adapterAddress);
-
-        require(
-            optionType != ProtocolAdapterTypes.OptionType.Invalid,
-            "Invalid option type"
-        );
-
-        uint256 _expiry = expiry;
-
-            optionID = purchaseWithContract(
-                adapter,
-                optionType,
-                amount,
-                strikePrice,
-                paymentToken,
-                maxCost,
-                _expiry
-            );
-
-    }
-
-
-    function purchaseWithContract(
-        IProtocolAdapter adapter,
-        ProtocolAdapterTypes.OptionType optionType,
-        uint256 amount,
-        uint256 strikePrice,
-        address paymentToken,
-        uint256 maxCost,
-        uint256 _expiry
-    ) private returns (uint32 optionID) {
-        ProtocolAdapterTypes.OptionTerms memory optionTerms =
-            ProtocolAdapterTypes.OptionTerms(
-                underlying,
-                strikeAsset,
-                collateralAsset,
-                _expiry,
-                strikePrice,
-                optionType,
-                paymentToken
-            );
-
-        uint256 optionID256 =
-            adapter.delegatePurchase(optionTerms, amount, maxCost);
-        optionID = uint32(optionID256);
-    }
-
 
 }

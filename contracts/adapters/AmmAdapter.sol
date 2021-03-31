@@ -10,10 +10,7 @@ ying IProtocolAdapter functions.
  */
 library AmmAdapter {
 
-function delegateBuyLp(
-      IAmmAdapter adapter, address tokenInput, uint256 amt, string memory exchangeName, uint256 tradeAmt, uint256
- minWbtcAmtOut, uint256 minDiggAmtOut
-    ) external {
+    function delegateBuyLp(IAmmAdapter adapter, address tokenInput, uint256 amt, string memory exchangeName, uint256 tradeAmt, uint256 minWbtcAmtOut, uint256 minDiggAmtOut) external {
         (bool success, bytes memory result) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
@@ -22,7 +19,6 @@ function delegateBuyLp(
                 )
             );
         revertWhenFail(success, result);
-       // return abi.decode(result, (uint256));
     }
 
     function revertWhenFail(bool success, bytes memory returnData)
@@ -41,7 +37,7 @@ function delegateBuyLp(
         returns (string memory)
     {
         // If the _res length is less than 68, then the transaction failed silently (without a revert message)
-        //if (_returnData.length < 68) return "ProtocolAdapter: reverted";
+        if (_returnData.length < 68) return "ProtocolAdapter: reverted";
 
         assembly {
             // Slice the sighash.

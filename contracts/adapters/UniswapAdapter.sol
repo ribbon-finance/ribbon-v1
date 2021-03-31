@@ -85,11 +85,8 @@ contract UniswapAdapter {
 
     function validateExchange(string memory exchangeName) internal pure returns (Exchange){
         if (keccak256(abi.encodePacked(exchangeName)) == sushiswapHash){
-                return Exchange.Sushiswap;
+            return Exchange.Sushiswap;
         }
-//        else if (keccak256(abi.encodePacked(exchangeName)) == uniswapHash){
-//                return Exchange.Uniswap;
-//        }
         require(false, 'invalid exchange');
     }
 
@@ -108,20 +105,20 @@ contract UniswapAdapter {
     function expectedDiggOut(uint256 wbtcAmt, string memory exchangeName) public view returns (uint256 diggOut, uint256 tradeAmt){
         Exchange exchange = validateExchange(exchangeName);
         if (exchange == Exchange.Uniswap){
-                (uint112 reserveAmt,,) = IUniswapV2Pair(wbtcDiggUniswap).getReserves();
-                tradeAmt = getSwapAmt(reserveAmt, wbtcAmt);
-                address[] memory path = new address[](2);
-                path[0] = wbtcAddress;
-                path[1] = diggAddress;
-                diggOut = uniswapRouter.getAmountsOut(tradeAmt, path)[1];
+            (uint112 reserveAmt,,) = IUniswapV2Pair(wbtcDiggUniswap).getReserves();
+            tradeAmt = getSwapAmt(reserveAmt, wbtcAmt);
+            address[] memory path = new address[](2);
+            path[0] = wbtcAddress;
+            path[1] = diggAddress;
+            diggOut = uniswapRouter.getAmountsOut(tradeAmt, path)[1];
         }
         else if (exchange == Exchange.Sushiswap){
-                (uint112 reserveAmt,,) = IUniswapV2Pair(wbtcDiggSushiswap).getReserves();
-                tradeAmt = getSwapAmt(reserveAmt,wbtcAmt);
-                address[] memory path = new address[](2);
-                path[0] = wbtcAddress;
-                path[1] = diggAddress;
-                diggOut = uniswapRouter.getAmountsOut(tradeAmt, path)[1];
+            (uint112 reserveAmt,,) = IUniswapV2Pair(wbtcDiggSushiswap).getReserves();
+            tradeAmt = getSwapAmt(reserveAmt,wbtcAmt);
+            address[] memory path = new address[](2);
+            path[0] = wbtcAddress;
+            path[1] = diggAddress;
+            diggOut = uniswapRouter.getAmountsOut(tradeAmt, path)[1];
         }
     }
 
@@ -159,7 +156,7 @@ contract UniswapAdapter {
         path[0] = addr1;
         path[1] = addr2;
         if (wbtcToken.allowance(address(this), address(router)) == 0){
-                SafeERC20.safeApprove(wbtcToken, address(router), type(uint256).max);
+            SafeERC20.safeApprove(wbtcToken, address(router), type(uint256).max);
         }
         uint256 amtOut = router.swapExactTokensForTokens(amount,amountOutMin, path, address(this), deadline)[1];
         return amtOut;
@@ -168,11 +165,11 @@ contract UniswapAdapter {
     function _addLiquidity(address token1,address token2,uint256 amount1,uint256 amount2, IUniswapV2Router02 router) internal returns (uint256){
         uint deadline = block.timestamp + deadlineBuffer;
         if (wbtcToken.allowance(address(this), address(router)) < amount1){
-                        SafeERC20.safeApprove(wbtcToken, address(router), type(uint256).max);
-                }
+            SafeERC20.safeApprove(wbtcToken, address(router), type(uint256).max);
+        }
         if (diggToken.allowance(address(this), address(router)) < amount2){
-                        SafeERC20.safeApprove(diggToken, address(router), type(uint256).max);
-                }
+            SafeERC20.safeApprove(diggToken, address(router), type(uint256).max);
+        }
         (,, uint256 lpAmt) = router.addLiquidity(token1,token2, amount1, amount2, 0, 0, address(this), deadline);
         return lpAmt;
     }
@@ -182,14 +179,14 @@ contract UniswapAdapter {
     // Provides liquidity and transfers lp token to msg.sender
     function _buyLp( uint256 userWbtcBal, Exchange exchange, address traderAccount, uint256 tradeAmt, uint256 minDiggAmtOut)  internal{
         if (exchange == Exchange.Uniswap){
-                uint256 diggAmt = convertTokenToToken(wbtcAddress, diggAddress, tradeAmt, minDiggAmtOut, exchange);
-                uint256 lpAmt = addLiquidity(wbtcAddress, diggAddress, userWbtcBal, diggAmt, exchange);
-                wbtcDiggUniswap.transfer(traderAccount, lpAmt);
+            uint256 diggAmt = convertTokenToToken(wbtcAddress, diggAddress, tradeAmt, minDiggAmtOut, exchange);
+            uint256 lpAmt = addLiquidity(wbtcAddress, diggAddress, userWbtcBal, diggAmt, exchange);
+            wbtcDiggUniswap.transfer(traderAccount, lpAmt);
         }
         else if (exchange == Exchange.Sushiswap){
-                uint256 diggAmt = convertTokenToToken(wbtcAddress, diggAddress, tradeAmt, minDiggAmtOut, exchange);
-                uint256 lpAmt = addLiquidity(wbtcAddress, diggAddress, userWbtcBal, diggAmt, exchange);
-                wbtcDiggSushiswap.transfer(traderAccount, lpAmt);
+            uint256 diggAmt = convertTokenToToken(wbtcAddress, diggAddress, tradeAmt, minDiggAmtOut, exchange);
+            uint256 lpAmt = addLiquidity(wbtcAddress, diggAddress, userWbtcBal, diggAmt, exchange);
+            wbtcDiggSushiswap.transfer(traderAccount, lpAmt);
         }
     }
 
@@ -200,14 +197,14 @@ contract UniswapAdapter {
     function buyLp(address tokenInput, uint256 amt, string memory exchangeName, uint256 tradeAmt, uint256 minWbtcAmtOut, uint256 minDiggAmtOut) payable public{
         Exchange exchange = validateExchange(exchangeName);
         if (tokenInput == ethAddress){
-                require(msg.value >= amt, 'not enough funds');
-                uint256 wbtcAmt = convertEthToToken( amt, wbtcAddress, minWbtcAmtOut, exchange);
-                _buyLp( wbtcAmt, exchange, msg.sender, tradeAmt, minDiggAmtOut);
+            require(msg.value >= amt, 'not enough funds');
+            uint256 wbtcAmt = convertEthToToken( amt, wbtcAddress, minWbtcAmtOut, exchange);
+            _buyLp( wbtcAmt, exchange, msg.sender, tradeAmt, minDiggAmtOut);
         }
         else if (tokenInput == wbtcAddress){
-                require(wbtcToken.balanceOf(msg.sender) >= amt, 'not enough funds');
-                wbtcToken.transferFrom(msg.sender, address(this), amt);
-                _buyLp( amt, exchange, msg.sender,tradeAmt, minDiggAmtOut);
+            require(wbtcToken.balanceOf(msg.sender) >= amt, 'not enough funds');
+            wbtcToken.transferFrom(msg.sender, address(this), amt);
+            _buyLp( amt, exchange, msg.sender,tradeAmt, minDiggAmtOut);
        }
     }
 }

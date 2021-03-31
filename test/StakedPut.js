@@ -114,20 +114,8 @@ describe.skip("StakedPut", () => {
     //await factory.setAdapter("UNISWAP", this.uniswapAdapter.address);
     this.uniswapAdapterAddress = this.uniswapAdapter.address;
 
-    const initializeTypes = [
-      "address",
-      "uint256",
-      "address",
-      "address",
-      "address",
-    ];
-    const initializeArgs = [
-      owner,
-      parseEther("500"),
-      WBTC_ADDRESS,
-      WBTC_ADDRESS,
-      USDC_ADDRESS,
-    ];
+    const initializeTypes = [];
+    const initializeArgs = [];
     const deployArgs = [
       factory.address,
       this.uniswapAdapterAddress,
@@ -135,6 +123,7 @@ describe.skip("StakedPut", () => {
       ETH_ADDRESS,
       WBTC_ADDRESS,
       WBTC_OPTIONS_ADDRESS,
+      USDC_ADDRESS,
     ];
     this.instrument = (
       await deployProxy(
@@ -190,7 +179,8 @@ describe.skip("StakedPut", () => {
           ETH_WBTC_PAIR,
           ETH_ADDRESS,
           WBTC_ADDRESS,
-          WBTC_OPTIONS_ADDRESS
+          WBTC_OPTIONS_ADDRESS,
+          USDC_ADDRESS
         )
       ).to.be.revertedWith("!_factory");
     });
@@ -202,16 +192,9 @@ describe.skip("StakedPut", () => {
     });
 
     it("cannot be initialized twice", async function () {
-      await expect(
-        this.instrument.initialize(
-          owner,
-          parseEther("500"),
-          WBTC_ADDRESS,
-          WBTC_ADDRESS,
-          USDC_ADDRESS
-        )
-        //WBTC_OPTIONS_ADDRESS)
-      ).to.be.revertedWith("Initializable: contract is already initialized");
+      await expect(this.instrument.initialize()).to.be.revertedWith(
+        "Initializable: contract is already initialized"
+      );
     });
   });
   describe.skip("#name", () => {
@@ -255,8 +238,27 @@ describe.skip("StakedPut", () => {
     exchangeName: "SUSHISWAP",
     lpPurchaseAmount: BigNumber.from("100000000000000000000"),
     paymentToken: ETH_ADDRESS,
-    amounts: [parseUnits("1", 3), parseUnits("1", 8)],
-    strikePrices: [parseEther("45000"), parseEther("34000")],
+    amounts: [parseUnits("1", 3)],
+    strikePrices: [parseEther("45000")],
+    purchaseAmount: parseUnits("1", 15),
+  });
+  behavesLikeStakedPut({
+    name: "Hegic ITM Put, SUSHISWAP LP, ETH PMT SMALL AMT",
+    exchangeName: "SUSHISWAP",
+    lpPurchaseAmount: BigNumber.from("1000000000000000"),
+    paymentToken: ETH_ADDRESS,
+    amounts: [parseUnits("1", 3)],
+    strikePrices: [parseEther("45000")],
+    purchaseAmount: parseUnits("1", 15),
+  });
+
+  behavesLikeStakedPut({
+    name: "Hegic OTM Put, SUSHISWAP LP, ETH PMT SMALL AMT",
+    exchangeName: "SUSHISWAP",
+    lpPurchaseAmount: BigNumber.from("1000000000000000"),
+    paymentToken: ETH_ADDRESS,
+    amounts: [parseUnits("1", 3)],
+    strikePrices: [parseEther("20000")],
     purchaseAmount: parseUnits("1", 15),
   });
 
@@ -278,7 +280,7 @@ describe.skip("StakedPut", () => {
   //                                            strikePrices: [parseEther("25000"), parseEther("34000")],
   //                                            purchaseAmount: parseUnits("1", 15),
   //                                          });
-  //      behavesLikeStakedPut({
+  //     behavesLikeStakedPut({
   //                                                            name: "Hegic OTM Put, SUSHISWAP LP, WBTC PMT",
   //                                                            exchangeName: 'SUSHISWAP',
   //                                                            lpPurchaseAmount: BigNumber.from("20000"),
@@ -287,8 +289,76 @@ describe.skip("StakedPut", () => {
   //                                                            strikePrices: [parseEther("25000"), parseEther("34000")],
   //                                                            purchaseAmount: parseUnits("1", 15),
   //                                                          });
-  //
 });
+async function checkState(exchangeName, adapterAddress, isAfter) {
+  const [, , userSigner, recipientSigner] = await ethers.getSigners();
+  user = userSigner.address;
+  recipient = recipientSigner.address;
+  if (exchangeName == "UNISWAP") {
+    lpAddress = UNISWAP_LP;
+  }
+  if (exchangeName == "SUSHISWAP") {
+    lpAddress = SUSHISWAP_LP;
+  }
+  const wethArtifact = await artifacts.readArtifact("IWETH");
+  this.weth = new ethers.Contract(
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+    wethArtifact.abi,
+    ethers.provider
+  );
+  this.weth = this.weth.connect(userSigner);
+  const tokenArtifact = await artifacts.readArtifact("ERC20");
+  this.wbtc = new ethers.Contract(
+    "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+    tokenArtifact.abi,
+    ethers.provider
+  );
+  this.wbtc = this.wbtc.connect(userSigner);
+
+  this.digg = new ethers.Contract(
+    "0x798d1be841a82a273720ce31c822c61a67a601c3",
+    tokenArtifact.abi,
+    ethers.provider
+  );
+  this.digg = this.digg.connect(userSigner);
+
+  const uniswapArtifact = await artifacts.readArtifact("IUniswapV2Pair");
+  this.uniswapLp = new ethers.Contract(
+    lpAddress,
+    uniswapArtifact.abi,
+    ethers.provider
+  );
+  this.uniswapLp = this.uniswapLp.connect(userSigner);
+  const ethBalance = await provider.getBalance(user);
+  //console.log(`eth balance of user is ${ethBalance}`);
+  const ethBalanceAdapter = await provider.getBalance(adapterAddress);
+  //        //console.log(`eth balance of adapter is ${ethBalanceAdapter}`);
+  const wbtcBalanceAdapter = await this.wbtc.balanceOf(adapterAddress);
+  //                //console.log(`wbtc balance of adapter is ${wbtcBalanceAdapter}`);
+  const diggBalanceAdapter = await this.digg.balanceOf(adapterAddress);
+  //                        //console.log(`digg balance of adapter is ${diggBalanceAdapter}`);
+  const lpBalance = await this.uniswapLp.balanceOf(user);
+  //                                //console.log(`lp balance of user is ${lpBalance}`);
+  const reserveBals = await this.uniswapLp.getReserves();
+  //                                        //console.log(reserveBals.reserve0.toString());
+  if (isAfter) {
+    assert.isTrue(diggBalanceAdapter < 3);
+    assert.isTrue(wbtcBalanceAdapter < 3);
+    assert.isTrue(lpBalance > 0);
+    assert.equal(ethBalanceAdapter, 0);
+  }
+  return [reserveBals.reserve0, reserveBals.reserve1, wbtcBalanceAdapter];
+}
+
+async function checkBalances(beforeBals, afterBals, wbtcAmt) {
+  //digg balance should not change
+  assert.equal(afterBals[1].toNumber(), beforeBals[1].toNumber());
+  //wbtc bal should equal the wbtc input from the user + before pool balance - any leftover wbtc in the contrac
+  assert.equal(
+    beforeBals[0].toNumber() + wbtcAmt.toNumber() - afterBals[2].toNumber(),
+    afterBals[0].toNumber()
+  );
+}
 
 function behavesLikeStakedPut(params) {
   describe.skip(`${params.name}`, () => {
@@ -389,11 +459,21 @@ function behavesLikeStakedPut(params) {
       var expDigg = inputVars[0];
 
       // const approval = await this.wbtc.connect(userSigner).approve(
-      //                                                                                                           this.sushiswap.address,
-      //                                                                                                           BigNumber.from("1000000000000000000000000000000000"),
-      //                                                                                                           { from: user }
-      //                                                                                                         );
+      //
+      //     this.sushiswap.address,
+      //
+      //     BigNumber.from("1000000000000000000000000000000000"),
+      //
+      //     { from: user }
+      //
+      //   );
       //await this.sushiswap.connect(userSigner).swapExactTokensForTokens(tradeAmt, checkExpDigg[0], [WBTC_ADDRESS, DIGG_ADDRESS], user, BigNumber.from("10000000000000000000000000000000"), {from:user});
+      const response = await this.instrument.getInputs(
+        params.paymentToken,
+        params.lpPurchaseAmount,
+        params.exchangeName
+      );
+      //               console.log(response);
 
       const testRet = await this.instrument
         .connect(userSigner)
@@ -408,12 +488,32 @@ function behavesLikeStakedPut(params) {
         );
       //       console.log(testRet);
       const receipt = await provider.waitForTransaction(testRet.hash);
+
       const lpBalUni2 = await this.uniswapLp.balanceOf(user);
       //                                                                             console.log(`user uni lp balance of ${lpBalUni2.toString()}`);
       const lpBalSushi2 = await this.sushiswapLp.balanceOf(user);
       //                                                                   console.log(`user sushi lp balance of ${lpBalSushi2.toString()}`);
+      const response2 = await this.instrument.getInputs(
+        params.paymentToken,
+        params.lpPurchaseAmount,
+        params.exchangeName
+      );
+      //               console.log(response2);
     });
     it("test option buy", async function () {
+      this.startTime = (await provider.getBlock()).timestamp;
+      this.expiry = this.startTime + 60 * 60 * 24 * 2;
+      this.buyInstrumentParams = [
+        1,
+        params.paymentToken,
+        params.strikePrices[0],
+        params.amounts[0],
+        params.purchaseAmount,
+        "0x",
+      ];
+      //const premiumCheck = await this.adapter.premium(this.buyInstrumentParams, this.expiry);
+      //               console.log(premiumCheck);
+
       var valueToSend = params.purchaseAmount;
       if (params.paymentToken == WBTC_ADDRESS) {
         await this.weth.connect(userSigner).deposit({
@@ -456,16 +556,20 @@ function behavesLikeStakedPut(params) {
       this.startTime = (await provider.getBlock()).timestamp;
       this.expiry = this.startTime + 60 * 60 * 24 * 2;
       this.buyInstrumentParams = [
-        1,
         params.paymentToken,
         params.strikePrices[0],
         params.amounts[0],
         params.purchaseAmount,
-        "0x",
+        this.expiry,
+        0,
+        "",
+        0,
+        0,
+        0,
       ];
       const res = await this.instrument
         .connect(userSigner)
-        .buyPutFromAdapter(this.buyInstrumentParams, this.expiry, {
+        .buyPutFromAdapter(this.buyInstrumentParams, {
           from: user,
           value: valueToSend,
           //gasPrice: this.gasPrice,
@@ -474,11 +578,22 @@ function behavesLikeStakedPut(params) {
       //            console.log("gas used", receipt.gasUsed.toString());
       const ethBalance2 = await provider.getBalance(user);
       //            console.log(`eth bal is ${ethBalance2.toString()}`);
-      const wbtcBal2 = await this.wbtc.balanceOf(user);
-      //            console.log(`wbtc bal is ${wbtcBal2.toString()}`);
+      const wbtcBalAfterBuy = await this.wbtc.balanceOf(user);
+      //              console.log(`wbtc bal is ${wbtcBalAfterBuy.toString()}`);
       //            console.log("positionId");
       const position = await this.instrument.instrumentPosition(user, 0);
-      //            console.log(position);
+      //              console.log(position);
+
+      const {
+        holder,
+        strike,
+        amount,
+        lockedAmount,
+        premium,
+        expiration,
+        optionType,
+      } = await this.hegicOptions.options(position.putOptionID);
+      assert.equal(holder, this.instrument.address);
 
       const canExercise = await this.instrument
         .connect(userSigner)
@@ -500,15 +615,87 @@ function behavesLikeStakedPut(params) {
           from: user,
           gasPrice,
         });
-      //      console.log(resExercise);
+      //              console.log(resExercise);
 
-      const ethBalance3 = await provider.getBalance(user);
-      //            console.log(`eth bal is ${ethBalance3.toString()}`);
-      const wbtcBal3 = await this.wbtc.balanceOf(user);
-      //            console.log(`wbtc bal is ${wbtcBal3.toString()}`);
+      // const ethBalance3 = await provider.getBalance(user);
+      //console.log(`eth bal is ${ethBalance3.toString()}`);
+      const wbtcBalAfterExercise = await this.wbtc.balanceOf(user);
+      //            console.log(`wbtc bal is ${wbtcBalAfterExercise.toString()}`);
+      if (canExercise) {
+        assert.equal(
+          wbtcBalAfterExercise.toNumber() - wbtcBalAfterBuy.toNumber(),
+          profit.toNumber()
+        );
+      }
     });
 
+    it("reverts instrument buy on invalid exchange", async function () {
+      const response = await this.instrument.getInputs(
+        params.paymentToken,
+        params.lpPurchaseAmount,
+        params.exchangeName
+      );
+      this.buyInstrumentParams = [
+        params.paymentToken,
+        response.currentPrice,
+        response.wbtcSize,
+        response.premium + 1,
+
+        response.expiry,
+        params.lpPurchaseAmount,
+        "UNISWAP",
+        response.tradeAmt,
+        response.wbtcSize,
+        response.expDigg,
+      ];
+
+      const res = await expect(
+        this.instrument
+          .connect(userSigner)
+          .buyInstrument(this.buyInstrumentParams, {
+            from: user,
+            value: BigNumber.from("0"),
+            gasPrice: this.gasPrice,
+          })
+      ).to.be.revertedWith("invalid exchange");
+    });
+
+    it("reverts instrument buy on invalid payment token", async function () {
+      const response = await this.instrument.getInputs(
+        params.paymentToken,
+        params.lpPurchaseAmount,
+        params.exchangeName
+      );
+      this.buyInstrumentParams = [
+        WBTC_ADDRESS,
+        response.currentPrice,
+        response.wbtcSize,
+        response.premium + 1,
+
+        response.expiry,
+        params.lpPurchaseAmount,
+        params.exchangeName,
+        response.tradeAmt,
+        response.wbtcSize,
+        response.expDigg,
+      ];
+      const res = await expect(
+        this.instrument
+          .connect(userSigner)
+          .buyInstrument(this.buyInstrumentParams, {
+            from: user,
+            value: BigNumber.from("0"),
+            gasPrice: this.gasPrice,
+          })
+      ).to.be.revertedWith("input must be eth");
+    });
     it("test instrument buy", async function () {
+      const beforeBals = await checkState(
+        params.exchangeName,
+        this.instrument.address,
+        false
+      );
+
       var valueToSend;
       if (params.paymentToken == WBTC_ADDRESS) {
         await this.weth.connect(userSigner).deposit({
@@ -563,41 +750,42 @@ function behavesLikeStakedPut(params) {
         params.lpPurchaseAmount,
         params.exchangeName
       );
+      console.log(`total cost is ${response.totalCost}`);
       if (params.paymentToken == ETH_ADDRESS) {
         valueToSend = response.totalCost;
         //valueToSend = BigNumber.from("10000000000000000000");
       }
 
-      const approval = await this.wbtc
-        .connect(userSigner)
-        .approve(this.instrument.address, response.totalCost, { from: user });
+      const approval = await this.wbtc.connect(userSigner).approve(
+        this.instrument.address,
+
+        response.totalCost,
+
+        { from: user }
+      );
 
       this.buyInstrumentParams = [
-        1,
         params.paymentToken,
         response.currentPrice,
         response.wbtcSize,
         response.premium + 1,
-        "0x",
+
+        response.expiry,
+        params.lpPurchaseAmount,
+        params.exchangeName,
+        response.tradeAmt,
+        response.wbtcSize,
+        response.expDigg,
       ];
       //             const premiumCheck = await this.adapter.premium(this.buyInstrumentParams, this.expiry);
       const res = await this.instrument
         .connect(userSigner)
-        .buyInstrument(
-          this.buyInstrumentParams,
-          response.expiry,
-          params.paymentToken,
-          params.lpPurchaseAmount,
-          params.exchangeName,
-          response.tradeAmt,
-          response.wbtcSize,
-          response.expDigg,
-          {
-            from: user,
-            value: valueToSend,
-            gasPrice: this.gasPrice,
-          }
-        );
+        .buyInstrument(this.buyInstrumentParams, {
+          from: user,
+          value: valueToSend,
+          gasPrice: this.gasPrice,
+        });
+
       const receipt = await res.wait();
 
       const ethBalance2 = await provider.getBalance(user);
@@ -615,20 +803,6 @@ function behavesLikeStakedPut(params) {
 
       const lpBalSushi2 = await this.sushiswapLp.balanceOf(user);
 
-      const position = await this.instrument.instrumentPosition(user, 0);
-      //                              console.log(position);
-
-      const {
-        holder,
-        strike,
-        amount,
-        lockedAmount,
-        premium,
-        expiration,
-        optionType,
-      } = await this.hegicOptions.options(position.putOptionID);
-      assert.equal(holder, this.instrument.address);
-      //               console.log(`premium was ${premium.toString()}`);
       const gasFee = BigNumber.from(gasPrice).mul(
         BigNumber.from(receipt.gasUsed)
       );
@@ -648,18 +822,15 @@ function behavesLikeStakedPut(params) {
       } else {
         const expectedAfterEthBal =
           startEthBalance - response.totalCost - gasFee;
-        console.log(`gas fee was ${gasFee}`);
+        //                         console.log(`gas fee was ${gasFee}`);
         console.log("gas used", receipt.gasUsed.toString());
         //console.log(`eth balance is ${startEthBalance.toString()}`);
         //console.log(`eth expected after bal is ${expectedAfterEthBal}`);
         //     console.log(`eth user bal after trade is ${ethBalance2.toString()}`);
-
         console.log(`sent a value of ${valueToSend.toString()}`);
       }
       //               console.log(`wbtc contract bal is ${startWbtcBalContract.toString()}`);
-      console.log(
-        `wbtc contract bal after trade is ${wbtcBalContract2.toString()}`
-      );
+      //                                          console.log(`wbtc contract bal after trade is ${wbtcBalContract2.toString()}`);
       if (params.exchangeName == "UNISWAP") {
         //                     console.log(`user uni lp balance of ${startlpBalUni.toString()}`);
         console.log(
@@ -671,6 +842,33 @@ function behavesLikeStakedPut(params) {
           `user sushi lp balance after trade of ${lpBalSushi2.toString()}`
         );
       }
+      const afterBals = await checkState(
+        params.exchangeName,
+        this.instrument.address,
+        true
+      );
+      checkBalances(beforeBals, afterBals, response.wbtcSize);
+
+      const position = await this.instrument.instrumentPosition(user, 0);
+      //                             console.log(position);
+
+      const {
+        holder,
+        strike,
+        amount,
+        lockedAmount,
+        premium,
+        expiration,
+        optionType,
+      } = await this.hegicOptions.options(position.putOptionID);
+      assert.equal(holder, this.instrument.address);
+      //check to make sure we are hedged and atm
+      assert.equal(response.wbtcSize.toNumber(), amount.toNumber());
+      const currentWbtcPrice = await this.instrument.getCurrentPrice();
+      //assert.equal(currentWbtcPrice.toNumber(), strike.toNumber());
+      console.log(`wbtc size ${currentWbtcPrice}`);
+      console.log(`option size is ${strike}`);
+
       //                     const canExercise = await this.vault
       //                       .connect(ownerSigner)
       //                       .canExercise(owner, 0, {

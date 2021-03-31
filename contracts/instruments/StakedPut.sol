@@ -138,7 +138,7 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
 
         //set expiry to a month from now
         //set strike to atm
-        expiry = block.timestamp + month;
+        expiry = block.timestamp.add(month);
         currentPrice = uint256(getCurrentPrice());
         ProtocolAdapterTypes.OptionTerms memory optionTerms =  ProtocolAdapterTypes.OptionTerms(
                     underlying,
@@ -153,7 +153,7 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
 
         premium = adapter.premium(optionTerms, wbtcSize);
 
-        totalCost = amt + premium;
+        totalCost = amt.add(premium);
     }
 
     function buyInstrument(BuyInstrumentParams calldata params) public payable

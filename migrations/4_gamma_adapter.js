@@ -19,16 +19,18 @@ module.exports = async function (_deployer, _network) {
 };
 
 async function deployGammaAdapter() {
+  const networkAddressLookup = network.replace("-fork", "");
+
   await deployer.deploy(
     GammaAdapter,
-    EXTERNAL_ADDRESSES[network].oTokenFactory,
-    EXTERNAL_ADDRESSES[network].gammaController,
-    EXTERNAL_ADDRESSES[network].gammaMarginPool,
-    EXTERNAL_ADDRESSES[network].feeds["eth/usd"],
-    EXTERNAL_ADDRESSES[network].uniswapV2Router,
-    EXTERNAL_ADDRESSES[network].assets.weth,
-    EXTERNAL_ADDRESSES[network].assets.usdc,
-    EXTERNAL_ADDRESSES[network].zeroExExchangeV3,
+    EXTERNAL_ADDRESSES[networkAddressLookup].oTokenFactory,
+    EXTERNAL_ADDRESSES[networkAddressLookup].gammaController,
+    EXTERNAL_ADDRESSES[networkAddressLookup].gammaMarginPool,
+    EXTERNAL_ADDRESSES[networkAddressLookup].feeds["usdc/eth"],
+    EXTERNAL_ADDRESSES[networkAddressLookup].uniswapV2Router,
+    EXTERNAL_ADDRESSES[networkAddressLookup].assets.weth,
+    EXTERNAL_ADDRESSES[networkAddressLookup].assets.usdc,
+    EXTERNAL_ADDRESSES[networkAddressLookup].zeroExExchangeV3,
     {
       from: owner,
     }
@@ -39,9 +41,4 @@ async function deployGammaAdapter() {
     "GammaAdapterLogic",
     GammaAdapter.address
   );
-
-  console.log("Setting GammaAdapter at factory...");
-  const factory = await RibbonFactory.at(DEPLOYMENTS[network].RibbonFactory);
-  await factory.setAdapter("OPYN_GAMMA", GammaAdapter.address, { from: owner });
-  console.log("Done.");
 }

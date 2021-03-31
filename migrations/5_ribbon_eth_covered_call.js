@@ -13,40 +13,41 @@ const DEPLOYMENTS = require("../constants/deployments.json");
 const EXTERNAL_ADDRESSES = require("../constants/externalAddresses.json");
 
 module.exports = async function (deployer, network) {
-  const { admin, owner } = ACCOUNTS[network.replace("-fork", "")];
+  const networkLookup = network.replace("-fork", "");
+  const { admin, owner } = ACCOUNTS[networkLookup];
 
   // Deploying the ProtocolAdapter
-  await deployer.deploy(ProtocolAdapterLib);
+  // await deployer.deploy(ProtocolAdapterLib);
 
-  await updateDeployedAddresses(
-    network,
-    "ProtocolAdapterLib",
-    ProtocolAdapterLib.address
-  );
+  // await updateDeployedAddresses(
+  //   network,
+  //   "ProtocolAdapterLib",
+  //   ProtocolAdapterLib.address
+  // );
 
-  await deployer.link(ProtocolAdapterLib, RibbonCoveredCall);
+  // await deployer.link(ProtocolAdapterLib, RibbonCoveredCall);
 
-  // Deploying the logic contract
-  await deployer.deploy(
-    RibbonCoveredCall,
-    DEPLOYMENTS[network].RibbonFactory,
-    EXTERNAL_ADDRESSES[network].assets.weth,
-    EXTERNAL_ADDRESSES[network].assets.usdc,
-    EXTERNAL_ADDRESSES[network].airswapSwap,
-    { from: admin }
-  );
-  await updateDeployedAddresses(
-    network,
-    "RibbonETHCoveredCallLogic",
-    RibbonCoveredCall.address
-  );
+  // // Deploying the logic contract
+  // await deployer.deploy(
+  //   RibbonCoveredCall,
+  //   DEPLOYMENTS[networkLookup].RibbonFactory,
+  //   EXTERNAL_ADDRESSES[networkLookup].assets.weth,
+  //   EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
+  //   EXTERNAL_ADDRESSES[networkLookup].airswapSwap,
+  //   { from: admin }
+  // );
+  // await updateDeployedAddresses(
+  //   network,
+  //   "RibbonETHCoveredCallLogic",
+  //   RibbonCoveredCall.address
+  // );
 
   // Deploying the proxy contract
   const initBytes = encodeCall(
     "initialize",
     ["address", "address", "address", "uint256"],
     [
-      EXTERNAL_ADDRESSES[network].assets.weth,
+      EXTERNAL_ADDRESSES[networkLookup].assets.weth,
       owner,
       owner,
       parseEther("1000").toString(),
@@ -55,7 +56,8 @@ module.exports = async function (deployer, network) {
 
   await deployer.deploy(
     AdminUpgradeabilityProxy,
-    RibbonCoveredCall.address,
+    // RibbonCoveredCall.address,
+    "0xEd61372660aeb0776d5385df2C5f99A462de0245",
     admin,
     initBytes,
     {

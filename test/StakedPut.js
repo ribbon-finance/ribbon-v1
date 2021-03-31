@@ -13,7 +13,7 @@ let owner, user;
 
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
-
+const HEGIC_PRICE_FEED = "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
 const UNISWAP_ADDRESS = "0x7a250d5630b4cf539739df2c5dacb4c659f2488d";
 const SUSHISWAP_ADDRESS = "0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f";
@@ -124,6 +124,7 @@ describe.skip("StakedPut", () => {
       WBTC_ADDRESS,
       WBTC_OPTIONS_ADDRESS,
       USDC_ADDRESS,
+      HEGIC_PRICE_FEED,
     ];
     this.instrument = (
       await deployProxy(
@@ -180,7 +181,8 @@ describe.skip("StakedPut", () => {
           ETH_ADDRESS,
           WBTC_ADDRESS,
           WBTC_OPTIONS_ADDRESS,
-          USDC_ADDRESS
+          USDC_ADDRESS,
+          HEGIC_PRICE_FEED
         )
       ).to.be.revertedWith("!_factory");
     });
@@ -891,10 +893,10 @@ function behavesLikeStakedPut(params) {
       //                                       });
       //      console.log(resExercise);
       //
-      //                           const ethBalance3 = await provider.getBalance(owner);
-      //                                 console.log(`eth bal is ${ethBalance3.toString()}`);
-      //                                       const wbtcBal3 = await this.wbtc.balanceOf(owner);
-      //                                            console.log(`wbtc bal is ${wbtcBal3.toString()}`);
+      //      const ethBalance3 = await provider.getBalance(owner);
+      //      console.log(`eth bal is ${ethBalance3.toString()}`);
+      //       const wbtcBal3 = await this.wbtc.balanceOf(owner);
+      //       console.log(`wbtc bal is ${wbtcBal3.toString()}`);
     });
   });
 }

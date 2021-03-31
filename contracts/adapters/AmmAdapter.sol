@@ -31,9 +31,7 @@ library AmmAdapter {
 
     function getRevertMsg(bytes memory _returnData)
         private
-// SPDX-License-Identifier: MIT
         pure
-// SPDX-License-Identifier: MIT
         returns (string memory)
     {
         // If the _res length is less than 68, then the transaction failed silently (without a revert message)

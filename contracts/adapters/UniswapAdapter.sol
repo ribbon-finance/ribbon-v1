@@ -41,6 +41,13 @@ contract UniswapAdapter {
         address _wbtcDiggSushiswap,
         address _diggAddress
     ) {
+        require(_uniswapRouter != address(0), "!_uniswapRouter");
+        require(_sushiswapRouter != address(0), "!_sushiswapRouter");
+        require(_ethAddress != address(0), "!_eth");
+        require(_wbtcAddress != address(0), "!_wbtc");
+        require(_wbtcDiggSushiswap != address(0), "!_wbtcDiggSushiswap");
+        require(_wbtcDiggUniswap != address(0), "!_wbtcDiggUniswap");
+        require(_diggAddress != address(0), "!_diggAddress");
 
         wbtcAddress = _wbtcAddress;
         ethAddress = _ethAddress;

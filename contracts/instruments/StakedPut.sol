@@ -257,8 +257,6 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
 
         if (position.exercised) return false;
 
-        bool canExercisePut = false;
-
         uint256 strikePrice;
         uint32 optionID;
 
@@ -268,12 +266,9 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
         address adapterAddress = factory.getAdapter(venue);
         require(adapterAddress != address(0), "Adapter does not exist");
 
-        bool canExerciseOptions =
+        bool canExercisePut =
             adapter.canExercise(optionsAddress, optionID, position.amount);
-
-        if (canExerciseOptions) {
-            canExercisePut = true;
-        }
+            
         return canExercisePut;
     }
 

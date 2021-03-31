@@ -17,13 +17,13 @@ module.exports = async function (_deployer, network) {
   admin = _admin;
   owner = _owner;
 
-  // await deployer.deploy(ProtocolAdapterLib);
+  await deployer.deploy(ProtocolAdapterLib);
 
-  // await updateDeployedAddresses(
-  //   network,
-  //   "ProtocolAdapterLib",
-  //   ProtocolAdapterLib.address
-  // );
+  await updateDeployedAddresses(
+    network,
+    "ProtocolAdapterLib",
+    ProtocolAdapterLib.address
+  );
 
   await deployer.link(ProtocolAdapterLib, RibbonVolatility);
 

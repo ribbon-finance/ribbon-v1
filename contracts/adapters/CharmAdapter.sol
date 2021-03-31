@@ -348,12 +348,12 @@ contract CharmAdapter is IProtocolAdapter{
        * @notice Swaps the ETH into the `base` token.
        *         This simplifies the buying of an option since you only pay in ETH for any option
        * @param baseToken is the base token of the market
-       * @param premium premium to buy option
+       * @param _premium premium to buy option
        * @param market market of token
        */
        function _swapETHToBaseToken(
            IERC20 baseToken,
-           uint256 premium,
+           uint256 _premium,
            IOptionMarket market
        ) private{
         IUniswapV2Router02 router = IUniswapV2Router02(UNISWAP_ROUTER);
@@ -363,7 +363,7 @@ contract CharmAdapter is IProtocolAdapter{
         path[1] = address(baseToken);
 
         router.swapETHForExactTokens{value: address(this).balance}(
-            premium,
+            _premium,
             path,
             address(this),
             block.timestamp + SWAP_WINDOW

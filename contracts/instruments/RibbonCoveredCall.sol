@@ -14,7 +14,7 @@ import {
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
-import {ISwap} from "../interfaces/ISwap.sol";
+import {ISwap, Types} from "../interfaces/ISwap.sol";
 import {OtokenInterface} from "../interfaces/GammaInterface.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 
@@ -126,7 +126,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Sets the new manager of the vault. Revoke the airswap signer authorization from the old manager, and authorize the manager.
+     * @notice Sets the new manager of the vault.
      * @param newManager is the new manager of the vault
      */
     function setManager(address newManager) external onlyOwner {
@@ -135,11 +135,6 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         manager = newManager;
 
         emit ManagerChanged(oldManager, newManager);
-
-        if (oldManager != address(0)) {
-            SWAP_CONTRACT.revokeSigner(oldManager);
-        }
-        SWAP_CONTRACT.authorizeSigner(newManager);
     }
 
     /**
@@ -336,6 +331,24 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     }
 
     /**
+     * @notice Performs a swap of `currentOption` token to `asset` token with a counterparty
+     * @param order is an Airswap order
+     */
+    function sellOptions(Types.Order calldata order) external onlyManager {
+        require(
+            order.sender.wallet == address(this),
+            "Sender can only be vault"
+        );
+        require(
+            order.sender.token == currentOption,
+            "Can only sell currentOption"
+        );
+        require(order.signer.token == asset, "Can only buy with asset token");
+
+        SWAP_CONTRACT.swap(order);
+    }
+
+    /**
      * @notice Sets a new cap for deposits
      * @param newCap is the new cap for deposits
      */
@@ -370,27 +383,50 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         returns (uint256 amountAfterFee, uint256 feeAmount)
     {
         uint256 currentAssetBalance = assetBalance();
-        uint256 total = lockedAmount.add(currentAssetBalance);
+        (
+            uint256 withdrawAmount,
+            uint256 newAssetBalance,
+            uint256 newShareSupply
+        ) = _withdrawAmountWithShares(share, currentAssetBalance);
 
-        // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L111
-        uint256 shareSupply = totalSupply();
-
-        uint256 withdrawAmount = share.mul(total).div(shareSupply);
         require(
             withdrawAmount <= currentAssetBalance,
             "Cannot withdraw more than available"
         );
+
         require(
-            shareSupply.sub(share) >= MINIMUM_SUPPLY,
+            newShareSupply >= MINIMUM_SUPPLY,
             "Minimum share supply needs to be >=10**10"
         );
         require(
-            total.sub(withdrawAmount) >= MINIMUM_SUPPLY,
+            newAssetBalance >= MINIMUM_SUPPLY,
             "Minimum asset balance needs to be >=10**10"
         );
 
         feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
         amountAfterFee = withdrawAmount.sub(feeAmount);
+    }
+
+    function _withdrawAmountWithShares(
+        uint256 share,
+        uint256 currentAssetBalance
+    )
+        private
+        view
+        returns (
+            uint256 withdrawAmount,
+            uint256 newAssetBalance,
+            uint256 newShareSupply
+        )
+    {
+        uint256 total = lockedAmount.add(currentAssetBalance);
+
+        uint256 shareSupply = totalSupply();
+
+        // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L111
+        withdrawAmount = share.mul(total).div(shareSupply);
+        newAssetBalance = total.sub(withdrawAmount);
+        newShareSupply = shareSupply.sub(share);
     }
 
     function maxWithdrawableShares() public view returns (uint256) {
@@ -417,6 +453,25 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         uint256 numShares = min(maxShares, share);
 
         (uint256 withdrawAmount, ) = withdrawAmountWithShares(numShares);
+        return withdrawAmount;
+    }
+
+    function assetAmountToShares(uint256 assetAmount)
+        external
+        view
+        returns (uint256)
+    {
+        uint256 total = lockedAmount.add(assetBalance());
+        return assetAmount.mul(totalSupply()).div(total);
+    }
+
+    function accountVaultBalance(address account)
+        external
+        view
+        returns (uint256)
+    {
+        (uint256 withdrawAmount, , ) =
+            _withdrawAmountWithShares(balanceOf(account), assetBalance());
         return withdrawAmount;
     }
 

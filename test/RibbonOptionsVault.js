@@ -14,7 +14,6 @@ const {
   setupOracle,
   setOpynOracleExpiryPrice,
   whitelistProduct,
-  parseLog,
 } = require("./helpers/utils");
 const moment = require("moment");
 
@@ -57,9 +56,9 @@ describe("RibbonCoveredCall", () => {
     counterparty = counterpartySigner.address;
     feeRecipient = feeRecipientSigner.address;
 
-    this.managerWallet = ethers.Wallet.fromMnemonic(
+    this.counterpartyWallet = ethers.Wallet.fromMnemonic(
       process.env.TEST_MNEMONIC,
-      "m/44'/60'/0'/0/3"
+      "m/44'/60'/0'/0/4"
     );
 
     const {
@@ -161,6 +160,9 @@ describe("RibbonCoveredCall", () => {
     });
 
     it("reverts when adapter not set yet", async function () {
+      const Factory = await ethers.getContractFactory("RibbonFactory");
+      const factory = await Factory.deploy();
+
       const VaultContract = await ethers.getContractFactory(
         "RibbonCoveredCall",
         {
@@ -170,11 +172,9 @@ describe("RibbonCoveredCall", () => {
         }
       );
 
-      await this.factory.setAdapter("OPYN_GAMMA", constants.AddressZero);
-
       await expect(
         VaultContract.deploy(
-          this.factory.address,
+          factory.address,
           WETH_ADDRESS,
           USDC_ADDRESS,
           SWAP_ADDRESS
@@ -211,6 +211,9 @@ describe("RibbonCoveredCall", () => {
         (await this.vault.instantWithdrawalFee()).toString(),
         parseEther("0.005").toString()
       );
+      assert.equal(await this.vault.SWAP_CONTRACT(), SWAP_ADDRESS);
+      assert.equal(await this.vault.WETH(), WETH_ADDRESS);
+      assert.equal(await this.vault.USDC(), USDC_ADDRESS);
     });
 
     it("cannot be initialized twice", async function () {
@@ -306,8 +309,8 @@ describe("RibbonCoveredCall", () => {
     it("sets the first manager", async function () {
       await this.vault.connect(ownerSigner).setManager(manager);
       assert.equal(await this.vault.manager(), manager);
-      assert.isTrue(
-        await this.airswap.signerAuthorizations(this.vault.address, manager)
+      assert.isFalse(
+        await this.airswap.senderAuthorizations(this.vault.address, manager)
       );
     });
 
@@ -316,10 +319,10 @@ describe("RibbonCoveredCall", () => {
       await this.vault.connect(ownerSigner).setManager(manager);
       assert.equal(await this.vault.manager(), manager);
       assert.isFalse(
-        await this.airswap.signerAuthorizations(this.vault.address, owner)
+        await this.airswap.senderAuthorizations(this.vault.address, owner)
       );
-      assert.isTrue(
-        await this.airswap.signerAuthorizations(this.vault.address, manager)
+      assert.isFalse(
+        await this.airswap.senderAuthorizations(this.vault.address, manager)
       );
     });
   });
@@ -501,7 +504,7 @@ describe("RibbonCoveredCall", () => {
       const signedOrder = await signOrderForSwap({
         vaultAddress: this.vault.address,
         counterpartyAddress: counterparty,
-        signerPrivateKey: this.managerWallet.privateKey,
+        signerPrivateKey: this.counterpartyWallet.privateKey,
         sellToken,
         buyToken,
         sellAmount: sellAmount.toString(),
@@ -519,14 +522,14 @@ describe("RibbonCoveredCall", () => {
         token: senderToken,
         amount: senderAmount,
       } = signedOrder.sender;
-      assert.equal(ethers.utils.getAddress(signatory), manager);
+      assert.equal(ethers.utils.getAddress(signatory), counterparty);
       assert.equal(ethers.utils.getAddress(validator), SWAP_ADDRESS);
-      assert.equal(ethers.utils.getAddress(signerWallet), this.vault.address);
-      assert.equal(ethers.utils.getAddress(signerToken), this.oTokenAddress);
-      assert.equal(ethers.utils.getAddress(senderWallet), counterparty);
-      assert.equal(ethers.utils.getAddress(senderToken), WETH_ADDRESS);
-      assert.equal(signerAmount, sellAmount);
-      assert.equal(senderAmount, buyAmount.toString());
+      assert.equal(ethers.utils.getAddress(signerWallet), counterparty);
+      assert.equal(ethers.utils.getAddress(signerToken), WETH_ADDRESS);
+      assert.equal(ethers.utils.getAddress(senderWallet), this.vault.address);
+      assert.equal(ethers.utils.getAddress(senderToken), this.oTokenAddress);
+      assert.equal(signerAmount, buyAmount);
+      assert.equal(senderAmount, sellAmount.toString());
     });
   });
 
@@ -902,14 +905,14 @@ describe("RibbonCoveredCall", () => {
       const signedOrder = await signOrderForSwap({
         vaultAddress: this.vault.address,
         counterpartyAddress: counterparty,
-        signerPrivateKey: this.managerWallet.privateKey,
+        signerPrivateKey: this.counterpartyWallet.privateKey,
         sellToken: firstOption,
         buyToken: WETH_ADDRESS,
         sellAmount: this.sellAmount.toString(),
         buyAmount: this.premium.toString(),
       });
 
-      await this.airswap.connect(counterpartySigner).swap(signedOrder);
+      await this.vault.connect(managerSigner).sellOptions(signedOrder);
 
       await this.vault
         .connect(managerSigner)
@@ -965,14 +968,14 @@ describe("RibbonCoveredCall", () => {
       const signedOrder = await signOrderForSwap({
         vaultAddress: this.vault.address,
         counterpartyAddress: counterparty,
-        signerPrivateKey: this.managerWallet.privateKey,
+        signerPrivateKey: this.counterpartyWallet.privateKey,
         sellToken: firstOption,
         buyToken: WETH_ADDRESS,
         sellAmount: this.sellAmount.toString(),
         buyAmount: this.premium.toString(),
       });
 
-      await this.airswap.connect(counterpartySigner).swap(signedOrder);
+      await this.vault.connect(managerSigner).sellOptions(signedOrder);
 
       // only the premium should be left over because the funds are locked into Opyn
       assert.equal(
@@ -1054,14 +1057,14 @@ describe("RibbonCoveredCall", () => {
       const signedOrder = await signOrderForSwap({
         vaultAddress: this.vault.address,
         counterpartyAddress: counterparty,
-        signerPrivateKey: this.managerWallet.privateKey,
+        signerPrivateKey: this.counterpartyWallet.privateKey,
         sellToken: firstOption,
         buyToken: WETH_ADDRESS,
         sellAmount: this.sellAmount.toString(),
         buyAmount: this.premium.toString(),
       });
 
-      await this.airswap.connect(counterpartySigner).swap(signedOrder);
+      await this.vault.connect(managerSigner).sellOptions(signedOrder);
 
       // only the premium should be left over because the funds are locked into Opyn
       assert.equal(
@@ -1151,7 +1154,7 @@ describe("RibbonCoveredCall", () => {
     });
   });
 
-  describe("Swapping with counterparty", () => {
+  describe("#sellOptions", () => {
     time.revertToSnapshotAfterEach(async function () {
       this.premium = parseEther("0.1");
       this.depositAmount = parseEther("1");
@@ -1177,16 +1180,16 @@ describe("RibbonCoveredCall", () => {
       const signedOrder = await signOrderForSwap({
         vaultAddress: this.vault.address,
         counterpartyAddress: counterparty,
-        signerPrivateKey: this.managerWallet.privateKey,
+        signerPrivateKey: this.counterpartyWallet.privateKey,
         sellToken: this.oTokenAddress,
         buyToken: WETH_ADDRESS,
         sellAmount: this.sellAmount.toString(),
         buyAmount: this.premium.toString(),
       });
 
-      const res = await this.airswap
-        .connect(counterpartySigner)
-        .swap(signedOrder);
+      const res = await this.vault
+        .connect(managerSigner)
+        .sellOptions(signedOrder);
 
       await expect(res)
         .to.emit(this.oToken, "Transfer")
@@ -1206,6 +1209,54 @@ describe("RibbonCoveredCall", () => {
         await this.weth.balanceOf(this.vault.address),
         startBuyTokenBalance.add(this.premium)
       );
+    });
+
+    it("reverts when not selling option token", async function () {
+      const signedOrder = await signOrderForSwap({
+        vaultAddress: this.vault.address,
+        counterpartyAddress: counterparty,
+        signerPrivateKey: this.counterpartyWallet.privateKey,
+        sellToken: constants.AddressZero,
+        buyToken: WETH_ADDRESS,
+        sellAmount: this.sellAmount.toString(),
+        buyAmount: this.premium.toString(),
+      });
+
+      await expect(
+        this.vault.connect(managerSigner).sellOptions(signedOrder)
+      ).to.be.revertedWith("Can only sell currentOption");
+    });
+
+    it("reverts when not buying asset token", async function () {
+      const signedOrder = await signOrderForSwap({
+        vaultAddress: this.vault.address,
+        counterpartyAddress: counterparty,
+        signerPrivateKey: this.counterpartyWallet.privateKey,
+        sellToken: this.oTokenAddress,
+        buyToken: constants.AddressZero,
+        sellAmount: this.sellAmount.toString(),
+        buyAmount: this.premium.toString(),
+      });
+
+      await expect(
+        this.vault.connect(managerSigner).sellOptions(signedOrder)
+      ).to.be.revertedWith("Can only buy with asset token");
+    });
+
+    it("reverts when sender.wallet is not vault", async function () {
+      const signedOrder = await signOrderForSwap({
+        vaultAddress: constants.AddressZero,
+        counterpartyAddress: counterparty,
+        signerPrivateKey: this.counterpartyWallet.privateKey,
+        sellToken: this.oTokenAddress,
+        buyToken: WETH_ADDRESS,
+        sellAmount: this.sellAmount.toString(),
+        buyAmount: this.premium.toString(),
+      });
+
+      await expect(
+        this.vault.connect(managerSigner).sellOptions(signedOrder)
+      ).to.be.revertedWith("Sender can only be vault");
     });
   });
 
@@ -1481,6 +1532,58 @@ describe("RibbonCoveredCall", () => {
     });
   });
 
+  describe("#accountVaultBalance", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("returns the ETH balance of the account in the vault", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      // Will be exactly the same number of Ether deposited initiall
+      assert.equal(
+        (await this.vault.accountVaultBalance(user)).toString(),
+        parseEther("1")
+      );
+
+      // simulate the vault accumulating more WETH
+      await this.weth.connect(userSigner).deposit({ value: parseEther("1") });
+      await this.weth
+        .connect(userSigner)
+        .transfer(this.vault.address, parseEther("1"));
+
+      // User should be entitled to withdraw 2 ETH because the vault's balance expanded by 1 ETH
+      assert.equal(
+        (await this.vault.accountVaultBalance(user)).toString(),
+        parseEther("2")
+      );
+    });
+  });
+
+  describe("#assetAmountToShares", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("should return the correct number of shares", async function () {
+      await this.vault.depositETH({ value: parseEther("1") });
+
+      // Will be exactly the same number of Ether deposited initially
+      assert.equal(
+        (await this.vault.assetAmountToShares(parseEther("1"))).toString(),
+        parseEther("1")
+      );
+
+      // simulate the vault accumulating more WETH
+      await this.weth.connect(userSigner).deposit({ value: parseEther("1") });
+      await this.weth
+        .connect(userSigner)
+        .transfer(this.vault.address, parseEther("1"));
+
+      // User should be able to withdraw 2 ETH with 1 share
+      assert.equal(
+        (await this.vault.assetAmountToShares(parseEther("2"))).toString(),
+        parseEther("1")
+      );
+    });
+  });
+
   describe("#withdraw", () => {
     time.revertToSnapshotAfterEach();
 
@@ -1568,8 +1671,8 @@ describe("RibbonCoveredCall", () => {
 });
 
 async function signOrderForSwap({
-  vaultAddress,
   counterpartyAddress,
+  vaultAddress,
   sellToken,
   buyToken,
   sellAmount,
@@ -1578,14 +1681,14 @@ async function signOrderForSwap({
 }) {
   let order = createOrder({
     signer: {
-      wallet: vaultAddress,
-      token: sellToken,
-      amount: sellAmount,
-    },
-    sender: {
       wallet: counterpartyAddress,
       token: buyToken,
       amount: buyAmount,
+    },
+    sender: {
+      wallet: vaultAddress,
+      token: sellToken,
+      amount: sellAmount,
     },
     affiliate: {
       wallet: TRADER_AFFILIATE,

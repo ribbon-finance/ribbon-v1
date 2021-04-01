@@ -57,6 +57,9 @@ async function newRibbonVolatility(web3, network, opts) {
   const initData = encodeRibbonVolatilityData(opts);
   const logic = deployedAddresses[network].RibbonVolatilityLogic;
   const owner = accountAddresses[network].owner;
+  console.log(logic);
+  console.log(initData);
+  return;
 
   const gasPrice = (await getGasPrice()).toString();
   console.log(`Using gas price: ${web3.utils.fromWei(gasPrice, "gwei")} gwei`);

@@ -13,11 +13,9 @@ program
 
 program.parse(process.argv);
 
-async function encodeSwapData(orderJSON: any) {}
-
 async function main() {
   const network = program.network;
-  const provider = getDefaultProvider();
+  const provider = getDefaultProvider(network);
 
   const otokenArtifact = await hre.artifacts.readArtifact("OtokenInterface");
   const adapterArtifact = await hre.artifacts.readArtifact("GammaAdapter");

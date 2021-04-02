@@ -24,8 +24,6 @@ contract StakedPutStorageV1 is
         uint8 putVenueID;
         uint32 putOptionID;
         uint256 amount;
-        uint256 putStrikePrice;
-        uint256 expiry;
     }
 
     mapping(address => InstrumentPosition[]) instrumentPositions;

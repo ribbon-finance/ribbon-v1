@@ -10,12 +10,12 @@ ying IProtocolAdapter functions.
  */
 library AmmAdapter {
 
-    function delegateBuyLp(IAmmAdapter adapter, address tokenInput, uint256 amt, string memory exchangeName, uint256 tradeAmt, uint256 minWbtcAmtOut, uint256 minDiggAmtOut) external {
+    function delegateBuyLp(IAmmAdapter adapter, uint256 amt, uint256 tradeAmt, uint256 minWbtcAmtOut, uint256 minDiggAmtOut) external {
         (bool success, bytes memory result) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
-                    "buyLp(address,uint256,string,uint256,uint256,uint256)",
-                 tokenInput, amt, exchangeName, tradeAmt, minWbtcAmtOut, minDiggAmtOut
+                    "buyLp(uint256,uint256,uint256,uint256)",
+                 amt, tradeAmt, minWbtcAmtOut, minDiggAmtOut
                 )
             );
         revertWhenFail(success, result);
@@ -31,7 +31,9 @@ library AmmAdapter {
 
     function getRevertMsg(bytes memory _returnData)
         private
+// SPDX-License-Identifier: MIT
         pure
+// SPDX-License-Identifier: MIT
         returns (string memory)
     {
         // If the _res length is less than 68, then the transaction failed silently (without a revert message)

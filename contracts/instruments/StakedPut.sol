@@ -74,7 +74,6 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     string private constant instrumentName = "wbtc/digg-staked-put";
     address private constant _WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     uint256 private constant timePeriod = 2419199;
-    bytes32 private constant uniswapHash = keccak256(abi.encodePacked("UNISWAP"));
     string private constant venue = 'HEGIC';
     uint8 private constant venueID = 1;
 

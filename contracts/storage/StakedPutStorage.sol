@@ -19,8 +19,7 @@ contract StakedPutStorageV1 is
     ERC20Upgradeable,
     ReentrancyGuard
 {
-
-        struct InstrumentPosition {
+    struct InstrumentPosition {
         bool exercised;
         uint8 putVenueID;
         uint32 putOptionID;
@@ -31,7 +30,7 @@ contract StakedPutStorageV1 is
 
     mapping(address => InstrumentPosition[]) instrumentPositions;
 
-function numOfPositions(address _account) public view returns (uint256) {
+    function numOfPositions(address _account) public view returns (uint256) {
         return instrumentPositions[_account].length;
     }
 
@@ -50,5 +49,4 @@ function numOfPositions(address _account) public view returns (uint256) {
     {
         return instrumentPositions[account][positionID];
     }
-
 }

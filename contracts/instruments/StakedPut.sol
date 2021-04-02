@@ -35,7 +35,6 @@ import {UniswapAdapter} from "../adapters/UniswapAdapter.sol";
 import {StakedPutStorageV1} from "../storage/StakedPutStorage.sol";
 
 contract StakedPut is DSMath, StakedPutStorageV1 {
-
     event PositionCreated(
         address indexed account,
         uint256 indexed positionID,
@@ -74,10 +73,11 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     string private constant instrumentName = "wbtc/digg-staked-put";
     address private constant _WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     uint256 private constant timePeriod = 2419199;
-    string private constant venue = 'HEGIC';
+    string private constant venue = "HEGIC";
     uint8 private constant venueID = 1;
 
-    ProtocolAdapterTypes.OptionType public constant optionType = ProtocolAdapterTypes.OptionType.Put;
+    ProtocolAdapterTypes.OptionType public constant optionType =
+        ProtocolAdapterTypes.OptionType.Put;
     address public immutable ethAddress;
     address public immutable wbtcAddress;
     address public immutable underlying;
@@ -85,8 +85,15 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     address public immutable collateralAsset;
     address public immutable optionsAddress;
 
-
-    constructor(address _factory, address payable _uniswapAdapterAddress, address _ethAddress, address _wbtcAddress, address _wbtcOptionsAddress, address _collateralAsset, address _priceFeed) {
+    constructor(
+        address _factory,
+        address payable _uniswapAdapterAddress,
+        address _ethAddress,
+        address _wbtcAddress,
+        address _wbtcOptionsAddress,
+        address _collateralAsset,
+        address _priceFeed
+    ) {
         require(_factory != address(0), "!_factory");
         require(_uniswapAdapterAddress != address(0), "!_uniswapAdapter");
         require(_ethAddress != address(0), "!_eth");
@@ -110,28 +117,34 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
         factory = factoryInstance;
         adapter = IProtocolAdapter(adapterAddress);
         optionsAddress = _wbtcOptionsAddress;
-
     }
 
-    function initialize() external initializer {
-    }
+    function initialize() external initializer {}
 
-    function getName() public pure returns(string memory)
-    {
+    function getName() public pure returns (string memory) {
         return instrumentName;
     }
 
-    function getCurrentPrice() public view returns(uint256)
-    {
+    function getCurrentPrice() public view returns (uint256) {
         (, int256 latestPrice, , , ) = priceProvider.latestRoundData();
         uint256 currentPrice = uint256(latestPrice);
         return currentPrice.mul(10**10);
     }
 
     //input currency is eth
-    function getInputs(uint256 amt) public view returns(uint256 wbtcSize, uint256 expDigg, uint256 tradeAmt, uint256 premium, uint256 totalCost,uint256 currentPrice, uint256 expiry)
+    function getInputs(uint256 amt)
+        public
+        view
+        returns (
+            uint256 wbtcSize,
+            uint256 expDigg,
+            uint256 tradeAmt,
+            uint256 premium,
+            uint256 totalCost,
+            uint256 currentPrice,
+            uint256 expiry
+        )
     {
-
         wbtcSize = iUniswapAdapter.expectedWbtcOut(amt);
 
         (expDigg, tradeAmt) = iUniswapAdapter.expectedDiggOut(wbtcSize);
@@ -140,34 +153,35 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
         //set strike to atm
         expiry = block.timestamp + timePeriod;
         currentPrice = uint256(getCurrentPrice());
-        ProtocolAdapterTypes.OptionTerms memory optionTerms =  ProtocolAdapterTypes.OptionTerms(
-            underlying,
-            strikeAsset,
-            collateralAsset,
-            expiry,
-            currentPrice,
-            optionType,
-            ethAddress
-        );
+        ProtocolAdapterTypes.OptionTerms memory optionTerms =
+            ProtocolAdapterTypes.OptionTerms(
+                underlying,
+                strikeAsset,
+                collateralAsset,
+                expiry,
+                currentPrice,
+                optionType,
+                ethAddress
+            );
 
         premium = adapter.premium(optionTerms, wbtcSize);
         totalCost = amt.add(premium);
     }
 
-    function buyInstrument(BuyInstrumentParams calldata params) public payable
-    {
-        require(msg.value > 0, 'input must be eth');
-        iUniswapAdapter.delegateBuyLp(params.lpAmt, params.tradeAmt, params.minWbtcAmtOut,params.minDiggAmtOut);
+    function buyInstrument(BuyInstrumentParams calldata params) public payable {
+        require(msg.value > 0, "input must be eth");
+        iUniswapAdapter.delegateBuyLp(
+            params.lpAmt,
+            params.tradeAmt,
+            params.minWbtcAmtOut,
+            params.minDiggAmtOut
+        );
         uint256 positionID = buyPutFromAdapter(params);
 
         uint256 balance = address(this).balance;
         if (balance > 0) payable(msg.sender).transfer(balance);
 
-        emit PositionCreated(
-            msg.sender,
-            positionID,
-            params.lpAmt
-        );
+        emit PositionCreated(msg.sender, positionID, params.lpAmt);
     }
 
     function exercisePosition(uint256 positionID)
@@ -188,11 +202,7 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
         uint256 amount = position.amount;
 
         uint256 profit =
-            adapter.delegateExerciseProfit(
-                optionsAddress,
-                optionID,
-                amount
-            );
+            adapter.delegateExerciseProfit(optionsAddress, optionID, amount);
         if (profit > 0) {
             adapter.delegateExercise(
                 optionsAddress,
@@ -232,7 +242,11 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
         address adapterAddress = factory.getAdapter(venue);
         require(adapterAddress != address(0), "Adapter does not exist");
 
-        profit += adapter.delegateExerciseProfit(optionsAddress, optionID, amount);
+        profit += adapter.delegateExerciseProfit(
+            optionsAddress,
+            optionID,
+            amount
+        );
         return profit;
     }
 
@@ -266,29 +280,38 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
         return canExercisePut;
     }
 
-//make this internal for production
+    //make this internal for production
     function buyPutFromAdapter(BuyInstrumentParams calldata params)
-       public
+        public
         payable
         nonReentrant
         returns (uint256 positionID)
     {
-        require(block.timestamp < params.expiry, "Cannot purchase after expiry");
+        require(
+            block.timestamp < params.expiry,
+            "Cannot purchase after expiry"
+        );
 
         address adapterAddress = factory.getAdapter(venue);
         require(adapterAddress != address(0), "Adapter does not exist");
 
-        ProtocolAdapterTypes.OptionTerms memory optionTerms = ProtocolAdapterTypes.OptionTerms(
-            underlying,
-            strikeAsset,
-            collateralAsset,
-            params.expiry,
-            params.putStrikePrice,
-            optionType,
-            ethAddress
-        );
+        ProtocolAdapterTypes.OptionTerms memory optionTerms =
+            ProtocolAdapterTypes.OptionTerms(
+                underlying,
+                strikeAsset,
+                collateralAsset,
+                params.expiry,
+                params.putStrikePrice,
+                optionType,
+                ethAddress
+            );
 
-        uint256 optionID256 = adapter.delegatePurchase(optionTerms, params.optionAmount, params.putMaxCost);
+        uint256 optionID256 =
+            adapter.delegatePurchase(
+                optionTerms,
+                params.optionAmount,
+                params.putMaxCost
+            );
         uint32 optionID = uint32(optionID256);
 
         InstrumentPosition memory position =
@@ -304,5 +327,4 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
         positionID = instrumentPositions[msg.sender].length;
         instrumentPositions[msg.sender].push(position);
     }
-
 }

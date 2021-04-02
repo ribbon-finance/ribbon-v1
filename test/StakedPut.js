@@ -304,11 +304,7 @@ function behavesLikeStakedPut(params) {
       const cur = await this.instrument.getCurrentPrice();
       //              console.log(`price is ${cur.toString()}`);
 
-      const response = await this.instrument.getInputs(
-        params.paymentToken,
-        params.lpPurchaseAmount,
-        params.exchangeName
-      );
+      const response = await this.instrument.getInputs(params.lpPurchaseAmount);
 
       //              console.log(response.toString());
 
@@ -358,11 +354,7 @@ function behavesLikeStakedPut(params) {
       this.startTime = (await provider.getBlock()).timestamp;
       this.expiry = this.startTime + 60 * 60 * 24 * 2;
 
-      const response = await this.instrument.getInputs(
-        params.paymentToken,
-        params.lpPurchaseAmount,
-        params.exchangeName
-      );
+      const response = await this.instrument.getInputs(params.lpPurchaseAmount);
 
       this.buyInstrumentParams = [
         params.strikePrices[0],
@@ -428,11 +420,7 @@ function behavesLikeStakedPut(params) {
     });
 
     it("reverts instrument buy on invalid payment token", async function () {
-      const response = await this.instrument.getInputs(
-        params.paymentToken,
-        params.lpPurchaseAmount,
-        params.exchangeName
-      );
+      const response = await this.instrument.getInputs(params.lpPurchaseAmount);
       this.buyInstrumentParams = [
         response.currentPrice,
         response.wbtcSize,
@@ -509,11 +497,7 @@ function behavesLikeStakedPut(params) {
       const cur = await this.instrument.getCurrentPrice();
       //console.log(`price is ${cur.toString()}`);
 
-      const response = await this.instrument.getInputs(
-        params.paymentToken,
-        params.lpPurchaseAmount,
-        params.exchangeName
-      );
+      const response = await this.instrument.getInputs(params.lpPurchaseAmount);
       console.log(`total cost is ${response.totalCost}`);
       if (params.paymentToken == ETH_ADDRESS) {
         valueToSend = response.totalCost;
@@ -632,3 +616,4 @@ function behavesLikeStakedPut(params) {
     });
   });
 }
+

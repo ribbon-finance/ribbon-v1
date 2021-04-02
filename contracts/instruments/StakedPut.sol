@@ -87,8 +87,7 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     address public immutable optionsAddress;
 
 
-    constructor(address _factory, address payable _uniswapAdapterAddress, address _ethAddress, address _wbtcAddress, address _wbtcOptionsAddress, address _collateralAsset, address _priceFee
-d) {
+    constructor(address _factory, address payable _uniswapAdapterAddress, address _ethAddress, address _wbtcAddress, address _wbtcOptionsAddress, address _collateralAsset, address _priceFeed) {
         require(_factory != address(0), "!_factory");
         require(_uniswapAdapterAddress != address(0), "!_uniswapAdapter");
         require(_ethAddress != address(0), "!_eth");

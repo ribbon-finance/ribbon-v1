@@ -39,7 +39,6 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     event PositionCreated(
         address indexed account,
         uint256 indexed positionID,
-        string venue,
         uint256 amount
     );
     event Exercised(
@@ -49,13 +48,11 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     );
 
     struct BuyInstrumentParams {
-        address paymentToken;
         uint256 putStrikePrice;
         uint256 optionAmount;
         uint256 putMaxCost;
         uint256 expiry;
         uint256 lpAmt;
-        string exchangeName;
         uint256 tradeAmt;
         uint256 minWbtcAmtOut;
         uint256 minDiggAmtOut;
@@ -69,7 +66,6 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     IRibbonFactory public immutable factory;
     IProtocolAdapter public immutable adapter;
     IAmmAdapter public immutable iUniswapAdapter;
-    IUniswapV2Pair public immutable ethWbtcPair;
     IHegicOptions public immutable options;
     AggregatorV3Interface public immutable priceProvider;
 
@@ -77,7 +73,7 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     string private constant adapterName = "HEGIC";
     string private constant instrumentName = "wbtc/digg-staked-put";
     address private constant _WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    uint256 private constant month = 172800;
+    uint256 private constant timePeriod = 2419199;
     bytes32 private constant uniswapHash = keccak256(abi.encodePacked("UNISWAP"));
     string private constant venue = 'HEGIC';
     uint8 private constant venueID = 1;
@@ -91,10 +87,10 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     address public immutable optionsAddress;
 
 
-    constructor(address _factory, address payable _uniswapAdapterAddress, address _ethWbtcPair, address _ethAddress, address _wbtcAddress, address _wbtcOptionsAddress, address _collateralAsset, address _priceFeed) {
+    constructor(address _factory, address payable _uniswapAdapterAddress, address _ethAddress, address _wbtcAddress, address _wbtcOptionsAddress, address _collateralAsset, address _priceFee
+d) {
         require(_factory != address(0), "!_factory");
         require(_uniswapAdapterAddress != address(0), "!_uniswapAdapter");
-        require(_ethWbtcPair != address(0), "!_ethWbtcPair");
         require(_ethAddress != address(0), "!_eth");
         require(_wbtcAddress != address(0), "!_wbtc");
         require(_wbtcOptionsAddress != address(0), "!_wbtcOptions");
@@ -110,7 +106,6 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
         IRibbonFactory factoryInstance = IRibbonFactory(_factory);
         iUniswapAdapter = IAmmAdapter(_uniswapAdapterAddress);
         uniswapAdapterAddress = _uniswapAdapterAddress;
-        ethWbtcPair = IUniswapV2Pair(_ethWbtcPair);
         address adapterAddress = factoryInstance.getAdapter(adapterName);
         require(adapterAddress != address(0), "Adapter not set");
         options = IHegicOptions(_wbtcOptionsAddress);
@@ -132,10 +127,11 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     {
         (, int256 latestPrice, , , ) = priceProvider.latestRoundData();
         uint256 currentPrice = uint256(latestPrice);
-        return currentPrice.mul(10000000000);
+        return currentPrice.mul(10**10);
     }
 
-    function getInputs(address inputToken, uint256 amt, string memory exchangeName) public view returns(uint256 wbtcSize, uint256 expDigg, uint256 tradeAmt, uint256 premium, uint256 totalCost,uint256 currentPrice, uint256 expiry)
+    function getInputs(address inputToken, uint256 amt, string memory exchangeName) public view returns(uint256 wbtcSize, uint256 expDigg, uint256 tradeAmt, uint256 premium, uint256 totalCo
+st,uint256 currentPrice, uint256 expiry)
     {
         require(inputToken == ethAddress, 'invalid input token');
         wbtcSize = iUniswapAdapter.expectedWbtcOut(amt, exchangeName);
@@ -144,7 +140,7 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
 
         //set expiry to a month from now
         //set strike to atm
-        expiry = block.timestamp + month;
+        expiry = block.timestamp + timePeriod;
         currentPrice = uint256(getCurrentPrice());
         ProtocolAdapterTypes.OptionTerms memory optionTerms =  ProtocolAdapterTypes.OptionTerms(
             underlying,
@@ -157,27 +153,23 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
         );
 
         premium = adapter.premium(optionTerms, wbtcSize);
-        totalCost = amt + premium;
+        totalCost = amt.add(premium);
     }
 
     function buyInstrument(BuyInstrumentParams calldata params) public payable
     {
-        require(params.paymentToken == ethAddress, 'input must be eth');
-        buyLpFromAdapter(params.paymentToken, params.lpAmt, params.exchangeName, params.tradeAmt, params.minWbtcAmtOut,params.minDiggAmtOut);
-
+        require(msg.value > 0, 'input must be eth');
+        iUniswapAdapter.delegateBuyLp(params.lpAmt, params.tradeAmt, params.minWbtcAmtOut,params.minDiggAmtOut);
         uint256 positionID = buyPutFromAdapter(params);
+
+        uint256 balance = address(this).balance;
+        if (balance > 0) payable(msg.sender).transfer(balance);
 
         emit PositionCreated(
             msg.sender,
             positionID,
-            params.exchangeName,
             params.lpAmt
         );
-    }
-
-    function buyLpFromAdapter(address tokenInput, uint256 amt, string memory exchangeName, uint256 tradeAmt, uint256 minWbtcAmtOut, uint256 minDiggAmtOut) public payable
-    {
-        iUniswapAdapter.delegateBuyLp(tokenInput, amt, exchangeName, tradeAmt, minWbtcAmtOut, minDiggAmtOut);
     }
 
     function exercisePosition(uint256 positionID)
@@ -242,11 +234,6 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
         address adapterAddress = factory.getAdapter(venue);
         require(adapterAddress != address(0), "Adapter does not exist");
 
-        bool exercisable = adapter.canExercise(optionsAddress, optionID, amount);
-        if (!exercisable) {
-            return 0;
-        }
-
         profit += adapter.delegateExerciseProfit(optionsAddress, optionID, amount);
         return profit;
     }
@@ -300,7 +287,7 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
             params.expiry,
             params.putStrikePrice,
             optionType,
-            params.paymentToken
+            ethAddress
         );
 
         uint256 optionID256 = adapter.delegatePurchase(optionTerms, params.optionAmount, params.putMaxCost);
@@ -318,9 +305,6 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
 
         positionID = instrumentPositions[msg.sender].length;
         instrumentPositions[msg.sender].push(position);
-
-        uint256 balance = address(this).balance;
-        if (balance > 0) payable(msg.sender).transfer(balance);
     }
 
 }

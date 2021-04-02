@@ -27,9 +27,7 @@ import {AmmAdapter} from "../adapters/AmmAdapter.sol";
 
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
-import {IWETH} from "../interfaces/IWETH.sol";
 import {IUniswapV2Pair} from "../interfaces/IUniswapV2Pair.sol";
-import {OtokenInterface} from "../interfaces/GammaInterface.sol";
 import {UniswapAdapter} from "../adapters/UniswapAdapter.sol";
 
 import {StakedPutStorageV1} from "../storage/StakedPutStorage.sol";
@@ -69,7 +67,6 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     AggregatorV3Interface public immutable priceProvider;
 
     address payable public uniswapAdapterAddress;
-    string private constant adapterName = "HEGIC";
     string private constant instrumentName = "wbtc/digg-staked-put";
     uint256 private constant timePeriod = 2419199;
     string private constant venue = "HEGIC";
@@ -83,6 +80,7 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     address public immutable strikeAsset;
     address public immutable collateralAsset;
     address public immutable optionsAddress;
+    address public immutable adapterAddress;
 
     constructor(
         address _factory,
@@ -107,11 +105,12 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
         IRibbonFactory factoryInstance = IRibbonFactory(_factory);
         iUniswapAdapter = IAmmAdapter(_uniswapAdapterAddress);
         uniswapAdapterAddress = _uniswapAdapterAddress;
-        address adapterAddress = factoryInstance.getAdapter(adapterName);
-        require(adapterAddress != address(0), "Adapter not set");
+        address _adapterAddress = factoryInstance.getAdapter(venue);
+        require(_adapterAddress != address(0), "Adapter not set");
+        adapterAddress = _adapterAddress;
         options = IHegicOptions(_wbtcOptionsAddress);
         factory = factoryInstance;
-        adapter = IProtocolAdapter(adapterAddress);
+        adapter = IProtocolAdapter(_adapterAddress);
         optionsAddress = _wbtcOptionsAddress;
     }
 
@@ -149,6 +148,7 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
         //set strike to atm
         expiry = block.timestamp + timePeriod;
         currentPrice = uint256(getCurrentPrice());
+        
         ProtocolAdapterTypes.OptionTerms memory optionTerms =
             ProtocolAdapterTypes.OptionTerms(
                 underlying,
@@ -231,9 +231,6 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
 
         optionID = position.putOptionID;
 
-        address adapterAddress = factory.getAdapter(venue);
-        require(adapterAddress != address(0), "Adapter does not exist");
-
         profit += adapter.delegateExerciseProfit(
             optionsAddress,
             optionID,
@@ -258,9 +255,6 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
 
         optionID = position.putOptionID;
 
-        address adapterAddress = factory.getAdapter(venue);
-        require(adapterAddress != address(0), "Adapter does not exist");
-
         bool canExerciseOptions =
             adapter.canExercise(optionsAddress, optionID, position.amount);
 
@@ -281,9 +275,6 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
             block.timestamp < params.expiry,
             "Cannot purchase after expiry"
         );
-
-        address adapterAddress = factory.getAdapter(venue);
-        require(adapterAddress != address(0), "Adapter does not exist");
 
         ProtocolAdapterTypes.OptionTerms memory optionTerms =
             ProtocolAdapterTypes.OptionTerms(

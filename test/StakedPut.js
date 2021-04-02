@@ -27,7 +27,7 @@ const WBTC_OPTIONS_ADDRESS = "0x3961245db602ed7c03eeccda33ea3846bd8723bd";
 
 const gasPrice = parseUnits("1", "gwei");
 
-describe.skip("StakedPut", () => {
+describe("StakedPut", () => {
   let initSnapshotId;
   this.gasPrice = ethers.utils.parseUnits("1", "gwei");
   before(async function () {
@@ -103,11 +103,9 @@ describe.skip("StakedPut", () => {
     const UniswapAdapter = await ethers.getContractFactory("UniswapAdapter");
 
     this.uniswapAdapter = await UniswapAdapter.deploy(
-      UNISWAP_ADDRESS,
       SUSHISWAP_ADDRESS,
       WBTC_ADDRESS,
       ETH_ADDRESS,
-      UNISWAP_LP,
       SUSHISWAP_LP,
       DIGG_ADDRESS
     );
@@ -616,4 +614,3 @@ function behavesLikeStakedPut(params) {
     });
   });
 }
-

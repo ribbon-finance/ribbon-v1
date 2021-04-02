@@ -27,7 +27,7 @@ const WBTC_OPTIONS_ADDRESS = "0x3961245db602ed7c03eeccda33ea3846bd8723bd";
 
 const gasPrice = parseUnits("1", "gwei");
 
-describe("StakedPut", () => {
+describe.skip("StakedPut", () => {
   let initSnapshotId;
   this.gasPrice = ethers.utils.parseUnits("1", "gwei");
   before(async function () {

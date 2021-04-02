@@ -71,14 +71,13 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     address payable public uniswapAdapterAddress;
     string private constant adapterName = "HEGIC";
     string private constant instrumentName = "wbtc/digg-staked-put";
-    address private constant _WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     uint256 private constant timePeriod = 2419199;
     string private constant venue = "HEGIC";
-    uint8 private constant venueID = 1;
+    uint8 private constant venueID = 0;
 
     ProtocolAdapterTypes.OptionType public constant optionType =
         ProtocolAdapterTypes.OptionType.Put;
-    address public immutable ethAddress;
+    address public immutable ethAddress = address(0);
     address public immutable wbtcAddress;
     address public immutable underlying;
     address public immutable strikeAsset;
@@ -88,7 +87,6 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     constructor(
         address _factory,
         address payable _uniswapAdapterAddress,
-        address _ethAddress,
         address _wbtcAddress,
         address _wbtcOptionsAddress,
         address _collateralAsset,
@@ -96,13 +94,11 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     ) {
         require(_factory != address(0), "!_factory");
         require(_uniswapAdapterAddress != address(0), "!_uniswapAdapter");
-        require(_ethAddress != address(0), "!_eth");
         require(_wbtcAddress != address(0), "!_wbtc");
         require(_wbtcOptionsAddress != address(0), "!_wbtcOptions");
         require(_collateralAsset != address(0), "!_collateral");
         require(_priceFeed != address(0), "!_priceFeed");
 
-        ethAddress = _ethAddress;
         wbtcAddress = _wbtcAddress;
         underlying = _wbtcAddress;
         strikeAsset = _wbtcAddress;
@@ -193,10 +189,8 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
             instrumentPositions[msg.sender][positionID];
         require(!position.exercised, "Already exercised");
 
-        uint256 strikePrice;
         uint32 optionID;
 
-        strikePrice = position.putStrikePrice;
         optionID = position.putOptionID;
 
         uint256 amount = position.amount;
@@ -233,10 +227,8 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
 
         uint256 amount = position.amount;
 
-        uint256 strikePrice;
         uint32 optionID;
 
-        strikePrice = position.putStrikePrice;
         optionID = position.putOptionID;
 
         address adapterAddress = factory.getAdapter(venue);
@@ -262,10 +254,8 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
 
         bool canExercisePut = false;
 
-        uint256 strikePrice;
         uint32 optionID;
 
-        strikePrice = position.putStrikePrice;
         optionID = position.putOptionID;
 
         address adapterAddress = factory.getAdapter(venue);
@@ -319,9 +309,7 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
                 false,
                 venueID,
                 optionID,
-                params.optionAmount,
-                params.putStrikePrice,
-                params.expiry
+                params.optionAmount
             );
 
         positionID = instrumentPositions[msg.sender].length;

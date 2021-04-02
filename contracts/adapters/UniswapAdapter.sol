@@ -98,52 +98,38 @@ contract UniswapAdapter {
     }
 
     function expectedWbtcOut(uint256 ethAmt, string memory exchangeName) public view returns (uint256){
-        Exchange exchange = validateExchange(exchangeName);
-        IUniswapV2Router02 router = exchange == Exchange.Uniswap ? uniswapRouter : sushiswapRouter;
+        validateExchange(exchangeName);
         address[] memory path = new address[](2);
         path[0] = wethAddress;
         path[1] = wbtcAddress;
-        uint256 wbtcOut = router.getAmountsOut(ethAmt, path)[1];
+        uint256 wbtcOut = sushiswapRouter.getAmountsOut(ethAmt, path)[1];
         return wbtcOut;
     }
 
     //this function returns both the expected digg amount out as well as the input trade amt of wbtc used
     //these are both needed as inputs to buyLp
     function expectedDiggOut(uint256 wbtcAmt, string memory exchangeName) public view returns (uint256 diggOut, uint256 tradeAmt){
-        Exchange exchange = validateExchange(exchangeName);
-        if (exchange == Exchange.Uniswap){
-            (uint112 reserveAmt,,) = IUniswapV2Pair(wbtcDiggUniswap).getReserves();
-            tradeAmt = getSwapAmt(reserveAmt, wbtcAmt);
-            address[] memory path = new address[](2);
-            path[0] = wbtcAddress;
-            path[1] = diggAddress;
-            diggOut = uniswapRouter.getAmountsOut(tradeAmt, path)[1];
-        }
-        else if (exchange == Exchange.Sushiswap){
-            (uint112 reserveAmt,,) = IUniswapV2Pair(wbtcDiggSushiswap).getReserves();
-            tradeAmt = getSwapAmt(reserveAmt,wbtcAmt);
-            address[] memory path = new address[](2);
-            path[0] = wbtcAddress;
-            path[1] = diggAddress;
-            diggOut = uniswapRouter.getAmountsOut(tradeAmt, path)[1];
-        }
+        validateExchange(exchangeName);
+        (uint112 reserveAmt,,) = IUniswapV2Pair(wbtcDiggSushiswap).getReserves();
+        tradeAmt = getSwapAmt(reserveAmt,wbtcAmt);
+        address[] memory path = new address[](2);
+        path[0] = wbtcAddress;
+        path[1] = diggAddress;
+        diggOut = sushiswapRouter.getAmountsOut(tradeAmt, path)[1];
     }
 
-    function convertEthToToken( uint256 inputAmount, address addr,uint256 amountOutMin, Exchange exchange) internal returns (uint256){
-        IUniswapV2Router02 router = exchange == Exchange.Uniswap ? uniswapRouter : sushiswapRouter;
-        uint256 amtOut = _convertEthToToken(inputAmount, addr, amountOutMin, router);
+    function convertEthToToken( uint256 inputAmount, address addr,uint256 amountOutMin) internal returns (uint256){
+        uint256 amtOut = _convertEthToToken(inputAmount, addr, amountOutMin, sushiswapRouter);
         return amtOut;
     }
 
-    function convertTokenToToken(address addr1, address addr2, uint256 amount, uint256 amountOutMin, Exchange exchange) internal returns (uint256){
-        IUniswapV2Router02 router = exchange == Exchange.Uniswap ? uniswapRouter : sushiswapRouter;
-        uint256 amtOut = _convertTokenToToken(addr1, addr2, amount, amountOutMin, router);
+    function convertTokenToToken(address addr1, address addr2, uint256 amount, uint256 amountOutMin) internal returns (uint256){
+        uint256 amtOut = _convertTokenToToken(addr1, addr2, amount, amountOutMin, sushiswapRouter);
         return amtOut;
     }
 
-    function addLiquidity(address token1,address token2,uint256 amount1,uint256 amount2,Exchange exchange) internal returns (uint256){
-        IUniswapV2Router02 router = exchange == Exchange.Uniswap ? uniswapRouter : sushiswapRouter;
-        uint256 lpAmt = _addLiquidity(token1, token2, amount1, amount2, router);
+    function addLiquidity(address token1,address token2,uint256 amount1,uint256 amount2) internal returns (uint256){
+        uint256 lpAmt = _addLiquidity(token1, token2, amount1, amount2, sushiswapRouter);
         return lpAmt;
     }
 
@@ -163,7 +149,7 @@ contract UniswapAdapter {
         path[0] = addr1;
         path[1] = addr2;
         if (wbtcToken.allowance(address(this), address(router)) == 0){
-            SafeERC20.safeApprove(wbtcToken, address(router), type(uint256).max);
+            wbtcToken.safeApprove(address(router), type(uint256).max);
         }
         uint256 amtOut = router.swapExactTokensForTokens(amount,amountOutMin, path, address(this), deadline)[1];
         return amtOut;
@@ -172,10 +158,10 @@ contract UniswapAdapter {
     function _addLiquidity(address token1,address token2,uint256 amount1,uint256 amount2, IUniswapV2Router02 router) internal returns (uint256){
         uint deadline = block.timestamp + deadlineBuffer;
         if (wbtcToken.allowance(address(this), address(router)) < amount1){
-            SafeERC20.safeApprove(wbtcToken, address(router), type(uint256).max);
+            wbtcToken.safeApprove(address(router), type(uint256).max);
         }
         if (diggToken.allowance(address(this), address(router)) < amount2){
-            SafeERC20.safeApprove(diggToken, address(router), type(uint256).max);
+            diggToken.safeApprove(address(router), type(uint256).max);
         }
         (,, uint256 lpAmt) = router.addLiquidity(token1,token2, amount1, amount2, 0, 0, address(this), deadline);
         return lpAmt;
@@ -184,34 +170,19 @@ contract UniswapAdapter {
     //By the time this function is called the user bal should be in wbtc
     //calculates optimal swap amt for minimal leftover funds and buys Digg
     // Provides liquidity and transfers lp token to msg.sender
-    function _buyLp( uint256 userWbtcBal, Exchange exchange, address traderAccount, uint256 tradeAmt, uint256 minDiggAmtOut)  internal{
-        if (exchange == Exchange.Uniswap){
-            uint256 diggAmt = convertTokenToToken(wbtcAddress, diggAddress, tradeAmt, minDiggAmtOut, exchange);
-            uint256 lpAmt = addLiquidity(wbtcAddress, diggAddress, userWbtcBal, diggAmt, exchange);
-            wbtcDiggUniswap.transfer(traderAccount, lpAmt);
-        }
-        else if (exchange == Exchange.Sushiswap){
-            uint256 diggAmt = convertTokenToToken(wbtcAddress, diggAddress, tradeAmt, minDiggAmtOut, exchange);
-            uint256 lpAmt = addLiquidity(wbtcAddress, diggAddress, userWbtcBal, diggAmt, exchange);
-            wbtcDiggSushiswap.transfer(traderAccount, lpAmt);
-        }
+    function _buyLp( uint256 userWbtcBal, address traderAccount, uint256 tradeAmt, uint256 minDiggAmtOut)  internal{
+        uint256 diggAmt = convertTokenToToken(wbtcAddress, diggAddress, tradeAmt, minDiggAmtOut);
+        uint256 lpAmt = addLiquidity(wbtcAddress, diggAddress, userWbtcBal, diggAmt);
+        require(wbtcDiggSushiswap.transfer(traderAccount, lpAmt), "transfer failed");
     }
 
     // token input should be either wbtc or eth
     // valid exchange venues are sushiswap and uniswap
     // the minWbtcAmtOut param isnt used when users pass in wbtc directly
     // use the  expectedWbtcAmtOut and expectedDiggAmtOut functions off chain to calculate trade_amt, minWbtcAmtOut and minDiggAmtOut
-    function buyLp(address tokenInput, uint256 amt, string memory exchangeName, uint256 tradeAmt, uint256 minWbtcAmtOut, uint256 minDiggAmtOut) payable public{
-        Exchange exchange = validateExchange(exchangeName);
-        if (tokenInput == ethAddress){
-            require(msg.value >= amt, 'not enough funds');
-            uint256 wbtcAmt = convertEthToToken( amt, wbtcAddress, minWbtcAmtOut, exchange);
-            _buyLp( wbtcAmt, exchange, msg.sender, tradeAmt, minDiggAmtOut);
-        }
-        else if (tokenInput == wbtcAddress){
-            require(wbtcToken.balanceOf(msg.sender) >= amt, 'not enough funds');
-            wbtcToken.transferFrom(msg.sender, address(this), amt);
-            _buyLp( amt, exchange, msg.sender,tradeAmt, minDiggAmtOut);
-       }
+    function buyLp(uint256 amt, uint256 tradeAmt, uint256 minWbtcAmtOut, uint256 minDiggAmtOut) payable public{
+        require(msg.value >= amt, 'not enough funds');
+        uint256 wbtcAmt = convertEthToToken( amt, wbtcAddress, minWbtcAmtOut);
+        _buyLp( wbtcAmt, msg.sender, tradeAmt, minDiggAmtOut);
     }
 }

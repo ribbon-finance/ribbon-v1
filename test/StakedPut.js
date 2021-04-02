@@ -105,7 +105,7 @@ describe.skip("StakedPut", () => {
     this.uniswapAdapter = await UniswapAdapter.deploy(
       SUSHISWAP_ADDRESS,
       WBTC_ADDRESS,
-      ETH_ADDRESS,
+      WETH_ADDRESS,
       SUSHISWAP_LP,
       DIGG_ADDRESS
     );
@@ -117,7 +117,6 @@ describe.skip("StakedPut", () => {
     const deployArgs = [
       factory.address,
       this.uniswapAdapterAddress,
-      ETH_ADDRESS,
       WBTC_ADDRESS,
       WBTC_OPTIONS_ADDRESS,
       USDC_ADDRESS,
@@ -174,7 +173,6 @@ describe.skip("StakedPut", () => {
         VaultContract.deploy(
           constants.AddressZero,
           this.uniswapAdapterAddress,
-          ETH_ADDRESS,
           WBTC_ADDRESS,
           WBTC_OPTIONS_ADDRESS,
           USDC_ADDRESS,

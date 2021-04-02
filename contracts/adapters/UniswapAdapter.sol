@@ -13,12 +13,11 @@ contract UniswapAdapter {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    address public immutable ethAddress;
-    address public immutable diggAddress;
-    address public constant wethAddress =
-        address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    string private constant _name = "UNISWAP";
+    address public immutable ethAddress = address(0);
+    address public immutable wethAddress;
     address public immutable wbtcAddress;
+    address public immutable diggAddress;
+    string private constant _name = "UNISWAP";
     bool private constant _nonFungible = true;
     IUniswapV2Router02 public immutable sushiswapRouter;
     IUniswapV2Pair public immutable wbtcDiggSushiswap;
@@ -29,18 +28,18 @@ contract UniswapAdapter {
     constructor(
         address _sushiswapRouter,
         address _wbtcAddress,
-        address _ethAddress,
+        address _wethAddress,
         address _wbtcDiggSushiswap,
         address _diggAddress
     ) {
         require(_sushiswapRouter != address(0), "!_sushiswapRouter");
-        require(_ethAddress != address(0), "!_eth");
+        require(_wethAddress != address(0), "!_weth");
         require(_wbtcAddress != address(0), "!_wbtc");
         require(_wbtcDiggSushiswap != address(0), "!_wbtcDiggSushiswap");
         require(_diggAddress != address(0), "!_diggAddress");
 
         wbtcAddress = _wbtcAddress;
-        ethAddress = _ethAddress;
+        wethAddress = _wethAddress;
         diggAddress = _diggAddress;
         sushiswapRouter = IUniswapV2Router02(_sushiswapRouter);
         wbtcDiggSushiswap = IUniswapV2Pair(_wbtcDiggSushiswap);

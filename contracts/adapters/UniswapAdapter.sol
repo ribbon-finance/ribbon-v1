@@ -90,15 +90,7 @@ contract UniswapAdapter {
         return sqrt(amtA.mul(resA.mul(3988000) + amtA.mul(3988009))).sub(amtA.mul(1997))/1994;
     }
 
-    function validateExchange(string memory exchangeName) internal pure returns (Exchange){
-        if (keccak256(abi.encodePacked(exchangeName)) == sushiswapHash){
-            return Exchange.Sushiswap;
-        }
-        require(false, 'invalid exchange');
-    }
-
-    function expectedWbtcOut(uint256 ethAmt, string memory exchangeName) public view returns (uint256){
-        validateExchange(exchangeName);
+    function expectedWbtcOut(uint256 ethAmt) public view returns (uint256){
         address[] memory path = new address[](2);
         path[0] = wethAddress;
         path[1] = wbtcAddress;
@@ -108,8 +100,7 @@ contract UniswapAdapter {
 
     //this function returns both the expected digg amount out as well as the input trade amt of wbtc used
     //these are both needed as inputs to buyLp
-    function expectedDiggOut(uint256 wbtcAmt, string memory exchangeName) public view returns (uint256 diggOut, uint256 tradeAmt){
-        validateExchange(exchangeName);
+    function expectedDiggOut(uint256 wbtcAmt) public view returns (uint256 diggOut, uint256 tradeAmt){
         (uint112 reserveAmt,,) = IUniswapV2Pair(wbtcDiggSushiswap).getReserves();
         tradeAmt = getSwapAmt(reserveAmt,wbtcAmt);
         address[] memory path = new address[](2);

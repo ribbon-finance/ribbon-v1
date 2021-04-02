@@ -87,7 +87,8 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     address public immutable optionsAddress;
 
 
-    constructor(address _factory, address payable _uniswapAdapterAddress, address _ethAddress, address _wbtcAddress, address _wbtcOptionsAddress, address _collateralAsset, address _priceFeed) {
+    constructor(address _factory, address payable _uniswapAdapterAddress, address _ethAddress, address _wbtcAddress, address _wbtcOptionsAddress, address _collateralAsset, address _priceFee
+d) {
         require(_factory != address(0), "!_factory");
         require(_uniswapAdapterAddress != address(0), "!_uniswapAdapter");
         require(_ethAddress != address(0), "!_eth");
@@ -129,12 +130,13 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
         return currentPrice.mul(10**10);
     }
 
-    function getInputs(address inputToken, uint256 amt, string memory exchangeName) public view returns(uint256 wbtcSize, uint256 expDigg, uint256 tradeAmt, uint256 premium, uint256 totalCost,uint256 currentPrice, uint256 expiry)
+    //input currency is eth
+    function getInputs(uint256 amt) public view returns(uint256 wbtcSize, uint256 expDigg, uint256 tradeAmt, uint256 premium, uint256 totalCost,uint256 currentPrice, uint256 expiry)
     {
-        require(inputToken == ethAddress, 'invalid input token');
-        wbtcSize = iUniswapAdapter.expectedWbtcOut(amt, exchangeName);
 
-        (expDigg, tradeAmt) = iUniswapAdapter.expectedDiggOut(wbtcSize, exchangeName);
+        wbtcSize = iUniswapAdapter.expectedWbtcOut(amt);
+
+        (expDigg, tradeAmt) = iUniswapAdapter.expectedDiggOut(wbtcSize);
 
         //set expiry to a month from now
         //set strike to atm
@@ -147,7 +149,7 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
             expiry,
             currentPrice,
             optionType,
-            inputToken
+            ethAddress
         );
 
         premium = adapter.premium(optionTerms, wbtcSize);

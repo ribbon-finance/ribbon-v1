@@ -11,8 +11,6 @@ import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 
 contract UniswapAdapter {
 
-    enum Exchange {Uniswap, Sushiswap}
-
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -20,41 +18,31 @@ contract UniswapAdapter {
     address public immutable diggAddress;
     address public constant wethAddress = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     string private constant _name = "UNISWAP";
-    bytes32 private constant uniswapHash = keccak256(abi.encodePacked("UNISWAP"));
-    bytes32 private constant sushiswapHash = keccak256(abi.encodePacked("SUSHISWAP"));
     address public immutable wbtcAddress;
     bool private constant _nonFungible = true;
-    IUniswapV2Router02 public immutable uniswapRouter;
     IUniswapV2Router02 public immutable sushiswapRouter;
-    IUniswapV2Pair public immutable wbtcDiggUniswap;
     IUniswapV2Pair public immutable wbtcDiggSushiswap;
     IERC20 public immutable wbtcToken;
     IERC20 public immutable diggToken;
     uint256 public constant deadlineBuffer = 150;
 
     constructor(
-        address _uniswapRouter,
         address _sushiswapRouter,
         address _wbtcAddress,
         address _ethAddress,
-        address _wbtcDiggUniswap,
         address _wbtcDiggSushiswap,
         address _diggAddress
     ) {
-        require(_uniswapRouter != address(0), "!_uniswapRouter");
         require(_sushiswapRouter != address(0), "!_sushiswapRouter");
         require(_ethAddress != address(0), "!_eth");
         require(_wbtcAddress != address(0), "!_wbtc");
         require(_wbtcDiggSushiswap != address(0), "!_wbtcDiggSushiswap");
-        require(_wbtcDiggUniswap != address(0), "!_wbtcDiggUniswap");
         require(_diggAddress != address(0), "!_diggAddress");
 
         wbtcAddress = _wbtcAddress;
         ethAddress = _ethAddress;
         diggAddress = _diggAddress;
-        uniswapRouter = IUniswapV2Router02(_uniswapRouter);
         sushiswapRouter = IUniswapV2Router02(_sushiswapRouter);
-        wbtcDiggUniswap = IUniswapV2Pair(_wbtcDiggUniswap);
         wbtcDiggSushiswap = IUniswapV2Pair(_wbtcDiggSushiswap);
         wbtcToken = IERC20(_wbtcAddress);
         diggToken = IERC20(_diggAddress);

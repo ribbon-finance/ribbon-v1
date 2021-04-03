@@ -23,6 +23,7 @@ module.exports = async function (_deployer, _network) {
 
 async function deployUniswapAdapter() {
   await deployer.deploy(
+    UniswapAdapter,
     SUSHISWAP_ADDRESS,
     WBTC_ADDRESS,
     WETH_ADDRESS,

@@ -13,7 +13,7 @@ contract UniswapAdapter {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    address public immutable ethAddress = address(0);
+    address public constant ethAddress = address(0);
     address public immutable wethAddress;
     address public immutable wbtcAddress;
     address public immutable diggAddress;
@@ -23,7 +23,7 @@ contract UniswapAdapter {
     IUniswapV2Pair public immutable wbtcDiggSushiswap;
     IERC20 public immutable wbtcToken;
     IERC20 public immutable diggToken;
-    uint256 public constant deadlineBuffer = 150;
+    uint256 private constant deadlineBuffer = 150;
 
     constructor(
         address _sushiswapRouter,

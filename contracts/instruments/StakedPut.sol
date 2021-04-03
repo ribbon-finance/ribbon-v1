@@ -74,7 +74,7 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
 
     ProtocolAdapterTypes.OptionType public constant optionType =
         ProtocolAdapterTypes.OptionType.Put;
-    address public immutable ethAddress = address(0);
+    address public constant ethAddress = address(0);
     address public immutable wbtcAddress;
     address public immutable underlying;
     address public immutable strikeAsset;
@@ -148,7 +148,7 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
         //set strike to atm
         expiry = block.timestamp + timePeriod;
         currentPrice = uint256(getCurrentPrice());
-        
+
         ProtocolAdapterTypes.OptionTerms memory optionTerms =
             ProtocolAdapterTypes.OptionTerms(
                 underlying,
@@ -296,12 +296,7 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
         uint32 optionID = uint32(optionID256);
 
         InstrumentPosition memory position =
-            InstrumentPosition(
-                false,
-                venueID,
-                optionID,
-                params.optionAmount
-            );
+            InstrumentPosition(false, venueID, optionID, params.optionAmount);
 
         positionID = instrumentPositions[msg.sender].length;
         instrumentPositions[msg.sender].push(position);

@@ -543,6 +543,8 @@ function behavesLikeStakedPut(params) {
 
       const receipt = await res.wait();
 
+      assert.isAtMost(receipt.gasUsed.toNumber(), 1000000);
+
       const ethBalance2 = await provider.getBalance(user);
 
       const wbtcBal2 = await this.wbtc.balanceOf(user);
@@ -626,4 +628,3 @@ function behavesLikeStakedPut(params) {
     });
   });
 }
-

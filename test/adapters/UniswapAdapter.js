@@ -246,4 +246,19 @@ describe("UniswapAdapter", () => {
     }
     return [reserveBals.reserve0, reserveBals.reserve1, wbtcBalanceAdapter];
   }
+
+  after(async () => {
+    await time.revertToSnapShot(initSnapshotId);
+    await network.provider.request({
+      method: "hardhat_reset",
+      params: [
+        {
+          forking: {
+            jsonRpcUrl: process.env.TEST_URI,
+            blockNumber: 11611333,
+          },
+        },
+      ],
+    });
+  });
 });

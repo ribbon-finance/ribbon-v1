@@ -1,23 +1,14 @@
 const StakedPut = artifacts.require("StakedPut");
 const AmmAdapterLib = artifacts.require("AmmAdapter");
-const {
-  getDefaultArgs,
-  parseLog,
-  mintAndApprove,
-} = require("../test/helpers/utils");
 
 const {
   updateDeployedAddresses,
 } = require("../scripts/helpers/updateDeployedAddresses");
 
 const ACCOUNTS = require("../constants/accounts.json");
+const DEPLOYMENTS = require("../constants/deployments.json");
+const EXTERNAL_ADDRESSES = require("../constants/externalAddresses.json");
 //can we get the Uniswap Adapter address here to?
-const {
-  factory,
-  hegicAdapter,
-  protocolAdapterLib,
-  gammaAdapter,
-} = await getDefaultArgs();
 
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
@@ -30,9 +21,9 @@ let deployer, admin, owner;
 module.exports = async function (_deployer, network) {
   deployer = _deployer;
 
-  const { admin: _admin, owner: _owner } = ACCOUNTS[
-    network.replace("-fork", "")
-  ];
+  const networkLookup = network.replace("-fork", "");
+
+  const { admin: _admin, owner: _owner } = ACCOUNTS[networkLookup];
   admin = _admin;
   owner = _owner;
 
@@ -49,12 +40,12 @@ module.exports = async function (_deployer, network) {
   //need to get the deployed uniswap adapter address
   await deployer.deploy(
     StakedPut,
-    factory.address,
-    UNISWAP_ADAPTER_ADDRESS,
-    WBTC_ADDRESS,
-    WBTC_OPTIONS_ADDRESS,
-    USDC_ADDRESS,
-    HEGIC_PRICE_FEED,
+    DEPLOYMENTS[networkLookup].RibbonFactory,
+    DEPLOYMENTS[networkLookup].UniswapAdapterLogic,
+    EXTERNAL_ADDRESSES[networkLookup].assets.wbtc,
+    EXTERNAL_ADDRESSES[networkLookup].hegicWBTCOptions,
+    EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
+    EXTERNAL_ADDRESSES[networkLookup].feeds["wbtc/eth"],
     { from: admin }
   );
 

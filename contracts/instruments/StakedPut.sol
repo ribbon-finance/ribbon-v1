@@ -67,7 +67,7 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     AggregatorV3Interface public immutable priceProvider;
 
     address payable public uniswapAdapterAddress;
-    string private constant instrumentName = "wbtc/digg-staked-put";
+    string private constant instrumentName = "UPONLY-WBTC";
     uint256 private constant timePeriod = 2419199;
     string private constant venue = "HEGIC";
     uint8 private constant venueID = 0;

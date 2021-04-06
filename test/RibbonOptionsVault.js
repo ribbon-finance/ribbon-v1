@@ -55,6 +55,11 @@ describe("RibbonCoveredCall", () => {
     manager = managerSigner.address;
     counterparty = counterpartySigner.address;
     feeRecipient = feeRecipientSigner.address;
+    this.tokenName = "Ribbon ETH Theta Vault";
+    this.tokenSymbol = "rETH-THETA";
+    this.tokenDecimals = 18;
+    this.minimumSupply = BigNumber.from("10").pow("10").toString();
+    this.asset = WETH_ADDRESS;
 
     this.counterpartyWallet = ethers.Wallet.fromMnemonic(
       process.env.TEST_MNEMONIC,
@@ -71,18 +76,28 @@ describe("RibbonCoveredCall", () => {
     this.factory = factory;
     this.protocolAdapterLib = protocolAdapterLib;
 
-    const initializeTypes = ["address", "address", "address", "uint256"];
+    const initializeTypes = [
+      "address",
+      "address",
+      "uint256",
+      "string",
+      "string",
+    ];
     const initializeArgs = [
-      WETH_ADDRESS,
       owner,
       feeRecipient,
       parseEther("500"),
+      this.tokenName,
+      this.tokenSymbol,
     ];
     const deployArgs = [
+      this.asset,
       factory.address,
       WETH_ADDRESS,
       USDC_ADDRESS,
       SWAP_ADDRESS,
+      this.tokenDecimals,
+      this.minimumSupply,
     ];
 
     this.vault = (
@@ -151,10 +166,13 @@ describe("RibbonCoveredCall", () => {
       );
       await expect(
         VaultContract.deploy(
+          WETH_ADDRESS,
           constants.AddressZero,
           WETH_ADDRESS,
           USDC_ADDRESS,
-          SWAP_ADDRESS
+          SWAP_ADDRESS,
+          this.tokenDecimals,
+          this.minimumSupply
         )
       ).to.be.revertedWith("!_factory");
     });
@@ -174,12 +192,112 @@ describe("RibbonCoveredCall", () => {
 
       await expect(
         VaultContract.deploy(
+          WETH_ADDRESS,
           factory.address,
           WETH_ADDRESS,
           USDC_ADDRESS,
-          SWAP_ADDRESS
+          SWAP_ADDRESS,
+          this.tokenDecimals,
+          this.minimumSupply
         )
       ).to.be.revertedWith("Adapter not set");
+    });
+
+    it("reverts when asset is 0x", async function () {
+      const VaultContract = await ethers.getContractFactory(
+        "RibbonCoveredCall",
+        {
+          libraries: {
+            ProtocolAdapter: this.protocolAdapterLib.address,
+          },
+        }
+      );
+
+      await expect(
+        VaultContract.deploy(
+          constants.AddressZero,
+          this.factory.address,
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          SWAP_ADDRESS,
+          this.tokenDecimals,
+          this.minimumSupply
+        )
+      ).to.be.revertedWith("!_asset");
+    });
+
+    it("reverts when decimals is 0", async function () {
+      const VaultContract = await ethers.getContractFactory(
+        "RibbonCoveredCall",
+        {
+          libraries: {
+            ProtocolAdapter: this.protocolAdapterLib.address,
+          },
+        }
+      );
+
+      await expect(
+        VaultContract.deploy(
+          WETH_ADDRESS,
+          this.factory.address,
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          SWAP_ADDRESS,
+          0,
+          this.minimumSupply
+        )
+      ).to.be.revertedWith("!_tokenDecimals");
+    });
+
+    it("reverts when minimumSupply is 0", async function () {
+      const VaultContract = await ethers.getContractFactory(
+        "RibbonCoveredCall",
+        {
+          libraries: {
+            ProtocolAdapter: this.protocolAdapterLib.address,
+          },
+        }
+      );
+
+      await expect(
+        VaultContract.deploy(
+          WETH_ADDRESS,
+          this.factory.address,
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          SWAP_ADDRESS,
+          this.tokenDecimals,
+          0
+        )
+      ).to.be.revertedWith("!_minimumSupply");
+    });
+
+    it("sets the correct asset, decimals and minimum supply", async function () {
+      const VaultContract = await ethers.getContractFactory(
+        "RibbonCoveredCall",
+        {
+          libraries: {
+            ProtocolAdapter: this.protocolAdapterLib.address,
+          },
+        }
+      );
+
+      const asset = USDC_ADDRESS;
+      const decimals = 6;
+      const minSupply = BigNumber.from("10").pow("6").toString();
+
+      const vault = await VaultContract.deploy(
+        asset,
+        this.factory.address,
+        WETH_ADDRESS,
+        USDC_ADDRESS,
+        SWAP_ADDRESS,
+        decimals,
+        minSupply
+      );
+      assert.equal(await vault.decimals(), decimals);
+      assert.equal(await vault.asset(), asset);
+      assert.equal(await vault.MINIMUM_SUPPLY(), minSupply);
     });
   });
 
@@ -194,10 +312,13 @@ describe("RibbonCoveredCall", () => {
         }
       );
       this.testVault = await RibbonCoveredCall.deploy(
+        WETH_ADDRESS,
         this.factory.address,
         WETH_ADDRESS,
         USDC_ADDRESS,
-        SWAP_ADDRESS
+        SWAP_ADDRESS,
+        this.tokenDecimals,
+        this.minimumSupply
       );
     });
 
@@ -219,10 +340,11 @@ describe("RibbonCoveredCall", () => {
     it("cannot be initialized twice", async function () {
       await expect(
         this.vault.initialize(
-          WETH_ADDRESS,
           owner,
           feeRecipient,
-          parseEther("500")
+          parseEther("500"),
+          this.tokenName,
+          this.tokenSymbol
         )
       ).to.be.revertedWith("Initializable: contract is already initialized");
     });
@@ -230,10 +352,11 @@ describe("RibbonCoveredCall", () => {
     it("reverts when initializing with 0 owner", async function () {
       await expect(
         this.testVault.initialize(
-          WETH_ADDRESS,
           constants.AddressZero,
           feeRecipient,
-          parseEther("500")
+          parseEther("500"),
+          this.tokenName,
+          this.tokenSymbol
         )
       ).to.be.revertedWith("!_owner");
     });
@@ -241,47 +364,43 @@ describe("RibbonCoveredCall", () => {
     it("reverts when initializing with 0 feeRecipient", async function () {
       await expect(
         this.testVault.initialize(
-          WETH_ADDRESS,
           owner,
           constants.AddressZero,
-          parseEther("500")
+          parseEther("500"),
+          this.tokenName,
+          this.tokenSymbol
         )
       ).to.be.revertedWith("!_feeRecipient");
     });
 
-    it("reverts when initializing with 0 asset", async function () {
-      await expect(
-        this.testVault.initialize(
-          constants.AddressZero,
-          owner,
-          feeRecipient,
-          parseEther("500")
-        )
-      ).to.be.revertedWith("!_asset");
-    });
-
     it("reverts when initializing with 0 initCap", async function () {
       await expect(
-        this.testVault.initialize(WETH_ADDRESS, owner, feeRecipient, "0")
+        this.testVault.initialize(
+          owner,
+          feeRecipient,
+          "0",
+          this.tokenName,
+          this.tokenSymbol
+        )
       ).to.be.revertedWith("_initCap > 0");
     });
   });
 
   describe("#name", () => {
     it("returns the name", async function () {
-      assert.equal(await this.vault.name(), "Ribbon ETH Theta Vault");
+      assert.equal(await this.vault.name(), this.tokenName);
     });
   });
 
   describe("#symbol", () => {
     it("returns the symbol", async function () {
-      assert.equal(await this.vault.symbol(), "rETH-THETA");
+      assert.equal(await this.vault.symbol(), this.tokenSymbol);
     });
   });
 
   describe("#asset", () => {
     it("returns the asset", async function () {
-      assert.equal(await this.vault.asset(), WETH_ADDRESS);
+      assert.equal(await this.vault.asset(), this.asset);
     });
   });
 

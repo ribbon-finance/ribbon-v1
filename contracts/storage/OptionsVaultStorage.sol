@@ -23,8 +23,11 @@ contract OptionsVaultStorageV1 is
     OwnableUpgradeable,
     ERC20Upgradeable
 {
-    // Asset for which we create a covered call for
-    address public asset;
+    // DEPRECATED: This variable was originally used to store the asset address we are using as collateral
+    // But due to gas optimization and upgradeability security concerns,
+    // we removed it in favor of using immutable variables
+    // This variable is left here to hold the storage slot for upgrades
+    address private _oldAsset;
 
     // Privileged role that is able to select the option terms (strike price, expiry) to short
     address public manager;

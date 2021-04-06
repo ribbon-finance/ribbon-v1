@@ -24,13 +24,13 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     using SafeMath for uint256;
 
     string private constant _adapterName = "OPYN_GAMMA";
-    string private constant _tokenName = "Ribbon ETH Theta Vault";
-    string private constant _tokenSymbol = "rETH-THETA";
 
     IRibbonFactory public immutable factory;
     IProtocolAdapter public immutable adapter;
+    address public immutable asset;
     address public immutable WETH;
     address public immutable USDC;
+    uint8 private immutable _decimals;
 
     // AirSwap Swap contract https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
     ISwap public immutable SWAP_CONTRACT;
@@ -40,7 +40,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
 
     uint256 public constant delay = 1 days;
 
-    uint256 public constant MINIMUM_SUPPLY = 10**10;
+    uint256 public immutable MINIMUM_SUPPLY;
 
     event ManagerChanged(address oldManager, address newManager);
 
@@ -76,25 +76,35 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
      * subsequently the adapter, which allows them to make a delegatecall, then selfdestruct the contract.
      */
     constructor(
+        address _asset,
         address _factory,
         address _weth,
         address _usdc,
-        address _swapContract
+        address _swapContract,
+        uint8 _tokenDecimals,
+        uint256 _minimumSupply
     ) {
+        require(_asset != address(0), "!_asset");
         require(_factory != address(0), "!_factory");
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
         require(_swapContract != address(0), "!_swapContract");
+        require(_tokenDecimals > 0, "!_tokenDecimals");
+        require(_minimumSupply > 0, "!_minimumSupply");
+
         IRibbonFactory factoryInstance = IRibbonFactory(_factory);
 
         address adapterAddr = factoryInstance.getAdapter(_adapterName);
         require(adapterAddr != address(0), "Adapter not set");
 
+        asset = _asset;
         factory = factoryInstance;
         adapter = IProtocolAdapter(adapterAddr);
         WETH = _weth;
         USDC = _usdc;
         SWAP_CONTRACT = ISwap(_swapContract);
+        _decimals = _tokenDecimals;
+        MINIMUM_SUPPLY = _minimumSupply;
     }
 
     /**
@@ -103,15 +113,17 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
      * @param _initCap is the initial vault's cap on deposits, the manager can increase this as necessary
      */
     function initialize(
-        address _asset,
         address _owner,
         address _feeRecipient,
-        uint256 _initCap
+        uint256 _initCap,
+        string calldata _tokenName,
+        string calldata _tokenSymbol
     ) external initializer {
         require(_owner != address(0), "!_owner");
         require(_feeRecipient != address(0), "!_feeRecipient");
         require(_initCap > 0, "_initCap > 0");
-        require(_asset != address(0), "!_asset");
+        require(bytes(_tokenName).length > 0, "_tokenName != 0x");
+        require(bytes(_tokenSymbol).length > 0, "_tokenSymbol != 0x");
 
         __ReentrancyGuard_init();
         __ERC20_init(_tokenName, _tokenSymbol);
@@ -122,7 +134,6 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         // hardcode the initial withdrawal fee
         instantWithdrawalFee = 0.005 ether;
         feeRecipient = _feeRecipient;
-        asset = _asset;
     }
 
     /**
@@ -510,8 +521,8 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     /**
      * @notice Returns the token decimals
      */
-    function decimals() public pure override returns (uint8) {
-        return 18;
+    function decimals() public view override returns (uint8) {
+        return _decimals;
     }
 
     /**

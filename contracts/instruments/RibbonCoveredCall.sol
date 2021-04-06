@@ -186,7 +186,6 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
      * @notice Mints the vault shares to the msg.sender
      * @param amount is the amount of `asset` deposited
      */
-
     function _deposit(uint256 amount) private {
         uint256 totalWithDepositedAmount = totalBalance();
         require(totalWithDepositedAmount < cap, "Cap exceeded");
@@ -407,6 +406,11 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         amountAfterFee = withdrawAmount.sub(feeAmount);
     }
 
+    /**
+     * @notice Helper function to return the `asset` amount returned using the `share` amount
+     * @param share is the number of shares used to withdraw
+     * @param currentAssetBalance is the value returned by totalBalance(). This is passed in to save gas.
+     */
     function _withdrawAmountWithShares(
         uint256 share,
         uint256 currentAssetBalance
@@ -429,6 +433,9 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         newShareSupply = shareSupply.sub(share);
     }
 
+    /**
+     * @notice Returns the max withdrawable shares for all users in the vault
+     */
     function maxWithdrawableShares() public view returns (uint256) {
         uint256 withdrawableBalance = assetBalance();
         uint256 total = lockedAmount.add(assetBalance());
@@ -456,6 +463,11 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         return withdrawAmount;
     }
 
+    /**
+     * @notice Returns the number of shares for a given `assetAmount`. Used by the frontend to calculate withdraw amounts.
+     * @param assetAmount is the asset amount to be withdrawn
+     * @return share amount
+     */
     function assetAmountToShares(uint256 assetAmount)
         external
         view
@@ -465,6 +477,11 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         return assetAmount.mul(totalSupply()).div(total);
     }
 
+    /**
+     * @notice Returns an account's balance on the vault
+     * @param account is the address of the user
+     * @return vault balance of the user
+     */
     function accountVaultBalance(address account)
         external
         view

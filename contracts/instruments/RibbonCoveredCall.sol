@@ -40,7 +40,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
 
     uint256 public constant delay = 1 days;
 
-    uint256 public constant MINIMUM_SUPPLY = 10**10;
+    uint256 public immutable MINIMUM_SUPPLY;
 
     event ManagerChanged(address oldManager, address newManager);
 
@@ -81,7 +81,8 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         address _weth,
         address _usdc,
         address _swapContract,
-        uint8 _tokenDecimals
+        uint8 _tokenDecimals,
+        uint256 _minimumSupply
     ) {
         require(_asset != address(0), "!_asset");
         require(_factory != address(0), "!_factory");
@@ -89,6 +90,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         require(_usdc != address(0), "!_usdc");
         require(_swapContract != address(0), "!_swapContract");
         require(_tokenDecimals > 0, "!_tokenDecimals");
+        require(_minimumSupply > 0, "!_minimumSupply");
 
         IRibbonFactory factoryInstance = IRibbonFactory(_factory);
 
@@ -102,6 +104,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         USDC = _usdc;
         SWAP_CONTRACT = ISwap(_swapContract);
         _decimals = _tokenDecimals;
+        MINIMUM_SUPPLY = _minimumSupply;
     }
 
     /**

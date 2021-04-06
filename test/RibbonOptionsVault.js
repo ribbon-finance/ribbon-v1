@@ -58,6 +58,7 @@ describe("RibbonCoveredCall", () => {
     this.tokenName = "Ribbon ETH Theta Vault";
     this.tokenSymbol = "rETH-THETA";
     this.tokenDecimals = 18;
+    this.minimumSupply = BigNumber.from("10").pow("10").toString();
     this.asset = WETH_ADDRESS;
 
     this.counterpartyWallet = ethers.Wallet.fromMnemonic(
@@ -96,6 +97,7 @@ describe("RibbonCoveredCall", () => {
       USDC_ADDRESS,
       SWAP_ADDRESS,
       this.tokenDecimals,
+      this.minimumSupply,
     ];
 
     this.vault = (
@@ -169,7 +171,8 @@ describe("RibbonCoveredCall", () => {
           WETH_ADDRESS,
           USDC_ADDRESS,
           SWAP_ADDRESS,
-          this.tokenDecimals
+          this.tokenDecimals,
+          this.minimumSupply
         )
       ).to.be.revertedWith("!_factory");
     });
@@ -194,7 +197,8 @@ describe("RibbonCoveredCall", () => {
           WETH_ADDRESS,
           USDC_ADDRESS,
           SWAP_ADDRESS,
-          this.tokenDecimals
+          this.tokenDecimals,
+          this.minimumSupply
         )
       ).to.be.revertedWith("Adapter not set");
     });
@@ -216,7 +220,8 @@ describe("RibbonCoveredCall", () => {
           WETH_ADDRESS,
           USDC_ADDRESS,
           SWAP_ADDRESS,
-          this.tokenDecimals
+          this.tokenDecimals,
+          this.minimumSupply
         )
       ).to.be.revertedWith("!_asset");
     });
@@ -238,12 +243,36 @@ describe("RibbonCoveredCall", () => {
           WETH_ADDRESS,
           USDC_ADDRESS,
           SWAP_ADDRESS,
-          0
+          0,
+          this.minimumSupply
         )
       ).to.be.revertedWith("!_tokenDecimals");
     });
 
-    it("sets the correct asset and decimals", async function () {
+    it("reverts when minimumSupply is 0", async function () {
+      const VaultContract = await ethers.getContractFactory(
+        "RibbonCoveredCall",
+        {
+          libraries: {
+            ProtocolAdapter: this.protocolAdapterLib.address,
+          },
+        }
+      );
+
+      await expect(
+        VaultContract.deploy(
+          WETH_ADDRESS,
+          this.factory.address,
+          WETH_ADDRESS,
+          USDC_ADDRESS,
+          SWAP_ADDRESS,
+          this.tokenDecimals,
+          0
+        )
+      ).to.be.revertedWith("!_minimumSupply");
+    });
+
+    it("sets the correct asset, decimals and minimum supply", async function () {
       const VaultContract = await ethers.getContractFactory(
         "RibbonCoveredCall",
         {
@@ -255,6 +284,7 @@ describe("RibbonCoveredCall", () => {
 
       const asset = USDC_ADDRESS;
       const decimals = 6;
+      const minSupply = BigNumber.from("10").pow("6").toString();
 
       const vault = await VaultContract.deploy(
         asset,
@@ -262,10 +292,12 @@ describe("RibbonCoveredCall", () => {
         WETH_ADDRESS,
         USDC_ADDRESS,
         SWAP_ADDRESS,
-        decimals
+        decimals,
+        minSupply
       );
       assert.equal(await vault.decimals(), decimals);
       assert.equal(await vault.asset(), asset);
+      assert.equal(await vault.MINIMUM_SUPPLY(), minSupply);
     });
   });
 
@@ -285,7 +317,8 @@ describe("RibbonCoveredCall", () => {
         WETH_ADDRESS,
         USDC_ADDRESS,
         SWAP_ADDRESS,
-        this.tokenDecimals
+        this.tokenDecimals,
+        this.minimumSupply
       );
     });
 

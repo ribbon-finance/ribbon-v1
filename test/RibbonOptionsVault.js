@@ -14,8 +14,10 @@ const {
   setupOracle,
   setOpynOracleExpiryPrice,
   whitelistProduct,
+  parseLog,
 } = require("./helpers/utils");
-const moment = require("moment");
+const moment = require("moment-timezone");
+moment.tz.setDefault("UTC");
 
 let owner, user, feeRecipient;
 let userSigner, ownerSigner, managerSigner, counterpartySigner;
@@ -46,15 +48,8 @@ describe("RibbonCoveredCall", () => {
     strikeAsset: USDC_ADDRESS,
     wrongUnderlyingAsset: WBTC_ADDRESS,
     wrongStrikeAsset: WBTC_ADDRESS,
-    oTokenAddress: "0x3cF86d40988309AF3b90C14544E1BB0673BFd439",
-    firstOption: {
-      address: "0x8fF78Af59a83Cb4570C54C0f23c5a9896a0Dc0b3",
-      expiry: 1610697600,
-    },
-    secondOption: {
-      address: "0x3cF86d40988309AF3b90C14544E1BB0673BFd439",
-      expiry: 1614326400,
-    },
+    firstOptionStrike: 2400,
+    secondOptionStrike: 2500,
   });
 });
 
@@ -69,17 +64,14 @@ describe("RibbonCoveredCall", () => {
  * @param {string} params.strikeAsset - Address of strike assets
  * @param {string} params.wrongUnderlyingAsset - Address of wrong underlying assets
  * @param {string} params.wrongStrikeAsset - Address of wrong strike assets
- * @param {string} params.oTokenAddress - Address of oToken
- * @param {Object} params.firstOption - First option of vault
- * @param {string} params.firstOption.address - Addrress of first option
- * @param {number} params.firstOption.expiry - Expiry of first option
- * @param {Object} params.secondOption - Second option of vault
- * @param {string} params.secondOption.address - Addrress of second option
- * @param {number} params.secondOption.expiry - Expiry of second option
+ * @param {number} params.firstOptionStrike - Strike price of first option
+ * @param {number} params.secondOptionStrike - Strike price of second option
  */
 function behavesLikeRibbonOptionsVault(params) {
   describe(`${params.name}`, () => {
     let initSnapshotId;
+    let firstOption;
+    let secondOption;
 
     before(async function () {
       initSnapshotId = await time.takeSnapshot();
@@ -159,26 +151,64 @@ function behavesLikeRibbonOptionsVault(params) {
 
       await this.vault.connect(ownerSigner).setManager(manager);
 
+      this.oTokenFactory = await getContractAt(
+        "IOtokenFactory",
+        OTOKEN_FACTORY
+      );
+
+      // Create first option
+      let res = await this.oTokenFactory.createOtoken(
+        params.asset,
+        params.strikeAsset,
+        params.asset,
+        parseEther(params.firstOptionStrike.toString()).div(
+          BigNumber.from("10").pow(BigNumber.from("10"))
+        ),
+        moment().add(7, "days").hours(8).minutes(0).seconds(0).unix(),
+        false
+      );
+      let receipt = await res.wait();
+      let events = await parseLog("IOtokenFactory", receipt.logs[1]);
+
+      firstOption = {
+        address: events.args.tokenAddress,
+        expiry: events.args.expiry.toNumber(),
+      };
+
+      // Create second option
+      res = await this.oTokenFactory.createOtoken(
+        params.asset,
+        params.strikeAsset,
+        params.asset,
+        parseEther(params.secondOptionStrike.toString()).div(
+          BigNumber.from("10").pow(BigNumber.from("10"))
+        ),
+        moment().add(14, "days").hours(8).minutes(0).seconds(0).unix(),
+        false
+      );
+      receipt = await res.wait();
+      events = await parseLog("IOtokenFactory", receipt.logs[1]);
+
+      secondOption = {
+        address: events.args.tokenAddress,
+        expiry: events.args.expiry.toNumber(),
+      };
+
       this.optionTerms = [
         params.asset,
         params.strikeAsset,
         params.asset,
-        params.secondOption.expiry.toString(),
-        parseEther("960"),
+        secondOption.expiry.toString(),
+        parseEther(params.secondOptionStrike.toString()),
         2,
         this.asset,
       ];
 
       this.asset = params.asset;
 
-      this.oTokenAddress = params.oTokenAddress;
+      this.oTokenAddress = secondOption.address;
 
       this.oToken = await getContractAt("IERC20", this.oTokenAddress);
-
-      this.oTokenFactory = await getContractAt(
-        "IOtokenFactory",
-        OTOKEN_FACTORY
-      );
 
       this.assetContract = await getContractAt(
         params.assetContractName,
@@ -745,7 +775,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const underlying = params.wrongUnderlyingAsset;
         const strike = params.strikeAsset;
         const strikePrice = parseEther("50000");
-        const expiry = params.secondOption.expiry.toString();
+        const expiry = secondOption.expiry.toString();
         const isPut = false;
 
         await whitelistProduct(underlying, strike, underlying, false);
@@ -778,7 +808,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const underlying = params.asset;
         const strike = params.wrongStrikeAsset;
         const strikePrice = parseEther("50000");
-        const expiry = params.secondOption.expiry.toString();
+        const expiry = secondOption.expiry.toString();
         const isPut = false;
 
         await whitelistProduct(underlying, strike, underlying, false);
@@ -812,7 +842,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         const underlying = params.asset;
         const strike = params.strikeAsset;
-        const strikePrice = parseEther("1480");
+        const strikePrice = parseEther(params.firstOptionStrike.toString());
         const isPut = false;
 
         let expiryDate;
@@ -884,8 +914,8 @@ function behavesLikeRibbonOptionsVault(params) {
             params.asset,
             params.strikeAsset,
             params.asset,
-            params.firstOption.expiry.toString(),
-            parseEther("1480"),
+            firstOption.expiry.toString(),
+            parseEther(params.firstOptionStrike.toString()),
             2,
             params.asset,
           ]);
@@ -896,8 +926,8 @@ function behavesLikeRibbonOptionsVault(params) {
             params.asset,
             params.strikeAsset,
             params.asset,
-            params.secondOption.expiry.toString(),
-            parseEther("960"),
+            secondOption.expiry.toString(),
+            parseEther(params.secondOptionStrike.toString()),
             2,
             params.asset,
           ]);
@@ -992,8 +1022,8 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("burns otokens and withdraws from vault, before expiry", async function () {
-        const firstOption = params.firstOption.address;
-        const secondOption = params.secondOption.address;
+        const firstOptionAddress = firstOption.address;
+        const secondOptionAddress = secondOption.address;
 
         await this.vault
           .connect(managerSigner)
@@ -1001,8 +1031,8 @@ function behavesLikeRibbonOptionsVault(params) {
             params.asset,
             params.strikeAsset,
             params.asset,
-            params.firstOption.expiry.toString(),
-            parseEther("1480"),
+            firstOption.expiry.toString(),
+            parseEther(params.firstOptionStrike.toString()),
             2,
             params.asset,
           ]);
@@ -1018,7 +1048,7 @@ function behavesLikeRibbonOptionsVault(params) {
         await expect(firstTx)
           .to.emit(this.vault, "OpenShort")
           .withArgs(
-            firstOption,
+            firstOptionAddress,
             wmul(this.depositAmount, LOCKED_RATIO),
             manager
           );
@@ -1035,8 +1065,8 @@ function behavesLikeRibbonOptionsVault(params) {
             params.asset,
             params.strikeAsset,
             params.asset,
-            params.secondOption.expiry.toString(),
-            parseEther("960"),
+            secondOption.expiry.toString(),
+            parseEther(params.secondOptionStrike.toString()),
             2,
             params.asset,
           ]);
@@ -1049,20 +1079,20 @@ function behavesLikeRibbonOptionsVault(params) {
           .connect(managerSigner)
           .rollToNextOption();
 
-        assert.equal(await this.vault.currentOption(), secondOption);
+        assert.equal(await this.vault.currentOption(), secondOptionAddress);
         assert.equal(
           await this.vault.currentOptionExpiry(),
-          params.secondOption.expiry
+          secondOption.expiry
         );
 
         // Withdraw the original short position, which is 90% of the vault
         await expect(secondTx)
           .to.emit(this.vault, "CloseShort")
-          .withArgs(firstOption, parseEther("0.9"), manager);
+          .withArgs(firstOptionAddress, parseEther("0.9"), manager);
 
         await expect(secondTx)
           .to.emit(this.vault, "OpenShort")
-          .withArgs(secondOption, parseEther("0.9"), manager);
+          .withArgs(secondOptionAddress, parseEther("0.9"), manager);
 
         // should still be 10% because the 90% withdrawn from the 1st short
         // is re-allocated back into the
@@ -1074,7 +1104,7 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("reverts when not enough otokens to burn", async function () {
-        const firstOption = params.firstOption.address;
+        const firstOptionAddress = firstOption.address;
 
         await this.vault
           .connect(managerSigner)
@@ -1082,8 +1112,8 @@ function behavesLikeRibbonOptionsVault(params) {
             params.asset,
             params.strikeAsset,
             params.asset,
-            params.firstOption.expiry.toString(),
-            parseEther("1480"),
+            firstOption.expiry.toString(),
+            parseEther(params.firstOptionStrike.toString()),
             2,
             params.asset,
           ]);
@@ -1099,7 +1129,7 @@ function behavesLikeRibbonOptionsVault(params) {
           vaultAddress: this.vault.address,
           counterpartyAddress: counterparty,
           signerPrivateKey: this.counterpartyWallet.privateKey,
-          sellToken: firstOption,
+          sellToken: firstOptionAddress,
           buyToken: params.asset,
           sellAmount: this.sellAmount.toString(),
           buyAmount: this.premium.toString(),
@@ -1113,8 +1143,8 @@ function behavesLikeRibbonOptionsVault(params) {
             params.asset,
             params.strikeAsset,
             params.asset,
-            params.secondOption.expiry.toString(),
-            parseEther("960"),
+            secondOption.expiry.toString(),
+            parseEther(params.secondOptionStrike.toString()),
             2,
             params.asset,
           ]);
@@ -1128,8 +1158,8 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("withdraws and roll funds into next option, after expiry ITM", async function () {
-        const firstOption = params.firstOption.address;
-        const secondOption = params.secondOption.address;
+        const firstOptionAddress = firstOption.address;
+        const secondOptionAddress = secondOption.address;
 
         await this.vault
           .connect(managerSigner)
@@ -1137,8 +1167,8 @@ function behavesLikeRibbonOptionsVault(params) {
             params.asset,
             params.strikeAsset,
             params.asset,
-            params.firstOption.expiry.toString(),
-            parseEther("1480"),
+            firstOption.expiry.toString(),
+            parseEther(params.firstOptionStrike.toString()),
             2,
             params.asset,
           ]);
@@ -1150,16 +1180,16 @@ function behavesLikeRibbonOptionsVault(params) {
           .connect(managerSigner)
           .rollToNextOption();
 
-        assert.equal(await this.vault.currentOption(), firstOption);
+        assert.equal(await this.vault.currentOption(), firstOptionAddress);
         assert.equal(
           await this.vault.currentOptionExpiry(),
-          params.firstOption.expiry
+          firstOption.expiry
         );
 
         await expect(firstTx)
           .to.emit(this.vault, "OpenShort")
           .withArgs(
-            firstOption,
+            firstOptionAddress,
             wmul(this.depositAmount, LOCKED_RATIO),
             manager
           );
@@ -1169,7 +1199,7 @@ function behavesLikeRibbonOptionsVault(params) {
           vaultAddress: this.vault.address,
           counterpartyAddress: counterparty,
           signerPrivateKey: this.counterpartyWallet.privateKey,
-          sellToken: firstOption,
+          sellToken: firstOptionAddress,
           buyToken: params.asset,
           sellAmount: this.sellAmount.toString(),
           buyAmount: this.premium.toString(),
@@ -1196,8 +1226,8 @@ function behavesLikeRibbonOptionsVault(params) {
             params.asset,
             params.strikeAsset,
             params.asset,
-            params.secondOption.expiry.toString(),
-            parseEther("960"),
+            secondOption.expiry.toString(),
+            parseEther(params.secondOptionStrike.toString()),
             2,
             params.asset,
           ]);
@@ -1209,23 +1239,23 @@ function behavesLikeRibbonOptionsVault(params) {
           .connect(managerSigner)
           .rollToNextOption();
 
-        assert.equal(await this.vault.currentOption(), secondOption);
+        assert.equal(await this.vault.currentOption(), secondOptionAddress);
         assert.equal(
           await this.vault.currentOptionExpiry(),
-          params.secondOption.expiry
+          secondOption.expiry
         );
 
         await expect(secondTx)
           .to.emit(this.vault, "CloseShort")
           .withArgs(
-            firstOption,
+            firstOptionAddress,
             wmul(this.depositAmount, LOCKED_RATIO),
             manager
           );
 
         await expect(secondTx)
           .to.emit(this.vault, "OpenShort")
-          .withArgs(secondOption, parseEther("0.99"), manager);
+          .withArgs(secondOptionAddress, parseEther("0.99"), manager);
 
         assert.equal(
           (await this.assetContract.balanceOf(this.vault.address)).toString(),
@@ -1234,8 +1264,8 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("withdraws and roll funds into next option, after expiry OTM", async function () {
-        const firstOption = params.firstOption.address;
-        const secondOption = params.secondOption.address;
+        const firstOptionAddress = firstOption.address;
+        const secondOptionAddress = secondOption.address;
 
         await this.vault
           .connect(managerSigner)
@@ -1243,8 +1273,8 @@ function behavesLikeRibbonOptionsVault(params) {
             params.asset,
             params.strikeAsset,
             params.asset,
-            params.firstOption.expiry.toString(),
-            parseEther("1480"),
+            firstOption.expiry.toString(),
+            parseEther(params.firstOptionStrike.toString()),
             2,
             params.asset,
           ]);
@@ -1259,7 +1289,7 @@ function behavesLikeRibbonOptionsVault(params) {
         await expect(firstTx)
           .to.emit(this.vault, "OpenShort")
           .withArgs(
-            firstOption,
+            firstOptionAddress,
             wmul(this.depositAmount, LOCKED_RATIO),
             manager
           );
@@ -1269,7 +1299,7 @@ function behavesLikeRibbonOptionsVault(params) {
           vaultAddress: this.vault.address,
           counterpartyAddress: counterparty,
           signerPrivateKey: this.counterpartyWallet.privateKey,
-          sellToken: firstOption,
+          sellToken: firstOptionAddress,
           buyToken: params.asset,
           sellAmount: this.sellAmount.toString(),
           buyAmount: this.premium.toString(),
@@ -1296,8 +1326,8 @@ function behavesLikeRibbonOptionsVault(params) {
             params.asset,
             params.strikeAsset,
             params.asset,
-            params.secondOption.expiry.toString(),
-            parseEther("960"),
+            secondOption.expiry.toString(),
+            parseEther(params.secondOptionStrike.toString()),
             2,
             params.asset,
           ]);
@@ -1309,23 +1339,23 @@ function behavesLikeRibbonOptionsVault(params) {
           .connect(managerSigner)
           .rollToNextOption();
 
-        assert.equal(await this.vault.currentOption(), secondOption);
+        assert.equal(await this.vault.currentOption(), secondOptionAddress);
         assert.equal(
           await this.vault.currentOptionExpiry(),
-          params.secondOption.expiry
+          secondOption.expiry
         );
 
         await expect(secondTx)
           .to.emit(this.vault, "CloseShort")
-          .withArgs(firstOption, parseEther("0.8325"), manager);
+          .withArgs(firstOptionAddress, parseEther("0.9"), manager);
 
         await expect(secondTx)
           .to.emit(this.vault, "OpenShort")
-          .withArgs(secondOption, parseEther("0.92925"), manager);
+          .withArgs(secondOptionAddress, parseEther("0.99"), manager);
 
         assert.equal(
           (await this.assetContract.balanceOf(this.vault.address)).toString(),
-          parseEther("0.10325")
+          parseEther("0.11")
         );
       });
     });

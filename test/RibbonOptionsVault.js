@@ -40,6 +40,19 @@ const WITHDRAWAL_FEE = parseEther("0.005");
 
 describe("RibbonCoveredCall", () => {
   behavesLikeRibbonOptionsVault({
+    name: `Ribbon WBTC Theta Vault`,
+    tokenName: "Ribbon BTC Theta Vault",
+    tokenSymbol: "rWBTC-THETA",
+    asset: WBTC_ADDRESS,
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS,
+    wrongUnderlyingAsset: WETH_ADDRESS,
+    wrongStrikeAsset: WETH_ADDRESS,
+    firstOptionStrike: 2400,
+    secondOptionStrike: 2500,
+  });
+
+  behavesLikeRibbonOptionsVault({
     name: `Ribbon ETH Theta Vault`,
     tokenName: "Ribbon ETH Theta Vault",
     tokenSymbol: "rETH-THETA",
@@ -48,8 +61,8 @@ describe("RibbonCoveredCall", () => {
     strikeAsset: USDC_ADDRESS,
     wrongUnderlyingAsset: WBTC_ADDRESS,
     wrongStrikeAsset: WBTC_ADDRESS,
-    firstOptionStrike: 2400,
-    secondOptionStrike: 2500,
+    firstOptionStrike: 63000,
+    secondOptionStrike: 64000,
   });
 });
 
@@ -154,6 +167,13 @@ function behavesLikeRibbonOptionsVault(params) {
       this.oTokenFactory = await getContractAt(
         "IOtokenFactory",
         OTOKEN_FACTORY
+      );
+
+      await whitelistProduct(
+        params.asset,
+        params.strikeAsset,
+        params.asset,
+        false
       );
 
       // Create first option
@@ -411,7 +431,7 @@ function behavesLikeRibbonOptionsVault(params) {
           parseEther("0.005").toString()
         );
         assert.equal(await this.vault.SWAP_CONTRACT(), SWAP_ADDRESS);
-        assert.equal(await this.vault.WETH(), WETH_ADDRESS); // TODO: Extend to taking asset type
+        assert.equal(await this.vault.WETH(), this.asset); // TODO: Extend to taking asset type
         assert.equal(await this.vault.USDC(), USDC_ADDRESS); // TODO: Same as above
       });
 

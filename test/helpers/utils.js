@@ -17,6 +17,7 @@ module.exports = {
   setupOracle,
   setOpynOracleExpiryPrice,
   whitelistProduct,
+  mintToken,
 };
 
 async function deployProxy(
@@ -316,4 +317,29 @@ async function setOpynOracleExpiryPrice(oracle, expiry, settlePrice) {
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
 
   await time.increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);
+}
+
+async function mintToken(contract, contractOwner, recipient, spender, amount) {
+  [adminSigner] = await ethers.getSigners();
+  const tokenOwnerSigner = await ethers.provider.getSigner(contractOwner);
+
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [contractOwner],
+  });
+
+  const forceSendContract = await ethers.getContractFactory("ForceSend");
+  const forceSend = await forceSendContract.deploy(); // Some contract do not have receive(), so we force send
+  await forceSend.deployed();
+  await forceSend.go(contractOwner, {
+    value: parseEther("0.5"),
+  });
+
+  await contract.connect(tokenOwnerSigner).mint(recipient.address, amount);
+  await contract.connect(recipient).approve(spender, amount);
+
+  // await hre.network.provider.request({
+  //   method: "hardhat_stopImpersonatingAccount",
+  //   params: [contractOwner],
+  // });
 }

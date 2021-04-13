@@ -15,6 +15,7 @@ const {
   setOpynOracleExpiryPrice,
   whitelistProduct,
   parseLog,
+  mintToken,
 } = require("./helpers/utils");
 const moment = require("moment-timezone");
 moment.tz.setDefault("UTC");
@@ -25,6 +26,7 @@ let userSigner, ownerSigner, managerSigner, counterpartySigner;
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+const WBTC_OWNER_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 
 const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
@@ -50,20 +52,23 @@ describe("RibbonCoveredCall", () => {
     wrongStrikeAsset: WETH_ADDRESS,
     firstOptionStrike: 2400,
     secondOptionStrike: 2500,
+    mintConfig: {
+      contractOwnerAddress: WBTC_OWNER_ADDRESS,
+    },
   });
 
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon ETH Theta Vault`,
-    tokenName: "Ribbon ETH Theta Vault",
-    tokenSymbol: "rETH-THETA",
-    asset: WETH_ADDRESS,
-    assetContractName: "IWETH",
-    strikeAsset: USDC_ADDRESS,
-    wrongUnderlyingAsset: WBTC_ADDRESS,
-    wrongStrikeAsset: WBTC_ADDRESS,
-    firstOptionStrike: 63000,
-    secondOptionStrike: 64000,
-  });
+  // behavesLikeRibbonOptionsVault({
+  //   name: `Ribbon ETH Theta Vault`,
+  //   tokenName: "Ribbon ETH Theta Vault",
+  //   tokenSymbol: "rETH-THETA",
+  //   asset: WETH_ADDRESS,
+  //   assetContractName: "IWETH",
+  //   strikeAsset: USDC_ADDRESS,
+  //   wrongUnderlyingAsset: WBTC_ADDRESS,
+  //   wrongStrikeAsset: WBTC_ADDRESS,
+  //   firstOptionStrike: 63000,
+  //   secondOptionStrike: 64000,
+  // });
 });
 
 /**
@@ -79,6 +84,8 @@ describe("RibbonCoveredCall", () => {
  * @param {string} params.wrongStrikeAsset - Address of wrong strike assets
  * @param {number} params.firstOptionStrike - Strike price of first option
  * @param {number} params.secondOptionStrike - Strike price of second option
+ * @param {Object=} params.mintConfig - Optional: For minting asset, if asset can be minted
+ * @param {string} params.mintConfig.contractOwnerAddress - Impersonate address of mintable asset contract owner
  */
 function behavesLikeRibbonOptionsVault(params) {
   describe(`${params.name}`, () => {
@@ -140,7 +147,7 @@ function behavesLikeRibbonOptionsVault(params) {
       const deployArgs = [
         this.asset,
         factory.address,
-        params.asset,
+        WETH_ADDRESS,
         params.strikeAsset,
         SWAP_ADDRESS,
         this.tokenDecimals,
@@ -217,7 +224,7 @@ function behavesLikeRibbonOptionsVault(params) {
       this.optionTerms = [
         params.asset,
         params.strikeAsset,
-        params.asset,
+        WETH_ADDRESS,
         secondOption.expiry.toString(),
         parseEther(params.secondOptionStrike.toString()),
         2,
@@ -236,6 +243,19 @@ function behavesLikeRibbonOptionsVault(params) {
       );
 
       this.airswap = await getContractAt("ISwap", SWAP_ADDRESS);
+
+      // If mintable token, then mine the token
+      if (params.mintConfig) {
+        await mintToken(
+          this.assetContract,
+          params.mintConfig.contractOwnerAddress,
+          ownerSigner,
+          this.vault.address,
+          parseEther("1")
+        );
+      }
+
+      // console.log(await this.assetContract.balanceOf(userSigner.address));
 
       this.rollToNextOption = async () => {
         await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
@@ -266,7 +286,7 @@ function behavesLikeRibbonOptionsVault(params) {
           VaultContract.deploy(
             this.asset,
             constants.AddressZero,
-            params.asset,
+            WETH_ADDRESS,
             params.strikeAsset,
             SWAP_ADDRESS,
             this.tokenDecimals,
@@ -292,7 +312,7 @@ function behavesLikeRibbonOptionsVault(params) {
           VaultContract.deploy(
             this.asset,
             factory.address,
-            params.asset,
+            WETH_ADDRESS,
             params.strikeAsset,
             SWAP_ADDRESS,
             this.tokenDecimals,
@@ -315,7 +335,7 @@ function behavesLikeRibbonOptionsVault(params) {
           VaultContract.deploy(
             constants.AddressZero,
             this.factory.address,
-            params.asset,
+            WETH_ADDRESS,
             params.strikeAsset,
             SWAP_ADDRESS,
             this.tokenDecimals,
@@ -338,7 +358,7 @@ function behavesLikeRibbonOptionsVault(params) {
           VaultContract.deploy(
             this.asset,
             this.factory.address,
-            params.asset,
+            WETH_ADDRESS,
             params.strikeAsset,
             SWAP_ADDRESS,
             0,
@@ -361,7 +381,7 @@ function behavesLikeRibbonOptionsVault(params) {
           VaultContract.deploy(
             this.asset,
             this.factory.address,
-            params.asset,
+            WETH_ADDRESS,
             params.strikeAsset,
             SWAP_ADDRESS,
             this.tokenDecimals,
@@ -387,7 +407,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const vault = await VaultContract.deploy(
           asset,
           this.factory.address,
-          params.asset,
+          WETH_ADDRESS,
           params.strikeAsset,
           SWAP_ADDRESS,
           decimals,
@@ -412,7 +432,7 @@ function behavesLikeRibbonOptionsVault(params) {
         this.testVault = await RibbonCoveredCall.deploy(
           this.asset,
           this.factory.address,
-          params.asset,
+          WETH_ADDRESS,
           params.strikeAsset,
           SWAP_ADDRESS,
           this.tokenDecimals,
@@ -431,8 +451,8 @@ function behavesLikeRibbonOptionsVault(params) {
           parseEther("0.005").toString()
         );
         assert.equal(await this.vault.SWAP_CONTRACT(), SWAP_ADDRESS);
-        assert.equal(await this.vault.WETH(), this.asset); // TODO: Extend to taking asset type
-        assert.equal(await this.vault.USDC(), USDC_ADDRESS); // TODO: Same as above
+        assert.equal(await this.vault.WETH(), WETH_ADDRESS);
+        assert.equal(await this.vault.USDC(), USDC_ADDRESS);
       });
 
       it("cannot be initialized twice", async function () {
@@ -565,137 +585,140 @@ function behavesLikeRibbonOptionsVault(params) {
       });
     });
 
-    describe("#depositETH", () => {
-      time.revertToSnapshotAfterEach();
+    // Only apply to when assets is WETH
+    if (params.asset === WETH_ADDRESS) {
+      describe("#depositETH", () => {
+        time.revertToSnapshotAfterEach();
 
-      it("deposits successfully", async function () {
-        const depositAmount = parseEther("1");
-        const res = await this.vault.depositETH({ value: depositAmount });
-        const receipt = await res.wait();
+        it("deposits successfully", async function () {
+          const depositAmount = parseEther("1");
+          const res = await this.vault.depositETH({ value: depositAmount });
+          const receipt = await res.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 150000);
+          assert.isAtMost(receipt.gasUsed.toNumber(), 150000);
 
-        assert.equal(
-          (await this.vault.totalSupply()).toString(),
-          depositAmount
-        );
-        assert.equal(
-          (await this.vault.balanceOf(user)).toString(),
-          depositAmount
-        );
-        await expect(res)
-          .to.emit(this.vault, "Deposit")
-          .withArgs(user, depositAmount, depositAmount);
+          assert.equal(
+            (await this.vault.totalSupply()).toString(),
+            depositAmount
+          );
+          assert.equal(
+            (await this.vault.balanceOf(user)).toString(),
+            depositAmount
+          );
+          await expect(res)
+            .to.emit(this.vault, "Deposit")
+            .withArgs(user, depositAmount, depositAmount);
+        });
+
+        it("consumes less than 100k gas in ideal scenario", async function () {
+          await this.vault
+            .connect(managerSigner)
+            .depositETH({ value: parseEther("0.1") });
+
+          const res = await this.vault.depositETH({ value: parseEther("0.1") });
+          const receipt = await res.wait();
+          console.log(receipt.gasUsed.toNumber());
+          assert.isAtMost(receipt.gasUsed.toNumber(), 100000);
+        });
+
+        it("returns the correct number of shares back", async function () {
+          // first user gets 3 shares
+          await this.vault
+            .connect(userSigner)
+            .depositETH({ value: parseEther("3") });
+          assert.equal(
+            (await this.vault.balanceOf(user)).toString(),
+            parseEther("3")
+          );
+
+          // simulate the vault accumulating more WETH
+          await this.assetContract
+            .connect(userSigner)
+            .deposit({ value: parseEther("1") });
+          await this.assetContract
+            .connect(userSigner)
+            .transfer(this.vault.address, parseEther("1"));
+
+          assert.equal(
+            (await this.vault.totalBalance()).toString(),
+            parseEther("4")
+          );
+
+          // formula:
+          // (depositAmount * totalSupply) / total
+          // (1 * 3) / 4 = 0.75 shares
+          const res = await this.vault
+            .connect(counterpartySigner)
+            .depositETH({ value: parseEther("1") });
+          assert.equal(
+            (await this.vault.balanceOf(counterparty)).toString(),
+            parseEther("0.75")
+          );
+          await expect(res)
+            .to.emit(this.vault, "Deposit")
+            .withArgs(counterparty, parseEther("1"), parseEther("0.75"));
+        });
+
+        it("accounts for the amounts that are locked", async function () {
+          // first user gets 3 shares
+          await this.vault
+            .connect(userSigner)
+            .depositETH({ value: parseEther("3") });
+
+          // simulate the vault accumulating more WETH
+          await this.assetContract
+            .connect(userSigner)
+            .deposit({ value: parseEther("1") });
+          await this.assetContract
+            .connect(userSigner)
+            .transfer(this.vault.address, parseEther("1"));
+
+          await this.rollToNextOption();
+
+          // formula:
+          // (depositAmount * totalSupply) / total
+          // (1 * 3) / 4 = 0.75 shares
+          await this.vault
+            .connect(counterpartySigner)
+            .depositETH({ value: parseEther("1") });
+          assert.equal(
+            (await this.vault.balanceOf(counterparty)).toString(),
+            parseEther("0.75")
+          );
+        });
+
+        it("reverts when no value passed", async function () {
+          await expect(
+            this.vault.connect(userSigner).depositETH({ value: 0 })
+          ).to.be.revertedWith("No value passed");
+        });
+
+        it("does not inflate the share tokens on initialization", async function () {
+          await this.assetContract
+            .connect(adminSigner)
+            .deposit({ value: parseEther("10") });
+          await this.assetContract
+            .connect(adminSigner)
+            .transfer(this.vault.address, parseEther("10"));
+
+          await this.vault
+            .connect(userSigner)
+            .depositETH({ value: parseEther("1") });
+
+          // user needs to get back exactly 1 ether
+          // even though the total has been incremented
+          assert.isFalse((await this.vault.balanceOf(user)).isZero());
+        });
+
+        it("reverts when minimum shares are not minted", async function () {
+          await expect(
+            this.vault.connect(userSigner).depositETH({
+              value: BigNumber.from("10").pow("10").sub(BigNumber.from("1")),
+            })
+          ).to.be.revertedWith(/Minimum share supply needs to be >=10\*\*10/);
+        });
       });
-
-      it("consumes less than 100k gas in ideal scenario", async function () {
-        await this.vault
-          .connect(managerSigner)
-          .depositETH({ value: parseEther("0.1") });
-
-        const res = await this.vault.depositETH({ value: parseEther("0.1") });
-        const receipt = await res.wait();
-        console.log(receipt.gasUsed.toNumber());
-        assert.isAtMost(receipt.gasUsed.toNumber(), 100000);
-      });
-
-      it("returns the correct number of shares back", async function () {
-        // first user gets 3 shares
-        await this.vault
-          .connect(userSigner)
-          .depositETH({ value: parseEther("3") });
-        assert.equal(
-          (await this.vault.balanceOf(user)).toString(),
-          parseEther("3")
-        );
-
-        // simulate the vault accumulating more WETH
-        await this.assetContract
-          .connect(userSigner)
-          .deposit({ value: parseEther("1") });
-        await this.assetContract
-          .connect(userSigner)
-          .transfer(this.vault.address, parseEther("1"));
-
-        assert.equal(
-          (await this.vault.totalBalance()).toString(),
-          parseEther("4")
-        );
-
-        // formula:
-        // (depositAmount * totalSupply) / total
-        // (1 * 3) / 4 = 0.75 shares
-        const res = await this.vault
-          .connect(counterpartySigner)
-          .depositETH({ value: parseEther("1") });
-        assert.equal(
-          (await this.vault.balanceOf(counterparty)).toString(),
-          parseEther("0.75")
-        );
-        await expect(res)
-          .to.emit(this.vault, "Deposit")
-          .withArgs(counterparty, parseEther("1"), parseEther("0.75"));
-      });
-
-      it("accounts for the amounts that are locked", async function () {
-        // first user gets 3 shares
-        await this.vault
-          .connect(userSigner)
-          .depositETH({ value: parseEther("3") });
-
-        // simulate the vault accumulating more WETH
-        await this.assetContract
-          .connect(userSigner)
-          .deposit({ value: parseEther("1") });
-        await this.assetContract
-          .connect(userSigner)
-          .transfer(this.vault.address, parseEther("1"));
-
-        await this.rollToNextOption();
-
-        // formula:
-        // (depositAmount * totalSupply) / total
-        // (1 * 3) / 4 = 0.75 shares
-        await this.vault
-          .connect(counterpartySigner)
-          .depositETH({ value: parseEther("1") });
-        assert.equal(
-          (await this.vault.balanceOf(counterparty)).toString(),
-          parseEther("0.75")
-        );
-      });
-
-      it("reverts when no value passed", async function () {
-        await expect(
-          this.vault.connect(userSigner).depositETH({ value: 0 })
-        ).to.be.revertedWith("No value passed");
-      });
-
-      it("does not inflate the share tokens on initialization", async function () {
-        await this.assetContract
-          .connect(adminSigner)
-          .deposit({ value: parseEther("10") });
-        await this.assetContract
-          .connect(adminSigner)
-          .transfer(this.vault.address, parseEther("10"));
-
-        await this.vault
-          .connect(userSigner)
-          .depositETH({ value: parseEther("1") });
-
-        // user needs to get back exactly 1 ether
-        // even though the total has been incremented
-        assert.isFalse((await this.vault.balanceOf(user)).isZero());
-      });
-
-      it("reverts when minimum shares are not minted", async function () {
-        await expect(
-          this.vault.connect(userSigner).depositETH({
-            value: BigNumber.from("10").pow("10").sub(BigNumber.from("1")),
-          })
-        ).to.be.revertedWith(/Minimum share supply needs to be >=10\*\*10/);
-      });
-    });
+    }
 
     describe("#deposit", () => {
       time.revertToSnapshotAfterEach();

@@ -338,8 +338,8 @@ async function mintToken(contract, contractOwner, recipient, spender, amount) {
   await contract.connect(tokenOwnerSigner).mint(recipient.address, amount);
   await contract.connect(recipient).approve(spender, amount);
 
-  // await hre.network.provider.request({
-  //   method: "hardhat_stopImpersonatingAccount",
-  //   params: [contractOwner],
-  // });
+  await hre.network.provider.request({
+    method: "hardhat_stopImpersonatingAccount",
+    params: [contractOwner],
+  });
 }

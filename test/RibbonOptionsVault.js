@@ -57,18 +57,18 @@ describe("RibbonCoveredCall", () => {
     },
   });
 
-  // behavesLikeRibbonOptionsVault({
-  //   name: `Ribbon ETH Theta Vault`,
-  //   tokenName: "Ribbon ETH Theta Vault",
-  //   tokenSymbol: "rETH-THETA",
-  //   asset: WETH_ADDRESS,
-  //   assetContractName: "IWETH",
-  //   strikeAsset: USDC_ADDRESS,
-  //   wrongUnderlyingAsset: WBTC_ADDRESS,
-  //   wrongStrikeAsset: WBTC_ADDRESS,
-  //   firstOptionStrike: 63000,
-  //   secondOptionStrike: 64000,
-  // });
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon ETH Theta Vault`,
+    tokenName: "Ribbon ETH Theta Vault",
+    tokenSymbol: "rETH-THETA",
+    asset: WETH_ADDRESS,
+    assetContractName: "IWETH",
+    strikeAsset: USDC_ADDRESS,
+    wrongUnderlyingAsset: WBTC_ADDRESS,
+    wrongStrikeAsset: WBTC_ADDRESS,
+    firstOptionStrike: 63000,
+    secondOptionStrike: 64000,
+  });
 });
 
 /**
@@ -224,7 +224,7 @@ function behavesLikeRibbonOptionsVault(params) {
       this.optionTerms = [
         params.asset,
         params.strikeAsset,
-        WETH_ADDRESS,
+        params.asset,
         secondOption.expiry.toString(),
         parseEther(params.secondOptionStrike.toString()),
         2,
@@ -249,13 +249,11 @@ function behavesLikeRibbonOptionsVault(params) {
         await mintToken(
           this.assetContract,
           params.mintConfig.contractOwnerAddress,
-          ownerSigner,
+          userSigner,
           this.vault.address,
-          parseEther("1")
+          parseEther("200")
         );
       }
-
-      // console.log(await this.assetContract.balanceOf(userSigner.address));
 
       this.rollToNextOption = async () => {
         await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
@@ -725,16 +723,20 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("deposits successfully", async function () {
         const depositAmount = parseEther("1");
-        await this.assetContract
-          .connect(userSigner)
-          .deposit({ value: depositAmount });
+
+        // Deposit only if asset is WETH
+        if (params.asset === WETH_ADDRESS) {
+          await this.assetContract
+            .connect(userSigner)
+            .deposit({ value: depositAmount });
+        }
+
         await this.assetContract
           .connect(userSigner)
           .approve(this.vault.address, depositAmount);
 
         const res = await this.vault.deposit(depositAmount);
         const receipt = await res.wait();
-
         assert.isAtMost(receipt.gasUsed.toNumber(), 150000);
 
         assert.equal(
@@ -982,16 +984,32 @@ function behavesLikeRibbonOptionsVault(params) {
         this.premium = parseEther("0.1");
         this.depositAmount = parseEther("1");
         this.expectedMintAmount = BigNumber.from("90000000");
-        await this.vault.depositETH({ value: this.depositAmount });
+
+        await depositIntoVault(params.asset, this.vault, this.depositAmount);
 
         this.oracle = await setupOracle(ownerSigner);
 
         this.depositAmount = parseEther("1");
         this.sellAmount = BigNumber.from("90000000");
 
-        const weth = this.assetContract.connect(counterpartySigner);
-        await weth.deposit({ value: this.premium });
-        await weth.approve(SWAP_ADDRESS, this.premium);
+        // TODO: Deposit counter Party some money as well
+        if (params.asset === WETH_ADDRESS) {
+          const weth = this.assetContract.connect(counterpartySigner);
+          await weth.deposit({ value: this.premium });
+          await weth.approve(SWAP_ADDRESS, this.premium);
+          return;
+        }
+
+        if (params.mintConfig) {
+          await mintToken(
+            this.assetContract,
+            params.mintConfig.contractOwnerAddress,
+            counterpartySigner,
+            SWAP_ADDRESS,
+            this.premium
+          );
+          return;
+        }
       });
 
       it("reverts when not called with manager", async function () {
@@ -1420,7 +1438,8 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("withdraws locked funds by closing short", async function () {
-        await this.vault.depositETH({ value: parseEther("1") });
+        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+
         await this.rollToNextOption();
         assert.equal(
           (await this.vault.assetBalance()).toString(),
@@ -1447,11 +1466,22 @@ function behavesLikeRibbonOptionsVault(params) {
         this.depositAmount = parseEther("1");
         this.sellAmount = BigNumber.from("90000000");
 
-        const weth = this.assetContract.connect(counterpartySigner);
-        await weth.deposit({ value: this.premium });
-        await weth.approve(SWAP_ADDRESS, this.premium);
+        // Deposit counter party with asset
+        if (params.asset === WETH_ADDRESS) {
+          const weth = this.assetContract.connect(counterpartySigner);
+          await weth.deposit({ value: this.premium });
+          await weth.approve(SWAP_ADDRESS, this.premium);
+        } else {
+          await mintToken(
+            this.assetContract,
+            params.mintConfig.contractOwnerAddress,
+            counterpartySigner,
+            SWAP_ADDRESS,
+            this.premium
+          );
+        }
 
-        await this.vault.depositETH({ value: this.depositAmount });
+        await depositIntoVault(params.asset, this.vault, this.depositAmount);
 
         await this.rollToNextOption();
       });
@@ -1554,7 +1584,7 @@ function behavesLikeRibbonOptionsVault(params) {
       time.revertToSnapshotAfterEach(async function () {
         this.depositAmount = parseEther("1");
 
-        await this.vault.depositETH({ value: this.depositAmount });
+        await depositIntoVault(params.asset, this.vault, this.depositAmount);
 
         assert.equal(
           (await this.vault.totalSupply()).toString(),
@@ -1572,7 +1602,7 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("returns the free balance - locked, if free > locked", async function () {
-        await this.vault.depositETH({ value: parseEther("10") });
+        await depositIntoVault(params.asset, this.vault, parseEther("10"));
 
         const freeAmount = parseEther("10").add(
           wmul(this.depositAmount, parseEther("0.1"))
@@ -1582,188 +1612,194 @@ function behavesLikeRibbonOptionsVault(params) {
       });
     });
 
-    describe("#withdrawETH", () => {
-      time.revertToSnapshotAfterEach();
+    if (params.asset === WETH_ADDRESS) {
+      describe("#withdrawETH", () => {
+        time.revertToSnapshotAfterEach();
 
-      it("reverts when withdrawing more than balance", async function () {
-        await this.vault.depositETH({ value: parseEther("10") });
+        it("reverts when withdrawing more than balance", async function () {
+          await this.vault.depositETH({ value: parseEther("10") });
 
-        await this.rollToNextOption();
+          await this.rollToNextOption();
 
-        await expect(
-          this.vault.withdrawETH(parseEther("2"))
-        ).to.be.revertedWith("Cannot withdraw more than available");
-      });
-
-      it("should withdraw funds, sending withdrawal fee to feeRecipient if <10%", async function () {
-        await this.vault.depositETH({ value: parseEther("1") });
-
-        const startETHBalance = await provider.getBalance(user);
-
-        const res = await this.vault.withdrawETH(parseEther("0.1"), {
-          gasPrice,
+          await expect(
+            this.vault.withdrawETH(parseEther("2"))
+          ).to.be.revertedWith("Cannot withdraw more than available");
         });
-        const receipt = await res.wait();
-        const gasFee = gasPrice.mul(receipt.gasUsed);
 
-        // Fee is sent to feeRecipient
-        assert.equal(
-          (await this.assetContract.balanceOf(this.vault.address)).toString(),
-          parseEther("0.9").toString()
-        );
+        it("should withdraw funds, sending withdrawal fee to feeRecipient if <10%", async function () {
+          await this.vault.depositETH({ value: parseEther("1") });
 
-        assert.equal(
-          (await this.assetContract.balanceOf(feeRecipient)).toString(),
-          parseEther("0.0005").toString()
-        );
+          const startETHBalance = await provider.getBalance(user);
 
-        assert.equal(
-          (await provider.getBalance(user))
-            .add(gasFee)
-            .sub(startETHBalance)
-            .toString(),
-          parseEther("0.0995").toString()
-        );
+          const res = await this.vault.withdrawETH(parseEther("0.1"), {
+            gasPrice,
+          });
+          const receipt = await res.wait();
+          const gasFee = gasPrice.mul(receipt.gasUsed);
 
-        // Share amount is burned
-        assert.equal(
-          (await this.vault.balanceOf(user)).toString(),
-          parseEther("0.9")
-        );
-
-        assert.equal(
-          (await this.vault.totalSupply()).toString(),
-          parseEther("0.9")
-        );
-
-        await expect(res)
-          .to.emit(this.vault, "Withdraw")
-          .withArgs(
-            user,
-            parseEther("0.0995"),
-            parseEther("0.1"),
-            parseEther("0.0005")
+          // Fee is sent to feeRecipient
+          assert.equal(
+            (await this.assetContract.balanceOf(this.vault.address)).toString(),
+            parseEther("0.9").toString()
           );
-      });
 
-      it("should withdraw funds up to 10% of pool", async function () {
-        await this.vault.depositETH({ value: parseEther("1") });
+          assert.equal(
+            (await this.assetContract.balanceOf(feeRecipient)).toString(),
+            parseEther("0.0005").toString()
+          );
 
-        // simulate the vault accumulating more WETH
-        await this.assetContract
-          .connect(userSigner)
-          .deposit({ value: parseEther("1") });
-        await this.assetContract
-          .connect(userSigner)
-          .transfer(this.vault.address, parseEther("1"));
+          assert.equal(
+            (await provider.getBalance(user))
+              .add(gasFee)
+              .sub(startETHBalance)
+              .toString(),
+            parseEther("0.0995").toString()
+          );
 
-        assert.equal(
-          (await this.vault.assetBalance()).toString(),
-          parseEther("2").toString()
-        );
+          // Share amount is burned
+          assert.equal(
+            (await this.vault.balanceOf(user)).toString(),
+            parseEther("0.9")
+          );
 
-        const tx = await this.vault.withdrawETH(parseEther("0.1"));
-        const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 150000);
-      });
+          assert.equal(
+            (await this.vault.totalSupply()).toString(),
+            parseEther("0.9")
+          );
 
-      it("should only withdraw original deposit amount minus fees if vault doesn't expand", async function () {
-        await this.vault.depositETH({ value: parseEther("1") });
-
-        const startETHBalance = await provider.getBalance(user);
-
-        await this.vault
-          .connect(counterpartySigner)
-          .depositETH({ value: parseEther("10") });
-
-        // As the pool expands, using 1 pool share will redeem more amount of collateral
-        const res = await this.vault.withdrawETH(parseEther("1"), {
-          gasPrice,
+          await expect(res)
+            .to.emit(this.vault, "Withdraw")
+            .withArgs(
+              user,
+              parseEther("0.0995"),
+              parseEther("0.1"),
+              parseEther("0.0005")
+            );
         });
-        const receipt = await res.wait();
 
-        // 0.99 ETH because 1% paid to fees
-        const gasUsed = receipt.gasUsed.mul(gasPrice);
-        assert.equal(
-          (await provider.getBalance(user))
-            .add(gasUsed)
-            .sub(startETHBalance)
-            .toString(),
-          parseEther("0.995").toString()
-        );
-      });
+        it("should withdraw funds up to 10% of pool", async function () {
+          await this.vault.depositETH({ value: parseEther("1") });
 
-      it("should withdraw more collateral when the balance increases", async function () {
-        await this.vault.depositETH({ value: parseEther("1") });
+          // simulate the vault accumulating more WETH
+          await this.assetContract
+            .connect(userSigner)
+            .deposit({ value: parseEther("1") });
+          await this.assetContract
+            .connect(userSigner)
+            .transfer(this.vault.address, parseEther("1"));
 
-        const startETHBalance = await provider.getBalance(user);
+          assert.equal(
+            (await this.vault.assetBalance()).toString(),
+            parseEther("2").toString()
+          );
 
-        await this.vault
-          .connect(counterpartySigner)
-          .depositETH({ value: parseEther("10") });
-
-        await this.assetContract
-          .connect(counterpartySigner)
-          .deposit({ value: parseEther("10") });
-        await this.assetContract
-          .connect(counterpartySigner)
-          .transfer(this.vault.address, parseEther("10"));
-
-        // As the pool expands, using 1 pool share will redeem more amount of collateral
-        const res = await this.vault.withdrawETH(parseEther("1"), {
-          gasPrice,
+          const tx = await this.vault.withdrawETH(parseEther("0.1"));
+          const receipt = await tx.wait();
+          assert.isAtMost(receipt.gasUsed.toNumber(), 150000);
         });
-        const receipt = await res.wait();
 
-        const gasUsed = receipt.gasUsed.mul(gasPrice);
-        assert.equal(
-          (await provider.getBalance(user))
-            .add(gasUsed)
-            .sub(startETHBalance)
-            .toString(),
-          BigNumber.from("1899545454545454545")
-        );
+        it("should only withdraw original deposit amount minus fees if vault doesn't expand", async function () {
+          await this.vault.depositETH({ value: parseEther("1") });
+
+          const startETHBalance = await provider.getBalance(user);
+
+          await this.vault
+            .connect(counterpartySigner)
+            .depositETH({ value: parseEther("10") });
+
+          // As the pool expands, using 1 pool share will redeem more amount of collateral
+          const res = await this.vault.withdrawETH(parseEther("1"), {
+            gasPrice,
+          });
+          const receipt = await res.wait();
+
+          // 0.99 ETH because 1% paid to fees
+          const gasUsed = receipt.gasUsed.mul(gasPrice);
+          assert.equal(
+            (await provider.getBalance(user))
+              .add(gasUsed)
+              .sub(startETHBalance)
+              .toString(),
+            parseEther("0.995").toString()
+          );
+        });
+
+        it("should withdraw more collateral when the balance increases", async function () {
+          await this.vault.depositETH({ value: parseEther("1") });
+
+          const startETHBalance = await provider.getBalance(user);
+
+          await this.vault
+            .connect(counterpartySigner)
+            .depositETH({ value: parseEther("10") });
+
+          await this.assetContract
+            .connect(counterpartySigner)
+            .deposit({ value: parseEther("10") });
+          await this.assetContract
+            .connect(counterpartySigner)
+            .transfer(this.vault.address, parseEther("10"));
+
+          // As the pool expands, using 1 pool share will redeem more amount of collateral
+          const res = await this.vault.withdrawETH(parseEther("1"), {
+            gasPrice,
+          });
+          const receipt = await res.wait();
+
+          const gasUsed = receipt.gasUsed.mul(gasPrice);
+          assert.equal(
+            (await provider.getBalance(user))
+              .add(gasUsed)
+              .sub(startETHBalance)
+              .toString(),
+            BigNumber.from("1899545454545454545")
+          );
+        });
+
+        it("should revert if not enough shares", async function () {
+          await this.vault.depositETH({ value: parseEther("1") });
+
+          await this.vault
+            .connect(counterpartySigner)
+            .depositETH({ value: parseEther("10") });
+
+          await expect(
+            this.vault.withdrawETH(parseEther("1").add(BigNumber.from("1")))
+          ).to.be.revertedWith("ERC20: burn amount exceeds balance");
+        });
+
+        it("should be able to withdraw everything from the vault, leaving behind minimum", async function () {
+          await this.vault.depositETH({ value: parseEther("1") });
+
+          // simulate setting a bad otoken
+          await this.vault
+            .connect(managerSigner)
+            .setNextOption(this.optionTerms);
+
+          // users should have time to withdraw
+          await this.vault.withdrawETH(
+            parseEther("1").sub(await this.vault.MINIMUM_SUPPLY())
+          );
+        });
+
+        it("should revert when burning past minimum supply", async function () {
+          await this.vault.depositETH({ value: parseEther("1") });
+
+          // Only 1 ether - MINIMUM_SUPPLY works
+          await expect(
+            this.vault.withdrawETH(parseEther("1").sub(BigNumber.from("1")))
+          ).to.be.revertedWith(/Minimum share supply needs to be >=10\*\*10/);
+        });
       });
-
-      it("should revert if not enough shares", async function () {
-        await this.vault.depositETH({ value: parseEther("1") });
-
-        await this.vault
-          .connect(counterpartySigner)
-          .depositETH({ value: parseEther("10") });
-
-        await expect(
-          this.vault.withdrawETH(parseEther("1").add(BigNumber.from("1")))
-        ).to.be.revertedWith("ERC20: burn amount exceeds balance");
-      });
-
-      it("should be able to withdraw everything from the vault, leaving behind minimum", async function () {
-        await this.vault.depositETH({ value: parseEther("1") });
-
-        // simulate setting a bad otoken
-        await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
-
-        // users should have time to withdraw
-        await this.vault.withdrawETH(
-          parseEther("1").sub(await this.vault.MINIMUM_SUPPLY())
-        );
-      });
-
-      it("should revert when burning past minimum supply", async function () {
-        await this.vault.depositETH({ value: parseEther("1") });
-
-        // Only 1 ether - MINIMUM_SUPPLY works
-        await expect(
-          this.vault.withdrawETH(parseEther("1").sub(BigNumber.from("1")))
-        ).to.be.revertedWith(/Minimum share supply needs to be >=10\*\*10/);
-      });
-    });
+    }
 
     describe("#withdrawAmountWithShares", () => {
       time.revertToSnapshotAfterEach();
 
       it("returns the correct withdrawal amount", async function () {
-        await this.vault.depositETH({ value: parseEther("1") });
+        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+
+        const balanceBeforeWithdraw = await this.assetContract.balanceOf(user);
 
         const [
           withdrawAmount,
@@ -1775,9 +1811,10 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await this.vault.withdraw(parseEther("0.1"));
 
+        // End balance should be start balance + withdraw amount
         assert.equal(
           (await this.assetContract.balanceOf(user)).toString(),
-          withdrawAmount
+          balanceBeforeWithdraw.add(withdrawAmount)
         );
       });
     });
@@ -1792,7 +1829,7 @@ function behavesLikeRibbonOptionsVault(params) {
           await this.vault.MINIMUM_SUPPLY()
         );
 
-        await this.vault.depositETH({ value: depositAmount });
+        await depositIntoVault(params.asset, this.vault, depositAmount);
 
         assert.equal(
           (await this.vault.maxWithdrawAmount(user)).toString(),
@@ -1803,10 +1840,23 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("returns the max withdrawable amount", async function () {
-        await this.vault
-          .connect(managerSigner)
-          .depositETH({ value: parseEther("9") });
-        await this.vault.depositETH({ value: parseEther("1") });
+        if (params.mintConfig) {
+          // Provide manager anough WBTC to start with
+          await mintToken(
+            this.assetContract,
+            params.mintConfig.contractOwnerAddress,
+            managerSigner,
+            this.vault.address,
+            parseEther("9")
+          );
+        }
+
+        await depositIntoVault(
+          params.asset,
+          this.vault.connect(managerSigner),
+          parseEther("9")
+        );
+        await depositIntoVault(params.asset, this.vault, parseEther("1"));
 
         assert.equal(
           (await this.vault.maxWithdrawAmount(user)).toString(),
@@ -1819,7 +1869,7 @@ function behavesLikeRibbonOptionsVault(params) {
       time.revertToSnapshotAfterEach();
 
       it("returns the max shares withdrawable of the system", async function () {
-        await this.vault.depositETH({ value: parseEther("1") });
+        await depositIntoVault(params.asset, this.vault, parseEther("1"));
 
         assert.equal(
           (await this.vault.maxWithdrawableShares()).toString(),
@@ -1834,7 +1884,7 @@ function behavesLikeRibbonOptionsVault(params) {
       time.revertToSnapshotAfterEach();
 
       it("returns the ETH balance of the account in the vault", async function () {
-        await this.vault.depositETH({ value: parseEther("1") });
+        await depositIntoVault(params.asset, this.vault, parseEther("1"));
 
         // Will be exactly the same number of Ether deposited initiall
         assert.equal(
@@ -1843,9 +1893,11 @@ function behavesLikeRibbonOptionsVault(params) {
         );
 
         // simulate the vault accumulating more WETH
-        await this.assetContract
-          .connect(userSigner)
-          .deposit({ value: parseEther("1") });
+        if (params.asset === WETH_ADDRESS) {
+          await this.assetContract
+            .connect(userSigner)
+            .deposit({ value: parseEther("1") });
+        }
         await this.assetContract
           .connect(userSigner)
           .transfer(this.vault.address, parseEther("1"));
@@ -1862,7 +1914,7 @@ function behavesLikeRibbonOptionsVault(params) {
       time.revertToSnapshotAfterEach();
 
       it("should return the correct number of shares", async function () {
-        await this.vault.depositETH({ value: parseEther("1") });
+        await depositIntoVault(params.asset, this.vault, parseEther("1"));
 
         // Will be exactly the same number of Ether deposited initially
         assert.equal(
@@ -1871,9 +1923,11 @@ function behavesLikeRibbonOptionsVault(params) {
         );
 
         // simulate the vault accumulating more WETH
-        await this.assetContract
-          .connect(userSigner)
-          .deposit({ value: parseEther("1") });
+        if (params.asset === WETH_ADDRESS) {
+          await this.assetContract
+            .connect(userSigner)
+            .deposit({ value: parseEther("1") });
+        }
         await this.assetContract
           .connect(userSigner)
           .transfer(this.vault.address, parseEther("1"));
@@ -1890,11 +1944,14 @@ function behavesLikeRibbonOptionsVault(params) {
       time.revertToSnapshotAfterEach();
 
       it("should withdraw funds, sending withdrawal fee to feeRecipient", async function () {
-        await this.vault.depositETH({ value: parseEther("1") });
+        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+
+        const balanceBeforeWithdraw = await this.assetContract.balanceOf(user);
+
         await this.vault.withdraw(parseEther("0.1"));
         assert.equal(
           (await this.assetContract.balanceOf(user)).toString(),
-          parseEther("0.0995")
+          balanceBeforeWithdraw.add(parseEther("0.0995"))
         );
       });
     });
@@ -1914,13 +1971,20 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("should revert when depositing over the cap", async function () {
-        await this.vault.connect(managerSigner).setCap(parseEther("1"));
+        const capAmount = parseEther("1");
+        const depositAmount = parseEther("2");
+        await this.vault.connect(managerSigner).setCap(capAmount);
 
-        await expect(
-          this.vault.depositETH({
-            value: parseEther("1").add(BigNumber.from("1")),
-          })
-        ).to.be.revertedWith("Cap exceeded");
+        // Provide some WETH to the account
+        if (params.asset === WETH_ADDRESS) {
+          const weth = this.assetContract.connect(userSigner);
+          await weth.deposit({ value: depositAmount });
+          await weth.approve(this.vault.address, depositAmount);
+        }
+
+        await expect(this.vault.deposit(depositAmount)).to.be.revertedWith(
+          "Cap exceeded"
+        );
       });
     });
 
@@ -2004,4 +2068,12 @@ async function signOrderForSwap({
     SWAP_CONTRACT
   );
   return signedOrder;
+}
+
+async function depositIntoVault(asset, vault, amount) {
+  if (asset === WETH_ADDRESS) {
+    await vault.depositETH({ value: amount });
+  } else {
+    await vault.deposit(amount);
+  }
 }

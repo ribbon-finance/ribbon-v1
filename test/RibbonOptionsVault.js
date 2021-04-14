@@ -28,6 +28,9 @@ const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const WBTC_OWNER_ADDRESS = "0xCA06411bd7a7296d7dbdd0050DFc846E95fEBEB7";
 
+const CHAINLINK_WETH_PRICER = "0xAC05f5147566Cc949b73F0A776944E7011FabC50";
+const CHAINLINK_WBTC_PRICER = "0x5faCA6DF39c897802d752DfCb8c02Ea6959245Fc";
+
 const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const SWAP_ADDRESS = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
@@ -52,6 +55,7 @@ describe("RibbonCoveredCall", () => {
     wrongStrikeAsset: WETH_ADDRESS,
     firstOptionStrike: 2400,
     secondOptionStrike: 2500,
+    chainlinkPricer: CHAINLINK_WBTC_PRICER,
     mintConfig: {
       contractOwnerAddress: WBTC_OWNER_ADDRESS,
     },
@@ -68,6 +72,7 @@ describe("RibbonCoveredCall", () => {
     wrongStrikeAsset: WBTC_ADDRESS,
     firstOptionStrike: 63000,
     secondOptionStrike: 64000,
+    chainlinkPricer: CHAINLINK_WETH_PRICER,
   });
 });
 
@@ -84,6 +89,7 @@ describe("RibbonCoveredCall", () => {
  * @param {string} params.wrongStrikeAsset - Address of wrong strike assets
  * @param {number} params.firstOptionStrike - Strike price of first option
  * @param {number} params.secondOptionStrike - Strike price of second option
+ * @param {string} params.chainlinkPricer - Address of chainlink pricer
  * @param {Object=} params.mintConfig - Optional: For minting asset, if asset can be minted
  * @param {string} params.mintConfig.contractOwnerAddress - Impersonate address of mintable asset contract owner
  */
@@ -94,6 +100,19 @@ function behavesLikeRibbonOptionsVault(params) {
     let secondOption;
 
     before(async function () {
+      // Reset block
+      await network.provider.request({
+        method: "hardhat_reset",
+        params: [
+          {
+            forking: {
+              jsonRpcUrl: process.env.TEST_URI,
+              blockNumber: 12238727,
+            },
+          },
+        ],
+      });
+
       initSnapshotId = await time.takeSnapshot();
 
       [
@@ -987,7 +1006,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await depositIntoVault(params.asset, this.vault, this.depositAmount);
 
-        this.oracle = await setupOracle(ownerSigner);
+        this.oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
 
         this.depositAmount = parseEther("1");
         this.sellAmount = BigNumber.from("90000000");
@@ -1276,6 +1295,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
+          params.asset,
           this.oracle,
           await this.vault.currentOptionExpiry(),
           BigNumber.from("148000000000").sub(BigNumber.from("1"))
@@ -1376,6 +1396,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
+          params.asset,
           this.oracle,
           await this.vault.currentOptionExpiry(),
           BigNumber.from("160000000000")
@@ -1392,6 +1413,8 @@ function behavesLikeRibbonOptionsVault(params) {
             2,
             params.asset,
           ]);
+
+        // Time increase to after next option available
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
         );

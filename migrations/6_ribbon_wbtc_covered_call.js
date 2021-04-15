@@ -30,10 +30,13 @@ module.exports = async function (deployer, network) {
   // // Deploying the logic contract
   await deployer.deploy(
     RibbonCoveredCall,
-    DEPLOYMENTS[networkLookup].RibbonFactory,
     EXTERNAL_ADDRESSES[networkLookup].assets.wbtc,
+    DEPLOYMENTS[networkLookup].RibbonFactory,
+    EXTERNAL_ADDRESSES[networkLookup].assets.weth,
     EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
     EXTERNAL_ADDRESSES[networkLookup].airswapSwap,
+    18,
+    ethers.BigNumber.from("10").pow("11").toString(),
     { from: admin }
   );
   await updateDeployedAddresses(
@@ -45,12 +48,13 @@ module.exports = async function (deployer, network) {
   // Deploying the proxy contract
   const initBytes = encodeCall(
     "initialize",
-    ["address", "address", "address", "uint256"],
+    ["address", "address", "uint256", "string", "string"],
     [
-      EXTERNAL_ADDRESSES[networkLookup].assets.wbtc,
       owner,
       owner,
-      ethers.BigNumber.from("10").pow("11"), // 1000 (3 leading zeros) + 8 leading zeros
+      ethers.BigNumber.from("10").pow("11").toString(), // 1000 (3 leading zeros) + 8 leading zeros
+      "Ribbon WBTC-THETA",
+      "rWBTC-THETA",
     ]
   );
 

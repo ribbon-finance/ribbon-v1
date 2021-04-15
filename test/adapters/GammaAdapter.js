@@ -12,6 +12,7 @@ const {
   setOpynOracleExpiryPrice,
 } = require("../helpers/utils");
 
+const CHAINLINK_WETH_PRICER = "0xAC05f5147566Cc949b73F0A776944E7011FabC50";
 const USDCETH_PRICE_FEED = "0x986b5E1e1755e3C2440e960477f25201B0a8bbD4";
 const ZERO_EX_EXCHANGE_V3 = "0xDef1C0ded9bec7F1a1670819833240f027b25EfF";
 const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
@@ -98,7 +99,7 @@ describe("GammaAdapter", () => {
       )
     ).connect(userSigner);
 
-    this.oracle = await setupOracle(ownerSigner);
+    this.oracle = await setupOracle(CHAINLINK_WETH_PRICER, ownerSigner);
 
     this.depositToVaultForShorts = depositToVaultForShorts;
   });
@@ -653,6 +654,7 @@ function behavesLikeOTokens(params) {
         );
 
         await setOpynOracleExpiryPrice(
+          WETH_ADDRESS,
           this.oracle,
           this.expiry,
           this.settlePrice

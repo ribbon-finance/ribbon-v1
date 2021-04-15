@@ -17,6 +17,7 @@ module.exports = {
   setupOracle,
   setOpynOracleExpiryPrice,
   whitelistProduct,
+  mintToken,
 };
 
 async function deployProxy(
@@ -50,7 +51,6 @@ const ORACLE_DISPUTE_PERIOD = 7200;
 const ORACLE_LOCKING_PERIOD = 300;
 
 const ORACLE_OWNER = "0x638E5DA0EEbbA58c67567bcEb4Ab2dc8D34853FB";
-const CHAINLINK_PRICER = "0xAC05f5147566Cc949b73F0A776944E7011FabC50";
 const CHI_ADDRESS = "0x0000000000004946c0e9F43F4Dee607b0eF1fA1c";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
@@ -275,22 +275,20 @@ async function whitelistProduct(underlying, strike, collateral, isPut) {
     .whitelistProduct(underlying, strike, collateral, isPut);
 }
 
-async function setupOracle(signer) {
+async function setupOracle(pricerOwner, signer) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [CHAINLINK_PRICER],
+    params: [pricerOwner],
   });
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [ORACLE_OWNER],
   });
-  const pricerSigner = await provider.getSigner(CHAINLINK_PRICER);
+  const pricerSigner = await provider.getSigner(pricerOwner);
 
   const forceSendContract = await ethers.getContractFactory("ForceSend");
   const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
-  await forceSend
-    .connect(signer)
-    .go(CHAINLINK_PRICER, { value: parseEther("0.5") });
+  await forceSend.connect(signer).go(pricerOwner, { value: parseEther("0.5") });
 
   const oracle = new ethers.Contract(GAMMA_ORACLE, ORACLE_ABI, pricerSigner);
 
@@ -308,12 +306,37 @@ async function setupOracle(signer) {
   return oracle;
 }
 
-async function setOpynOracleExpiryPrice(oracle, expiry, settlePrice) {
+async function setOpynOracleExpiryPrice(asset, oracle, expiry, settlePrice) {
   await time.increaseTo(parseInt(expiry) + ORACLE_LOCKING_PERIOD + 1);
 
-  const res = await oracle.setExpiryPrice(WETH_ADDRESS, expiry, settlePrice);
+  const res = await oracle.setExpiryPrice(asset, expiry, settlePrice);
   const receipt = await res.wait();
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
 
   await time.increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);
+}
+
+async function mintToken(contract, contractOwner, recipient, spender, amount) {
+  [adminSigner] = await ethers.getSigners();
+  const tokenOwnerSigner = await ethers.provider.getSigner(contractOwner);
+
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [contractOwner],
+  });
+
+  const forceSendContract = await ethers.getContractFactory("ForceSend");
+  const forceSend = await forceSendContract.deploy(); // Some contract do not have receive(), so we force send
+  await forceSend.deployed();
+  await forceSend.go(contractOwner, {
+    value: parseEther("0.5"),
+  });
+
+  await contract.connect(tokenOwnerSigner).mint(recipient.address, amount);
+  await contract.connect(recipient).approve(spender, amount);
+
+  await hre.network.provider.request({
+    method: "hardhat_stopImpersonatingAccount",
+    params: [contractOwner],
+  });
 }

@@ -14,24 +14,12 @@ const { parseUnits } = require("ethers/lib/utils");
 
 program.version("0.0.1");
 
-program.requiredOption("-n, --network <network>", "Network", "kovan");
+program.requiredOption("-n, --network <network>", "Network", "mainnet");
 
 program
-  .option(
-    "-u, --underlying <underlying>",
-    "Underlying",
-    externalAddresses[program.network].assets.weth
-  )
-  .option(
-    "-s, --strikeAsset <strikeAsset>",
-    "Strike asset",
-    externalAddresses[program.network].assets.usdc
-  )
-  .option(
-    "-c, --collateralAsset <collateralAsset>",
-    "Collateral asset",
-    externalAddresses[program.network].assets.weth
-  )
+  .option("-u, --underlying <underlying>", "Underlying")
+  .option("-s, --strikeAsset <strikeAsset>", "Strike asset")
+  .option("-c, --collateralAsset <collateralAsset>", "Collateral asset")
   .requiredOption("-x, --strikePrice <strikePrice>", "Strike price")
   .requiredOption("-e, --expiry <expiry>", "Expiry")
   .option("-p, --isPut", "Is put", false);
@@ -40,13 +28,14 @@ program.parse(process.argv);
 
 async function deployOToken() {
   const network = program.network;
+
   const web3 = await getWeb3(network);
   const owner = accountAddresses[network].owner;
 
   const {
-    underlying,
-    strikeAsset,
-    collateralAsset,
+    underlying = externalAddresses[network].assets.weth,
+    strikeAsset = externalAddresses[network].assets.usdc,
+    collateralAsset = externalAddresses[network].assets.weth,
     strikePrice,
     expiry,
     isPut,

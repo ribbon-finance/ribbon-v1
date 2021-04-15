@@ -16,14 +16,7 @@ module.exports = async function (deployer, network) {
   const networkLookup = network.replace("-fork", "");
   const { admin, owner } = ACCOUNTS[networkLookup];
 
-  // Deploying the ProtocolAdapter
-  await deployer.deploy(ProtocolAdapterLib);
-
-  await updateDeployedAddresses(
-    network,
-    "ProtocolAdapterLib",
-    ProtocolAdapterLib.address
-  );
+  await ProtocolAdapterLib.deployed();
 
   await deployer.link(ProtocolAdapterLib, RibbonCoveredCall);
 

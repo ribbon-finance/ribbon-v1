@@ -11,7 +11,8 @@
 			"link": "0xa36085f69e2889c224210f603d836748e7dc0088",
 			"eth": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
 			"weth": "0xd0A1E359811322d97991E03f863a0C30C2cF029C",
-			"usdc": "0xf5cb5408b40e819e7db5347664be03b52accac9d"
+			"usdc": "0xf5cb5408b40e819e7db5347664be03b52accac9d",
+			"wbtc": "0xd7c8c2f7b6ebdbc88e5ab0101dd24ed5aca58b0f"
 		},
 		"airswapSwap": "0x79fb4604f2D7bD558Cda0DFADb7d61D98b28CA9f",
 		"oTokenFactory": "0xb9D17Ab06e27f63d0FD75099d5874a194eE623e2",

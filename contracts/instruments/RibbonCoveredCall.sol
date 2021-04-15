@@ -335,6 +335,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
 
         currentOption = address(0);
         nextOption = address(0);
+        lockedAmount = 0;
 
         uint256 withdrawAmount = adapter.delegateCloseShort();
         emit CloseShort(oldOption, withdrawAmount, msg.sender);

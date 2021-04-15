@@ -1591,6 +1591,11 @@ function behavesLikeRibbonOptionsVault(params) {
         );
         assert.equal(await this.vault.currentOption(), constants.AddressZero);
         assert.equal(await this.vault.nextOption(), constants.AddressZero);
+        assert.isTrue((await this.vault.lockedAmount()).isZero());
+        assert.equal(
+          (await this.vault.totalBalance()).toString(),
+          parseEther("1")
+        ); // has to be same as initial amount
       });
     });
 

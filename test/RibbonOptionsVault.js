@@ -1553,6 +1553,29 @@ function behavesLikeRibbonOptionsVault(params) {
           parseEther("0.11")
         );
       });
+
+      it("is not able to roll to new option consecutively without setNextOption", async function () {
+        await this.vault
+          .connect(managerSigner)
+          .setNextOption([
+            params.asset,
+            params.strikeAsset,
+            params.asset,
+            firstOption.expiry.toString(),
+            parseEther(params.firstOptionStrike.toString()),
+            2,
+            params.asset,
+          ]);
+        await time.increaseTo(
+          (await this.vault.nextOptionReadyAt()).toNumber() + 1
+        );
+
+        await this.vault.connect(managerSigner).rollToNextOption();
+
+        await expect(
+          this.vault.connect(managerSigner).rollToNextOption()
+        ).to.be.revertedWith("No found option");
+      });
     });
 
     describe("#emergencyWithdrawFromShort", () => {
@@ -1591,6 +1614,11 @@ function behavesLikeRibbonOptionsVault(params) {
         );
         assert.equal(await this.vault.currentOption(), constants.AddressZero);
         assert.equal(await this.vault.nextOption(), constants.AddressZero);
+        assert.isTrue((await this.vault.lockedAmount()).isZero());
+        assert.equal(
+          (await this.vault.totalBalance()).toString(),
+          parseEther("1")
+        ); // has to be same as initial amount
       });
     });
 

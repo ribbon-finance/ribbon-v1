@@ -1553,6 +1553,29 @@ function behavesLikeRibbonOptionsVault(params) {
           parseEther("0.11")
         );
       });
+
+      it("is not able to roll to new option consecutively without setNextOption", async function () {
+        await this.vault
+          .connect(managerSigner)
+          .setNextOption([
+            params.asset,
+            params.strikeAsset,
+            params.asset,
+            firstOption.expiry.toString(),
+            parseEther(params.firstOptionStrike.toString()),
+            2,
+            params.asset,
+          ]);
+        await time.increaseTo(
+          (await this.vault.nextOptionReadyAt()).toNumber() + 1
+        );
+
+        await this.vault.connect(managerSigner).rollToNextOption();
+
+        await expect(
+          this.vault.connect(managerSigner).rollToNextOption()
+        ).to.be.revertedWith("No found option");
+      });
     });
 
     describe("#emergencyWithdrawFromShort", () => {

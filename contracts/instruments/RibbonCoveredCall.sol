@@ -295,6 +295,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         require(newOption != address(0), "No found option");
         require(block.timestamp > nextOptionReadyAt, "Delay not passed");
 
+        nextOption = address(0);
         currentOption = newOption;
 
         if (oldOption != address(0)) {

@@ -48,7 +48,7 @@ module.exports = async function (deployer, network) {
       owner,
       owner,
       parseEther("1000").toString(),
-      "Ribbon ETH-THETA",
+      "Ribbon ETH Theta Vault",
       "rETH-THETA",
     ]
   );

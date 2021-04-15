@@ -46,8 +46,8 @@ module.exports = async function (deployer, network) {
       owner,
       owner,
       ethers.BigNumber.from("10").pow("11").toString(), // 1000 (3 leading zeros) + 8 leading zeros
-      "Ribbon WBTC-THETA",
-      "rWBTC-THETA",
+      "Ribbon BTC Theta Vault",
+      "rBTC-THETA",
     ]
   );
 

@@ -1058,6 +1058,9 @@ function behavesLikeRibbonOptionsVault(params) {
           expiry,
           isPut
         );
+        await time.increaseTo(
+          expiryDate.subtract(OPTION_DELAY, "seconds").valueOf() / 1000
+        );
 
         const optionTerms = [
           underlying,

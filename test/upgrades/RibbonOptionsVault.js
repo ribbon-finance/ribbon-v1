@@ -1,7 +1,7 @@
 const { assert } = require("chai");
 const { ethers } = require("hardhat");
 const { BigNumber, provider, getContractAt } = ethers;
-const { parseEther } = ethers.utils;
+const { parseEther, hexZeroPad, keccak256 } = ethers.utils;
 
 const { getDefaultArgs, parseLog } = require("../helpers/utils");
 
@@ -15,6 +15,28 @@ const ADMIN_SLOT =
   "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
 const IMPLEMENTATION_SLOT =
   "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
+
+const RANDOM_USER_ADDRESS = "0xb8a1ef5584564b0fda3086cc715b76de71de21ed";
+
+// Used to query the user's balance
+const USER_BALANCE_KEY = keccak256(
+  "0x" +
+    hexZeroPad(RANDOM_USER_ADDRESS, 32).slice(2) +
+    hexZeroPad(BigNumber.from("151").toHexString(), 32).slice(2)
+);
+
+const OWNER_ADDRESS = "0xfce3a97b5f1d3403f481903da3679039f522089c";
+const SPENDER_ADDRESS = "0x7a250d5630b4cf539739df2c5dacb4c659f2488d";
+
+const ALLOWANCE_KEY = keccak256(
+  "0x" +
+    hexZeroPad(SPENDER_ADDRESS, 32).slice(2) +
+    keccak256(
+      "0x" +
+        hexZeroPad(OWNER_ADDRESS, 32).slice(2) +
+        hexZeroPad(BigNumber.from("152").toHexString(), 32).slice(2)
+    ).slice(2)
+);
 
 describe("RibbonOptionsVault Upgrade", () => {
   describe("Upgrade 41325579857fa97686c926419542bd97411de472", () => {
@@ -55,6 +77,14 @@ describe("RibbonOptionsVault Upgrade", () => {
           101,
           "0x00000000000000000000000077da011d5314d80be59e939c2f7ec2f702e1dcc4",
         ], // owner
+        [
+          USER_BALANCE_KEY,
+          "0x00000000000000000000000000000000000000000000001ace8efb9cecbae1a0",
+        ], // balances
+        [
+          ALLOWANCE_KEY,
+          "0xffffffffffffffffffffffffffffffffffffffffffffffff91bf4721b3f1ef56",
+        ], // balances
         [
           153,
           "0x0000000000000000000000000000000000000000000000359d7bf78261a9c9f3",

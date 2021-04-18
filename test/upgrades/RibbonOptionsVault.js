@@ -39,7 +39,7 @@ const ALLOWANCE_KEY = keccak256(
 );
 
 describe("RibbonOptionsVault Upgrade", () => {
-  describe("Upgrade 41325579857fa97686c926419542bd97411de472", () => {
+  describe("Upgrade from 4ee578b96aefa663458ec8f871732fb21fa0ceb9", () => {
     before(async function () {
       // We need to checkpoint the contract on mainnet to a past block before the upgrade happens
       // This means the `implementation` is pointing to an old contract
@@ -56,6 +56,7 @@ describe("RibbonOptionsVault Upgrade", () => {
       });
 
       this.proxy = await getContractAt("AdminUpgradeabilityProxy", THETA_VAULT);
+      this.vault = await getContractAt("RibbonCoveredCall", THETA_VAULT);
       this.vaultAddress = THETA_VAULT;
       this.getVaultStorage = async (index) =>
         provider.getStorageAt(this.vaultAddress, index);
@@ -68,7 +69,7 @@ describe("RibbonOptionsVault Upgrade", () => {
         [
           0,
           "0x0000000000000000000000000000000000000000000000000000000000000001",
-        ], // reentrancy
+        ], // initializable
         [
           1,
           "0x0000000000000000000000000000000000000000000000000000000000000001",
@@ -84,7 +85,7 @@ describe("RibbonOptionsVault Upgrade", () => {
         [
           ALLOWANCE_KEY,
           "0xffffffffffffffffffffffffffffffffffffffffffffffff91bf4721b3f1ef56",
-        ], // balances
+        ], // allowance
         [
           153,
           "0x0000000000000000000000000000000000000000000000359d7bf78261a9c9f3",
@@ -146,6 +147,58 @@ describe("RibbonOptionsVault Upgrade", () => {
           const actualStorageVal = await this.getVaultStorage(index);
           assert.equal(actualStorageVal, expectedStorageVal);
         }
+
+        // Ownable
+        assert.equal(
+          await this.vault.owner(),
+          "0x77DA011d5314D80BE59e939c2f7EC2F702E1DCC4"
+        );
+
+        // ERC20
+        assert.equal(
+          (await this.vault.totalSupply()).toString(),
+          "989025371732052658675"
+        );
+        assert.equal(
+          (await this.vault.balanceOf(RANDOM_USER_ADDRESS)).toString(),
+          "494499456386359550368"
+        );
+        assert.equal(
+          (
+            await this.vault.allowance(OWNER_ADDRESS, SPENDER_ADDRESS)
+          ).toString(),
+          "115792089237316195423570985008687907853269984665640564039449639454905549844310"
+        );
+        assert.equal(await this.vault.name(), "Ribbon ETH Theta Vault");
+        assert.equal(await this.vault.symbol(), "rETH-THETA");
+
+        // OptionsVaultStorageV1
+        assert.equal(
+          await this.vault.manager(),
+          "0x77DA011d5314D80BE59e939c2f7EC2F702E1DCC4"
+        );
+        assert.equal(
+          await this.vault.nextOption(),
+          "0x286BeB9d0b5aF118E25932dc6F3e7015297b5A2b"
+        );
+        assert.equal(
+          (await this.vault.nextOptionReadyAt()).toNumber(),
+          1618553607
+        );
+        assert.equal(
+          await this.vault.currentOption(),
+          "0x286BeB9d0b5aF118E25932dc6F3e7015297b5A2b"
+        );
+        assert.equal(await this.vault.lockedAmount(), "898213898544722081691");
+        assert.equal(await this.vault.cap(), "1000000000000000000000");
+        assert.equal(
+          await this.vault.instantWithdrawalFee(),
+          "5000000000000000"
+        );
+        assert.equal(
+          await this.vault.feeRecipient(),
+          "0x6adEB4FDdB63F08E03d6f5b9f653bE8b65341B35"
+        );
       };
 
       const { factory } = await getDefaultArgs();

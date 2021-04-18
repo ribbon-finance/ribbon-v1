@@ -37,7 +37,7 @@ const SWAP_ADDRESS = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
 const SWAP_CONTRACT = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
 const TRADER_AFFILIATE = "0xFf98F0052BdA391F8FaD266685609ffb192Bef25";
 
-const OPTION_DELAY = 60 * 60 * 24; // 1 day
+const OPTION_DELAY = 60 * 60; // 1 hour
 const LOCKED_RATIO = parseEther("0.9");
 const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
 const gasPrice = parseUnits("1", "gwei");
@@ -539,6 +539,12 @@ function behavesLikeRibbonOptionsVault(params) {
     describe("#symbol", () => {
       it("returns the symbol", async function () {
         assert.equal(await this.vault.symbol(), this.tokenSymbol);
+      });
+    });
+
+    describe("#delay", () => {
+      it("returns the delay", async function () {
+        assert.equal((await this.vault.delay()).toNumber(), OPTION_DELAY);
       });
     });
 

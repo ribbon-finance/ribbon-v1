@@ -199,6 +199,8 @@ describe("RibbonOptionsVault Upgrade", () => {
           await this.vault.feeRecipient(),
           "0x6adEB4FDdB63F08E03d6f5b9f653bE8b65341B35"
         );
+
+        assert.equal(await this.vault.asset(), this.asset);
       };
 
       const { factory } = await getDefaultArgs();

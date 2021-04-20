@@ -56,6 +56,7 @@ describe("RibbonCoveredCall", () => {
     firstOptionStrike: 2400,
     secondOptionStrike: 2500,
     chainlinkPricer: CHAINLINK_WBTC_PRICER,
+    tokenDecimals: 18,
     mintConfig: {
       contractOwnerAddress: WBTC_OWNER_ADDRESS,
     },
@@ -73,6 +74,7 @@ describe("RibbonCoveredCall", () => {
     firstOptionStrike: 63000,
     secondOptionStrike: 64000,
     chainlinkPricer: CHAINLINK_WETH_PRICER,
+    tokenDecimals: 8,
   });
 });
 
@@ -130,7 +132,7 @@ function behavesLikeRibbonOptionsVault(params) {
       feeRecipient = feeRecipientSigner.address;
       this.tokenName = params.tokenName;
       this.tokenSymbol = params.tokenSymbol;
-      this.tokenDecimals = 18;
+      this.tokenDecimals = params.tokenDecimals;
       this.minimumSupply = BigNumber.from("10").pow("10").toString();
       this.asset = params.asset;
 

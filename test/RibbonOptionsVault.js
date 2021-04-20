@@ -1201,16 +1201,16 @@ function behavesLikeRibbonOptionsVault(params) {
           lockedAmount.toString()
         );
 
-        assert.deepEqual(
-          await this.oToken.balanceOf(this.vault.address),
-          this.expectedMintAmount
+        assert.equal(
+          (await this.oToken.balanceOf(this.vault.address)).toString(),
+          this.expectedMintAmount.toString()
         );
 
         assert.equal(await this.vault.currentOption(), this.oTokenAddress);
 
-        assert.deepEqual(
-          await this.oToken.allowance(this.vault.address, SWAP_ADDRESS),
-          this.expectedMintAmount
+        assert.equal(
+          (await this.oToken.allowance(this.vault.address, SWAP_ADDRESS)).toString(),
+          this.expectedMintAmount.toString()
         );
       });
 
@@ -2350,7 +2350,10 @@ function behavesLikeRibbonOptionsVault(params) {
 
     describe("#decimals", () => {
       it("should return 18 for decimals", async function () {
-        assert.equal((await this.vault.decimals()).toString(), "18");
+        assert.equal(
+          (await this.vault.decimals()).toString(),
+          this.tokenDecimals.toString()
+        );
       });
     });
   });

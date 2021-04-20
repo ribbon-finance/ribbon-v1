@@ -19,6 +19,7 @@ import {
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {DSMath} from "../lib/DSMath.sol";
+import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 
 contract GammaAdapter is IProtocolAdapter, DSMath {
     using SafeMath for uint256;
@@ -431,13 +432,14 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         }
         IERC20 collateralToken = IERC20(collateralAsset);
 
-        uint256 collateralDecimals = assetDecimals(collateralAsset);
+        uint256 collateralDecimals =
+            uint256(IERC20Detailed(collateralAsset).decimals());
         uint256 mintAmount;
 
         if (optionTerms.optionType == ProtocolAdapterTypes.OptionType.Call) {
             mintAmount = depositAmount;
             if (collateralDecimals >= 8) {
-                uint256 scaleBy = 10**(collateralDecimals - 8); // oTokens have 8 decimals
+                uint256 scaleBy = 10**10; // oTokens have 8 decimals
                 mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
                 require(
                     mintAmount > 0,

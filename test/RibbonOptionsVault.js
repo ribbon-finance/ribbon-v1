@@ -56,6 +56,7 @@ describe("RibbonCoveredCall", () => {
     firstOptionStrike: 2400,
     secondOptionStrike: 2500,
     chainlinkPricer: CHAINLINK_WBTC_PRICER,
+    tokenDecimals: 18,
     mintConfig: {
       contractOwnerAddress: WBTC_OWNER_ADDRESS,
     },
@@ -73,6 +74,7 @@ describe("RibbonCoveredCall", () => {
     firstOptionStrike: 63000,
     secondOptionStrike: 64000,
     chainlinkPricer: CHAINLINK_WETH_PRICER,
+    tokenDecimals: 8,
   });
 });
 
@@ -130,7 +132,7 @@ function behavesLikeRibbonOptionsVault(params) {
       feeRecipient = feeRecipientSigner.address;
       this.tokenName = params.tokenName;
       this.tokenSymbol = params.tokenSymbol;
-      this.tokenDecimals = 18;
+      this.tokenDecimals = params.tokenDecimals;
       this.minimumSupply = BigNumber.from("10").pow("10").toString();
       this.asset = params.asset;
 
@@ -1208,16 +1210,16 @@ function behavesLikeRibbonOptionsVault(params) {
           lockedAmount.toString()
         );
 
-        assert.deepEqual(
-          await this.oToken.balanceOf(this.vault.address),
-          this.expectedMintAmount
+        assert.equal(
+          (await this.oToken.balanceOf(this.vault.address)).toString(),
+          this.expectedMintAmount.toString()
         );
 
         assert.equal(await this.vault.currentOption(), this.oTokenAddress);
 
-        assert.deepEqual(
-          await this.oToken.allowance(this.vault.address, SWAP_ADDRESS),
-          this.expectedMintAmount
+        assert.equal(
+          (await this.oToken.allowance(this.vault.address, SWAP_ADDRESS)).toString(),
+          this.expectedMintAmount.toString()
         );
       });
 
@@ -2357,7 +2359,10 @@ function behavesLikeRibbonOptionsVault(params) {
 
     describe("#decimals", () => {
       it("should return 18 for decimals", async function () {
-        assert.equal((await this.vault.decimals()).toString(), "18");
+        assert.equal(
+          (await this.vault.decimals()).toString(),
+          this.tokenDecimals.toString()
+        );
       });
     });
   });

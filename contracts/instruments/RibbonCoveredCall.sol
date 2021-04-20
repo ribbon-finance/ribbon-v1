@@ -38,7 +38,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     // 90% locked in options protocol, 10% of the pool reserved for withdrawals
     uint256 public constant lockedRatio = 0.9 ether;
 
-    uint256 public constant delay = 1 days;
+    uint256 public constant delay = 1 hours;
 
     uint256 public immutable MINIMUM_SUPPLY;
 

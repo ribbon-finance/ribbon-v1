@@ -4,7 +4,8 @@
 			"dai/eth": "0x22B58f1EbEDfCA50feF632bD73368b2FdA96D541",
 			"eth/usd": "0x9326BFA02ADD2366b30bacB125260Af641031331",
 			"link/eth": "0xa36085f69e2889c224210f603d836748e7dc0088",
-			"usdc/eth": "0x986b5E1e1755e3C2440e960477f25201B0a8bbD4"
+			"usdc/eth": "0x986b5E1e1755e3C2440e960477f25201B0a8bbD4",
+			"btc/usd": "0x7AF551B093a83e880C37a3e9937665B80fBdE5CD"
 		},
 		"assets": {
 			"dai": "0x1528F3FCc26d13F7079325Fb78D9442607781c8C",
@@ -25,7 +26,8 @@
 		"balancerFactory": "0x8f7F78080219d4066A8036ccD30D588B416a40DB",
 		"uniswapV2Router": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
 		"zeroExExchangeV3": "0x4eacd0aF335451709e1e7B570B8Ea68EdEC8bc97",
-		"multicall": "0x2cc8688c5f75e365aaeeb4ea8d6a480405a48d2a"
+		"multicall": "0x2cc8688c5f75e365aaeeb4ea8d6a480405a48d2a",
+		"hegicStakingWBTC":"0x097681B5197749c97a4C5CCd15d30A441312657D"
 	},
 	"mainnet": {
 		"otokens": [

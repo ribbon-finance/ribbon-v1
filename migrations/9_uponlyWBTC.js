@@ -35,7 +35,7 @@ module.exports = async function (deployer, _network) {
 
   await deployer.deploy(
     WBTCOptions,
-    EXTERNAL_ADDRESSES[networkLookup].feeds.btc / usd,
+    EXTERNAL_ADDRESSES[networkLookup].feeds.btc/usd,
     "0x1b02da8cb0d097eb8d57a175b88c7d8b47997506",
     EXTERNAL_ADDRESSES[networkLookup].assets.wbtc2,
     EXTERNAL_ADDRESSES[networkLookup].hegicStakingWBTC
@@ -57,7 +57,7 @@ module.exports = async function (deployer, _network) {
     //wbtc options
     "0x755AD189d2F1Be069214FaFC2c5c73a6e3d3cCB9",
     EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
-    EXTERNAL_ADDRESSES[networkLookup].feeds.btc / usd,
+    EXTERNAL_ADDRESSES[networkLookup].feeds.btc/usd,
     { from: "" }
   );
 };

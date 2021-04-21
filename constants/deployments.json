@@ -13,7 +13,8 @@
     "RibbonETHCoveredCallLogic": "0xf6403bED7e50678E8E20dbCAD3FAF7C9C4D5B7ED",
     "RibbonETHCoveredCall": "0x88729C2FFEE36Ec3b154750c28828ACC3956BdfE",
     "RibbonWBTCCoveredCallLogic": "0x68c6A6494f2e8305E5592c8b13D3Aef3884BB8F9",
-    "RibbonWBTCCoveredCall": "0x18C17C8b410a0A4C85E00351Fd078Ba0D6B9c407"
+    "RibbonWBTCCoveredCall": "0x18C17C8b410a0A4C85E00351Fd078Ba0D6B9c407",
+    "uniswapAdapter": "0xaed19b6922c162e8167f57684e16db49ea3acae3"
   },
   "development": {
     "DataProvider": "0xA586074FA4Fe3E546A132a16238abe37951D41fE",

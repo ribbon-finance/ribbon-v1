@@ -27,7 +27,8 @@
 		"uniswapV2Router": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
 		"zeroExExchangeV3": "0x4eacd0aF335451709e1e7B570B8Ea68EdEC8bc97",
 		"multicall": "0x2cc8688c5f75e365aaeeb4ea8d6a480405a48d2a",
-		"hegicStakingWBTC":"0x097681B5197749c97a4C5CCd15d30A441312657D"
+		"hegicStakingWBTC":"0x097681B5197749c97a4C5CCd15d30A441312657D",
+		"hegicWBTCOptions":"0x755AD189d2F1Be069214FaFC2c5c73a6e3d3cCB9"
 	},
 	"mainnet": {
 		"otokens": [

@@ -9,11 +9,11 @@
     "ProtocolAdapterLib": "0x35C29c1Ba97e52c235b713182974403194aD43E4",
     "RibbonVolatilityLogic": "0xd38baB7A38F2af45C9e42e9079193332e69d34a0",
     "HegicAdapterLogic": "0x66E2A3d8BD9991AFE001cB299c9B8992baDf1D48",
-    "GammaAdapterLogic": "0x738FB02C2514Eb567bE105a5f77774435a0e03e7",
+    "GammaAdapterLogic": "0xd7d2608f5a35d0FF4a2Db93eCF6EB0Fd8c81ff6F",
     "RibbonETHCoveredCallLogic": "0xf6403bED7e50678E8E20dbCAD3FAF7C9C4D5B7ED",
     "RibbonETHCoveredCall": "0x88729C2FFEE36Ec3b154750c28828ACC3956BdfE",
-    "RibbonWBTCCoveredCallLogic": "0x912C7d234daaA6F34aA4E41A21dF5bC7a724cEe8",
-    "RibbonWBTCCoveredCall": "0xCaf81d51ad4Da5F8C0DDBA9cB96B8B9c7475333D"
+    "RibbonWBTCCoveredCallLogic": "0xD0A72d468da3C3FAfE2222afBc9732Dc1532dd55",
+    "RibbonWBTCCoveredCall": "0x1616b4Db185E813DAcA6A7C6D288cb988BA45982"
   },
   "development": {
     "DataProvider": "0xA586074FA4Fe3E546A132a16238abe37951D41fE",

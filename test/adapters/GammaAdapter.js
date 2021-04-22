@@ -551,14 +551,6 @@ function behavesLikeOTokens(params) {
         ).to.be.revertedWith("Invalid oToken");
       });
 
-      it("reverts when depositing too little collateral for ETH", async function () {
-        if (this.collateralAsset === WETH_ADDRESS) {
-          await expect(
-            this.adapter.createShort(this.optionTerms, 1)
-          ).to.be.revertedWith(/Must deposit more than 10\*\*8 collateral/);
-        }
-      });
-
       it("creates a short position", async function () {
         const collateral = await ethers.getContractAt(
           "IERC20",

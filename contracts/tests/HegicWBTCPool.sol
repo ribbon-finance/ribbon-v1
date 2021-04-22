@@ -19,7 +19,7 @@ pragma solidity >=0.7.2;
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import "../interfaces/Interfaces.sol";
+import "./Interfaces.sol";
 
 
 /**

@@ -438,8 +438,9 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
 
         if (optionTerms.optionType == ProtocolAdapterTypes.OptionType.Call) {
             mintAmount = depositAmount;
-            if (collateralDecimals >= 8) {
-                uint256 scaleBy = 10**10; // oTokens have 8 decimals
+            uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
+
+            if (mintAmount > scaleBy && collateralDecimals > 8) {
                 mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
                 require(
                     mintAmount > 0,

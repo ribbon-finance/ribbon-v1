@@ -57,6 +57,9 @@ describe("RibbonCoveredCall", () => {
     secondOptionStrike: 2500,
     chainlinkPricer: CHAINLINK_WBTC_PRICER,
     tokenDecimals: 18,
+    depositAmount: BigNumber.from("100000000"),
+    premium: BigNumber.from("10000000"),
+    minimumSupply: BigNumber.from("10").pow("3").toString(),
     mintConfig: {
       contractOwnerAddress: WBTC_OWNER_ADDRESS,
     },
@@ -74,6 +77,9 @@ describe("RibbonCoveredCall", () => {
     firstOptionStrike: 63000,
     secondOptionStrike: 64000,
     chainlinkPricer: CHAINLINK_WETH_PRICER,
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    premium: parseEther("0.1"),
     tokenDecimals: 8,
   });
 });
@@ -84,6 +90,7 @@ describe("RibbonCoveredCall", () => {
  * @param {string} params.name - Name of test
  * @param {string} params.tokenName - Name of Option Vault
  * @param {string} params.tokenSymbol - Symbol of Option Vault
+ * @param {number} params.tokenDecimals - Decimals of the vault shares
  * @param {string} params.asset - Address of assets
  * @param {string} params.assetContractName - Name of asset contract
  * @param {string} params.strikeAsset - Address of strike assets
@@ -94,6 +101,9 @@ describe("RibbonCoveredCall", () => {
  * @param {string} params.chainlinkPricer - Address of chainlink pricer
  * @param {Object=} params.mintConfig - Optional: For minting asset, if asset can be minted
  * @param {string} params.mintConfig.contractOwnerAddress - Impersonate address of mintable asset contract owner
+ * @param {BigNumber} params.depositAmount - Deposit amount
+ * @param {string} params.minimumSupply - Minimum supply to maintain for share and asset balance
+ * @param {BigNumber} params.premium - Minimum supply to maintain for share and asset balance
  */
 function behavesLikeRibbonOptionsVault(params) {
   describe(`${params.name}`, () => {
@@ -133,8 +143,10 @@ function behavesLikeRibbonOptionsVault(params) {
       this.tokenName = params.tokenName;
       this.tokenSymbol = params.tokenSymbol;
       this.tokenDecimals = params.tokenDecimals;
-      this.minimumSupply = BigNumber.from("10").pow("10").toString();
+      this.minimumSupply = params.minimumSupply;
       this.asset = params.asset;
+      this.depositAmount = params.depositAmount;
+      this.premium = params.premium;
 
       this.counterpartyWallet = ethers.Wallet.fromMnemonic(
         process.env.TEST_MNEMONIC,
@@ -884,7 +896,9 @@ function behavesLikeRibbonOptionsVault(params) {
         await expect(
           this.vault
             .connect(userSigner)
-            .deposit(BigNumber.from("10").pow("10").sub(BigNumber.from("1")))
+            .deposit(
+              BigNumber.from(this.minimumSupply).sub(BigNumber.from("1"))
+            )
         ).to.be.revertedWith(/Minimum share supply needs to be >=10\*\*10/);
       });
     });
@@ -1123,15 +1137,12 @@ function behavesLikeRibbonOptionsVault(params) {
 
     describe("#rollToNextOption", () => {
       time.revertToSnapshotAfterEach(async function () {
-        this.premium = parseEther("0.1");
-        this.depositAmount = parseEther("1");
         this.expectedMintAmount = BigNumber.from("90000000");
 
         await depositIntoVault(params.asset, this.vault, this.depositAmount);
 
         this.oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
 
-        this.depositAmount = parseEther("1");
         this.sellAmount = BigNumber.from("90000000");
 
         if (params.asset === WETH_ADDRESS) {
@@ -1170,10 +1181,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("mints oTokens and deposits collateral into vault", async function () {
         const lockedAmount = wmul(this.depositAmount, LOCKED_RATIO);
-        const availableAmount = wmul(
-          this.depositAmount,
-          parseEther("1").sub(LOCKED_RATIO)
-        );
+        const availableAmount = wmul(this.depositAmount, WITHDRAWAL_BUFFER);
 
         const startMarginBalance = await this.assetContract.balanceOf(
           MARGIN_POOL
@@ -1218,7 +1226,9 @@ function behavesLikeRibbonOptionsVault(params) {
         assert.equal(await this.vault.currentOption(), this.oTokenAddress);
 
         assert.equal(
-          (await this.oToken.allowance(this.vault.address, SWAP_ADDRESS)).toString(),
+          (
+            await this.oToken.allowance(this.vault.address, SWAP_ADDRESS)
+          ).toString(),
           this.expectedMintAmount.toString()
         );
       });
@@ -1247,18 +1257,17 @@ function behavesLikeRibbonOptionsVault(params) {
           .connect(managerSigner)
           .rollToNextOption();
 
+        const lockedAmount = wmul(this.depositAmount, LOCKED_RATIO);
+        const withdrawBuffer = wmul(this.depositAmount, parseEther("0.1"));
+
         await expect(firstTx)
           .to.emit(this.vault, "OpenShort")
-          .withArgs(
-            firstOptionAddress,
-            wmul(this.depositAmount, LOCKED_RATIO),
-            manager
-          );
+          .withArgs(firstOptionAddress, lockedAmount, manager);
 
         // 90% of the vault's balance is allocated to short
         assert.equal(
           (await this.assetContract.balanceOf(this.vault.address)).toString(),
-          parseEther("0.1").toString()
+          withdrawBuffer.toString()
         );
 
         await this.vault
@@ -1290,18 +1299,18 @@ function behavesLikeRibbonOptionsVault(params) {
         // Withdraw the original short position, which is 90% of the vault
         await expect(secondTx)
           .to.emit(this.vault, "CloseShort")
-          .withArgs(firstOptionAddress, parseEther("0.9"), manager);
+          .withArgs(firstOptionAddress, lockedAmount, manager);
 
         await expect(secondTx)
           .to.emit(this.vault, "OpenShort")
-          .withArgs(secondOptionAddress, parseEther("0.9"), manager);
+          .withArgs(secondOptionAddress, lockedAmount, manager);
 
         // should still be 10% because the 90% withdrawn from the 1st short
         // is re-allocated back into the
         // should return back to the original amount now that the short is closed
         assert.equal(
           (await this.assetContract.balanceOf(this.vault.address)).toString(),
-          parseEther("0.1").toString()
+          withdrawBuffer.toString()
         );
       });
 
@@ -1458,7 +1467,11 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await expect(secondTx)
           .to.emit(this.vault, "OpenShort")
-          .withArgs(secondOptionAddress, parseEther("0.99"), manager);
+          .withArgs(
+            secondOptionAddress,
+            wmul(this.depositAmount.add(this.premium), LOCKED_RATIO),
+            manager
+          );
 
         assert.equal(
           (await this.assetContract.balanceOf(this.vault.address)).toString(),
@@ -1553,15 +1566,23 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await expect(secondTx)
           .to.emit(this.vault, "CloseShort")
-          .withArgs(firstOptionAddress, parseEther("0.9"), manager);
+          .withArgs(
+            firstOptionAddress,
+            wmul(this.depositAmount, LOCKED_RATIO),
+            manager
+          );
 
         await expect(secondTx)
           .to.emit(this.vault, "OpenShort")
-          .withArgs(secondOptionAddress, parseEther("0.99"), manager);
+          .withArgs(
+            secondOptionAddress,
+            wmul(this.depositAmount.add(this.premium), LOCKED_RATIO),
+            manager
+          );
 
         assert.equal(
           (await this.assetContract.balanceOf(this.vault.address)).toString(),
-          parseEther("0.11")
+          wmul(this.depositAmount.add(this.premium), WITHDRAWAL_BUFFER)
         );
       });
 

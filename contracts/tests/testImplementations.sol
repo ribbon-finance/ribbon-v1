@@ -157,12 +157,3 @@ contract WBTCStakingRewards is StakingRewards {
         address _stakingToken
     ) public StakingRewards(_owner, _rewardsDistribution, _rewardsToken, _stakingToken) {}
 }
-
-
-contract BrokenETHOptions is HegicETHOptions {
-    constructor(AggregatorV3Interface pp, IHegicStakingETH staking)
-        public HegicETHOptions(pp, staking, new HegicETHPool())
-    {
-
-    }
-}

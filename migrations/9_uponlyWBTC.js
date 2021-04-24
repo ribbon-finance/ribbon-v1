@@ -64,6 +64,6 @@ module.exports = async function (deployer, _network) {
     EXTERNAL_ADDRESSES[networkLookup].hegicWBTCOptions,
     EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
     EXTERNAL_ADDRESSES[networkLookup].feeds.btc_usd,
-    { from: "0x16aEfbD1adC9d736d4Ec52AFEEeB7Cacda9a0AD9" }
+    { from: "" }
   );
 };

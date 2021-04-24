@@ -482,7 +482,6 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("initializes with correct values", async function () {
         assert.equal((await this.vault.cap()).toString(), parseEther("500"));
-        assert.equal(await this.vault.factory(), this.factory.address);
         assert.equal(await this.vault.owner(), owner);
         assert.equal(await this.vault.feeRecipient(), feeRecipient);
         assert.equal(await this.vault.asset(), this.asset);
@@ -761,7 +760,7 @@ function behavesLikeRibbonOptionsVault(params) {
             this.vault.connect(userSigner).depositETH({
               value: BigNumber.from("10").pow("10").sub(BigNumber.from("1")),
             })
-          ).to.be.revertedWith(/Minimum share supply needs to be >=10\*\*10/);
+          ).to.be.revertedWith(/Insufficient asset balance/);
         });
       });
     }
@@ -877,7 +876,7 @@ function behavesLikeRibbonOptionsVault(params) {
       it("reverts when no value passed", async function () {
         await expect(
           this.vault.connect(userSigner).deposit(0)
-        ).to.be.revertedWith(/Minimum share supply needs to be >=10\*\*10/);
+        ).to.be.revertedWith(/Insufficient asset balance/);
       });
 
       it("does not inflate the share tokens on initialization", async function () {
@@ -899,7 +898,7 @@ function behavesLikeRibbonOptionsVault(params) {
             .deposit(
               BigNumber.from(this.minimumSupply).sub(BigNumber.from("1"))
             )
-        ).to.be.revertedWith(/Minimum share supply needs to be >=10\*\*10/);
+        ).to.be.revertedWith(/Insufficient asset balance/);
       });
     });
 
@@ -1033,6 +1032,39 @@ function behavesLikeRibbonOptionsVault(params) {
         await expect(
           this.vault.connect(managerSigner).setNextOption(optionTerms)
         ).to.be.revertedWith("strikeAsset != USDC");
+      });
+
+      it("reverts when the option type is not call option", async function () {
+        const underlying = params.asset;
+        const strike = params.strikeAsset;
+        const strikePrice = parseEther("50000");
+        const expiry = secondOption.expiry.toString();
+        const isPut = false;
+
+        await whitelistProduct(underlying, strike, underlying, false);
+
+        await this.oTokenFactory.createOtoken(
+          underlying,
+          strike,
+          underlying,
+          strikePrice.div(BigNumber.from("10").pow(BigNumber.from("10"))),
+          expiry,
+          isPut
+        );
+
+        const optionTerms = [
+          underlying,
+          strike,
+          underlying,
+          expiry,
+          strikePrice,
+          1, //call
+          params.strikeAsset,
+        ];
+
+        await expect(
+          this.vault.connect(managerSigner).setNextOption(optionTerms)
+        ).to.be.revertedWith("!call");
       });
 
       it("reverts when the expiry is before the delay", async function () {
@@ -1982,7 +2014,7 @@ function behavesLikeRibbonOptionsVault(params) {
           // Only 1 ether - MINIMUM_SUPPLY works
           await expect(
             this.vault.withdrawETH(parseEther("1").sub(BigNumber.from("1")))
-          ).to.be.revertedWith(/Minimum share supply needs to be >=10\*\*10/);
+          ).to.be.revertedWith(/Insufficient share supply/);
         });
       });
     }
@@ -2301,7 +2333,7 @@ function behavesLikeRibbonOptionsVault(params) {
         // Only 1 ether - MINIMUM_SUPPLY works
         await expect(
           this.vault.withdraw(parseEther("1").sub(BigNumber.from("1")))
-        ).to.be.revertedWith(/Minimum share supply needs to be >=10\*\*10/);
+        ).to.be.revertedWith(/Insufficient share supply/);
       });
     });
 
@@ -2350,10 +2382,10 @@ function behavesLikeRibbonOptionsVault(params) {
         ).to.be.revertedWith("withdrawalFee != 0");
       });
 
-      it("reverts when withdrawal fee set to 100%", async function () {
+      it("reverts when withdrawal fee set to 30%", async function () {
         await expect(
-          this.vault.connect(managerSigner).setWithdrawalFee(parseEther("100"))
-        ).to.be.revertedWith("withdrawalFee >= 100%");
+          this.vault.connect(managerSigner).setWithdrawalFee(parseEther("30"))
+        ).to.be.revertedWith("withdrawalFee >= 30%");
       });
 
       it("sets the withdrawal fee", async function () {

@@ -43,7 +43,7 @@ contract OptionsVaultStorageV1 is
     uint256 public cap;
 
     // Fee incurred when withdrawing out of the vault, in the units of 10**18
-    // where 1 ether = 100%, so 0.005 means 0.005% fee
+    // where 1 ether = 100%, so 0.005 means 0.5% fee
     uint256 public instantWithdrawalFee;
 
     // Recipient for withdrawal fees

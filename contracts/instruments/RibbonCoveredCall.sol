@@ -270,13 +270,20 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         return amountAfterFee;
     }
 
+    function commitAndClose(
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms
+    ) external onlyManager nonReentrant {
+        _setNextOption(optionTerms);
+        _closeShort();
+    }
+
     /**
      * @notice Sets the next option address and the timestamp at which the admin can call `rollToNextOption` to open a short for the option
      * @param optionTerms is the terms of the option contract
      */
-    function setNextOption(
+    function _setNextOption(
         ProtocolAdapterTypes.OptionTerms calldata optionTerms
-    ) external onlyManager nonReentrant {
+    ) private {
         require(
             optionTerms.optionType == ProtocolAdapterTypes.OptionType.Call,
             "!call"
@@ -298,22 +305,32 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         nextOptionReadyAt = readyAt;
     }
 
-    /**
-     * @notice Rolls from one short option position to another. Closes the expired short position, withdraw from it, then open a new position.
-     */
-    function rollToNextOption() external onlyManager nonReentrant {
-        require(block.timestamp > nextOptionReadyAt, "Delay not passed");
+    function _closeShort() private {
         address oldOption = currentOption;
-        address newOption = nextOption;
-        require(newOption != address(0), "No found option");
-
-        nextOption = address(0);
-        currentOption = newOption;
+        currentOption = address(0);
+        lockedAmount = 0;
 
         if (oldOption != address(0)) {
             uint256 withdrawAmount = adapter.delegateCloseShort();
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
+    }
+
+    /**
+     * @notice Rolls from one short option position to another. Closes the expired short position, withdraw from it, then open a new position.
+     */
+    function rollToNextOption() external onlyManager nonReentrant {
+        require(
+            block.timestamp >= nextOptionReadyAt,
+            "Cannot roll before delay"
+        );
+
+        address newOption = nextOption;
+        require(newOption != address(0), "No found option");
+
+        currentOption = newOption;
+        nextOption = address(0);
+
         uint256 currentBalance = IERC20(asset).balanceOf(address(this));
         uint256 shortAmount = wmul(currentBalance, lockedRatio);
         lockedAmount = shortAmount;

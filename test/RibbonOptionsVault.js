@@ -298,7 +298,9 @@ function behavesLikeRibbonOptionsVault(params) {
       }
 
       this.rollToNextOption = async () => {
-        await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
+        await this.vault
+          .connect(managerSigner)
+          .commitAndClose(this.optionTerms);
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
         );
@@ -941,14 +943,14 @@ function behavesLikeRibbonOptionsVault(params) {
       });
     });
 
-    describe("#setNextOption", () => {
+    describe("#commitAndClose", () => {
       time.revertToSnapshotAfterEach();
 
       it("reverts when not called with manager", async function () {
         await expect(
           this.vault
             .connect(userSigner)
-            .setNextOption(this.optionTerms, { from: user })
+            .commitAndClose(this.optionTerms, { from: user })
         ).to.be.revertedWith("Only manager");
       });
 
@@ -964,7 +966,7 @@ function behavesLikeRibbonOptionsVault(params) {
         ];
 
         await expect(
-          this.vault.connect(managerSigner).setNextOption(optionTerms)
+          this.vault.connect(managerSigner).commitAndClose(optionTerms)
         ).to.be.revertedWith("!option");
       });
 
@@ -997,7 +999,7 @@ function behavesLikeRibbonOptionsVault(params) {
         ];
 
         await expect(
-          this.vault.connect(managerSigner).setNextOption(optionTerms)
+          this.vault.connect(managerSigner).commitAndClose(optionTerms)
         ).to.be.revertedWith("!asset");
       });
 
@@ -1030,7 +1032,7 @@ function behavesLikeRibbonOptionsVault(params) {
         ];
 
         await expect(
-          this.vault.connect(managerSigner).setNextOption(optionTerms)
+          this.vault.connect(managerSigner).commitAndClose(optionTerms)
         ).to.be.revertedWith("strikeAsset != USDC");
       });
 
@@ -1063,7 +1065,7 @@ function behavesLikeRibbonOptionsVault(params) {
         ];
 
         await expect(
-          this.vault.connect(managerSigner).setNextOption(optionTerms)
+          this.vault.connect(managerSigner).commitAndClose(optionTerms)
         ).to.be.revertedWith("!call");
       });
 
@@ -1121,14 +1123,14 @@ function behavesLikeRibbonOptionsVault(params) {
         ];
 
         await expect(
-          this.vault.connect(managerSigner).setNextOption(optionTerms)
+          this.vault.connect(managerSigner).commitAndClose(optionTerms)
         ).to.be.revertedWith("Option expiry cannot be before delay");
       });
 
-      it("sets the next option", async function () {
+      it("sets the next option and closes existing short", async function () {
         const res = await this.vault
           .connect(managerSigner)
-          .setNextOption(this.optionTerms, { from: manager });
+          .commitAndClose(this.optionTerms, { from: manager });
 
         const receipt = await res.wait();
         const block = await provider.getBlock(receipt.blockNumber);
@@ -1138,12 +1140,14 @@ function behavesLikeRibbonOptionsVault(params) {
           (await this.vault.nextOptionReadyAt()).toNumber(),
           parseInt(block.timestamp) + OPTION_DELAY
         );
+        assert.isTrue((await this.vault.lockedAmount()).isZero());
+        assert.equal(await this.vault.currentOption(), constants.AddressZero);
       });
 
       it("should set the next option twice", async function () {
         await this.vault
           .connect(managerSigner)
-          .setNextOption([
+          .commitAndClose([
             params.asset,
             params.strikeAsset,
             params.asset,
@@ -1155,7 +1159,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await this.vault
           .connect(managerSigner)
-          .setNextOption([
+          .commitAndClose([
             params.asset,
             params.strikeAsset,
             params.asset,
@@ -1203,12 +1207,22 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("reverts when delay not passed", async function () {
-        await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
+        await this.vault
+          .connect(managerSigner)
+          .commitAndClose(this.optionTerms);
 
         // will revert when trying to roll immediately
         await expect(
           this.vault.connect(managerSigner).rollToNextOption()
-        ).to.be.revertedWith("Delay not passed");
+        ).to.be.revertedWith("Cannot roll before delay");
+
+        time.increaseTo(
+          (await this.vault.nextOptionReadyAt()).sub(BigNumber.from("1"))
+        );
+
+        await expect(
+          this.vault.connect(managerSigner).rollToNextOption()
+        ).to.be.revertedWith("Cannot roll before delay");
       });
 
       it("mints oTokens and deposits collateral into vault", async function () {
@@ -1219,7 +1233,9 @@ function behavesLikeRibbonOptionsVault(params) {
           MARGIN_POOL
         );
 
-        await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
+        await this.vault
+          .connect(managerSigner)
+          .commitAndClose(this.optionTerms);
 
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
@@ -1271,7 +1287,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await this.vault
           .connect(managerSigner)
-          .setNextOption([
+          .commitAndClose([
             params.asset,
             params.strikeAsset,
             params.asset,
@@ -1302,9 +1318,9 @@ function behavesLikeRibbonOptionsVault(params) {
           withdrawBuffer.toString()
         );
 
-        await this.vault
+        const firstCloseTx = await this.vault
           .connect(managerSigner)
-          .setNextOption([
+          .commitAndClose([
             params.asset,
             params.strikeAsset,
             params.asset,
@@ -1313,6 +1329,11 @@ function behavesLikeRibbonOptionsVault(params) {
             2,
             params.asset,
           ]);
+
+        // Withdraw the original short position, which is 90% of the vault
+        await expect(firstCloseTx)
+          .to.emit(this.vault, "CloseShort")
+          .withArgs(firstOptionAddress, lockedAmount, manager);
 
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
@@ -1323,15 +1344,11 @@ function behavesLikeRibbonOptionsVault(params) {
           .rollToNextOption();
 
         assert.equal(await this.vault.currentOption(), secondOptionAddress);
+        assert.equal(await this.vault.nextOption(), constants.AddressZero);
         assert.equal(
           await this.vault.currentOptionExpiry(),
           secondOption.expiry
         );
-
-        // Withdraw the original short position, which is 90% of the vault
-        await expect(secondTx)
-          .to.emit(this.vault, "CloseShort")
-          .withArgs(firstOptionAddress, lockedAmount, manager);
 
         await expect(secondTx)
           .to.emit(this.vault, "OpenShort")
@@ -1351,7 +1368,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await this.vault
           .connect(managerSigner)
-          .setNextOption([
+          .commitAndClose([
             params.asset,
             params.strikeAsset,
             params.asset,
@@ -1380,23 +1397,18 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await this.vault.connect(managerSigner).sellOptions(signedOrder);
 
-        await this.vault
-          .connect(managerSigner)
-          .setNextOption([
-            params.asset,
-            params.strikeAsset,
-            params.asset,
-            secondOption.expiry.toString(),
-            parseEther(params.secondOptionStrike.toString()),
-            2,
-            params.asset,
-          ]);
-        await time.increaseTo(
-          (await this.vault.nextOptionReadyAt()).toNumber() + 1
-        );
-
         await expect(
-          this.vault.connect(managerSigner).rollToNextOption()
+          this.vault
+            .connect(managerSigner)
+            .commitAndClose([
+              params.asset,
+              params.strikeAsset,
+              params.asset,
+              secondOption.expiry.toString(),
+              parseEther(params.secondOptionStrike.toString()),
+              2,
+              params.asset,
+            ])
         ).to.be.revertedWith("ERC20: burn amount exceeds balance");
       });
 
@@ -1406,7 +1418,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await this.vault
           .connect(managerSigner)
-          .setNextOption([
+          .commitAndClose([
             params.asset,
             params.strikeAsset,
             params.asset,
@@ -1464,9 +1476,9 @@ function behavesLikeRibbonOptionsVault(params) {
           BigNumber.from("148000000000").sub(BigNumber.from("1"))
         );
 
-        await this.vault
+        const firstCloseTx = await this.vault
           .connect(managerSigner)
-          .setNextOption([
+          .commitAndClose([
             params.asset,
             params.strikeAsset,
             params.asset,
@@ -1475,6 +1487,15 @@ function behavesLikeRibbonOptionsVault(params) {
             2,
             params.asset,
           ]);
+
+        await expect(firstCloseTx)
+          .to.emit(this.vault, "CloseShort")
+          .withArgs(
+            firstOptionAddress,
+            wmul(this.depositAmount, LOCKED_RATIO),
+            manager
+          );
+
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
         );
@@ -1488,14 +1509,6 @@ function behavesLikeRibbonOptionsVault(params) {
           await this.vault.currentOptionExpiry(),
           secondOption.expiry
         );
-
-        await expect(secondTx)
-          .to.emit(this.vault, "CloseShort")
-          .withArgs(
-            firstOptionAddress,
-            wmul(this.depositAmount, LOCKED_RATIO),
-            manager
-          );
 
         await expect(secondTx)
           .to.emit(this.vault, "OpenShort")
@@ -1517,7 +1530,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await this.vault
           .connect(managerSigner)
-          .setNextOption([
+          .commitAndClose([
             params.asset,
             params.strikeAsset,
             params.asset,
@@ -1569,9 +1582,9 @@ function behavesLikeRibbonOptionsVault(params) {
           BigNumber.from("160000000000")
         );
 
-        await this.vault
+        const firstCloseTx = await this.vault
           .connect(managerSigner)
-          .setNextOption([
+          .commitAndClose([
             params.asset,
             params.strikeAsset,
             params.asset,
@@ -1580,6 +1593,14 @@ function behavesLikeRibbonOptionsVault(params) {
             2,
             params.asset,
           ]);
+
+        await expect(firstCloseTx)
+          .to.emit(this.vault, "CloseShort")
+          .withArgs(
+            firstOptionAddress,
+            wmul(this.depositAmount, LOCKED_RATIO),
+            manager
+          );
 
         // Time increase to after next option available
         await time.increaseTo(
@@ -1595,14 +1616,6 @@ function behavesLikeRibbonOptionsVault(params) {
           await this.vault.currentOptionExpiry(),
           secondOption.expiry
         );
-
-        await expect(secondTx)
-          .to.emit(this.vault, "CloseShort")
-          .withArgs(
-            firstOptionAddress,
-            wmul(this.depositAmount, LOCKED_RATIO),
-            manager
-          );
 
         await expect(secondTx)
           .to.emit(this.vault, "OpenShort")
@@ -1621,7 +1634,7 @@ function behavesLikeRibbonOptionsVault(params) {
       it("is not able to roll to new option consecutively without setNextOption", async function () {
         await this.vault
           .connect(managerSigner)
-          .setNextOption([
+          .commitAndClose([
             params.asset,
             params.strikeAsset,
             params.asset,
@@ -1651,7 +1664,9 @@ function behavesLikeRibbonOptionsVault(params) {
         ).to.be.revertedWith("!currentOption");
 
         // doesn't matter if the nextOption is set
-        await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
+        await this.vault
+          .connect(managerSigner)
+          .commitAndClose(this.optionTerms);
 
         await expect(
           this.vault.connect(managerSigner).emergencyWithdrawFromShort()
@@ -2000,7 +2015,7 @@ function behavesLikeRibbonOptionsVault(params) {
           // simulate setting a bad otoken
           await this.vault
             .connect(managerSigner)
-            .setNextOption(this.optionTerms);
+            .commitAndClose(this.optionTerms);
 
           // users should have time to withdraw
           await this.vault.withdrawETH(
@@ -2319,7 +2334,9 @@ function behavesLikeRibbonOptionsVault(params) {
         await depositIntoVault(params.asset, this.vault, parseEther("1"));
 
         // simulate setting a bad otoken
-        await this.vault.connect(managerSigner).setNextOption(this.optionTerms);
+        await this.vault
+          .connect(managerSigner)
+          .commitAndClose(this.optionTerms);
 
         // users should have time to withdraw
         await this.vault.withdraw(

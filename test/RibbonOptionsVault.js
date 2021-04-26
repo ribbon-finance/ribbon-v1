@@ -1281,9 +1281,8 @@ function behavesLikeRibbonOptionsVault(params) {
         );
       });
 
-      it("burns otokens and withdraws from vault, before expiry", async function () {
+      it("reverts when calling before expiry", async function () {
         const firstOptionAddress = firstOption.address;
-        const secondOptionAddress = secondOption.address;
 
         await this.vault
           .connect(managerSigner)
@@ -1318,85 +1317,6 @@ function behavesLikeRibbonOptionsVault(params) {
           withdrawBuffer.toString()
         );
 
-        const firstCloseTx = await this.vault
-          .connect(managerSigner)
-          .commitAndClose([
-            params.asset,
-            params.strikeAsset,
-            params.asset,
-            secondOption.expiry.toString(),
-            parseEther(params.secondOptionStrike.toString()),
-            2,
-            params.asset,
-          ]);
-
-        // Withdraw the original short position, which is 90% of the vault
-        await expect(firstCloseTx)
-          .to.emit(this.vault, "CloseShort")
-          .withArgs(firstOptionAddress, lockedAmount, manager);
-
-        await time.increaseTo(
-          (await this.vault.nextOptionReadyAt()).toNumber() + 1
-        );
-
-        const secondTx = await this.vault
-          .connect(managerSigner)
-          .rollToNextOption();
-
-        assert.equal(await this.vault.currentOption(), secondOptionAddress);
-        assert.equal(await this.vault.nextOption(), constants.AddressZero);
-        assert.equal(
-          await this.vault.currentOptionExpiry(),
-          secondOption.expiry
-        );
-
-        await expect(secondTx)
-          .to.emit(this.vault, "OpenShort")
-          .withArgs(secondOptionAddress, lockedAmount, manager);
-
-        // should still be 10% because the 90% withdrawn from the 1st short
-        // is re-allocated back into the
-        // should return back to the original amount now that the short is closed
-        assert.equal(
-          (await this.assetContract.balanceOf(this.vault.address)).toString(),
-          withdrawBuffer.toString()
-        );
-      });
-
-      it("reverts when not enough otokens to burn", async function () {
-        const firstOptionAddress = firstOption.address;
-
-        await this.vault
-          .connect(managerSigner)
-          .commitAndClose([
-            params.asset,
-            params.strikeAsset,
-            params.asset,
-            firstOption.expiry.toString(),
-            parseEther(params.firstOptionStrike.toString()),
-            2,
-            params.asset,
-          ]);
-
-        await time.increaseTo(
-          (await this.vault.nextOptionReadyAt()).toNumber() + 1
-        );
-
-        await this.vault.connect(managerSigner).rollToNextOption();
-
-        // Perform the swap to deposit premiums and remove otokens
-        const signedOrder = await signOrderForSwap({
-          vaultAddress: this.vault.address,
-          counterpartyAddress: counterparty,
-          signerPrivateKey: this.counterpartyWallet.privateKey,
-          sellToken: firstOptionAddress,
-          buyToken: params.asset,
-          sellAmount: this.sellAmount.toString(),
-          buyAmount: this.premium.toString(),
-        });
-
-        await this.vault.connect(managerSigner).sellOptions(signedOrder);
-
         await expect(
           this.vault
             .connect(managerSigner)
@@ -1409,7 +1329,7 @@ function behavesLikeRibbonOptionsVault(params) {
               2,
               params.asset,
             ])
-        ).to.be.revertedWith("ERC20: burn amount exceeds balance");
+        ).to.be.revertedWith("Cannot close short before expiry");
       });
 
       it("withdraws and roll funds into next option, after expiry ITM", async function () {

@@ -270,6 +270,9 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         return amountAfterFee;
     }
 
+    /**
+     * @notice Sets the next option the vault will be shorting, and closes the existing short. This allows all the users to withdraw if the next option is malicious.
+     */
     function commitAndClose(
         ProtocolAdapterTypes.OptionTerms calldata optionTerms
     ) external onlyManager nonReentrant {
@@ -278,7 +281,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Sets the next option address and the timestamp at which the admin can call `rollToNextOption` to open a short for the option
+     * @notice Sets the next option address and the timestamp at which the admin can call `rollToNextOption` to open a short for the option.
      * @param optionTerms is the terms of the option contract
      */
     function _setNextOption(
@@ -305,19 +308,27 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         nextOptionReadyAt = readyAt;
     }
 
+    /**
+     * @notice Closes the existing short position for the vault.
+     */
     function _closeShort() private {
         address oldOption = currentOption;
         currentOption = address(0);
         lockedAmount = 0;
+        OtokenInterface otoken = OtokenInterface(oldOption);
 
         if (oldOption != address(0)) {
+            require(
+                block.timestamp > otoken.expiryTimestamp(),
+                "Cannot close short before expiry"
+            );
             uint256 withdrawAmount = adapter.delegateCloseShort();
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
     }
 
     /**
-     * @notice Rolls from one short option position to another. Closes the expired short position, withdraw from it, then open a new position.
+     * @notice Rolls the vault's funds into a new short position.
      */
     function rollToNextOption() external onlyManager nonReentrant {
         require(

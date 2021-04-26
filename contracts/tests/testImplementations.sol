@@ -20,7 +20,7 @@ pragma solidity >=0.7.2;
  */
 import "./Interfaces.sol";
 import "./StakingRewards.sol";
-
+import "./HegicETHOptions.sol";
 
 contract FakeExchange {
     uint256 public exchangeRate;
@@ -151,3 +151,12 @@ contract WBTCStakingRewards is StakingRewards {
         address _stakingToken
     ) public StakingRewards(_owner, _rewardsDistribution, _rewardsToken, _stakingToken) {}
 }
+
+contract BrokenETHOptions is HegicETHOptions {
+    constructor(AggregatorV3Interface pp, IHegicStakingETH staking)
+        public HegicETHOptions(pp, staking, new HegicETHPool())
+    {
+
+    }
+}
+

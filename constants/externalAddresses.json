@@ -18,7 +18,8 @@
                     "digg": "0xfd9907223857f25838da5ff65510fd81661fb261",
                     "hegic":"0x17A3f5dbebE24D30BaC95C267a382c321115d964",
                     "uniLp": "0x939295a7fe6eaa9456425535333f5937630ff963",
-                    "sushiLp": "0x939295a7fe6eaa9456425535333f5937630ff963"
+                    "sushiLp": "0x939295a7fe6eaa9456425535333f5937630ff963",
+                    "ethWBTCPair": "0x47905ed38b01bb3c46ae0226b38db173b4de5bd5"
             },
             "airswapSwap": "0x79fb4604f2D7bD558Cda0DFADb7d61D98b28CA9f",
             "oTokenFactory": "0xb9D17Ab06e27f63d0FD75099d5874a194eE623e2",

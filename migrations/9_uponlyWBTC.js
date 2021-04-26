@@ -8,6 +8,10 @@ const WBTCRewards = artifacts.require("HegicWBTCRewards");
 const AmmAdapterLib = artifacts.require("AmmAdapter");
 const ProtocolAdapterLib = artifacts.require("ProtocolAdapter");
 const StakedPut = artifacts.require("StakedPut");
+const StakingETH = artifacts.require("HegicStakingETH");
+const ETHPool = artifacts.require("HegicETHPool");
+const PriceProvider = artifacts.require("FakePriceProvider");
+const ETHOptions = artifacts.require("BrokenETHOptions");
 const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const { constants } = require("@openzeppelin/test-helpers");
@@ -36,7 +40,7 @@ module.exports = async function (deployer, _network) {
   console.log(network);
   const networkLookup = network.replace("-fork", "");
   const { admin, owner } = ACCOUNTS[network.replace("-fork", "")];
-
+  //deploy wbtc options
   //      await deployer.deploy(BTCPriceProvider, params.BTCPrice);
 
   //await deployer.deploy(StakingWBTC, EXTERNAL_ADDRESSES[networkLookup].assets.hegic, EXTERNAL_ADDRESSES[networkLookup].assets.wbtc2);
@@ -50,20 +54,26 @@ module.exports = async function (deployer, _network) {
   //                            EXTERNAL_ADDRESSES[networkLookup].hegicStakingWBTC
   //                              );
 
-  await deployer.deploy(ProtocolAdapterLib);
-  await deployer.link(ProtocolAdapterLib, StakedPut);
+//deploy eth options
+  await deployer.deploy(ETHPool);
+//await deployer.deploy(PriceProvider, params.ETHPrice);
 
-  await deployer.deploy(AmmAdapterLib);
-  await deployer.link(AmmAdapterLib, StakedPut);
 
-  await deployer.deploy(
-    StakedPut,
-    DEPLOYMENTS[networkLookup].RibbonFactory,
-    DEPLOYMENTS[networkLookup].UniswapAdapter,
-    EXTERNAL_ADDRESSES[networkLookup].assets.wbtc2,
-    EXTERNAL_ADDRESSES[networkLookup].hegicWBTCOptions,
-    EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
-    EXTERNAL_ADDRESSES[networkLookup].feeds.btc_usd,
-    { from: "" }
-  );
+//deploy staked put
+//  await deployer.deploy(ProtocolAdapterLib);
+//  await deployer.link(ProtocolAdapterLib, StakedPut);
+
+//  await deployer.deploy(AmmAdapterLib);
+//  await deployer.link(AmmAdapterLib, StakedPut);
+
+//  await deployer.deploy(
+//    StakedPut,
+//    DEPLOYMENTS[networkLookup].RibbonFactory,
+//    DEPLOYMENTS[networkLookup].UniswapAdapter,
+//    EXTERNAL_ADDRESSES[networkLookup].assets.wbtc2,
+//    EXTERNAL_ADDRESSES[networkLookup].hegicWBTCOptions,
+//    EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
+//    EXTERNAL_ADDRESSES[networkLookup].feeds.btc_usd,
+//    { from: "" }
+//  );
 };

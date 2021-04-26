@@ -1171,6 +1171,88 @@ function behavesLikeRibbonOptionsVault(params) {
       });
     });
 
+    describe("#closeShort", () => {
+      time.revertToSnapshotAfterEach(async function () {
+        await depositIntoVault(params.asset, this.vault, this.depositAmount);
+
+        this.oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
+
+        if (params.asset === WETH_ADDRESS) {
+          const weth = this.assetContract.connect(counterpartySigner);
+          await weth.deposit({ value: this.premium });
+          await weth.approve(SWAP_ADDRESS, this.premium);
+          return;
+        }
+
+        if (params.mintConfig) {
+          await mintToken(
+            this.assetContract,
+            params.mintConfig.contractOwnerAddress,
+            counterpartySigner,
+            SWAP_ADDRESS,
+            this.premium
+          );
+          return;
+        }
+      });
+
+      it("doesnt do anything when no existing short", async function () {
+        const tx = await this.vault.closeShort();
+        await expect(tx).to.not.emit(this.vault, "CloseShort");
+      });
+
+      it("reverts when closing short before expiry", async function () {
+        await this.vault
+          .connect(managerSigner)
+          .commitAndClose(this.optionTerms);
+
+        await time.increaseTo(
+          (await this.vault.nextOptionReadyAt()).toNumber() + 1
+        );
+
+        await this.vault.connect(managerSigner).rollToNextOption();
+
+        await expect(this.vault.closeShort()).to.be.revertedWith(
+          "Cannot close short before expiry"
+        );
+      });
+
+      it("closes the short after expiry", async function () {
+        await this.vault
+          .connect(managerSigner)
+          .commitAndClose(this.optionTerms);
+
+        await time.increaseTo(
+          (await this.vault.nextOptionReadyAt()).toNumber() + 1
+        );
+
+        await this.vault.connect(managerSigner).rollToNextOption();
+
+        await setOpynOracleExpiryPrice(
+          params.asset,
+          this.oracle,
+          await this.vault.currentOptionExpiry(),
+          BigNumber.from("148000000000").sub(BigNumber.from("1"))
+        );
+
+        const closeTx = await this.vault.closeShort();
+
+        assert.isTrue((await this.vault.lockedAmount()).isZero());
+        assert.equal(
+          (await this.vault.totalBalance()).toString(),
+          this.depositAmount
+        );
+
+        await expect(closeTx)
+          .to.emit(this.vault, "CloseShort")
+          .withArgs(
+            secondOption.address,
+            wmul(this.depositAmount, LOCKED_RATIO),
+            user
+          );
+      });
+    });
+
     describe("#rollToNextOption", () => {
       time.revertToSnapshotAfterEach(async function () {
         this.expectedMintAmount = BigNumber.from("90000000");

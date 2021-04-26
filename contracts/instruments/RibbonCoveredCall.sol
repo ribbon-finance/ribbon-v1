@@ -280,6 +280,10 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         _closeShort();
     }
 
+    function closeShort() external nonReentrant {
+        _closeShort();
+    }
+
     /**
      * @notice Sets the next option address and the timestamp at which the admin can call `rollToNextOption` to open a short for the option.
      * @param optionTerms is the terms of the option contract
@@ -315,9 +319,9 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         address oldOption = currentOption;
         currentOption = address(0);
         lockedAmount = 0;
-        OtokenInterface otoken = OtokenInterface(oldOption);
 
         if (oldOption != address(0)) {
+            OtokenInterface otoken = OtokenInterface(oldOption);
             require(
                 block.timestamp > otoken.expiryTimestamp(),
                 "Cannot close short before expiry"

@@ -94,12 +94,6 @@ contract FakePriceProvider is AggregatorV3Interface {
     }
 }
 
-
-contract FakeBTCPriceProvider is FakePriceProvider {
-    constructor(uint price) public FakePriceProvider(price) {}
-}
-
-
 contract FakeWBTC is ERC20("FakeWBTC", "FAKE") {
     constructor() public {
         _setupDecimals(8);

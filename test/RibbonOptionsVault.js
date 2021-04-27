@@ -111,6 +111,7 @@ describe("RibbonThetaVault", () => {
     depositAmount: BigNumber.from("100000000000"),
     premium: BigNumber.from("1000000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
+    isPut: true,
     mintConfig: {
       contractOwnerAddress: USDC_OWNER_ADDRESS,
     },
@@ -134,6 +135,7 @@ describe("RibbonThetaVault", () => {
     premium: BigNumber.from("1000000000"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     tokenDecimals: 8,
+    isPut: true,
     mintConfig: {
       contractOwnerAddress: USDC_OWNER_ADDRESS,
     },
@@ -1483,7 +1485,6 @@ function behavesLikeRibbonOptionsVault(params) {
           withdrawBuffer.toString()
         );
 
-<<<<<<< HEAD
         await this.vault
           .connect(managerSigner)
           .setNextOption([
@@ -1577,8 +1578,6 @@ function behavesLikeRibbonOptionsVault(params) {
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
         );
 
-=======
->>>>>>> e6033400bf2b343ff0653bec07fc76a1f83bac94
         await expect(
           this.vault
             .connect(managerSigner)
@@ -2548,13 +2547,8 @@ function behavesLikeRibbonOptionsVault(params) {
 
         // Only 1 ether - MINIMUM_SUPPLY works
         await expect(
-<<<<<<< HEAD
           this.vault.withdraw(depositAmount.sub(BigNumber.from("1")))
-        ).to.be.revertedWith(/Minimum share supply needs to be >=10\*\*10/);
-=======
-          this.vault.withdraw(parseEther("1").sub(BigNumber.from("1")))
         ).to.be.revertedWith(/Insufficient share supply/);
->>>>>>> e6033400bf2b343ff0653bec07fc76a1f83bac94
       });
     });
 

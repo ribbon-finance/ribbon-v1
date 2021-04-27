@@ -233,7 +233,7 @@ describe("RibbonOptionsVault Upgrade", () => {
           {
             forking: {
               jsonRpcUrl: process.env.TEST_URI,
-              blockNumber: 11611333,
+              blockNumber: 12321078,
             },
           },
         ],

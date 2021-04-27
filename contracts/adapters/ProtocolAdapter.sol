@@ -188,7 +188,7 @@ library ProtocolAdapter {
             address(adapter).delegatecall(
                 abi.encodeWithSignature("closeShort()")
             );
-        require(success, getRevertMsg(result));
+        revertWhenFail(success, result);
         return abi.decode(result, (uint256));
     }
 

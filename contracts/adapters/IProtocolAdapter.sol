@@ -13,7 +13,7 @@ library ProtocolAdapterTypes {
     /**
      * @notice Terms of an options contract
      * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
-     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the underlying.
+     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the strikeAsset.
      * @param collateralAsset is the asset used to collateralize a short position for the option.
      * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
      * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.

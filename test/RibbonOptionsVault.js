@@ -569,6 +569,12 @@ function behavesLikeRibbonOptionsVault(params) {
       });
     });
 
+    describe("#isPut", () => {
+      it("returns the correct option type", async function () {
+        assert.equal(await this.vault.isPut(), this.isPut);
+      });
+    });
+
     describe("#delay", () => {
       it("returns the delay", async function () {
         assert.equal((await this.vault.delay()).toNumber(), OPTION_DELAY);

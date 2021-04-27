@@ -209,6 +209,7 @@ describe("RibbonOptionsVault Upgrade", () => {
       this.factory = factory;
       this.tokenDecimals = 18;
       this.minimumSupply = BigNumber.from("10").pow("10").toString();
+      this.isPut = false;
 
       // Fund & impersonate the admin account
       [userSigner] = await ethers.getSigners();
@@ -266,7 +267,8 @@ describe("RibbonOptionsVault Upgrade", () => {
         this.strikeAsset,
         SWAP_ADDRESS,
         this.tokenDecimals,
-        this.minimumSupply
+        this.minimumSupply,
+        this.isPut
       );
 
       const adminSigner = await provider.getSigner(UPGRADE_ADMIN);

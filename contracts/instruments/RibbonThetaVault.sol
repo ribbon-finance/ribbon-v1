@@ -18,7 +18,7 @@ import {ISwap, Types} from "../interfaces/ISwap.sol";
 import {OtokenInterface} from "../interfaces/GammaInterface.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 
-contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
+contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     using ProtocolAdapter for IProtocolAdapter;
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -315,7 +315,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
                 otoken.collateralAsset(),
                 otoken.expiryTimestamp(),
                 otoken.strikePrice().mul(10**10), // scale back to 10**18
-                ProtocolAdapterTypes.OptionType.Call, // isPut
+                otoken.isPut() ? ProtocolAdapterTypes.OptionType.Put : ProtocolAdapterTypes.OptionType.Call, // isPut
                 address(0)
             );
 

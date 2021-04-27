@@ -43,7 +43,7 @@ const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
 const gasPrice = parseUnits("1", "gwei");
 const WITHDRAWAL_FEE = parseEther("0.005");
 
-describe("RibbonCoveredCall", () => {
+describe("RibbonThetaVault", () => {
   behavesLikeRibbonOptionsVault({
     name: `Ribbon WBTC Theta Vault`,
     tokenName: "Ribbon BTC Theta Vault",
@@ -189,7 +189,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       this.vault = (
         await deployProxy(
-          "RibbonCoveredCall",
+          "RibbonThetaVault",
           adminSigner,
           initializeTypes,
           initializeArgs,
@@ -315,7 +315,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("reverts when deployed with 0x0 factory", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonCoveredCall",
+          "RibbonThetaVault",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -340,7 +340,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const factory = await Factory.deploy();
 
         const VaultContract = await ethers.getContractFactory(
-          "RibbonCoveredCall",
+          "RibbonThetaVault",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -363,7 +363,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("reverts when asset is 0x", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonCoveredCall",
+          "RibbonThetaVault",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -386,7 +386,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("reverts when decimals is 0", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonCoveredCall",
+          "RibbonThetaVault",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -409,7 +409,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("reverts when minimumSupply is 0", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonCoveredCall",
+          "RibbonThetaVault",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -432,7 +432,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("sets the correct asset, decimals and minimum supply", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonCoveredCall",
+          "RibbonThetaVault",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -461,15 +461,15 @@ function behavesLikeRibbonOptionsVault(params) {
 
     describe("#initialize", () => {
       time.revertToSnapshotAfterEach(async function () {
-        const RibbonCoveredCall = await ethers.getContractFactory(
-          "RibbonCoveredCall",
+        const RibbonThetaVault = await ethers.getContractFactory(
+          "RibbonThetaVault",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
             },
           }
         );
-        this.testVault = await RibbonCoveredCall.deploy(
+        this.testVault = await RibbonThetaVault.deploy(
           this.asset,
           this.factory.address,
           WETH_ADDRESS,

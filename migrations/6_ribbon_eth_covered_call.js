@@ -1,4 +1,4 @@
-const RibbonCoveredCall = artifacts.require("RibbonCoveredCall");
+const RibbonThetaVault = artifacts.require("RibbonThetaVault");
 const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const ProtocolAdapterLib = artifacts.require("ProtocolAdapter");
 const { encodeCall } = require("@openzeppelin/upgrades");
@@ -18,11 +18,11 @@ module.exports = async function (deployer, network) {
 
   await ProtocolAdapterLib.deployed();
 
-  await deployer.link(ProtocolAdapterLib, RibbonCoveredCall);
+  await deployer.link(ProtocolAdapterLib, RibbonThetaVault);
 
   // Deploying the logic contract
   await deployer.deploy(
-    RibbonCoveredCall,
+    RibbonThetaVault,
     EXTERNAL_ADDRESSES[networkLookup].assets.weth,
     DEPLOYMENTS[networkLookup].RibbonFactory,
     EXTERNAL_ADDRESSES[networkLookup].assets.weth,
@@ -37,7 +37,7 @@ module.exports = async function (deployer, network) {
   await updateDeployedAddresses(
     network,
     "RibbonETHCoveredCallLogic",
-    RibbonCoveredCall.address
+    RibbonThetaVault.address
   );
 
   // Deploying the proxy contract
@@ -55,7 +55,7 @@ module.exports = async function (deployer, network) {
 
   await deployer.deploy(
     AdminUpgradeabilityProxy,
-    RibbonCoveredCall.address,
+    RibbonThetaVault.address,
     admin,
     initBytes,
     {

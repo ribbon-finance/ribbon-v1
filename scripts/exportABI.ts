@@ -7,7 +7,7 @@ const constantFiles = [
   "deployments.json",
   "externalAddresses.json",
 ];
-const contractNames = ["IERC20", "RibbonCoveredCall"];
+const contractNames = ["IERC20", "RibbonThetaVault"];
 const destinations = [process.env.RIBBON_WEBAPP_CONSTANTS];
 
 async function main() {

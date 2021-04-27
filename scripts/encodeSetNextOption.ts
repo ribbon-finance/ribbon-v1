@@ -19,7 +19,7 @@ async function main() {
 
   const otokenArtifact = await hre.artifacts.readArtifact("OtokenInterface");
   const adapterArtifact = await hre.artifacts.readArtifact("GammaAdapter");
-  const vaultArtifact = await hre.artifacts.readArtifact("RibbonCoveredCall");
+  const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
 
   const otoken = new ethers.Contract(
     program.address,

@@ -25,11 +25,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
     string private constant _adapterName = "OPYN_GAMMA";
 
-    IRibbonFactory public immutable factory;
     IProtocolAdapter public immutable adapter;
     address public immutable asset;
     address public immutable WETH;
     address public immutable USDC;
+    bool public immutable isPut;
     uint8 private immutable _decimals;
 
     // AirSwap Swap contract https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
@@ -70,7 +70,13 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
     /**
-     * @notice Initializes the factory and adapter contract addresses
+     * @notice Initializes the contract with immutable variables
+     * @param _asset is the asset used for collateral and premiums
+     * @param _weth is the Wrapped Ether contract
+     * @param _usdc is the USDC contract
+     * @param _swapContract is the Airswap Swap contract
+     * @param _tokenDecimals is the decimals for the vault shares. Must match the decimals for _asset.
+     * @param _minimumSupply is the minimum supply for the asset balance and the share supply.
      * It's important to bake the _factory variable into the contract with the constructor
      * If we do it in the `initialize` function, users get to set the factory variable and
      * subsequently the adapter, which allows them to make a delegatecall, then selfdestruct the contract.
@@ -82,7 +88,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         address _usdc,
         address _swapContract,
         uint8 _tokenDecimals,
-        uint256 _minimumSupply
+        uint256 _minimumSupply,
+        bool _isPut
     ) {
         require(_asset != address(0), "!_asset");
         require(_factory != address(0), "!_factory");
@@ -98,19 +105,22 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(adapterAddr != address(0), "Adapter not set");
 
         asset = _asset;
-        factory = factoryInstance;
         adapter = IProtocolAdapter(adapterAddr);
         WETH = _weth;
         USDC = _usdc;
         SWAP_CONTRACT = ISwap(_swapContract);
         _decimals = _tokenDecimals;
         MINIMUM_SUPPLY = _minimumSupply;
+        isPut = _isPut;
     }
 
     /**
-     * @notice Initializes the OptionVault contract with an owner and a factory.
+     * @notice Initializes the OptionVault contract with storage variables.
      * @param _owner is the owner of the contract who can set the manager
-     * @param _initCap is the initial vault's cap on deposits, the manager can increase this as necessary
+     * @param _feeRecipient is the recipient address for withdrawal fees.
+     * @param _initCap is the initial vault's cap on deposits, the manager can increase this as necessary.
+     * @param _tokenName is the name of the vault share token
+     * @param _tokenSymbol is the symbol of the vault share token
      */
     function initialize(
         address _owner,
@@ -164,8 +174,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     function setWithdrawalFee(uint256 newWithdrawalFee) external onlyManager {
         require(newWithdrawalFee > 0, "withdrawalFee != 0");
 
-        // cap max withdrawal fees to 100% of the withdrawal amount
-        require(newWithdrawalFee < 1 ether, "withdrawalFee >= 100%");
+        // cap max withdrawal fees to 30% of the withdrawal amount
+        require(newWithdrawalFee < 0.3 ether, "withdrawalFee >= 30%");
 
         uint256 oldFee = instantWithdrawalFee;
         emit WithdrawalFeeSet(oldFee, newWithdrawalFee);
@@ -200,6 +210,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     function _deposit(uint256 amount) private {
         uint256 totalWithDepositedAmount = totalBalance();
         require(totalWithDepositedAmount < cap, "Cap exceeded");
+        require(
+            totalWithDepositedAmount >= MINIMUM_SUPPLY,
+            "Insufficient asset balance"
+        );
 
         // amount needs to be subtracted from totalBalance because it has already been
         // added to it from either IWETH.deposit and IERC20.safeTransferFrom
@@ -213,11 +227,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         require(
             shareSupply.add(share) >= MINIMUM_SUPPLY,
-            "Minimum share supply needs to be >=10**10"
-        );
-        require(
-            totalWithDepositedAmount >= MINIMUM_SUPPLY,
-            "Minimum asset balance needs to be >=10**10"
+            "Insufficient share supply"
         );
 
         emit Deposit(msg.sender, amount, share);
@@ -264,15 +274,42 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Sets the next option address and the timestamp at which the admin can call `rollToNextOption` to open a short for the option
-     * @param optionTerms is the terms of the option contract
+     * @notice Sets the next option the vault will be shorting, and closes the existing short. This allows all the users to withdraw if the next option is malicious.
      */
-    function setNextOption(
+    function commitAndClose(
         ProtocolAdapterTypes.OptionTerms calldata optionTerms
     ) external onlyManager nonReentrant {
+        _setNextOption(optionTerms);
+        _closeShort();
+    }
+
+    function closeShort() external nonReentrant {
+        _closeShort();
+    }
+
+    /**
+     * @notice Sets the next option address and the timestamp at which the admin can call `rollToNextOption` to open a short for the option.
+     * @param optionTerms is the terms of the option contract
+     */
+    function _setNextOption(
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms
+    ) private {
+        if (isPut) {
+            require(
+                optionTerms.optionType == ProtocolAdapterTypes.OptionType.Put,
+                "!put"
+            );
+        } else {
+            require(
+                optionTerms.optionType == ProtocolAdapterTypes.OptionType.Call,
+                "!call"
+            );
+        }
+
         address option = adapter.getOptionsAddress(optionTerms);
         require(option != address(0), "!option");
         OtokenInterface otoken = OtokenInterface(option);
+        require(otoken.isPut() == isPut, "Option type does not match");
         require(otoken.underlyingAsset() == asset, "!asset");
         require(otoken.strikeAsset() == USDC, "strikeAsset != USDC"); // we just assume all options use USDC as the strike
 
@@ -287,21 +324,39 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Rolls from one short option position to another. Closes the expired short position, withdraw from it, then open a new position.
+     * @notice Closes the existing short position for the vault.
      */
-    function rollToNextOption() external onlyManager nonReentrant {
+    function _closeShort() private {
         address oldOption = currentOption;
-        address newOption = nextOption;
-        require(newOption != address(0), "No found option");
-        require(block.timestamp > nextOptionReadyAt, "Delay not passed");
-
-        nextOption = address(0);
-        currentOption = newOption;
+        currentOption = address(0);
+        lockedAmount = 0;
 
         if (oldOption != address(0)) {
+            OtokenInterface otoken = OtokenInterface(oldOption);
+            require(
+                block.timestamp > otoken.expiryTimestamp(),
+                "Cannot close short before expiry"
+            );
             uint256 withdrawAmount = adapter.delegateCloseShort();
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
+    }
+
+    /**
+     * @notice Rolls the vault's funds into a new short position.
+     */
+    function rollToNextOption() external onlyManager nonReentrant {
+        require(
+            block.timestamp >= nextOptionReadyAt,
+            "Cannot roll before delay"
+        );
+
+        address newOption = nextOption;
+        require(newOption != address(0), "No found option");
+
+        currentOption = newOption;
+        nextOption = address(0);
+
         uint256 currentBalance = IERC20(asset).balanceOf(address(this));
         uint256 shortAmount = wmul(currentBalance, lockedRatio);
         lockedAmount = shortAmount;
@@ -310,12 +365,14 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         ProtocolAdapterTypes.OptionTerms memory optionTerms =
             ProtocolAdapterTypes.OptionTerms(
-                asset,
+                otoken.underlyingAsset(),
                 USDC,
                 otoken.collateralAsset(),
                 otoken.expiryTimestamp(),
                 otoken.strikePrice().mul(10**10), // scale back to 10**18
-                otoken.isPut() ? ProtocolAdapterTypes.OptionType.Put : ProtocolAdapterTypes.OptionType.Call, // isPut
+                isPut
+                    ? ProtocolAdapterTypes.OptionType.Put
+                    : ProtocolAdapterTypes.OptionType.Call, // isPut
                 address(0)
             );
 
@@ -406,13 +463,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             "Cannot withdraw more than available"
         );
 
-        require(
-            newShareSupply >= MINIMUM_SUPPLY,
-            "Minimum share supply needs to be >=10**10"
-        );
+        require(newShareSupply >= MINIMUM_SUPPLY, "Insufficient share supply");
         require(
             newAssetBalance >= MINIMUM_SUPPLY,
-            "Minimum asset balance needs to be >=10**10"
+            "Insufficient asset balance"
         );
 
         feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
@@ -451,7 +505,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      */
     function maxWithdrawableShares() public view returns (uint256) {
         uint256 withdrawableBalance = assetBalance();
-        uint256 total = lockedAmount.add(assetBalance());
+        uint256 total = lockedAmount.add(withdrawableBalance);
         return
             withdrawableBalance.mul(totalSupply()).div(total).sub(
                 MINIMUM_SUPPLY

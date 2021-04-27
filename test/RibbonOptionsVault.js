@@ -60,6 +60,7 @@ describe("RibbonCoveredCall", () => {
     depositAmount: BigNumber.from("100000000"),
     premium: BigNumber.from("10000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
+    isPut: false,
     mintConfig: {
       contractOwnerAddress: WBTC_OWNER_ADDRESS,
     },
@@ -81,6 +82,7 @@ describe("RibbonCoveredCall", () => {
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     premium: parseEther("0.1"),
     tokenDecimals: 8,
+    isPut: false,
   });
 });
 
@@ -104,6 +106,7 @@ describe("RibbonCoveredCall", () => {
  * @param {BigNumber} params.depositAmount - Deposit amount
  * @param {string} params.minimumSupply - Minimum supply to maintain for share and asset balance
  * @param {BigNumber} params.premium - Minimum supply to maintain for share and asset balance
+ * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
  */
 function behavesLikeRibbonOptionsVault(params) {
   describe(`${params.name}`, () => {
@@ -147,6 +150,7 @@ function behavesLikeRibbonOptionsVault(params) {
       this.asset = params.asset;
       this.depositAmount = params.depositAmount;
       this.premium = params.premium;
+      this.isPut = params.isPut;
 
       this.counterpartyWallet = ethers.Wallet.fromMnemonic(
         process.env.TEST_MNEMONIC,
@@ -185,6 +189,7 @@ function behavesLikeRibbonOptionsVault(params) {
         SWAP_ADDRESS,
         this.tokenDecimals,
         this.minimumSupply,
+        this.isPut,
       ];
 
       this.vault = (
@@ -332,7 +337,8 @@ function behavesLikeRibbonOptionsVault(params) {
             params.strikeAsset,
             SWAP_ADDRESS,
             this.tokenDecimals,
-            this.minimumSupply
+            this.minimumSupply,
+            this.isPut
           )
         ).to.be.revertedWith("!_factory");
       });
@@ -358,7 +364,8 @@ function behavesLikeRibbonOptionsVault(params) {
             params.strikeAsset,
             SWAP_ADDRESS,
             this.tokenDecimals,
-            this.minimumSupply
+            this.minimumSupply,
+            this.isPut
           )
         ).to.be.revertedWith("Adapter not set");
       });
@@ -381,7 +388,8 @@ function behavesLikeRibbonOptionsVault(params) {
             params.strikeAsset,
             SWAP_ADDRESS,
             this.tokenDecimals,
-            this.minimumSupply
+            this.minimumSupply,
+            this.isPut
           )
         ).to.be.revertedWith("!_asset");
       });
@@ -404,7 +412,8 @@ function behavesLikeRibbonOptionsVault(params) {
             params.strikeAsset,
             SWAP_ADDRESS,
             0,
-            this.minimumSupply
+            this.minimumSupply,
+            this.isPut
           )
         ).to.be.revertedWith("!_tokenDecimals");
       });
@@ -427,7 +436,8 @@ function behavesLikeRibbonOptionsVault(params) {
             params.strikeAsset,
             SWAP_ADDRESS,
             this.tokenDecimals,
-            0
+            0,
+            this.isPut
           )
         ).to.be.revertedWith("!_minimumSupply");
       });
@@ -453,7 +463,8 @@ function behavesLikeRibbonOptionsVault(params) {
           params.strikeAsset,
           SWAP_ADDRESS,
           decimals,
-          minSupply
+          minSupply,
+          this.isPut
         );
         assert.equal(await vault.decimals(), decimals);
         assert.equal(await vault.asset(), asset);
@@ -478,7 +489,8 @@ function behavesLikeRibbonOptionsVault(params) {
           params.strikeAsset,
           SWAP_ADDRESS,
           this.tokenDecimals,
-          this.minimumSupply
+          this.minimumSupply,
+          this.isPut
         );
       });
 

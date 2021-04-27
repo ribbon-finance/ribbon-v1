@@ -29,6 +29,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     address public immutable asset;
     address public immutable WETH;
     address public immutable USDC;
+    bool public immutable isPut;
     uint8 private immutable _decimals;
 
     // AirSwap Swap contract https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
@@ -87,7 +88,8 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         address _usdc,
         address _swapContract,
         uint8 _tokenDecimals,
-        uint256 _minimumSupply
+        uint256 _minimumSupply,
+        bool _isPut
     ) {
         require(_asset != address(0), "!_asset");
         require(_factory != address(0), "!_factory");
@@ -109,6 +111,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         SWAP_CONTRACT = ISwap(_swapContract);
         _decimals = _tokenDecimals;
         MINIMUM_SUPPLY = _minimumSupply;
+        isPut = _isPut;
     }
 
     /**
@@ -291,10 +294,18 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
     function _setNextOption(
         ProtocolAdapterTypes.OptionTerms calldata optionTerms
     ) private {
-        require(
-            optionTerms.optionType == ProtocolAdapterTypes.OptionType.Call,
-            "!call"
-        );
+        if (isPut) {
+            require(
+                optionTerms.optionType == ProtocolAdapterTypes.OptionType.Put,
+                "!put"
+            );
+        } else {
+            require(
+                optionTerms.optionType == ProtocolAdapterTypes.OptionType.Call,
+                "!call"
+            );
+        }
+
         address option = adapter.getOptionsAddress(optionTerms);
         require(option != address(0), "!option");
         OtokenInterface otoken = OtokenInterface(option);
@@ -354,12 +365,14 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
 
         ProtocolAdapterTypes.OptionTerms memory optionTerms =
             ProtocolAdapterTypes.OptionTerms(
-                asset,
+                otoken.underlyingAsset(),
                 USDC,
-                asset,
+                otoken.collateralAsset(),
                 otoken.expiryTimestamp(),
                 otoken.strikePrice().mul(10**10), // scale back to 10**18
-                ProtocolAdapterTypes.OptionType.Call, // isPut
+                isPut
+                    ? ProtocolAdapterTypes.OptionType.Put
+                    : ProtocolAdapterTypes.OptionType.Call, // isPut
                 address(0)
             );
 

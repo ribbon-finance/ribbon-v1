@@ -309,7 +309,7 @@ contract RibbonCoveredCall is DSMath, OptionsVaultStorage {
         address option = adapter.getOptionsAddress(optionTerms);
         require(option != address(0), "!option");
         OtokenInterface otoken = OtokenInterface(option);
-        require(!otoken.isPut(), "!call");
+        require(otoken.isPut() == isPut, "Option type does not match");
         require(otoken.underlyingAsset() == asset, "!asset");
         require(otoken.strikeAsset() == USDC, "strikeAsset != USDC"); // we just assume all options use USDC as the strike
 

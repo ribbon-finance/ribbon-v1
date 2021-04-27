@@ -1054,7 +1054,7 @@ function behavesLikeRibbonOptionsVault(params) {
         ).to.be.revertedWith("strikeAsset != USDC");
       });
 
-      it("reverts when the option type is not call option", async function () {
+      it("reverts when the option type does not match", async function () {
         const underlying = params.asset;
         const strike = params.strikeAsset;
         const strikePrice = parseEther("50000");
@@ -1078,13 +1078,13 @@ function behavesLikeRibbonOptionsVault(params) {
           underlying,
           expiry,
           strikePrice,
-          1, //call
+          this.isPut ? 2 : 1,
           params.strikeAsset,
         ];
 
         await expect(
           this.vault.connect(managerSigner).commitAndClose(optionTerms)
-        ).to.be.revertedWith("!call");
+        ).to.be.revertedWith(this.isPut ? "!put" : "!call");
       });
 
       it("reverts when the expiry is before the delay", async function () {

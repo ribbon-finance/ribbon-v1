@@ -104,7 +104,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         address adapterAddr = factoryInstance.getAdapter(_adapterName);
         require(adapterAddr != address(0), "Adapter not set");
 
-        asset = _asset;
+        asset = _isPut ? _usdc : _asset;
         adapter = IProtocolAdapter(adapterAddr);
         WETH = _weth;
         USDC = _usdc;

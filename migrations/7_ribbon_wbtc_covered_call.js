@@ -30,6 +30,7 @@ module.exports = async function (deployer, network) {
     EXTERNAL_ADDRESSES[networkLookup].airswapSwap,
     8,
     ethers.BigNumber.from("10").pow("3").toString(),
+    false,
     { from: admin }
   );
   await updateDeployedAddresses(

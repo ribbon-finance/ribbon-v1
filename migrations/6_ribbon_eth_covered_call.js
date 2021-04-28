@@ -32,6 +32,7 @@ module.exports = async function (deployer, network) {
     // WETH: 10**18, 10**10 0.0000001
     // WBTC: 0.000001
     BigNumber.from("10").pow(BigNumber.from("10")).toString(), // WBTC 10**3
+    false,
     { from: admin }
   );
   await updateDeployedAddresses(

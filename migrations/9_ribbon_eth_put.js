@@ -28,10 +28,10 @@ module.exports = async function (deployer, network) {
     EXTERNAL_ADDRESSES[networkLookup].assets.weth,
     EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
     EXTERNAL_ADDRESSES[networkLookup].airswapSwap,
-    18,
+    6, // usdc is 6 decimals
     // WETH: 10**18, 10**10 0.0000001
     // WBTC: 0.000001
-    BigNumber.from("10").pow(BigNumber.from("10")).toString(), // WBTC 10**3
+    BigNumber.from("10").pow(BigNumber.from("3")).toString(), // WBTC 10**3
     { from: admin }
   );
   await updateDeployedAddresses(

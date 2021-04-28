@@ -55,7 +55,6 @@ describe("RibbonThetaVault", () => {
     tokenSymbol: "rWBTC-THETA",
     asset: WBTC_ADDRESS,
     assetContractName: "IWBTC",
-    optionType: CALL_OPTION_TYPE,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: WBTC_ADDRESS,
     wrongUnderlyingAsset: WETH_ADDRESS,
@@ -79,7 +78,6 @@ describe("RibbonThetaVault", () => {
     tokenSymbol: "rETH-THETA",
     asset: WETH_ADDRESS,
     assetContractName: "IWETH",
-    optionType: CALL_OPTION_TYPE,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: WETH_ADDRESS,
     wrongUnderlyingAsset: WBTC_ADDRESS,
@@ -100,7 +98,6 @@ describe("RibbonThetaVault", () => {
     tokenSymbol: "rWBTC-THETA-P",
     asset: WBTC_ADDRESS,
     assetContractName: "IUSDC",
-    optionType: PUT_OPTION_TYPE,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: USDC_ADDRESS,
     wrongUnderlyingAsset: WETH_ADDRESS,
@@ -124,7 +121,6 @@ describe("RibbonThetaVault", () => {
     tokenSymbol: "rETH-THETA-P",
     asset: WETH_ADDRESS,
     assetContractName: "IUSDC",
-    optionType: PUT_OPTION_TYPE,
     strikeAsset: USDC_ADDRESS,
     collateralAsset: USDC_ADDRESS,
     wrongUnderlyingAsset: WBTC_ADDRESS,
@@ -152,7 +148,6 @@ describe("RibbonThetaVault", () => {
  * @param {number} params.tokenDecimals - Decimals of the vault shares
  * @param {string} params.asset - Address of assets
  * @param {string} params.assetContractName - Name of collateral asset contract
- * @param {number} params.optionType - Option Type (1 for put or 2 for call)
  * @param {string} params.strikeAsset - Address of strike assets
  * @param {string} params.collateralAsset - Address of asset used for collateral
  * @param {string} params.wrongUnderlyingAsset - Address of wrong underlying assets
@@ -208,7 +203,7 @@ function behavesLikeRibbonOptionsVault(params) {
       this.minimumSupply = params.minimumSupply;
       this.asset = params.asset;
       this.collateralAsset = params.collateralAsset;
-      this.optionType = params.optionType;
+      this.optionType = params.isPut ? PUT_OPTION_TYPE : CALL_OPTION_TYPE;
       this.depositAmount = params.depositAmount;
       this.premium = params.premium;
       this.isPut = params.isPut;
@@ -279,7 +274,7 @@ function behavesLikeRibbonOptionsVault(params) {
         params.asset,
         params.strikeAsset,
         params.collateralAsset,
-        params.optionType == PUT_OPTION_TYPE ? true : false
+        params.isPut
       );
 
       // Create first option
@@ -291,7 +286,7 @@ function behavesLikeRibbonOptionsVault(params) {
           BigNumber.from("10").pow(BigNumber.from("10"))
         ),
         moment().add(7, "days").hours(8).minutes(0).seconds(0).unix(),
-        params.optionType == PUT_OPTION_TYPE ? true : false
+        params.isPut
       );
       let receipt = await res.wait();
       let events = await parseLog("IOtokenFactory", receipt.logs[1]);
@@ -310,7 +305,7 @@ function behavesLikeRibbonOptionsVault(params) {
           BigNumber.from("10").pow(BigNumber.from("10"))
         ),
         moment().add(14, "days").hours(8).minutes(0).seconds(0).unix(),
-        params.optionType == PUT_OPTION_TYPE ? true : false
+        params.isPut
       );
       receipt = await res.wait();
       events = await parseLog("IOtokenFactory", receipt.logs[1]);
@@ -326,7 +321,7 @@ function behavesLikeRibbonOptionsVault(params) {
         params.collateralAsset,
         secondOption.expiry.toString(),
         parseEther(params.secondOptionStrike.toString()),
-        params.optionType,
+        this.optionType,
         params.collateralAsset,
       ];
 
@@ -1064,7 +1059,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const strike = params.strikeAsset;
         const strikePrice = parseEther("50000");
         const expiry = secondOption.expiry.toString();
-        const isPut = params.optionType == PUT_OPTION_TYPE ? true : false;
+        const isPut = params.isPut;
         const collateral = isPut ? params.collateralAsset : underlying;
 
         await whitelistProduct(underlying, strike, collateral, isPut);
@@ -1084,7 +1079,7 @@ function behavesLikeRibbonOptionsVault(params) {
           collateral,
           expiry,
           strikePrice,
-          params.optionType,
+          this.optionType,
           params.strikeAsset,
         ];
 
@@ -1099,7 +1094,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const collateral = params.collateralAsset;
         const strikePrice = parseEther("50000");
         const expiry = secondOption.expiry.toString();
-        const isPut = params.optionType == PUT_OPTION_TYPE ? true : false;
+        const isPut = params.isPut;
 
         await whitelistProduct(underlying, strike, collateral, isPut);
 
@@ -1118,7 +1113,7 @@ function behavesLikeRibbonOptionsVault(params) {
           collateral,
           expiry,
           strikePrice,
-          params.optionType,
+          this.optionType,
           params.strikeAsset,
         ];
 
@@ -1167,7 +1162,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const strike = params.strikeAsset;
         const collateral = params.collateralAsset;
         const strikePrice = parseEther(params.firstOptionStrike.toString());
-        const isPut = params.optionType == PUT_OPTION_TYPE ? true : false;
+        const isPut = params.isPut;
 
         let expiryDate;
 
@@ -1210,7 +1205,7 @@ function behavesLikeRibbonOptionsVault(params) {
           collateral,
           expiry,
           strikePrice,
-          params.optionType,
+          this.optionType,
           params.strikeAsset,
         ];
 
@@ -1245,7 +1240,7 @@ function behavesLikeRibbonOptionsVault(params) {
             params.collateralAsset,
             firstOption.expiry.toString(),
             parseEther(params.firstOptionStrike.toString()),
-            params.optionType,
+            this.optionType,
             params.asset,
           ]);
 
@@ -1257,7 +1252,7 @@ function behavesLikeRibbonOptionsVault(params) {
             params.collateralAsset,
             secondOption.expiry.toString(),
             parseEther(params.secondOptionStrike.toString()),
-            params.optionType,
+            this.optionType,
             params.asset,
           ]);
       });
@@ -1329,7 +1324,7 @@ function behavesLikeRibbonOptionsVault(params) {
           this.oracle,
           await this.vault.currentOptionExpiry(),
           this.isPut
-            ? BigNumber.from("148000000000000000000")
+            ? BigNumber.from("7780000000000")
             : BigNumber.from("148000000000").sub(BigNumber.from("1"))
         );
 
@@ -1354,11 +1349,31 @@ function behavesLikeRibbonOptionsVault(params) {
 
     describe("#rollToNextOption", () => {
       time.revertToSnapshotAfterEach(async function () {
-        this.expectedMintAmount = this.isPut
-          ? this.asset === WETH_ADDRESS
-            ? BigNumber.from("140625000")
-            : BigNumber.from("3600000")
-          : BigNumber.from("90000000");
+        const lockedAmount = wmul(this.depositAmount, LOCKED_RATIO).toString();
+        if (this.isPut) {
+          if (this.asset === WETH_ADDRESS) {
+            this.expectedMintAmount = BigNumber.from("140625000");
+            this.sellAmount = BigNumber.from("140625000");
+          } else {
+            this.expectedMintAmount = BigNumber.from("3600000");
+            this.sellAmount = BigNumber.from("3600000");
+          }
+          this.actualMintAmount = BigNumber.from(lockedAmount)
+            .div(params.secondOptionStrike.toString())
+            .mul(BigNumber.from("100000000"))
+            .div(BigNumber.from("1000000"))
+            .toString();
+        } else {
+          this.expectedMintAmount = BigNumber.from("90000000");
+          this.sellAmount = BigNumber.from("90000000");
+          if (this.collateralAsset === WETH_ADDRESS) {
+            this.actualMintAmount = BigNumber.from(lockedAmount).div(
+              BigNumber.from("10000000000")
+            );
+          } else {
+            this.actualMintAmount = lockedAmount;
+          }
+        }
 
         await depositIntoVault(
           params.collateralAsset,
@@ -1367,12 +1382,6 @@ function behavesLikeRibbonOptionsVault(params) {
         );
 
         this.oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
-
-        this.sellAmount = this.isPut
-          ? this.asset === WETH_ADDRESS
-            ? BigNumber.from("140625000")
-            : BigNumber.from("3600000")
-          : BigNumber.from("90000000");
 
         if (params.collateralAsset === WETH_ADDRESS) {
           const weth = this.assetContract.connect(counterpartySigner);
@@ -1460,6 +1469,11 @@ function behavesLikeRibbonOptionsVault(params) {
         );
 
         assert.equal(
+          this.expectedMintAmount.toString(),
+          this.actualMintAmount.toString()
+        );
+
+        assert.equal(
           (await this.oToken.balanceOf(this.vault.address)).toString(),
           this.expectedMintAmount.toString()
         );
@@ -1485,7 +1499,7 @@ function behavesLikeRibbonOptionsVault(params) {
             params.collateralAsset,
             firstOption.expiry.toString(),
             parseEther(params.firstOptionStrike.toString()),
-            params.optionType,
+            this.optionType,
             params.asset,
           ]);
 
@@ -1519,7 +1533,7 @@ function behavesLikeRibbonOptionsVault(params) {
               params.collateralAsset,
               secondOption.expiry.toString(),
               parseEther(params.secondOptionStrike.toString()),
-              params.optionType,
+              this.optionType,
               params.asset,
             ])
         ).to.be.revertedWith("Cannot close short before expiry");
@@ -1537,7 +1551,7 @@ function behavesLikeRibbonOptionsVault(params) {
             params.collateralAsset,
             firstOption.expiry.toString(),
             parseEther(params.firstOptionStrike.toString()),
-            params.optionType,
+            this.optionType,
             params.collateralAsset,
           ]);
         await time.increaseTo(
@@ -1587,7 +1601,7 @@ function behavesLikeRibbonOptionsVault(params) {
           this.oracle,
           await this.vault.currentOptionExpiry(),
           this.isPut
-            ? BigNumber.from("148000000000000000000")
+            ? BigNumber.from("7780000000000000")
             : BigNumber.from("148000000000").sub(BigNumber.from("1"))
         );
 
@@ -1599,7 +1613,7 @@ function behavesLikeRibbonOptionsVault(params) {
             params.collateralAsset,
             secondOption.expiry.toString(),
             parseEther(params.secondOptionStrike.toString()),
-            params.optionType,
+            this.optionType,
             params.collateralAsset,
           ]);
 
@@ -1651,7 +1665,7 @@ function behavesLikeRibbonOptionsVault(params) {
             params.collateralAsset,
             firstOption.expiry.toString(),
             parseEther(params.firstOptionStrike.toString()),
-            params.optionType,
+            this.optionType,
             params.collateralAsset,
           ]);
         await time.increaseTo(
@@ -1695,7 +1709,7 @@ function behavesLikeRibbonOptionsVault(params) {
           this.oracle,
           await this.vault.currentOptionExpiry(),
           this.isPut
-            ? BigNumber.from("16000000000000000000000")
+            ? BigNumber.from("88000000000000")
             : BigNumber.from("160000000000")
         );
 
@@ -1707,7 +1721,7 @@ function behavesLikeRibbonOptionsVault(params) {
             params.collateralAsset,
             secondOption.expiry.toString(),
             parseEther(params.secondOptionStrike.toString()),
-            params.optionType,
+            this.optionType,
             params.collateralAsset,
           ]);
 
@@ -1757,7 +1771,7 @@ function behavesLikeRibbonOptionsVault(params) {
             params.collateralAsset,
             firstOption.expiry.toString(),
             parseEther(params.firstOptionStrike.toString()),
-            params.optionType,
+            this.optionType,
             params.asset,
           ]);
         await time.increaseTo(

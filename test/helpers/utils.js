@@ -332,9 +332,11 @@ async function mintToken(contract, contractOwner, recipient, spender, amount) {
     value: parseEther("0.5"),
   });
 
-  if(contract.address == USDC_ADDRESS){
-    await contract.connect(tokenOwnerSigner).transfer(recipient.address, amount);
-  }else{
+  if (contract.address == USDC_ADDRESS) {
+    await contract
+      .connect(tokenOwnerSigner)
+      .transfer(recipient.address, amount);
+  } else {
     await contract.connect(tokenOwnerSigner).mint(recipient.address, amount);
   }
 

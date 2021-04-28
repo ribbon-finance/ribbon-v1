@@ -28,8 +28,8 @@ module.exports = async function (deployer, network) {
     EXTERNAL_ADDRESSES[networkLookup].assets.weth,
     EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
     EXTERNAL_ADDRESSES[networkLookup].airswapSwap,
-    8,
-    ethers.BigNumber.from("10").pow("3").toString(),
+    6, // usdc is 6 decimals
+    BigNumber.from("10").pow(BigNumber.from("3")).toString(),
     { from: admin }
   );
   await updateDeployedAddresses(

@@ -289,6 +289,8 @@ describe("RibbonOptionsVault Upgrade", () => {
 
       // now that we know that the implementation is set, we need to verify that all the variables are still the same as before
       await this.validateStorage();
+
+      assert.isFalse(await this.vault.isPut());
     });
   });
 });

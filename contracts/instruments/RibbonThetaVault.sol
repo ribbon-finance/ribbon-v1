@@ -27,6 +27,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
     IProtocolAdapter public immutable adapter;
     address public immutable asset;
+    address public immutable underlying;
     address public immutable WETH;
     address public immutable USDC;
     bool public immutable isPut;
@@ -105,6 +106,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(adapterAddr != address(0), "Adapter not set");
 
         asset = _isPut ? _usdc : _asset;
+        underlying = _asset;
         adapter = IProtocolAdapter(adapterAddr);
         WETH = _weth;
         USDC = _usdc;
@@ -310,7 +312,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(option != address(0), "!option");
         OtokenInterface otoken = OtokenInterface(option);
         require(otoken.isPut() == isPut, "Option type does not match");
-        require(otoken.underlyingAsset() == asset, "!asset");
+        require(otoken.underlyingAsset() == underlying, "!asset");
         require(otoken.strikeAsset() == USDC, "strikeAsset != USDC"); // we just assume all options use USDC as the strike
 
         uint256 readyAt = block.timestamp.add(delay);

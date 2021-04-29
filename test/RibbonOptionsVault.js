@@ -11,6 +11,7 @@ const {
   deployProxy,
   getDefaultArgs,
   wmul,
+  wdiv,
   setupOracle,
   setOpynOracleExpiryPrice,
   whitelistProduct,
@@ -27,6 +28,7 @@ const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const WBTC_OWNER_ADDRESS = "0xCA06411bd7a7296d7dbdd0050DFc846E95fEBEB7";
+const USDC_OWNER_ADDRESS = "0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503";
 
 const CHAINLINK_WETH_PRICER = "0xAC05f5147566Cc949b73F0A776944E7011FabC50";
 const CHAINLINK_WBTC_PRICER = "0x5faCA6DF39c897802d752DfCb8c02Ea6959245Fc";
@@ -43,7 +45,10 @@ const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
 const gasPrice = parseUnits("1", "gwei");
 const WITHDRAWAL_FEE = parseEther("0.005");
 
-describe("RibbonCoveredCall", () => {
+const PUT_OPTION_TYPE = 1;
+const CALL_OPTION_TYPE = 2;
+
+describe("RibbonThetaVault", () => {
   behavesLikeRibbonOptionsVault({
     name: `Ribbon WBTC Theta Vault`,
     tokenName: "Ribbon BTC Theta Vault",
@@ -51,6 +56,7 @@ describe("RibbonCoveredCall", () => {
     asset: WBTC_ADDRESS,
     assetContractName: "IWBTC",
     strikeAsset: USDC_ADDRESS,
+    collateralAsset: WBTC_ADDRESS,
     wrongUnderlyingAsset: WETH_ADDRESS,
     wrongStrikeAsset: WETH_ADDRESS,
     firstOptionStrike: 2400,
@@ -60,6 +66,7 @@ describe("RibbonCoveredCall", () => {
     depositAmount: BigNumber.from("100000000"),
     premium: BigNumber.from("10000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
+    expectedMintAmount: BigNumber.from("90000000"),
     isPut: false,
     mintConfig: {
       contractOwnerAddress: WBTC_OWNER_ADDRESS,
@@ -73,6 +80,7 @@ describe("RibbonCoveredCall", () => {
     asset: WETH_ADDRESS,
     assetContractName: "IWETH",
     strikeAsset: USDC_ADDRESS,
+    collateralAsset: WETH_ADDRESS,
     wrongUnderlyingAsset: WBTC_ADDRESS,
     wrongStrikeAsset: WBTC_ADDRESS,
     firstOptionStrike: 63000,
@@ -80,9 +88,58 @@ describe("RibbonCoveredCall", () => {
     chainlinkPricer: CHAINLINK_WETH_PRICER,
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("90000000"),
     premium: parseEther("0.1"),
     tokenDecimals: 8,
     isPut: false,
+  });
+
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon WBTC Theta Vault (Put)`,
+    tokenName: "Ribbon BTC Theta Vault Put",
+    tokenSymbol: "rWBTC-THETA-P",
+    asset: WBTC_ADDRESS,
+    assetContractName: "IUSDC",
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: USDC_ADDRESS,
+    wrongUnderlyingAsset: WETH_ADDRESS,
+    wrongStrikeAsset: WETH_ADDRESS,
+    firstOptionStrike: 2400,
+    secondOptionStrike: 2500,
+    chainlinkPricer: CHAINLINK_WBTC_PRICER,
+    tokenDecimals: 18,
+    depositAmount: BigNumber.from("100000000"),
+    premium: BigNumber.from("10000000"),
+    minimumSupply: BigNumber.from("10").pow("3").toString(),
+    expectedMintAmount: BigNumber.from("3600000"),
+    isPut: true,
+    mintConfig: {
+      contractOwnerAddress: USDC_OWNER_ADDRESS,
+    },
+  });
+
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon ETH Theta Vault (Put) `,
+    tokenName: "Ribbon ETH Theta Vault Put",
+    tokenSymbol: "rETH-THETA-P",
+    asset: WETH_ADDRESS,
+    assetContractName: "IUSDC",
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: USDC_ADDRESS,
+    wrongUnderlyingAsset: WBTC_ADDRESS,
+    wrongStrikeAsset: WBTC_ADDRESS,
+    firstOptionStrike: 63000,
+    secondOptionStrike: 64000,
+    chainlinkPricer: CHAINLINK_WETH_PRICER,
+    depositAmount: BigNumber.from("100000000000"),
+    premium: BigNumber.from("10000000000"),
+    minimumSupply: BigNumber.from("10").pow("3").toString(),
+    expectedMintAmount: BigNumber.from("140625000"),
+    tokenDecimals: 8,
+    isPut: true,
+    mintConfig: {
+      contractOwnerAddress: USDC_OWNER_ADDRESS,
+    },
   });
 });
 
@@ -94,8 +151,9 @@ describe("RibbonCoveredCall", () => {
  * @param {string} params.tokenSymbol - Symbol of Option Vault
  * @param {number} params.tokenDecimals - Decimals of the vault shares
  * @param {string} params.asset - Address of assets
- * @param {string} params.assetContractName - Name of asset contract
+ * @param {string} params.assetContractName - Name of collateral asset contract
  * @param {string} params.strikeAsset - Address of strike assets
+ * @param {string} params.collateralAsset - Address of asset used for collateral
  * @param {string} params.wrongUnderlyingAsset - Address of wrong underlying assets
  * @param {string} params.wrongStrikeAsset - Address of wrong strike assets
  * @param {number} params.firstOptionStrike - Strike price of first option
@@ -105,6 +163,7 @@ describe("RibbonCoveredCall", () => {
  * @param {string} params.mintConfig.contractOwnerAddress - Impersonate address of mintable asset contract owner
  * @param {BigNumber} params.depositAmount - Deposit amount
  * @param {string} params.minimumSupply - Minimum supply to maintain for share and asset balance
+ * @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
  * @param {BigNumber} params.premium - Minimum supply to maintain for share and asset balance
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
  */
@@ -148,8 +207,11 @@ function behavesLikeRibbonOptionsVault(params) {
       this.tokenDecimals = params.tokenDecimals;
       this.minimumSupply = params.minimumSupply;
       this.asset = params.asset;
+      this.collateralAsset = params.collateralAsset;
+      this.optionType = params.isPut ? PUT_OPTION_TYPE : CALL_OPTION_TYPE;
       this.depositAmount = params.depositAmount;
       this.premium = params.premium;
+      this.expectedMintAmount = params.expectedMintAmount;
       this.isPut = params.isPut;
 
       this.counterpartyWallet = ethers.Wallet.fromMnemonic(
@@ -194,7 +256,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       this.vault = (
         await deployProxy(
-          "RibbonCoveredCall",
+          "RibbonThetaVault",
           adminSigner,
           initializeTypes,
           initializeArgs,
@@ -217,20 +279,20 @@ function behavesLikeRibbonOptionsVault(params) {
       await whitelistProduct(
         params.asset,
         params.strikeAsset,
-        params.asset,
-        false
+        params.collateralAsset,
+        params.isPut
       );
 
       // Create first option
       let res = await this.oTokenFactory.createOtoken(
         params.asset,
         params.strikeAsset,
-        params.asset,
+        params.collateralAsset,
         parseEther(params.firstOptionStrike.toString()).div(
           BigNumber.from("10").pow(BigNumber.from("10"))
         ),
         moment().add(7, "days").hours(8).minutes(0).seconds(0).unix(),
-        false
+        params.isPut
       );
       let receipt = await res.wait();
       let events = await parseLog("IOtokenFactory", receipt.logs[1]);
@@ -244,12 +306,12 @@ function behavesLikeRibbonOptionsVault(params) {
       res = await this.oTokenFactory.createOtoken(
         params.asset,
         params.strikeAsset,
-        params.asset,
+        params.collateralAsset,
         parseEther(params.secondOptionStrike.toString()).div(
           BigNumber.from("10").pow(BigNumber.from("10"))
         ),
         moment().add(14, "days").hours(8).minutes(0).seconds(0).unix(),
-        false
+        params.isPut
       );
       receipt = await res.wait();
       events = await parseLog("IOtokenFactory", receipt.logs[1]);
@@ -262,11 +324,11 @@ function behavesLikeRibbonOptionsVault(params) {
       this.optionTerms = [
         params.asset,
         params.strikeAsset,
-        params.asset,
+        params.collateralAsset,
         secondOption.expiry.toString(),
         parseEther(params.secondOptionStrike.toString()),
-        2,
-        this.asset,
+        this.optionType,
+        params.collateralAsset,
       ];
 
       this.asset = params.asset;
@@ -277,7 +339,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       this.assetContract = await getContractAt(
         params.assetContractName,
-        this.asset
+        this.collateralAsset
       );
 
       this.airswap = await getContractAt("ISwap", SWAP_ADDRESS);
@@ -297,7 +359,9 @@ function behavesLikeRibbonOptionsVault(params) {
             params.mintConfig.contractOwnerAddress,
             addressToDeposit[i],
             this.vault.address,
-            parseEther("200")
+            params.collateralAsset == USDC_ADDRESS
+              ? BigNumber.from("10000000000000")
+              : parseEther("200")
           );
         }
       }
@@ -322,7 +386,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("reverts when deployed with 0x0 factory", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonCoveredCall",
+          "RibbonThetaVault",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -348,7 +412,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const factory = await Factory.deploy();
 
         const VaultContract = await ethers.getContractFactory(
-          "RibbonCoveredCall",
+          "RibbonThetaVault",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -372,7 +436,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("reverts when asset is 0x", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonCoveredCall",
+          "RibbonThetaVault",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -396,7 +460,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("reverts when decimals is 0", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonCoveredCall",
+          "RibbonThetaVault",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -420,7 +484,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("reverts when minimumSupply is 0", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonCoveredCall",
+          "RibbonThetaVault",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -444,7 +508,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("sets the correct asset, decimals and minimum supply", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonCoveredCall",
+          "RibbonThetaVault",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -453,6 +517,7 @@ function behavesLikeRibbonOptionsVault(params) {
         );
 
         const asset = params.asset;
+        const collateralAsset = params.collateralAsset;
         const decimals = 6;
         const minSupply = BigNumber.from("10").pow("6").toString();
 
@@ -467,22 +532,22 @@ function behavesLikeRibbonOptionsVault(params) {
           this.isPut
         );
         assert.equal(await vault.decimals(), decimals);
-        assert.equal(await vault.asset(), asset);
+        assert.equal(await vault.asset(), collateralAsset);
         assert.equal(await vault.MINIMUM_SUPPLY(), minSupply);
       });
     });
 
     describe("#initialize", () => {
       time.revertToSnapshotAfterEach(async function () {
-        const RibbonCoveredCall = await ethers.getContractFactory(
-          "RibbonCoveredCall",
+        const RibbonThetaVault = await ethers.getContractFactory(
+          "RibbonThetaVault",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
             },
           }
         );
-        this.testVault = await RibbonCoveredCall.deploy(
+        this.testVault = await RibbonThetaVault.deploy(
           this.asset,
           this.factory.address,
           WETH_ADDRESS,
@@ -498,7 +563,7 @@ function behavesLikeRibbonOptionsVault(params) {
         assert.equal((await this.vault.cap()).toString(), parseEther("500"));
         assert.equal(await this.vault.owner(), owner);
         assert.equal(await this.vault.feeRecipient(), feeRecipient);
-        assert.equal(await this.vault.asset(), this.asset);
+        assert.equal(await this.vault.asset(), this.collateralAsset);
         assert.equal(
           (await this.vault.instantWithdrawalFee()).toString(),
           parseEther("0.005").toString()
@@ -583,7 +648,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
     describe("#asset", () => {
       it("returns the asset", async function () {
-        assert.equal(await this.vault.asset(), this.asset);
+        assert.equal(await this.vault.asset(), this.collateralAsset);
       });
     });
 
@@ -651,7 +716,7 @@ function behavesLikeRibbonOptionsVault(params) {
     });
 
     // Only apply to when assets is WETH
-    if (params.asset === WETH_ADDRESS) {
+    if (params.collateralAsset === WETH_ADDRESS) {
       describe("#depositETH", () => {
         time.revertToSnapshotAfterEach();
 
@@ -790,7 +855,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       beforeEach(async function () {
         // Deposit only if asset is WETH
-        if (params.asset === WETH_ADDRESS) {
+        if (params.collateralAsset === WETH_ADDRESS) {
           const addressToDeposit = [
             userSigner,
             managerSigner,
@@ -807,7 +872,7 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("deposits successfully", async function () {
-        const depositAmount = parseEther("1");
+        const depositAmount = BigNumber.from("100000000000");
 
         await this.assetContract
           .connect(userSigner)
@@ -831,65 +896,68 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("consumes less than 100k gas in ideal scenario", async function () {
-        await this.vault.connect(managerSigner).deposit(parseEther("0.1"));
+        const depositAmount = BigNumber.from("100000000000");
+        await this.vault.connect(managerSigner).deposit(depositAmount);
 
-        const res = await this.vault.deposit(parseEther("0.1"));
+        const res = await this.vault.deposit(depositAmount);
         const receipt = await res.wait();
         console.log(receipt.gasUsed.toNumber());
         assert.isAtMost(receipt.gasUsed.toNumber(), 100000);
       });
 
       it("returns the correct number of shares back", async function () {
+        const depositAmount = BigNumber.from("100000000000");
         // first user gets 3 shares
-        await this.vault.connect(userSigner).deposit(parseEther("3"));
+        await this.vault.connect(userSigner).deposit(depositAmount);
         assert.equal(
           (await this.vault.balanceOf(user)).toString(),
-          parseEther("3")
+          depositAmount
         );
 
         // simulate the vault accumulating more WETH
         await this.assetContract
           .connect(userSigner)
-          .transfer(this.vault.address, parseEther("1"));
+          .transfer(this.vault.address, depositAmount);
 
         assert.equal(
           (await this.vault.totalBalance()).toString(),
-          parseEther("4")
+          depositAmount.add(depositAmount)
         );
 
         // formula:
         // (depositAmount * totalSupply) / total
-        // (1 * 3) / 4 = 0.75 shares
+        // (1 * 1) / 2 = 0.5 shares
         const res = await this.vault
           .connect(counterpartySigner)
-          .deposit(parseEther("1"));
+          .deposit(depositAmount);
         assert.equal(
           (await this.vault.balanceOf(counterparty)).toString(),
-          parseEther("0.75")
+          BigNumber.from("50000000000")
         );
         await expect(res)
           .to.emit(this.vault, "Deposit")
-          .withArgs(counterparty, parseEther("1"), parseEther("0.75"));
+          .withArgs(counterparty, depositAmount, BigNumber.from("50000000000"));
       });
 
       it("accounts for the amounts that are locked", async function () {
+        const depositAmount = BigNumber.from("100000000000");
         // first user gets 3 shares
-        await this.vault.connect(userSigner).deposit(parseEther("3"));
+        await this.vault.connect(userSigner).deposit(depositAmount);
 
         // simulate the vault accumulating more WETH
         await this.assetContract
           .connect(userSigner)
-          .transfer(this.vault.address, parseEther("1"));
+          .transfer(this.vault.address, depositAmount);
 
         await this.rollToNextOption();
 
         // formula:
         // (depositAmount * totalSupply) / total
-        // (1 * 3) / 4 = 0.75 shares
-        await this.vault.connect(counterpartySigner).deposit(parseEther("1"));
+        // (1 * 1) / 2 = 0.5 shares
+        await this.vault.connect(counterpartySigner).deposit(depositAmount);
         assert.equal(
           (await this.vault.balanceOf(counterparty)).toString(),
-          parseEther("0.75")
+          BigNumber.from("50000000000")
         );
       });
 
@@ -900,11 +968,15 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("does not inflate the share tokens on initialization", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+
         await this.assetContract
           .connect(adminSigner)
-          .transfer(this.vault.address, parseEther("10"));
+          .transfer(this.vault.address, depositAmount);
 
-        await this.vault.connect(userSigner).deposit(parseEther("1"));
+        await this.vault
+          .connect(userSigner)
+          .deposit(BigNumber.from("10000000000"));
 
         // user needs to get back exactly 1 ether
         // even though the total has been incremented
@@ -976,10 +1048,10 @@ function behavesLikeRibbonOptionsVault(params) {
         const optionTerms = [
           params.asset,
           params.strikeAsset,
-          params.asset,
+          params.collateralAsset,
           "1610697601",
           parseEther("1480"),
-          2,
+          this.optionType,
           params.asset,
         ];
 
@@ -993,14 +1065,15 @@ function behavesLikeRibbonOptionsVault(params) {
         const strike = params.strikeAsset;
         const strikePrice = parseEther("50000");
         const expiry = secondOption.expiry.toString();
-        const isPut = false;
+        const isPut = params.isPut;
+        const collateral = isPut ? params.collateralAsset : underlying;
 
-        await whitelistProduct(underlying, strike, underlying, false);
+        await whitelistProduct(underlying, strike, collateral, isPut);
 
         await this.oTokenFactory.createOtoken(
           underlying,
           strike,
-          underlying,
+          collateral,
           strikePrice.div(BigNumber.from("10").pow(BigNumber.from("10"))),
           expiry,
           isPut
@@ -1009,10 +1082,10 @@ function behavesLikeRibbonOptionsVault(params) {
         const optionTerms = [
           underlying,
           strike,
-          underlying,
+          collateral,
           expiry,
           strikePrice,
-          2,
+          this.optionType,
           params.strikeAsset,
         ];
 
@@ -1024,16 +1097,17 @@ function behavesLikeRibbonOptionsVault(params) {
       it("reverts when the strike is not USDC", async function () {
         const underlying = params.asset;
         const strike = params.wrongStrikeAsset;
+        const collateral = params.collateralAsset;
         const strikePrice = parseEther("50000");
         const expiry = secondOption.expiry.toString();
-        const isPut = false;
+        const isPut = params.isPut;
 
-        await whitelistProduct(underlying, strike, underlying, false);
+        await whitelistProduct(underlying, strike, collateral, isPut);
 
         await this.oTokenFactory.createOtoken(
           underlying,
           strike,
-          underlying,
+          collateral,
           strikePrice.div(BigNumber.from("10").pow(BigNumber.from("10"))),
           expiry,
           isPut
@@ -1042,10 +1116,10 @@ function behavesLikeRibbonOptionsVault(params) {
         const optionTerms = [
           underlying,
           strike,
-          underlying,
+          collateral,
           expiry,
           strikePrice,
-          2,
+          this.optionType,
           params.strikeAsset,
         ];
 
@@ -1092,8 +1166,9 @@ function behavesLikeRibbonOptionsVault(params) {
 
         const underlying = params.asset;
         const strike = params.strikeAsset;
+        const collateral = params.collateralAsset;
         const strikePrice = parseEther(params.firstOptionStrike.toString());
-        const isPut = false;
+        const isPut = params.isPut;
 
         let expiryDate;
 
@@ -1121,7 +1196,7 @@ function behavesLikeRibbonOptionsVault(params) {
         await this.oTokenFactory.createOtoken(
           underlying,
           strike,
-          underlying,
+          collateral,
           strikePrice.div(BigNumber.from("10").pow(BigNumber.from("10"))),
           expiry,
           isPut
@@ -1133,10 +1208,10 @@ function behavesLikeRibbonOptionsVault(params) {
         const optionTerms = [
           underlying,
           strike,
-          underlying,
+          collateral,
           expiry,
           strikePrice,
-          2,
+          this.optionType,
           params.strikeAsset,
         ];
 
@@ -1168,10 +1243,10 @@ function behavesLikeRibbonOptionsVault(params) {
           .commitAndClose([
             params.asset,
             params.strikeAsset,
-            params.asset,
+            params.collateralAsset,
             firstOption.expiry.toString(),
             parseEther(params.firstOptionStrike.toString()),
-            2,
+            this.optionType,
             params.asset,
           ]);
 
@@ -1180,10 +1255,10 @@ function behavesLikeRibbonOptionsVault(params) {
           .commitAndClose([
             params.asset,
             params.strikeAsset,
-            params.asset,
+            params.collateralAsset,
             secondOption.expiry.toString(),
             parseEther(params.secondOptionStrike.toString()),
-            2,
+            this.optionType,
             params.asset,
           ]);
       });
@@ -1191,11 +1266,15 @@ function behavesLikeRibbonOptionsVault(params) {
 
     describe("#closeShort", () => {
       time.revertToSnapshotAfterEach(async function () {
-        await depositIntoVault(params.asset, this.vault, this.depositAmount);
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          this.depositAmount
+        );
 
         this.oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
 
-        if (params.asset === WETH_ADDRESS) {
+        if (params.collateralAsset === WETH_ADDRESS) {
           const weth = this.assetContract.connect(counterpartySigner);
           await weth.deposit({ value: this.premium });
           await weth.approve(SWAP_ADDRESS, this.premium);
@@ -1250,12 +1329,15 @@ function behavesLikeRibbonOptionsVault(params) {
           params.asset,
           this.oracle,
           await this.vault.currentOptionExpiry(),
-          BigNumber.from("148000000000").sub(BigNumber.from("1"))
+          this.isPut
+            ? BigNumber.from("7780000000000")
+            : BigNumber.from("148000000000").sub(BigNumber.from("1"))
         );
 
         const closeTx = await this.vault.closeShort();
 
         assert.isTrue((await this.vault.lockedAmount()).isZero());
+
         assert.equal(
           (await this.vault.totalBalance()).toString(),
           this.depositAmount
@@ -1273,15 +1355,33 @@ function behavesLikeRibbonOptionsVault(params) {
 
     describe("#rollToNextOption", () => {
       time.revertToSnapshotAfterEach(async function () {
-        this.expectedMintAmount = BigNumber.from("90000000");
+        const lockedAmount = wmul(this.depositAmount, LOCKED_RATIO).toString();
+        this.sellAmount = params.expectedMintAmount;
+        if (this.isPut) {
+          this.actualMintAmount = BigNumber.from(lockedAmount)
+            .div(params.secondOptionStrike.toString())
+            .mul(BigNumber.from("100000000"))
+            .div(BigNumber.from("1000000"))
+            .toString();
+        } else {
+          if (this.collateralAsset === WETH_ADDRESS) {
+            this.actualMintAmount = BigNumber.from(lockedAmount).div(
+              BigNumber.from("10000000000")
+            );
+          } else {
+            this.actualMintAmount = lockedAmount;
+          }
+        }
 
-        await depositIntoVault(params.asset, this.vault, this.depositAmount);
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          this.depositAmount
+        );
 
         this.oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
 
-        this.sellAmount = BigNumber.from("90000000");
-
-        if (params.asset === WETH_ADDRESS) {
+        if (params.collateralAsset === WETH_ADDRESS) {
           const weth = this.assetContract.connect(counterpartySigner);
           await weth.deposit({ value: this.premium });
           await weth.approve(SWAP_ADDRESS, this.premium);
@@ -1367,6 +1467,11 @@ function behavesLikeRibbonOptionsVault(params) {
         );
 
         assert.equal(
+          this.expectedMintAmount.toString(),
+          this.actualMintAmount.toString()
+        );
+
+        assert.equal(
           (await this.oToken.balanceOf(this.vault.address)).toString(),
           this.expectedMintAmount.toString()
         );
@@ -1389,10 +1494,10 @@ function behavesLikeRibbonOptionsVault(params) {
           .commitAndClose([
             params.asset,
             params.strikeAsset,
-            params.asset,
+            params.collateralAsset,
             firstOption.expiry.toString(),
             parseEther(params.firstOptionStrike.toString()),
-            2,
+            this.optionType,
             params.asset,
           ]);
 
@@ -1423,10 +1528,10 @@ function behavesLikeRibbonOptionsVault(params) {
             .commitAndClose([
               params.asset,
               params.strikeAsset,
-              params.asset,
+              params.collateralAsset,
               secondOption.expiry.toString(),
               parseEther(params.secondOptionStrike.toString()),
-              2,
+              this.optionType,
               params.asset,
             ])
         ).to.be.revertedWith("Cannot close short before expiry");
@@ -1441,10 +1546,10 @@ function behavesLikeRibbonOptionsVault(params) {
           .commitAndClose([
             params.asset,
             params.strikeAsset,
-            params.asset,
+            params.collateralAsset,
             firstOption.expiry.toString(),
             parseEther(params.firstOptionStrike.toString()),
-            2,
+            this.optionType,
             params.asset,
           ]);
         await time.increaseTo(
@@ -1475,7 +1580,7 @@ function behavesLikeRibbonOptionsVault(params) {
           counterpartyAddress: counterparty,
           signerPrivateKey: this.counterpartyWallet.privateKey,
           sellToken: firstOptionAddress,
-          buyToken: params.asset,
+          buyToken: params.collateralAsset,
           sellAmount: this.sellAmount.toString(),
           buyAmount: this.premium.toString(),
         });
@@ -1488,12 +1593,24 @@ function behavesLikeRibbonOptionsVault(params) {
           wmul(this.depositAmount, WITHDRAWAL_BUFFER).add(this.premium)
         );
 
+        const settlementPriceITM = this.isPut
+          ? parseEther(params.firstOptionStrike.toString())
+              .div(BigNumber.from("10").pow(BigNumber.from("10")))
+              .sub(1)
+          : parseEther(params.firstOptionStrike.toString())
+              .div(BigNumber.from("10").pow(BigNumber.from("10")))
+              .add(1);
+
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
           this.oracle,
           await this.vault.currentOptionExpiry(),
-          BigNumber.from("148000000000").sub(BigNumber.from("1"))
+          settlementPriceITM
+        );
+
+        const beforeBalance = await this.assetContract.balanceOf(
+          this.vault.address
         );
 
         const firstCloseTx = await this.vault
@@ -1501,24 +1618,39 @@ function behavesLikeRibbonOptionsVault(params) {
           .commitAndClose([
             params.asset,
             params.strikeAsset,
-            params.asset,
+            params.collateralAsset,
             secondOption.expiry.toString(),
             parseEther(params.secondOptionStrike.toString()),
-            2,
+            this.optionType,
             params.asset,
           ]);
+
+        const afterBalance = await this.assetContract.balanceOf(
+          this.vault.address
+        );
+
+        // test that the vault's balance decreased after closing short when ITM
+        assert.isAbove(
+          parseInt(wmul(this.depositAmount, LOCKED_RATIO).toString()),
+          parseInt(BigNumber.from(afterBalance).sub(beforeBalance).toString())
+        );
 
         await expect(firstCloseTx)
           .to.emit(this.vault, "CloseShort")
           .withArgs(
             firstOptionAddress,
-            wmul(this.depositAmount, LOCKED_RATIO),
+            BigNumber.from(afterBalance).sub(beforeBalance),
             manager
           );
 
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
         );
+
+        const currBalance = await this.assetContract.balanceOf(
+          this.vault.address
+        );
+        const mintAmount = wmul(currBalance, LOCKED_RATIO).toString();
 
         const secondTx = await this.vault
           .connect(managerSigner)
@@ -1532,15 +1664,11 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await expect(secondTx)
           .to.emit(this.vault, "OpenShort")
-          .withArgs(
-            secondOptionAddress,
-            wmul(this.depositAmount.add(this.premium), LOCKED_RATIO),
-            manager
-          );
+          .withArgs(secondOptionAddress, mintAmount, manager);
 
         assert.equal(
           (await this.assetContract.balanceOf(this.vault.address)).toString(),
-          wmul(this.depositAmount.add(this.premium), WITHDRAWAL_BUFFER)
+          wmul(currBalance, WITHDRAWAL_BUFFER).toString()
         );
       });
 
@@ -1553,11 +1681,11 @@ function behavesLikeRibbonOptionsVault(params) {
           .commitAndClose([
             params.asset,
             params.strikeAsset,
-            params.asset,
+            params.collateralAsset,
             firstOption.expiry.toString(),
             parseEther(params.firstOptionStrike.toString()),
-            2,
-            params.asset,
+            this.optionType,
+            params.collateralAsset,
           ]);
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
@@ -1581,7 +1709,7 @@ function behavesLikeRibbonOptionsVault(params) {
           counterpartyAddress: counterparty,
           signerPrivateKey: this.counterpartyWallet.privateKey,
           sellToken: firstOptionAddress,
-          buyToken: params.asset,
+          buyToken: params.collateralAsset,
           sellAmount: this.sellAmount.toString(),
           buyAmount: this.premium.toString(),
         });
@@ -1594,12 +1722,24 @@ function behavesLikeRibbonOptionsVault(params) {
           wmul(this.depositAmount, WITHDRAWAL_BUFFER).add(this.premium)
         );
 
+        const settlementPriceOTM = this.isPut
+          ? parseEther(params.firstOptionStrike.toString())
+              .div(BigNumber.from("10").pow(BigNumber.from("10")))
+              .add(1)
+          : parseEther(params.firstOptionStrike.toString())
+              .div(BigNumber.from("10").pow(BigNumber.from("10")))
+              .sub(1);
+
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
           this.oracle,
           await this.vault.currentOptionExpiry(),
-          BigNumber.from("160000000000")
+          settlementPriceOTM
+        );
+
+        const beforeBalance = await this.assetContract.balanceOf(
+          this.vault.address
         );
 
         const firstCloseTx = await this.vault
@@ -1607,18 +1747,27 @@ function behavesLikeRibbonOptionsVault(params) {
           .commitAndClose([
             params.asset,
             params.strikeAsset,
-            params.asset,
+            params.collateralAsset,
             secondOption.expiry.toString(),
             parseEther(params.secondOptionStrike.toString()),
-            2,
-            params.asset,
+            this.optionType,
+            params.collateralAsset,
           ]);
+
+        const afterBalance = await this.assetContract.balanceOf(
+          this.vault.address
+        );
+        // test that the vault's balance decreased after closing short when ITM
+        assert.equal(
+          parseInt(wmul(this.depositAmount, LOCKED_RATIO).toString()),
+          parseInt(BigNumber.from(afterBalance).sub(beforeBalance).toString())
+        );
 
         await expect(firstCloseTx)
           .to.emit(this.vault, "CloseShort")
           .withArgs(
             firstOptionAddress,
-            wmul(this.depositAmount, LOCKED_RATIO),
+            BigNumber.from(afterBalance).sub(beforeBalance),
             manager
           );
 
@@ -1657,10 +1806,10 @@ function behavesLikeRibbonOptionsVault(params) {
           .commitAndClose([
             params.asset,
             params.strikeAsset,
-            params.asset,
+            params.collateralAsset,
             firstOption.expiry.toString(),
             parseEther(params.firstOptionStrike.toString()),
-            2,
+            this.optionType,
             params.asset,
           ]);
         await time.increaseTo(
@@ -1694,18 +1843,23 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("withdraws locked funds by closing short", async function () {
-        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+        const depositAmount = BigNumber.from("1000000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
 
         await this.rollToNextOption();
         assert.equal(
           (await this.vault.assetBalance()).toString(),
-          parseEther("0.1")
+          BigNumber.from("100000000000")
         );
         // this assumes that we found a way to get back the otokens
         await this.vault.connect(managerSigner).emergencyWithdrawFromShort();
         assert.equal(
           (await this.vault.assetBalance()).toString(),
-          parseEther("1")
+          depositAmount
         );
         assert.equal(
           (await this.oToken.balanceOf(this.vault.address)).toString(),
@@ -1716,19 +1870,19 @@ function behavesLikeRibbonOptionsVault(params) {
         assert.isTrue((await this.vault.lockedAmount()).isZero());
         assert.equal(
           (await this.vault.totalBalance()).toString(),
-          parseEther("1")
+          depositAmount
         ); // has to be same as initial amount
       });
     });
 
     describe("#sellOptions", () => {
       time.revertToSnapshotAfterEach(async function () {
-        this.premium = parseEther("0.1");
-        this.depositAmount = parseEther("1");
-        this.sellAmount = BigNumber.from("90000000");
+        this.premium = BigNumber.from("100000000000");
+        this.depositAmount = BigNumber.from("1000000000000");
+        this.sellAmount = BigNumber.from("9");
 
         // Deposit counter party with asset
-        if (params.asset === WETH_ADDRESS) {
+        if (params.collateralAsset === WETH_ADDRESS) {
           const weth = this.assetContract.connect(counterpartySigner);
           await weth.deposit({ value: this.premium });
           await weth.approve(SWAP_ADDRESS, this.premium);
@@ -1742,7 +1896,11 @@ function behavesLikeRibbonOptionsVault(params) {
           );
         }
 
-        await depositIntoVault(params.asset, this.vault, this.depositAmount);
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          this.depositAmount
+        );
 
         await this.rollToNextOption();
       });
@@ -1760,7 +1918,7 @@ function behavesLikeRibbonOptionsVault(params) {
           counterpartyAddress: counterparty,
           signerPrivateKey: this.counterpartyWallet.privateKey,
           sellToken: this.oTokenAddress,
-          buyToken: params.asset,
+          buyToken: params.collateralAsset,
           sellAmount: this.sellAmount.toString(),
           buyAmount: this.premium.toString(),
         });
@@ -1843,9 +2001,13 @@ function behavesLikeRibbonOptionsVault(params) {
 
     describe("#assetBalance", () => {
       time.revertToSnapshotAfterEach(async function () {
-        this.depositAmount = parseEther("1");
+        this.depositAmount = BigNumber.from("100000000000");
 
-        await depositIntoVault(params.asset, this.vault, this.depositAmount);
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          this.depositAmount
+        );
 
         assert.equal(
           (await this.vault.totalSupply()).toString(),
@@ -1863,9 +2025,14 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("returns the free balance - locked, if free > locked", async function () {
-        await depositIntoVault(params.asset, this.vault, parseEther("10"));
+        const depositAmount = BigNumber.from("1000000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
 
-        const freeAmount = parseEther("10").add(
+        const freeAmount = depositAmount.add(
           wmul(this.depositAmount, parseEther("0.1"))
         );
 
@@ -1873,7 +2040,7 @@ function behavesLikeRibbonOptionsVault(params) {
       });
     });
 
-    if (params.asset === WETH_ADDRESS) {
+    if (params.collateralAsset === WETH_ADDRESS) {
       describe("#withdrawETH", () => {
         time.revertToSnapshotAfterEach();
 
@@ -2058,24 +2225,30 @@ function behavesLikeRibbonOptionsVault(params) {
       time.revertToSnapshotAfterEach();
 
       it("returns the correct withdrawal amount", async function () {
-        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          BigNumber.from("100000000000")
+        );
 
         const balanceBeforeWithdraw = await this.assetContract.balanceOf(user);
 
         const [
           withdrawAmount,
           feeAmount,
-        ] = await this.vault.withdrawAmountWithShares(parseEther("0.1"));
+        ] = await this.vault.withdrawAmountWithShares(
+          BigNumber.from("10000000000")
+        );
 
-        assert.equal(withdrawAmount.toString(), parseEther("0.0995"));
-        assert.equal(feeAmount.toString(), parseEther("0.0005"));
+        assert.equal(withdrawAmount.toString(), BigNumber.from("9950000000"));
+        assert.equal(feeAmount.toString(), BigNumber.from("50000000"));
 
-        await this.vault.withdraw(parseEther("0.1"));
+        await this.vault.withdraw(BigNumber.from("10000000000"));
 
         // End balance should be start balance + withdraw amount
         assert.equal(
-          (await this.assetContract.balanceOf(user)).toString(),
-          balanceBeforeWithdraw.add(withdrawAmount)
+          parseInt(await this.assetContract.balanceOf(user)).toString(),
+          parseInt(balanceBeforeWithdraw.add(withdrawAmount)).toString()
         );
       });
     });
@@ -2084,13 +2257,17 @@ function behavesLikeRibbonOptionsVault(params) {
       time.revertToSnapshotAfterEach();
 
       it("returns the max withdrawable amount when the withdrawal amount is more than available", async function () {
-        const depositAmount = parseEther("1");
+        const depositAmount = BigNumber.from("100000000000");
 
         const minWithdrawAmount = depositAmount.sub(
           await this.vault.MINIMUM_SUPPLY()
         );
 
-        await depositIntoVault(params.asset, this.vault, depositAmount);
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
 
         assert.equal(
           (await this.vault.maxWithdrawAmount(user)).toString(),
@@ -2101,16 +2278,21 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("returns the max withdrawable amount", async function () {
+        const depositAmount = BigNumber.from("900000000000");
         await depositIntoVault(
-          params.asset,
+          params.collateralAsset,
           this.vault.connect(managerSigner),
-          parseEther("9")
+          depositAmount
         );
-        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          BigNumber.from("100000000000")
+        );
 
         assert.equal(
           (await this.vault.maxWithdrawAmount(user)).toString(),
-          parseEther("0.995").toString()
+          BigNumber.from("99500000000").toString()
         );
       });
     });
@@ -2119,13 +2301,16 @@ function behavesLikeRibbonOptionsVault(params) {
       time.revertToSnapshotAfterEach();
 
       it("returns the max shares withdrawable of the system", async function () {
-        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
 
         assert.equal(
           (await this.vault.maxWithdrawableShares()).toString(),
-          parseEther("1")
-            .sub(await this.vault.MINIMUM_SUPPLY())
-            .toString()
+          depositAmount.sub(await this.vault.MINIMUM_SUPPLY()).toString()
         );
       });
     });
@@ -2134,28 +2319,33 @@ function behavesLikeRibbonOptionsVault(params) {
       time.revertToSnapshotAfterEach();
 
       it("returns the ETH balance of the account in the vault", async function () {
-        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
 
         // Will be exactly the same number of Ether deposited initiall
         assert.equal(
           (await this.vault.accountVaultBalance(user)).toString(),
-          parseEther("1")
+          depositAmount
         );
 
         // simulate the vault accumulating more WETH
-        if (params.asset === WETH_ADDRESS) {
+        if (params.collateralAsset === WETH_ADDRESS) {
           await this.assetContract
             .connect(userSigner)
             .deposit({ value: parseEther("1") });
         }
         await this.assetContract
           .connect(userSigner)
-          .transfer(this.vault.address, parseEther("1"));
+          .transfer(this.vault.address, depositAmount);
 
         // User should be entitled to withdraw 2 ETH because the vault's balance expanded by 1 ETH
         assert.equal(
           (await this.vault.accountVaultBalance(user)).toString(),
-          parseEther("2")
+          depositAmount.add(depositAmount)
         );
       });
     });
@@ -2164,28 +2354,37 @@ function behavesLikeRibbonOptionsVault(params) {
       time.revertToSnapshotAfterEach();
 
       it("should return the correct number of shares", async function () {
-        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
 
         // Will be exactly the same number of Ether deposited initially
         assert.equal(
-          (await this.vault.assetAmountToShares(parseEther("1"))).toString(),
-          parseEther("1")
+          (await this.vault.assetAmountToShares(depositAmount)).toString(),
+          depositAmount
         );
 
         // simulate the vault accumulating more WETH
-        if (params.asset === WETH_ADDRESS) {
+        if (params.collateralAsset === WETH_ADDRESS) {
           await this.assetContract
             .connect(userSigner)
             .deposit({ value: parseEther("1") });
         }
         await this.assetContract
           .connect(userSigner)
-          .transfer(this.vault.address, parseEther("1"));
+          .transfer(this.vault.address, depositAmount);
 
         // User should be able to withdraw 2 ETH with 1 share
         assert.equal(
-          (await this.vault.assetAmountToShares(parseEther("2"))).toString(),
-          parseEther("1")
+          (
+            await this.vault.assetAmountToShares(
+              depositAmount.add(depositAmount)
+            )
+          ).toString(),
+          depositAmount
         );
       });
     });
@@ -2194,33 +2393,48 @@ function behavesLikeRibbonOptionsVault(params) {
       time.revertToSnapshotAfterEach();
 
       it("reverts when withdrawing more than balance", async function () {
-        await depositIntoVault(params.asset, this.vault, parseEther("10"));
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
 
         await this.rollToNextOption();
 
-        await expect(this.vault.withdraw(parseEther("2"))).to.be.revertedWith(
-          "Cannot withdraw more than available"
-        );
+        await expect(
+          this.vault.withdraw(BigNumber.from("20000000000"))
+        ).to.be.revertedWith("Cannot withdraw more than available");
       });
 
       it("should withdraw funds, sending withdrawal fee to feeRecipient", async function () {
-        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
 
         const balanceBeforeWithdraw = await this.assetContract.balanceOf(user);
 
-        await this.vault.withdraw(parseEther("0.1"));
+        await this.vault.withdraw(BigNumber.from("10000000000"));
         assert.equal(
           (await this.assetContract.balanceOf(user)).toString(),
-          balanceBeforeWithdraw.add(parseEther("0.0995"))
+          balanceBeforeWithdraw.add(BigNumber.from("9950000000"))
         );
       });
 
       it("should withdraw funds, sending withdrawal fee to feeRecipient if <10%", async function () {
-        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
 
         const startAssetBalance = await this.assetContract.balanceOf(user);
 
-        const res = await this.vault.withdraw(parseEther("0.1"), {
+        const res = await this.vault.withdraw(BigNumber.from("10000000000"), {
           gasPrice,
         });
         await res.wait();
@@ -2228,71 +2442,87 @@ function behavesLikeRibbonOptionsVault(params) {
         // Fee is sent to feeRecipient
         assert.equal(
           (await this.assetContract.balanceOf(this.vault.address)).toString(),
-          parseEther("0.9").toString()
+          BigNumber.from("90000000000").toString()
         );
 
         assert.equal(
           (await this.assetContract.balanceOf(feeRecipient)).toString(),
-          parseEther("0.0005").toString()
+          BigNumber.from("50000000").toString()
         );
 
         assert.equal(
           (await this.assetContract.balanceOf(user))
             .sub(startAssetBalance)
             .toString(),
-          parseEther("0.0995").toString()
+          BigNumber.from("9950000000").toString()
         );
 
         // Share amount is burned
         assert.equal(
           (await this.vault.balanceOf(user)).toString(),
-          parseEther("0.9")
+          BigNumber.from("90000000000")
         );
 
         assert.equal(
           (await this.vault.totalSupply()).toString(),
-          parseEther("0.9")
+          BigNumber.from("90000000000")
         );
 
         await expect(res)
           .to.emit(this.vault, "Withdraw")
           .withArgs(
             user,
-            parseEther("0.0995"),
-            parseEther("0.1"),
-            parseEther("0.0005")
+            BigNumber.from("9950000000"),
+            BigNumber.from("10000000000"),
+            BigNumber.from("50000000")
           );
       });
 
       it("should withdraw funds up to 10% of pool", async function () {
-        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+        const depositAmount = BigNumber.from("100000000000");
+
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
 
         // simulate the vault accumulating more WETH
-        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
 
         assert.equal(
           (await this.vault.assetBalance()).toString(),
-          parseEther("2").toString()
+          depositAmount.add(depositAmount).toString()
         );
 
-        const tx = await this.vault.withdraw(parseEther("0.1"));
+        const tx = await this.vault.withdraw(BigNumber.from("10000000000"));
         const receipt = await tx.wait();
         assert.isAtMost(receipt.gasUsed.toNumber(), 150000);
       });
 
       it("should only withdraw original deposit amount minus fees if vault doesn't expand", async function () {
-        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+        const depositAmount = BigNumber.from("100000000000");
+
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
 
         const startETHBalance = await this.assetContract.balanceOf(user);
 
         await depositIntoVault(
-          params.asset,
+          params.collateralAsset,
           this.vault.connect(counterpartySigner),
-          parseEther("10")
+          BigNumber.from("1000000000000")
         );
 
         // As the pool expands, using 1 pool share will redeem more amount of collateral
-        const res = await this.vault.withdraw(parseEther("1"), {
+        const res = await this.vault.withdraw(depositAmount, {
           gasPrice,
         });
         await res.wait();
@@ -2301,29 +2531,35 @@ function behavesLikeRibbonOptionsVault(params) {
           (await this.assetContract.balanceOf(user))
             .sub(startETHBalance)
             .toString(),
-          parseEther("0.995").toString()
+          BigNumber.from("99500000000").toString()
         );
       });
 
       it("should withdraw more collateral when the balance increases", async function () {
-        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+        const depositAmount = BigNumber.from("100000000000");
+
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
 
         const startAssetBalance = await this.assetContract.balanceOf(user);
 
         await depositIntoVault(
-          params.asset,
+          params.collateralAsset,
           this.vault.connect(counterpartySigner),
-          parseEther("10")
+          BigNumber.from("1000000000000")
         );
 
         await depositIntoVault(
-          params.asset,
+          params.collateralAsset,
           this.vault.connect(counterpartySigner),
-          parseEther("10")
+          BigNumber.from("1000000000000")
         );
 
         // As the pool expands, using 1 pool share will redeem more amount of collateral
-        const res = await this.vault.withdraw(parseEther("1"), {
+        const res = await this.vault.withdraw(depositAmount, {
           gasPrice,
         });
         await res.wait();
@@ -2332,26 +2568,38 @@ function behavesLikeRibbonOptionsVault(params) {
           (await this.assetContract.balanceOf(user))
             .sub(startAssetBalance)
             .toString(),
-          BigNumber.from("995000000000000000")
+          BigNumber.from("99500000000")
         );
       });
 
       it("should revert if not enough shares", async function () {
-        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+        const depositAmount = BigNumber.from("100000000000");
 
         await depositIntoVault(
-          params.asset,
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+
+        await depositIntoVault(
+          params.collateralAsset,
           this.vault.connect(counterpartySigner),
-          parseEther("10")
+          BigNumber.from("1000000000000")
         );
 
         await expect(
-          this.vault.withdraw(parseEther("1").add(BigNumber.from("1")))
+          this.vault.withdraw(depositAmount.add(BigNumber.from("10000000")))
         ).to.be.revertedWith("ERC20: burn amount exceeds balance");
       });
 
       it("should be able to withdraw everything from the vault, leaving behind minimum", async function () {
-        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+        const depositAmount = BigNumber.from("100000000000");
+
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
 
         // simulate setting a bad otoken
         await this.vault
@@ -2360,16 +2608,22 @@ function behavesLikeRibbonOptionsVault(params) {
 
         // users should have time to withdraw
         await this.vault.withdraw(
-          parseEther("1").sub(await this.vault.MINIMUM_SUPPLY())
+          depositAmount.sub(await this.vault.MINIMUM_SUPPLY())
         );
       });
 
       it("should revert when burning past minimum supply", async function () {
-        await depositIntoVault(params.asset, this.vault, parseEther("1"));
+        const depositAmount = BigNumber.from("10000000000");
+
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
 
         // Only 1 ether - MINIMUM_SUPPLY works
         await expect(
-          this.vault.withdraw(parseEther("1").sub(BigNumber.from("1")))
+          this.vault.withdraw(depositAmount.sub(BigNumber.from("1")))
         ).to.be.revertedWith(/Insufficient share supply/);
       });
     });
@@ -2389,12 +2643,12 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("should revert when depositing over the cap", async function () {
-        const capAmount = parseEther("1");
-        const depositAmount = parseEther("2");
+        const capAmount = BigNumber.from("100000000");
+        const depositAmount = BigNumber.from("10000000000");
         await this.vault.connect(managerSigner).setCap(capAmount);
 
         // Provide some WETH to the account
-        if (params.asset === WETH_ADDRESS) {
+        if (params.collateralAsset === WETH_ADDRESS) {
           const weth = this.assetContract.connect(userSigner);
           await weth.deposit({ value: depositAmount });
           await weth.approve(this.vault.address, depositAmount);

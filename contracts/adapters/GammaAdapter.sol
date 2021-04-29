@@ -448,8 +448,25 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
                 );
             }
         } else {
-            mintAmount = wdiv(depositAmount, optionTerms.strikePrice)
-                .mul(OTOKEN_DECIMALS)
+            // For minting puts, there will be instances where the full depositAmount will not be used for minting.
+            // This is because of an issue with precision.
+            //
+            // For ETH put options, we are calculating the mintAmount (10**8 decimals) using
+            // the depositAmount (10**18 decimals), which will result in truncation of decimals when scaling down.
+            // As a result, there will be tiny amounts of dust left behind in the Opyn vault when minting put otokens.
+            //
+            // For simplicity's sake, we do not refund the dust back to the address(this) on minting otokens.
+            // We retain the dust in the vault so the calling contract can withdraw the
+            // actual locked amount + dust at settlement.
+            //
+            // To test this behavior, we can console.log
+            // MarginCalculatorInterface(0x7A48d10f372b3D7c60f6c9770B91398e4ccfd3C7).getExcessCollateral(vault)
+            // to see how much dust (or excess collateral) is left behind.
+            mintAmount = wdiv(
+                depositAmount.mul(OTOKEN_DECIMALS),
+                optionTerms
+                    .strikePrice
+            )
                 .div(10**collateralDecimals);
         }
 

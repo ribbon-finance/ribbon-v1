@@ -7,7 +7,7 @@ const program = new Command();
 
 const { parseUnits } = ethers.utils;
 const OtokenInterface = require("../build/contracts/OtokenInterface.json");
-const RibbonCoveredCall = require("../build/contracts/RibbonCoveredCall.json");
+const RibbonThetaVault = require("../build/contracts/RibbonThetaVault.json");
 const GammaAdapter = require("../build/contracts/GammaAdapter.json");
 const deployments = require("../constants/deployments");
 const accountAddresses = require("../constants/accounts.json");
@@ -45,7 +45,7 @@ async function rollOptions() {
   }
 
   const vault = new web3.eth.Contract(
-    RibbonCoveredCall.abi,
+    RibbonThetaVault.abi,
     deployments[network].RibbonETHCoveredCall
   );
 

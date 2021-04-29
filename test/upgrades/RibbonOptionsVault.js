@@ -56,7 +56,7 @@ describe("RibbonOptionsVault Upgrade", () => {
       });
 
       this.proxy = await getContractAt("AdminUpgradeabilityProxy", THETA_VAULT);
-      this.vault = await getContractAt("RibbonCoveredCall", THETA_VAULT);
+      this.vault = await getContractAt("RibbonThetaVault", THETA_VAULT);
       this.vaultAddress = THETA_VAULT;
       this.getVaultStorage = async (index) =>
         provider.getStorageAt(this.vaultAddress, index);
@@ -252,7 +252,7 @@ describe("RibbonOptionsVault Upgrade", () => {
 
     it("performs upgrade and storage is intact", async function () {
       const VaultContract = await ethers.getContractFactory(
-        "RibbonCoveredCall",
+        "RibbonThetaVault",
         {
           libraries: {
             ProtocolAdapter: PROTOCOL_ADAPTER_LIB,

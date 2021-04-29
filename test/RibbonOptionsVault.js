@@ -49,7 +49,7 @@ const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
 
 describe("RibbonThetaVault", () => {
-  /*behavesLikeRibbonOptionsVault({
+  behavesLikeRibbonOptionsVault({
     name: `Ribbon WBTC Theta Vault`,
     tokenName: "Ribbon BTC Theta Vault",
     tokenSymbol: "rWBTC-THETA",
@@ -92,7 +92,7 @@ describe("RibbonThetaVault", () => {
     premium: parseEther("0.1"),
     tokenDecimals: 8,
     isPut: false,
-  });*/
+  });
 
   behavesLikeRibbonOptionsVault({
     name: `Ribbon WBTC Theta Vault (Put)`,

@@ -66,7 +66,7 @@ describe("RibbonThetaVault", () => {
     depositAmount: BigNumber.from("100000000"),
     premium: BigNumber.from("10000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount : BigNumber.from("90000000"),
+    expectedMintAmount: BigNumber.from("90000000"),
     isPut: false,
     mintConfig: {
       contractOwnerAddress: WBTC_OWNER_ADDRESS,
@@ -88,7 +88,7 @@ describe("RibbonThetaVault", () => {
     chainlinkPricer: CHAINLINK_WETH_PRICER,
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount : BigNumber.from("90000000"),
+    expectedMintAmount: BigNumber.from("90000000"),
     premium: parseEther("0.1"),
     tokenDecimals: 8,
     isPut: false,

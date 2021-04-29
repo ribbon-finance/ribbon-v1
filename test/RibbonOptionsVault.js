@@ -111,7 +111,7 @@ describe("RibbonThetaVault", () => {
     depositAmount: BigNumber.from("100000000"),
     premium: BigNumber.from("10000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount : BigNumber.from("3600000"),
+    expectedMintAmount: BigNumber.from("3600000"),
     isPut: true,
     mintConfig: {
       contractOwnerAddress: USDC_OWNER_ADDRESS,
@@ -134,7 +134,7 @@ describe("RibbonThetaVault", () => {
     depositAmount: BigNumber.from("100000000000"),
     premium: BigNumber.from("10000000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount : BigNumber.from("140625000"),
+    expectedMintAmount: BigNumber.from("140625000"),
     tokenDecimals: 8,
     isPut: true,
     mintConfig: {
@@ -1356,7 +1356,7 @@ function behavesLikeRibbonOptionsVault(params) {
     describe("#rollToNextOption", () => {
       time.revertToSnapshotAfterEach(async function () {
         const lockedAmount = wmul(this.depositAmount, LOCKED_RATIO).toString();
-        this.sellAmount = params.expectedMintAmount
+        this.sellAmount = params.expectedMintAmount;
         if (this.isPut) {
           this.actualMintAmount = BigNumber.from(lockedAmount)
             .div(params.secondOptionStrike.toString())

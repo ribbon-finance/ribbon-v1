@@ -14,12 +14,14 @@ import {
     OtokenInterface,
     IController,
     OracleInterface,
-    GammaTypes
+    GammaTypes,
+    MarginCalculatorInterface
 } from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {DSMath} from "../lib/DSMath.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
+import "hardhat/console.sol";
 
 contract GammaAdapter is IProtocolAdapter, DSMath {
     using SafeMath for uint256;
@@ -448,8 +450,11 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
                 );
             }
         } else {
-            mintAmount = wdiv(depositAmount, optionTerms.strikePrice)
-                .mul(OTOKEN_DECIMALS)
+            mintAmount = wdiv(
+                depositAmount.mul(OTOKEN_DECIMALS),
+                optionTerms
+                    .strikePrice
+            )
                 .div(10**collateralDecimals);
         }
 
@@ -494,6 +499,17 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         );
 
         controller.operate(actions);
+
+        MarginCalculatorInterface marginCalc =
+            MarginCalculatorInterface(
+                0x7A48d10f372b3D7c60f6c9770B91398e4ccfd3C7
+            );
+
+        GammaTypes.Vault memory vault =
+            controller.getVault(address(this), newVaultID);
+
+        (uint256 excess, ) = marginCalc.getExcessCollateral(vault);
+        console.log("mintAmount %s, excess %s", mintAmount, excess);
 
         return mintAmount;
     }

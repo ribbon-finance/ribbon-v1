@@ -33,7 +33,8 @@
             "hegicWBTCOptions":"0x755AD189d2F1Be069214FaFC2c5c73a6e3d3cCB9",
             "hegicETHPool": "0x9176a87727cCad26cF1197D5F219Fc6f7a62DEb2",
             "hegicStakingETH": "0xeF40D12C580EaFBec929B99C2D9d0e7Af87c256a",
-            "sushiswap": "0x1b02da8cb0d097eb8d57a175b88c7d8b47997506"
+            "sushiswap": "0x1b02da8cb0d097eb8d57a175b88c7d8b47997506",
+            "hegicETHOptions": "0xfe1fe48e9216d48113e347608477c47a7548bf4b"
     },
     "mainnet": {
             "otokens": [

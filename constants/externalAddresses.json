@@ -5,7 +5,7 @@
                     "eth/usd": "0x9326BFA02ADD2366b30bacB125260Af641031331",
                     "link/eth": "0xa36085f69e2889c224210f603d836748e7dc0088",
                     "usdc/eth": "0x986b5E1e1755e3C2440e960477f25201B0a8bbD4",
-                    "btc_usd": "0x7AF551B093a83e880C37a3e9937665B80fBdE5CD"
+                    "btc/usd": "0x6135b13325bfC4B00278B4abC5e20bbce2D6580e"
             },
             "assets": {
                     "dai": "0x1528F3FCc26d13F7079325Fb78D9442607781c8C",
@@ -30,7 +30,10 @@
             "zeroExExchangeV3": "0x4eacd0aF335451709e1e7B570B8Ea68EdEC8bc97",
             "multicall": "0x2cc8688c5f75e365aaeeb4ea8d6a480405a48d2a",
             "hegicStakingWBTC":"0x097681B5197749c97a4C5CCd15d30A441312657D",
-            "hegicWBTCOptions":"0x755AD189d2F1Be069214FaFC2c5c73a6e3d3cCB9"
+            "hegicWBTCOptions":"0x755AD189d2F1Be069214FaFC2c5c73a6e3d3cCB9",
+            "hegicETHPool": "0x9176a87727cCad26cF1197D5F219Fc6f7a62DEb2",
+            "hegicStakingETH": "0xeF40D12C580EaFBec929B99C2D9d0e7Af87c256a",
+            "sushiswap": "0x1b02da8cb0d097eb8d57a175b88c7d8b47997506"
     },
     "mainnet": {
             "otokens": [

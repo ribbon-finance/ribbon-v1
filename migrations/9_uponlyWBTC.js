@@ -11,7 +11,7 @@ const StakedPut = artifacts.require("StakedPut");
 const StakingETH = artifacts.require("HegicStakingETH");
 const ETHPool = artifacts.require("HegicETHPool");
 const PriceProvider = artifacts.require("FakePriceProvider");
-const ETHOptions = artifacts.require("BrokenETHOptions");
+const ETHOptions = artifacts.require("HegicETHOptions");
 const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const { constants } = require("@openzeppelin/test-helpers");
@@ -40,40 +40,33 @@ module.exports = async function (deployer, _network) {
   console.log(network);
   const networkLookup = network.replace("-fork", "");
   const { admin, owner } = ACCOUNTS[network.replace("-fork", "")];
-  //deploy wbtc options
-  //      await deployer.deploy(BTCPriceProvider, params.BTCPrice);
 
-  //await deployer.deploy(StakingWBTC, EXTERNAL_ADDRESSES[networkLookup].assets.hegic, EXTERNAL_ADDRESSES[networkLookup].assets.wbtc2);
+  await deployer.deploy(
+    StakingETH,
+    EXTERNAL_ADDRESSES[networkLookup].assets.hegic
+  );
 
-  //        await deployer.deploy(
-  //                    WBTCOptions,
-  //                    EXTERNAL_ADDRESSES[networkLookup].feeds.btc_usd,
-  //sushiswap kovan
-  //                    "0x1b02da8cb0d097eb8d57a175b88c7d8b47997506",
-  //                        EXTERNAL_ADDRESSES[networkLookup].assets.wbtc2,
-  //                            EXTERNAL_ADDRESSES[networkLookup].hegicStakingWBTC
-  //                              );
+  await deployer.deploy(
+    ETHOptions,
+    EXTERNAL_ADDRESSES[networkLookup].feeds["eth/usd"],
+    EXTERNAL_ADDRESSES[networkLookup].assets.wbtc2,
+    EXTERNAL_ADDRESSES[networkLookup].hegicStakingETH
+  );
 
-//deploy eth options
-  await deployer.deploy(ETHPool);
-//await deployer.deploy(PriceProvider, params.ETHPrice);
+  // // deploy staked put
+  await deployer.deploy(ProtocolAdapterLib);
+  await deployer.link(ProtocolAdapterLib, StakedPut);
 
+  await deployer.deploy(AmmAdapterLib);
+  await deployer.link(AmmAdapterLib, StakedPut);
 
-//deploy staked put
-//  await deployer.deploy(ProtocolAdapterLib);
-//  await deployer.link(ProtocolAdapterLib, StakedPut);
-
-//  await deployer.deploy(AmmAdapterLib);
-//  await deployer.link(AmmAdapterLib, StakedPut);
-
-//  await deployer.deploy(
-//    StakedPut,
-//    DEPLOYMENTS[networkLookup].RibbonFactory,
-//    DEPLOYMENTS[networkLookup].UniswapAdapter,
-//    EXTERNAL_ADDRESSES[networkLookup].assets.wbtc2,
-//    EXTERNAL_ADDRESSES[networkLookup].hegicWBTCOptions,
-//    EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
-//    EXTERNAL_ADDRESSES[networkLookup].feeds.btc_usd,
-//    { from: "" }
-//  );
+  await deployer.deploy(
+    StakedPut,
+    DEPLOYMENTS[networkLookup].RibbonFactory,
+    DEPLOYMENTS[networkLookup].UniswapAdapter,
+    EXTERNAL_ADDRESSES[networkLookup].assets.wbtc2,
+    EXTERNAL_ADDRESSES[networkLookup].hegicWBTCOptions,
+    EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
+    EXTERNAL_ADDRESSES[networkLookup].feeds.btc_usd
+  );
 };

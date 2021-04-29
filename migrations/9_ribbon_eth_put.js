@@ -2,8 +2,7 @@ const RibbonThetaVault = artifacts.require("RibbonThetaVault");
 const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const ProtocolAdapterLib = artifacts.require("ProtocolAdapter");
 const { encodeCall } = require("@openzeppelin/upgrades");
-const { ethers, BigNumber } = require("ethers");
-const { parseEther } = ethers.utils;
+const { BigNumber } = require("ethers");
 
 const {
   updateDeployedAddresses,
@@ -28,10 +27,9 @@ module.exports = async function (deployer, network) {
     EXTERNAL_ADDRESSES[networkLookup].assets.weth,
     EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
     EXTERNAL_ADDRESSES[networkLookup].airswapSwap,
-    6, // usdc is 6 decimals
-    // WETH: 10**18, 10**10 0.0000001
-    // WBTC: 0.000001
-    BigNumber.from("10").pow(BigNumber.from("3")).toString(), // WBTC 10**3
+    6, // USDC is 6 decimals
+    BigNumber.from("10").pow(BigNumber.from("3")).toString(),
+    true,
     { from: admin }
   );
   await updateDeployedAddresses(
@@ -47,7 +45,7 @@ module.exports = async function (deployer, network) {
     [
       owner,
       owner,
-      parseEther("1000").toString(),
+      BigNumber.from("10").pow("12").toString(), // 1,000,000 (6 leading zeros) + 6 leading zeros,
       "Ribbon ETH Theta Vault Put",
       "rETH-THETA-P",
     ]

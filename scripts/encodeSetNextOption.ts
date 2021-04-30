@@ -63,7 +63,7 @@ async function main() {
 
   let iface = new ethers.utils.Interface(vaultArtifact.abi);
 
-  const encoded = iface.encodeFunctionData("setNextOption", [optionTerms]);
+  const encoded = iface.encodeFunctionData("commitAndClose", [optionTerms]);
 
   console.log(`Encoded hex data: ${encoded}`);
 }

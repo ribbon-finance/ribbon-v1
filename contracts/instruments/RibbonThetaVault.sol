@@ -71,6 +71,14 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
+    event ScheduleWithdraw(address account, uint256 withdrawID, uint256 amount);
+
+    event ScheduledWithdrawCompleted(
+        address account,
+        uint256 withdrawID,
+        uint256 amount
+    );
+
     /**
      * @notice Initializes the contract with immutable variables
      * @param _asset is the asset used for collateral and premiums
@@ -279,9 +287,48 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Sets the next option the vault will be shorting,
-     *         and closes the existing short. This allows all the users to withdraw
-     *         if the next option is malicious.
+     * @notice Schedule a withdrawal and ensure that the new short excludes the scheduled withdrawal amount.
+     * @param shares is the number of shares to be withdrawn in the future.
+     */
+    function withdrawLater(uint256 shares) external nonReentrant {
+        uint256 _withdrawCounter = withdrawCounter.add(1);
+        require(shares > 0, "!shares");
+        require(
+            scheduledWithdrawals[msg.sender][_withdrawCounter] == 0,
+            "Scheduled withdrawal already exists"
+        );
+        withdrawCounter = _withdrawCounter;
+        queuedWithdrawShares = queuedWithdrawShares.add(shares);
+
+        scheduledWithdrawals[msg.sender][_withdrawCounter] = shares;
+    }
+
+    /**
+     * @notice Closes the scheduled withdrawal and withdraws to msg.sender.
+     * @param withdrawID is the ID used to identify the scheduled withdrawal.
+     */
+    function completeScheduledWithdrawal(uint256 withdrawID)
+        external
+        nonReentrant
+    {
+        uint256 withdrawShares = scheduledWithdrawals[msg.sender][withdrawID];
+        require(withdrawShares != 0, "Scheduled withdrawal not found");
+
+        scheduledWithdrawals[msg.sender][withdrawID] = 0;
+        queuedWithdrawShares = queuedWithdrawShares.sub(withdrawShares);
+        uint256 withdrawAmount = _withdraw(withdrawShares);
+
+        if (asset == WETH) {
+            IWETH(WETH).withdraw(withdrawAmount);
+            (bool success, ) = msg.sender.call{value: withdrawAmount}("");
+            require(success, "ETH transfer failed");
+        } else {
+            IERC20(asset).safeTransfer(msg.sender, withdrawAmount);
+        }
+    }
+
+    /**
+     * @notice Sets the next option the vault will be shorting, and closes the existing short. This allows all the users to withdraw if the next option is malicious.
      */
     function commitAndClose(
         ProtocolAdapterTypes.OptionTerms calldata optionTerms
@@ -371,8 +418,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         currentOption = newOption;
         nextOption = address(0);
 
-        uint256 currentBalance = IERC20(asset).balanceOf(address(this));
-        uint256 shortAmount = wmul(currentBalance, lockedRatio);
+        uint256 currentBalance = assetBalance();
+        (uint256 queuedWithdrawAmount, , ) =
+            _withdrawAmountWithShares(queuedWithdrawShares, currentBalance);
+        uint256 freeBalance = currentBalance.sub(queuedWithdrawAmount);
+        uint256 shortAmount = wmul(freeBalance, lockedRatio);
         lockedAmount = shortAmount;
 
         OtokenInterface otoken = OtokenInterface(newOption);

@@ -314,7 +314,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         nonReentrant
     {
         uint256 withdrawShares = scheduledWithdrawals[msg.sender][withdrawID];
-        require(withdrawShares != 0, "Scheduled withdrawal not found");
+        require(withdrawShares > 0, "Scheduled withdrawal not found");
 
         scheduledWithdrawals[msg.sender][withdrawID] = 0;
         queuedWithdrawShares = queuedWithdrawShares.sub(withdrawShares);

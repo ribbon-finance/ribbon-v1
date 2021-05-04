@@ -5,7 +5,8 @@ pragma experimental ABIEncoderV2;
 import {IProtocolAdapter, ProtocolAdapterTypes} from "./IProtocolAdapter.sol";
 
 /**
- * @notice ProtocolAdapter is used to shadow IProtocolAdapter to provide functions that delegatecall's the underlying IProtocolAdapter functions.
+ * @notice ProtocolAdapter is used to shadow IProtocolAdapter to provide functions
+ * that delegatecall's the underlying IProtocolAdapter functions.
  */
 library ProtocolAdapter {
     function delegateOptionsExist(
@@ -101,6 +102,7 @@ library ProtocolAdapter {
         (bool success, bytes memory result) =
             address(adapter).delegatecall(
                 abi.encodeWithSignature(
+                    // solhint-disable-next-line
                     "purchaseWithZeroEx((address,address,address,uint256,uint256,uint8,address),(address,address,address,address,uint256,uint256,uint256,bytes))",
                     optionTerms,
                     zeroExOrder

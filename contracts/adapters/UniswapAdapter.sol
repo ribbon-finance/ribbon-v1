@@ -250,7 +250,8 @@ contract UniswapAdapter {
     // token input should be either wbtc or eth
     // valid exchange venues are sushiswap and uniswap
     // the minWbtcAmtOut param isnt used when users pass in wbtc directly
-    // use the  expectedWbtcAmtOut and expectedDiggAmtOut functions off chain to calculate trade_amt, minWbtcAmtOut and minDiggAmtOut
+    // use the  expectedWbtcAmtOut and expectedDiggAmtOut functions
+    // off chain to calculate trade_amt, minWbtcAmtOut and minDiggAmtOut
     function buyLp(
         uint256 amt,
         uint256 tradeAmt,

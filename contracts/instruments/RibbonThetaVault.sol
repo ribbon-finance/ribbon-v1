@@ -33,7 +33,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     bool public immutable isPut;
     uint8 private immutable _decimals;
 
-    // AirSwap Swap contract https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
+    // AirSwap Swap contract
+    // https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
     ISwap public immutable SWAP_CONTRACT;
 
     // 90% locked in options protocol, 10% of the pool reserved for withdrawals
@@ -223,7 +224,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         uint256 shareSupply = totalSupply();
 
-        // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L104
+        // Following the pool share calculation from Alpha Homora:
+        // solhint-disable-next-line
+        // https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L104
         uint256 share =
             shareSupply == 0 ? amount : amount.mul(shareSupply).div(total);
 
@@ -276,7 +279,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Sets the next option the vault will be shorting, and closes the existing short. This allows all the users to withdraw if the next option is malicious.
+     * @notice Sets the next option the vault will be shorting,
+     *         and closes the existing short. This allows all the users to withdraw
+     *         if the next option is malicious.
      */
     function commitAndClose(
         ProtocolAdapterTypes.OptionTerms calldata optionTerms
@@ -290,7 +295,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Sets the next option address and the timestamp at which the admin can call `rollToNextOption` to open a short for the option.
+     * @notice Sets the next option address and the timestamp at which the
+     * admin can call `rollToNextOption` to open a short for the option.
      * @param optionTerms is the terms of the option contract
      */
     function _setNextOption(
@@ -313,7 +319,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         OtokenInterface otoken = OtokenInterface(option);
         require(otoken.isPut() == isPut, "Option type does not match");
         require(otoken.underlyingAsset() == underlying, "!asset");
-        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC"); // we just assume all options use USDC as the strike
+        // we just assume all options use USDC as the strike
+        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
 
         uint256 readyAt = block.timestamp.add(delay);
         require(
@@ -496,6 +503,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         uint256 shareSupply = totalSupply();
 
+        // solhint-disable-next-line
         // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L111
         withdrawAmount = share.mul(total).div(shareSupply);
         newAssetBalance = total.sub(withdrawAmount);
@@ -533,7 +541,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Returns the number of shares for a given `assetAmount`. Used by the frontend to calculate withdraw amounts.
+     * @notice Returns the number of shares for a given `assetAmount`.
+     *         Used by the frontend to calculate withdraw amounts.
      * @param assetAmount is the asset amount to be withdrawn
      * @return share amount
      */

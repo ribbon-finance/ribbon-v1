@@ -33,7 +33,9 @@ contract CharmAdapter is IProtocolAdapter {
     string private constant _name = "CHARM";
     bool private constant _nonFungible = false;
 
-    // UNISWAP_ROUTER is Uniswap's periphery contract for conducting trades. Using this contract is gas inefficient and should only used for convenience i.e. admin functions
+    // UNISWAP_ROUTER is Uniswap's periphery contract for conducting trades.
+    // Using this contract is gas inefficient and should only used
+    // for convenience i.e. admin functions
     address private constant UNISWAP_ROUTER =
         0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
@@ -119,9 +121,10 @@ contract CharmAdapter is IProtocolAdapter {
     }
 
     /**
-     * @notice Amount of profit made from exercising an option contract (current price - strike price). 0 if exercising out-the-money.
+     * @notice Amount of profit made from exercising an option
+     * contract (current price - strike price). 0 if exercising out-the-money.
      * @param options is the address of the options contract
-     * @param amount is the amount of tokens or options contract to exercise. Only relevant for fungle protocols like Opyn
+     * @param amount is the amount of tokens or options contract to exercise.
      */
     function exerciseProfit(
         address options,
@@ -233,8 +236,10 @@ contract CharmAdapter is IProtocolAdapter {
     /**
      * @notice Exercises the options contract.
      * @param options is the address of the options contract
-     * @param amount is the amount of tokens or options contract to exercise. Only relevant for fungle protocols like Opyn or Charm
-     * @param recipient is the account that receives the exercised profits. This is needed since the adapter holds all the positions and the msg.sender is an instrument contract.
+     * @param amount is the amount of tokens or options contract to exercise.
+     *              Only relevant for fungle protocols like Opyn or Charm
+     * @param recipient is the account that receives the exercised profits.
+     * This is needed since the adapter holds all the positions and the msg.sender is an instrument contract.
      */
     function exercise(
         address options,
@@ -327,7 +332,8 @@ contract CharmAdapter is IProtocolAdapter {
      *         This simplifies the payout of an option. Put options pay out in USDC, so we swap USDC back
      *         into WETH and transfer it to the recipient.
      * @param baseToken is the base token of the market
-     * @param profitInBaseToken is the profit after exercising denominated in the base token - this could be a token with different decimals
+     * @param profitInBaseToken is the profit after exercising denominated in the base token
+     *                          - this could be a token with different decimals
      * @param recipient is the recipient of the underlying tokens after the swap
      */
     function _swapExercisedProfitsToUnderlying(

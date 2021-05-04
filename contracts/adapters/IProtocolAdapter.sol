@@ -13,12 +13,15 @@ library ProtocolAdapterTypes {
     /**
      * @notice Terms of an options contract
      * @param underlying is the underlying asset of the options. E.g. For ETH $800 CALL, ETH is the underlying.
-     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option. E.g. For ETH $800 CALL, USDC is the strikeAsset.
+     * @param strikeAsset is the asset used to denote the asset paid out when exercising the option.
+     *        E.g. For ETH $800 CALL, USDC is the strikeAsset.
      * @param collateralAsset is the asset used to collateralize a short position for the option.
      * @param expiry is the expiry of the option contract. Users can only exercise after expiry in Europeans.
-     * @param strikePrice is the strike price of an optio contract. E.g. For ETH $800 CALL, 800*10**18 is the USDC.
+     * @param strikePrice is the strike price of an optio contract.
+     *        E.g. For ETH $800 CALL, 800*10**18 is the USDC.
      * @param optionType is the type of option, can only be OptionType.Call or OptionType.Put
-     * @param paymentToken is the token used to purchase the option. E.g. Buy UNI/USDC CALL with WETH as the paymentToken.
+     * @param paymentToken is the token used to purchase the option.
+     *        E.g. Buy UNI/USDC CALL with WETH as the paymentToken.
      */
     struct OptionTerms {
         address underlying;
@@ -32,7 +35,8 @@ library ProtocolAdapterTypes {
 
     /**
      * @notice 0x order for purchasing otokens
-     * @param exchangeAddress [deprecated] is the address we call to conduct a 0x trade. Slither flagged this as a potential vulnerability so we hardcoded it.
+     * @param exchangeAddress [deprecated] is the address we call to conduct a 0x trade.
+     * Slither flagged this as a potential vulnerability so we hardcoded it.
      * @param buyTokenAddress is the otoken address
      * @param sellTokenAddress is the token used to purchase USDC. This is USDC most of the time.
      * @param allowanceTarget is the address the adapter needs to provide sellToken allowance to so the swap happens
@@ -123,10 +127,11 @@ interface IProtocolAdapter {
     ) external view returns (uint256 cost);
 
     /**
-     * @notice Amount of profit made from exercising an option contract (current price - strike price). 0 if exercising out-the-money.
+     * @notice Amount of profit made from exercising an option contract (current price - strike price).
+     *         0 if exercising out-the-money.
      * @param options is the address of the options contract
      * @param optionID is the ID of the option position in non fungible protocols like Hegic.
-     * @param amount is the amount of tokens or options contract to exercise. Only relevant for fungle protocols like Opyn
+     * @param amount is the amount of tokens or options contract to exercise.
      */
     function exerciseProfit(
         address options,
@@ -155,8 +160,9 @@ interface IProtocolAdapter {
      * @notice Exercises the options contract.
      * @param options is the address of the options contract
      * @param optionID is the ID of the option position in non fungible protocols like Hegic.
-     * @param amount is the amount of tokens or options contract to exercise. Only relevant for fungle protocols like Opyn
-     * @param recipient is the account that receives the exercised profits. This is needed since the adapter holds all the positions and the msg.sender is an instrument contract.
+     * @param amount is the amount of tokens or options contract to exercise.
+     * @param recipient is the account that receives the exercised profits.
+     * This is needed since the adapter holds all the positions
      */
     function exercise(
         address options,
@@ -176,7 +182,8 @@ interface IProtocolAdapter {
     ) external returns (uint256);
 
     /**
-     * @notice Closes an existing short position. In the future, we may want to open this up to specifying a particular short position to close.
+     * @notice Closes an existing short position. In the future,
+     * we may want to open this up to specifying a particular short position to close.
      */
     function closeShort() external returns (uint256);
 }

@@ -11,7 +11,6 @@ const {
   deployProxy,
   getDefaultArgs,
   wmul,
-  wdiv,
   setupOracle,
   setOpynOracleExpiryPrice,
   whitelistProduct,
@@ -21,8 +20,13 @@ const {
 const moment = require("moment-timezone");
 moment.tz.setDefault("UTC");
 
-let owner, user, feeRecipient;
-let userSigner, ownerSigner, managerSigner, counterpartySigner;
+let owner, user, manager, counterparty, feeRecipient;
+let adminSigner,
+  userSigner,
+  ownerSigner,
+  managerSigner,
+  counterpartySigner,
+  feeRecipientSigner;
 
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";

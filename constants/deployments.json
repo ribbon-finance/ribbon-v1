@@ -29,14 +29,14 @@
     "RibbonFactoryLogic": "0x6e0f736a2a0b81E7D8B7D6Ac3608aC977341bA4F",
     "RibbonFactory": "0x863dd8Ea9B7472c54CdE1F0e2D5B2bCC8CBf0Cd1",
     "RibbonVolatilityLogic": "0x7004f9fcdE66E2ecABF408132Cb21Ebbcf53D4B0",
-    "GammaAdapterLogic": "0x287654A8209a50b18d28b9aF18a1dEB83DBcf3BA",
+    "GammaAdapterLogic": "0x9C304151F3AA63e6f6C8Ed24C4ee8398540C73B2",
     "HegicAdapterLogic": "0x0bd5Aa838368E91F8959bA0d2a254FfdD09daa8c",
     "ProtocolAdapterLib": "0x8b49fDd0cb50ba6D5c053d844feE55e5076F8504",
     "RibbonETHCoveredCallLogic": "0x5907c9A2FF421Be53556Be7fa1b5a2d90a187Dfd",
     "RibbonETHCoveredCall": "0x0FABaF48Bbf864a3947bdd0Ba9d764791a60467A",
     "RibbonWBTCCoveredCallLogic": "0xe97557dD2B9cCCd9Dd94c4432281A942e2E6Fc75",
     "RibbonWBTCCoveredCall": "0x8b5876f5B0Bf64056A89Aa7e97511644758c3E8c",
-    "RibbonETHPutLogic": "0x0A227052b7d25F6926146D4bd431aBeeC5fb3234",
+    "RibbonETHPutLogic": "0xBC9D2F325fb69307cD07046682D0293551B35Cc1",
     "RibbonETHPut": "0x16772a7f4a3ca291C21B8AcE76F9332dDFfbb5Ef"
   }
 }

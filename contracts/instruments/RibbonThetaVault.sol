@@ -324,6 +324,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         );
         require(otoken.collateralAsset() == asset, "Wrong collateralAsset");
 
+        // we just assume all options use USDC as the strike
+        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
+
         uint256 readyAt = block.timestamp.add(delay);
         require(
             otoken.expiryTimestamp() >= readyAt,

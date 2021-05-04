@@ -7,6 +7,11 @@ module.exports = {
 };
 
 async function updateDeployedAddresses(network, contractName, address) {
+  if (network.includes("-fork")) {
+    // Don't update the deployments file if it's just a ganache fork
+    return;
+  }
+
   const filepath = path.normalize(
     path.join(__dirname, "..", "..", "constants", "deployments.json")
   );

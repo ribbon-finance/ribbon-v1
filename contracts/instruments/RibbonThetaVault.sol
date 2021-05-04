@@ -542,7 +542,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         uint256 numShares = min(maxShares, share);
 
         (uint256 withdrawAmount, , ) =
-            _withdrawAmountWithShares(share, assetBalance());
+            _withdrawAmountWithShares(numShares, assetBalance());
 
         return withdrawAmount;
     }

@@ -1,5 +1,7 @@
 import { ethers } from "ethers";
 
+require("dotenv").config();
+
 type Networks = "mainnet" | "kovan";
 
 export const getDefaultProvider = (network: Networks = "kovan") => {

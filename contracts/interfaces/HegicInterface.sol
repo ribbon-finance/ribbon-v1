@@ -90,9 +90,13 @@ interface IHegicBTCOptions is IHegicOptions {
 }
 
 interface IHegicRewards {
-  function hegic() external view returns (IERC20);
-  function hegicOptions() external view returns (IHegicOptions);
-  function rewardsRate() external view returns (uint256);
-  function rewardedOptions(uint optionId) external view returns(bool);
-  function getReward(uint optionId) external;
+    function hegic() external view returns (IERC20);
+
+    function hegicOptions() external view returns (IHegicOptions);
+
+    function rewardsRate() external view returns (uint256);
+
+    function rewardedOptions(uint256 optionId) external view returns (bool);
+
+    function getReward(uint256 optionId) external;
 }

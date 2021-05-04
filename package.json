@@ -54,7 +54,7 @@
     "clean-logs": "yarn run hardhat remove-logs",
     "coverage": "npx hardhat coverage --testfiles 'test/**.js'",
     "lint:tests": "eslint 'test/**/*.js'",
-    "lint:tests:fix": "yarn lint:tests -- --fix",
+    "lint:tests:fix": "yarn lint:tests --fix",
     "lint:sol": "solhint -f table contracts/**/*.sol",
     "lint:sol:prettier:fix": "prettier --write \"contracts/**/*.sol\"",
     "lint:tests:prettier:fix": "prettier --write \"test/**/*.js\""

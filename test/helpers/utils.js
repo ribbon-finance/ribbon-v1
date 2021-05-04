@@ -51,7 +51,6 @@ const ORACLE_DISPUTE_PERIOD = 7200;
 const ORACLE_LOCKING_PERIOD = 300;
 
 const ORACLE_OWNER = "0x638E5DA0EEbbA58c67567bcEb4Ab2dc8D34853FB";
-const CHI_ADDRESS = "0x0000000000004946c0e9F43F4Dee607b0eF1fA1c";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
 const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
@@ -73,7 +72,7 @@ const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const CHARM_OPTION_VIEWS = "0x3cb5d4aeb622A72CF971D4F308e767C53be4E815";
 const CHARM_OPTION_REGISTRY = "0x574467e54F1E145d0d1a9a96560a7704fEdAd1CD";
 
-let factory, hegicAdapter, opynV1Adapter, gammaAdapter, charmAdapter;
+let factory, hegicAdapter, opynV1Adapter, charmAdapter, mockGammaController;
 
 async function getDefaultArgs() {
   // ensure we just return the cached instances instead of re-initializing everything
@@ -82,7 +81,7 @@ async function getDefaultArgs() {
     hegicAdapter &&
     opynV1Adapter &&
     gammaAdapter &&
-    charnAdapter &&
+    charmAdapter &&
     mockGammaController
   ) {
     return {
@@ -162,12 +161,11 @@ async function getDefaultArgs() {
     ZERO_EX_EXCHANGE_V3
   );
 
-  let charmAdapter = await CharmAdapter.deploy(
+  charmAdapter = await CharmAdapter.deploy(
     CHARM_OPTION_VIEWS,
     CHARM_OPTION_REGISTRY
   );
 
-  // await mintGasTokens(admin, factory.address);
   await factory.setAdapter("HEGIC", hegicAdapter.address, { from: owner });
   await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address, { from: owner });
   await factory.setAdapter("CHARM", charmAdapter.address, { from: owner });
@@ -183,18 +181,6 @@ async function getDefaultArgs() {
     mockGammaController,
     protocolAdapterLib,
   };
-}
-
-async function mintGasTokens(minter, factoryAddress) {
-  const chiToken = await ChiToken.at(CHI_ADDRESS);
-  const mintAmount = 200;
-  const receipt = await chiToken.mint(mintAmount, {
-    from: minter,
-    gas: 8000000,
-  });
-  await chiToken.transfer(factoryAddress, mintAmount, {
-    from: minter,
-  });
 }
 
 function wdiv(x, y) {
@@ -249,7 +235,7 @@ async function mintAndApprove(tokenAddress, userSigner, spender, amount) {
 }
 
 async function whitelistProduct(underlying, strike, collateral, isPut) {
-  [adminSigner] = await ethers.getSigners();
+  const [adminSigner] = await ethers.getSigners();
 
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
@@ -317,7 +303,6 @@ async function setOpynOracleExpiryPrice(asset, oracle, expiry, settlePrice) {
 }
 
 async function mintToken(contract, contractOwner, recipient, spender, amount) {
-  [adminSigner] = await ethers.getSigners();
   const tokenOwnerSigner = await ethers.provider.getSigner(contractOwner);
 
   await hre.network.provider.request({

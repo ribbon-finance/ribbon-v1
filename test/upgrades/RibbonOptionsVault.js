@@ -38,6 +38,8 @@ const ALLOWANCE_KEY = keccak256(
     ).slice(2)
 );
 
+let userSigner;
+
 describe("RibbonOptionsVault Upgrade", () => {
   describe("Upgrade from 4ee578b96aefa663458ec8f871732fb21fa0ceb9", () => {
     before(async function () {

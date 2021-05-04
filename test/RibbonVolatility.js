@@ -3,10 +3,9 @@ const { assert, expect } = require("chai");
 
 const { ethers } = require("hardhat");
 const { provider, constants, BigNumber } = ethers;
-const { parseEther, parseUnits, formatEther } = ethers.utils;
+const { parseEther, parseUnits } = ethers.utils;
 
 const time = require("./helpers/time");
-const { wmul } = require("./helpers/utils");
 const { getDefaultArgs, parseLog, mintAndApprove } = require("./helpers/utils");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const ZERO_EX_API_RESPONSES = require("./fixtures/GammaAdapter.json");
@@ -15,8 +14,6 @@ const rHEGICJSON = require("../constants/abis/rHEGIC2.json");
 
 require("dotenv").config();
 
-let owner, user;
-let userSigner;
 const gasPrice = parseUnits("1", "gwei");
 
 const PUT_OPTION_TYPE = 1;
@@ -357,15 +354,17 @@ describe("RibbonVolatility", () => {
   });
 });
 
+let ownerSigner, userSigner;
+let owner, user;
+
 function behavesLikeRibbonVolatility(params) {
   describe(`${params.name}`, () => {
-    let snapshotId, initSnapshotId;
+    let initSnapshotId;
 
     before(async function () {
       initSnapshotId = await time.takeSnapshot();
 
-      [adminSigner, ownerSigner, userSigner] = await ethers.getSigners();
-      admin = adminSigner.address;
+      [, ownerSigner, userSigner] = await ethers.getSigners();
       owner = ownerSigner.address;
       user = userSigner.address;
 
@@ -782,10 +781,10 @@ function behavesLikeRibbonVolatility(params) {
         if (this.venues.includes(CHARM_PROTOCOL)) {
           await time.increaseTo(this.expiry + 1);
           const promises = this.cTokens.map(async function (cToken) {
-            market = await (
+            const market = await (
               await ethers.getContractAt("IOptionToken", cToken)
             ).market();
-            marketContract = await await ethers.getContractAt(
+            const marketContract = await await ethers.getContractAt(
               "IOptionMarket",
               market
             );
@@ -919,7 +918,6 @@ function behavesLikeRibbonVolatility(params) {
       let withSigner;
       let underlying_address;
       let prov = ethers.getDefaultProvider();
-      let res;
 
       time.revertToSnapshotAfterEach(async function () {
         if (!this.venues.includes(HEGIC_PROTOCOL)) {
@@ -938,7 +936,7 @@ function behavesLikeRibbonVolatility(params) {
           this.underlying == ETH_ADDRESS
             ? HEGIC_ETH_REWARDS
             : HEGIC_WBTC_REWARDS;
-        res = await this.contract.buyInstrument(this.buyInstrumentParams, {
+        await this.contract.buyInstrument(this.buyInstrumentParams, {
           from: user,
           value: this.premiumBuffered,
           gasPrice: this.gasPrice,
@@ -947,7 +945,7 @@ function behavesLikeRibbonVolatility(params) {
 
       async function claimRewards(c, optionBuyerAddress) {
         let balanceBefore = await withSigner.balanceOf(optionBuyerAddress);
-        const res = await c.claimRewards(underlying_address);
+        await c.claimRewards(underlying_address);
         let balanceAfter = await withSigner.balanceOf(optionBuyerAddress);
         return balanceAfter - balanceBefore;
       }
@@ -966,9 +964,6 @@ function behavesLikeRibbonVolatility(params) {
       });
 
       it("rewardsClaimable() shows less when optionIDs claimed", async function () {
-        const rewardsClaimable = (
-          await this.contract.rewardsClaimable(underlying_address)
-        ).toString();
         const claimedRewards = await claimRewards(this.contract, user);
         const rewardsClaimable2 = (
           await this.contract.rewardsClaimable(underlying_address)
@@ -979,7 +974,7 @@ function behavesLikeRibbonVolatility(params) {
       it("claimRewards() claims less when first optionIDs claimed", async function () {
         const claimedRewards = await claimRewards(this.contract, user);
 
-        const _ = await this.contract.buyInstrument(this.buyInstrumentParams, {
+        await this.contract.buyInstrument(this.buyInstrumentParams, {
           from: user,
           value: this.premiumBuffered,
           gasPrice: this.gasPrice,
@@ -991,7 +986,7 @@ function behavesLikeRibbonVolatility(params) {
       });
 
       it("claimRewards() reverts as there are no rewards to claim", async function () {
-        const claimedRewards = await claimRewards(this.contract, user);
+        await claimRewards(this.contract, user);
         await expect(
           this.contract.claimRewards(underlying_address)
         ).to.be.revertedWith("No rewards to claim");

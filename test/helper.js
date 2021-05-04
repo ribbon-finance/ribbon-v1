@@ -1,6 +1,6 @@
 const { web3 } = require("@openzeppelin/test-environment");
 
-advanceTime = (time) => {
+const advanceTime = (time) => {
   return new Promise((resolve, reject) => {
     web3.currentProvider.send(
       {
@@ -19,7 +19,7 @@ advanceTime = (time) => {
   });
 };
 
-advanceBlock = () => {
+const advanceBlock = () => {
   return new Promise((resolve, reject) => {
     web3.currentProvider.send(
       {
@@ -27,7 +27,7 @@ advanceBlock = () => {
         method: "evm_mine",
         id: new Date().getTime(),
       },
-      (err, result) => {
+      (err) => {
         if (err) {
           return reject(err);
         }
@@ -39,7 +39,7 @@ advanceBlock = () => {
   });
 };
 
-takeSnapshot = () => {
+const takeSnapshot = () => {
   return new Promise((resolve, reject) => {
     web3.currentProvider.send(
       {
@@ -57,7 +57,7 @@ takeSnapshot = () => {
   });
 };
 
-revertToSnapShot = (id) => {
+const revertToSnapShot = (id) => {
   return new Promise((resolve, reject) => {
     web3.currentProvider.send(
       {
@@ -76,7 +76,7 @@ revertToSnapShot = (id) => {
   });
 };
 
-advanceTimeAndBlock = async (time) => {
+const advanceTimeAndBlock = async (time) => {
   await advanceTime(time);
   await advanceBlock();
   return Promise.resolve(web3.eth.getBlock("latest"));

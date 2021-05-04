@@ -47,7 +47,6 @@ const OPTION_DELAY = 60 * 60; // 1 hour
 const LOCKED_RATIO = parseEther("0.9");
 const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
 const gasPrice = parseUnits("1", "gwei");
-const WITHDRAWAL_FEE = parseEther("0.005");
 
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
@@ -2296,7 +2295,7 @@ function behavesLikeRibbonOptionsVault(params) {
     describe("#maxWithdrawAmount", () => {
       time.revertToSnapshotAfterEach();
 
-      it("returns the max withdrawable amount when the withdrawal amount is more than available", async function () {
+      it("returns the max withdrawable amount accounting for the MINIMUM_SUPPLY", async function () {
         const depositAmount = BigNumber.from("100000000000");
 
         const minWithdrawAmount = depositAmount.sub(
@@ -2311,7 +2310,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         assert.equal(
           (await this.vault.maxWithdrawAmount(user)).toString(),
-          depositAmount
+          minWithdrawAmount
         );
       });
 

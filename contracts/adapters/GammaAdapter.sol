@@ -677,19 +677,10 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
             underlying = WETH;
         }
 
-        // Put otokens have USDC as the backing collateral
-        // so we can ignore the collateral asset passed in option terms
-        address collateralAsset;
-        if (isPut) {
-            collateralAsset = USDC;
-        } else {
-            collateralAsset = underlying;
-        }
-
         oToken = factory.getOtoken(
             underlying,
             optionTerms.strikeAsset,
-            collateralAsset,
+            optionTerms.collateralAsset,
             optionTerms.strikePrice.div(10**10),
             optionTerms.expiry,
             isPut

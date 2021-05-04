@@ -54,7 +54,7 @@ const CALL_OPTION_TYPE = 2;
 
 describe("RibbonThetaVault", () => {
   behavesLikeRibbonOptionsVault({
-    name: `Ribbon WBTC Theta Vault`,
+    name: `Ribbon WBTC Theta Vault (Call)`,
     tokenName: "Ribbon BTC Theta Vault",
     tokenSymbol: "rWBTC-THETA",
     asset: WBTC_ADDRESS,
@@ -78,7 +78,7 @@ describe("RibbonThetaVault", () => {
   });
 
   behavesLikeRibbonOptionsVault({
-    name: `Ribbon ETH Theta Vault`,
+    name: `Ribbon ETH Theta Vault (Call)`,
     tokenName: "Ribbon ETH Theta Vault",
     tokenSymbol: "rETH-THETA",
     asset: WETH_ADDRESS,
@@ -1064,7 +1064,7 @@ function behavesLikeRibbonOptionsVault(params) {
         ).to.be.revertedWith("!option");
       });
 
-      it("reverts when otoken underlying is different from asset", async function () {
+      it("reverts when otoken underlying is different from vault's underlying", async function () {
         const underlying = params.wrongUnderlyingAsset;
         const strike = params.strikeAsset;
         const strikePrice = parseEther("50000");
@@ -1095,7 +1095,43 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await expect(
           this.vault.connect(managerSigner).commitAndClose(optionTerms)
-        ).to.be.revertedWith("!asset");
+        ).to.be.revertedWith("Wrong underlyingAsset");
+      });
+
+      it("reverts when otoken collateral is different from vault's asset", async function () {
+        const underlying = params.asset;
+        const strike = params.strikeAsset;
+        const strikePrice = parseEther("50000");
+        const expiry = secondOption.expiry.toString();
+        const isPut = params.isPut;
+
+        // We reverse this so that put
+        const collateral = isPut ? underlying : strike;
+
+        await whitelistProduct(underlying, strike, collateral, isPut);
+
+        await this.oTokenFactory.createOtoken(
+          underlying,
+          strike,
+          collateral,
+          strikePrice.div(BigNumber.from("10").pow(BigNumber.from("10"))),
+          expiry,
+          isPut
+        );
+
+        const optionTerms = [
+          underlying,
+          strike,
+          collateral,
+          expiry,
+          strikePrice,
+          this.optionType,
+          params.strikeAsset,
+        ];
+
+        await expect(
+          this.vault.connect(managerSigner).commitAndClose(optionTerms)
+        ).to.be.revertedWith("Wrong collateralAsset");
       });
 
       it("reverts when the strike is not USDC", async function () {

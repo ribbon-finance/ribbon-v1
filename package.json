@@ -57,7 +57,7 @@
     }
   },
   "lint-staged": {
-    "**/*.sol": [
+    "contracts/**/*.sol": [
       "yarn lint:sol:prettier",
       "git add"
     ],

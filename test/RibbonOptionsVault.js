@@ -6,6 +6,9 @@ const { provider, getContractAt } = ethers;
 const { parseEther } = ethers.utils;
 const { createOrder, signTypedDataOrder } = require("@airswap/utils");
 
+const x = 1;
+console.log(x);
+
 const time = require("./helpers/time");
 const {
   deployProxy,

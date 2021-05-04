@@ -34,7 +34,7 @@ async function main() {
   const strikePrice = (await otoken.strikePrice())
     .mul(BigNumber.from("10").pow(BigNumber.from("10")))
     .toString();
-  const optionType = await otoken.isPut() ? 1 : 2;
+  const optionType = (await otoken.isPut()) ? 1 : 2;
   const paymentToken = underlying;
 
   const optionTerms = [

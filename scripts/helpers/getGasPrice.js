@@ -9,6 +9,8 @@ module.exports = async function (isFast = true) {
   if (response.data.status !== "1") {
     throw new Error("Etherscan error");
   }
-  const price = isFast ? new BN(response.data.result.FastGasPrice.toString()) : new BN(response.data.result.ProposeGasPrice.toString());
+  const price = isFast
+    ? new BN(response.data.result.FastGasPrice.toString())
+    : new BN(response.data.result.ProposeGasPrice.toString());
   return price.mul(new BN("10").pow(new BN("9")));
 };

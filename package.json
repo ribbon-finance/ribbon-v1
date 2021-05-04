@@ -59,10 +59,10 @@
     "ganache": "ganache-cli --fork \"`node scripts/helpers/printTestURI.js`@`node scripts/helpers/getCurrentBlock.js`\" --forkCacheSize '-1'",
     "clean-logs": "yarn run hardhat remove-logs",
     "coverage": "npx hardhat coverage --testfiles 'test/**.js'",
-    "lint:tests": "eslint 'test/**/*.js'",
-    "lint:tests:fix": "yarn lint:tests --fix",
+    "lint:js": "eslint 'test/**/*.js' 'migrations/*.js' 'scripts/**/*.js'",
+    "lint:js:fix": "yarn lint:js --fix",
     "lint:sol": "solhint -f table contracts/**/*.sol",
-    "lint:sol:prettier:fix": "prettier --write \"contracts/**/*.sol\"",
-    "lint:tests:prettier:fix": "prettier --write \"test/**/*.js\""
+    "lint:sol:prettier": "prettier --write \"contracts/**/*.sol\"",
+    "lint:js:prettier": "prettier --write 'test/**/*.js' 'migrations/*.js' 'scripts/**/*.js'"
   }
 }

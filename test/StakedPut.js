@@ -46,7 +46,7 @@ describe("StakedPut", () => {
   before(async function () {
     initSnapshotId = await time.takeSnapshot();
 
-    [, , userSigner] = await ethers.getSigners();
+    [adminSigner, , userSigner] = await ethers.getSigners();
     user = userSigner.address;
 
     const {

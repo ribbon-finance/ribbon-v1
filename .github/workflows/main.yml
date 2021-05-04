@@ -3,7 +3,7 @@ name: Node.js CI
 on: [push]
 
 jobs:
-  Unit test:
+  unit-test:
     runs-on: ubuntu-latest
 
     strategy:
@@ -40,7 +40,7 @@ jobs:
         env:
           TEST_URI: ${{ secrets.TEST_URI }}
           CI: true
-  Lint:
+  lint:
     runs-on: ubuntu-latest
 
     strategy:

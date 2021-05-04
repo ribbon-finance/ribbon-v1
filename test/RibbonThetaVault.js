@@ -2311,9 +2311,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         assert.equal(
           (await this.vault.maxWithdrawAmount(user)).toString(),
-          minWithdrawAmount
-            .sub(wmul(minWithdrawAmount, WITHDRAWAL_FEE))
-            .toString()
+          depositAmount
         );
       });
 
@@ -2332,7 +2330,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         assert.equal(
           (await this.vault.maxWithdrawAmount(user)).toString(),
-          BigNumber.from("99500000000").toString()
+          BigNumber.from("100000000000").toString()
         );
       });
     });

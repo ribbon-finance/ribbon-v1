@@ -124,9 +124,9 @@ describe("GammaAdapter", () => {
       const oTokenAddress = "0x60ad22806B89DD17B2ecfe220c3712A2c86dfFFE";
 
       const actualOTokenAddress = await this.adapter.lookupOToken([
-        constants.AddressZero,
+        WETH_ADDRESS,
         USDC_ADDRESS,
-        constants.AddressZero,
+        WETH_ADDRESS,
         "1614326400",
         parseEther("800"),
         CALL_OPTION_TYPE,
@@ -140,9 +140,9 @@ describe("GammaAdapter", () => {
       const oTokenAddress = "0x006583fEea92C695A9dE02C3AC2d4cd321f2F341";
 
       const actualOTokenAddress = await this.adapter.lookupOToken([
-        constants.AddressZero,
+        WETH_ADDRESS,
         USDC_ADDRESS,
-        constants.AddressZero,
+        USDC_ADDRESS,
         "1610697600",
         parseEther("800"),
         PUT_OPTION_TYPE,

@@ -318,7 +318,12 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(option != address(0), "!option");
         OtokenInterface otoken = OtokenInterface(option);
         require(otoken.isPut() == isPut, "Option type does not match");
-        require(otoken.underlyingAsset() == underlying, "!asset");
+        require(
+            otoken.underlyingAsset() == underlying,
+            "Wrong underlyingAsset"
+        );
+        require(otoken.collateralAsset() == asset, "Wrong collateralAsset");
+
         // we just assume all options use USDC as the strike
         require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
 
@@ -536,7 +541,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         uint256 share = balanceOf(account);
         uint256 numShares = min(maxShares, share);
 
-        (uint256 withdrawAmount, ) = withdrawAmountWithShares(numShares);
+        (uint256 withdrawAmount, , ) =
+            _withdrawAmountWithShares(numShares, assetBalance());
+
         return withdrawAmount;
     }
 

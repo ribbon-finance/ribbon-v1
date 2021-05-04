@@ -1,10 +1,9 @@
-import { ethers } from "ethers";
 import { Command } from "commander";
-import { getGasPrice } from "./helpers/getGasPrice";
-import { getDefaultProvider } from "./helpers/getDefaultEthersProvider";
-
-import externalAddresses from "../constants/externalAddresses.json";
 import accountAddresses from "../constants/accounts.json";
+import { ethers } from "ethers";
+import externalAddresses from "../constants/externalAddresses.json";
+import { getDefaultProvider } from "./helpers/getDefaultEthersProvider";
+import { getGasPrice } from "./helpers/getGasPrice";
 import oTokenFactoryABI from "../constants/abis/OtokenFactory.json";
 
 const { parseUnits } = ethers.utils;
@@ -32,7 +31,6 @@ async function deployOToken() {
 
   const provider = getDefaultProvider(program.network);
 
-  const web3 = await getWeb3(network);
   const owner = accountAddresses[network].owner;
 
   const {
@@ -46,7 +44,8 @@ async function deployOToken() {
 
   const factory = new ethers.Contract(
     externalAddresses[network].oTokenFactory,
-    oTokenFactoryABI
+    oTokenFactoryABI,
+    provider
   );
 
   let gasPrice;

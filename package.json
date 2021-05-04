@@ -78,7 +78,7 @@
   "scripts": {
     "compile": "npx hardhat compile",
     "test": "npx hardhat test",
-    "verify": "npx truffle run verify RibbonFactory HegicAdapter GammaAdapter ProtocolAdapter AdminUpgradeabilityProxy RibbonVolatility RibbonThetaVault --network mainnet --license MIT",
+    "verify": "npx truffle run verify RibbonFactory HegicAdapter GammaAdapter ProtocolAdapter AdminUpgradeabilityProxy RibbonThetaVault --network mainnet --license MIT",
     "merge-contracts": "sol-merger  --export-plugin SPDXLicenseRemovePlugin \"./contracts/**/*.sol\" ./build/merged",
     "export-artefacts": "ts-node ./scripts/exportABI.ts",
     "ganache": "ganache-cli --fork \"`ts-node scripts/helpers/printTestURI.ts`@`ts-node scripts/helpers/getCurrentBlock.ts`\" --forkCacheSize '-1'",

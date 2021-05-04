@@ -46,8 +46,8 @@ module.exports = async function (deployer, network) {
       owner,
       owner,
       BigNumber.from("10").pow("12").toString(), // 1,000,000 (6 leading zeros) + 6 leading zeros,
-      "Ribbon ETH Theta Vault Put",
-      "rETH-THETA-P",
+      "Ribbon USDC Theta Vault ETH Put",
+      "rUSDC-ETH-P-THETA",
     ]
   );
 

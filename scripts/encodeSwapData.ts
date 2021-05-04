@@ -1,6 +1,6 @@
-import { ethers } from "ethers";
-import axios from "axios";
 import { Command } from "commander";
+import axios from "axios";
+import { ethers } from "ethers";
 
 const program = new Command();
 program.version("0.0.1");

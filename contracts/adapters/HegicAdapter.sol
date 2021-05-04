@@ -153,7 +153,8 @@ contract HegicAdapter is IProtocolAdapter {
     }
 
     /**
-     * @notice Amount of profit made from exercising an option contract (current price - strike price). 0 if exercising out-the-money.
+     * @notice Amount of profit made from exercising an option contract
+     * (current price - strike price). 0 if exercising out-the-money.
      * @param optionsAddress is the address of the options contract
      * @param optionID is the ID of the option position in non fungible protocols like Hegic.
      */
@@ -284,8 +285,11 @@ contract HegicAdapter is IProtocolAdapter {
      * @notice Exercises the options contract.
      * @param optionsAddress is the address of the options contract
      * @param optionID is the ID of the option position in non fungible protocols like Hegic.
-     * @param amount is the amount of tokens or options contract to exercise. Only relevant for fungle protocols like Opyn
-     * @param account is the account that receives the exercised profits. This is needed since the adapter holds all the positions and the msg.sender is an instrument contract.
+     * @param amount is the amount of tokens or options contract to exercise.
+     *        Only relevant for fungle protocols like Opyn
+     * @param account is the account that receives the exercised profits.
+     *        This is needed since the adapter holds all the positions and
+     *        the msg.sender is an instrument contract.
      */
     function exercise(
         address optionsAddress,
@@ -324,7 +328,8 @@ contract HegicAdapter is IProtocolAdapter {
         ); // send WBTC directly to the Uniswap Pair (requires approval of WBTC)
         uint256 amount0Out;
         uint256 amount1Out;
-        (amount0Out, amount1Out) = (uint256(0), costETH); // in case we change tokens (currently using WETH<>WBTC pair) this should be reviewed
+        // in case we change tokens (currently using WETH<>WBTC pair) this should be reviewed
+        (amount0Out, amount1Out) = (uint256(0), costETH);
         ethWbtcPair.swap(amount0Out, amount1Out, address(this), "");
         IWETH(wethAddress).withdraw(costETH); // unwrapping ETH. It would not be required if options are paid using WETH
     }

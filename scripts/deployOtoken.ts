@@ -1,15 +1,16 @@
-require("dotenv").config();
-const getWeb3 = require("./helpers/web3");
-const { Command } = require("commander");
-const { ethers } = require("ethers");
-const program = new Command();
+import { Command } from "commander";
+import accountAddresses from "../constants/accounts.json";
+import { ethers } from "ethers";
+import externalAddresses from "../constants/externalAddresses.json";
+import { getDefaultProvider } from "./helpers/getDefaultEthersProvider";
+import { getGasPrice } from "./helpers/getGasPrice";
+import oTokenFactoryABI from "../constants/abis/OtokenFactory.json";
 
-const externalAddresses = require("../constants/externalAddresses");
-const accountAddresses = require("../constants/accounts.json");
-const oTokenFactoryABI = require("../constants/abis/OtokenFactory.json");
-const { sleep } = require("@openzeppelin/upgrades");
-const getGasPrice = require("./helpers/getGasPrice");
-const { parseUnits } = require("ethers/lib/utils");
+const { parseUnits } = ethers.utils;
+
+require("dotenv").config();
+
+const program = new Command();
 
 program.version("0.0.1");
 
@@ -26,9 +27,10 @@ program
 program.parse(process.argv);
 
 async function deployOToken() {
-  const network = program.network;
+  const network = program.network === "mainnet" ? "mainnet" : "kovan";
 
-  const web3 = await getWeb3(network);
+  const provider = getDefaultProvider(program.network);
+
   const owner = accountAddresses[network].owner;
 
   const {
@@ -40,9 +42,10 @@ async function deployOToken() {
     isPut,
   } = program;
 
-  const factory = new web3.eth.Contract(
+  const factory = new ethers.Contract(
+    externalAddresses[network].oTokenFactory,
     oTokenFactoryABI,
-    externalAddresses[network].oTokenFactory
+    provider
   );
 
   let gasPrice;
@@ -63,23 +66,20 @@ async function deployOToken() {
     isPut,
   ]);
 
-  const receipt = await factory.methods
-    .createOtoken(
-      underlying,
-      strikeAsset,
-      collateralAsset,
-      strikePrice,
-      expiry,
-      isPut
-    )
-    .send({
+  const tx = await factory.createOtoken(
+    underlying,
+    strikeAsset,
+    collateralAsset,
+    strikePrice,
+    expiry,
+    isPut,
+    {
       from: owner,
       gasPrice,
-    });
-  const txhash = receipt.transactionHash;
-  console.log("Txhash: " + txhash);
-
-  sleep(60000);
+    }
+  );
+  console.log("Txhash: " + tx.hash);
+  await tx.wait(1);
 
   process.exit(0);
 }

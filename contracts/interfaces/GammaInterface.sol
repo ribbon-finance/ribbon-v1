@@ -9,7 +9,8 @@ library GammaTypes {
         address[] shortOtokens;
         // addresses of oTokens a user has bought and deposited in this vault
         // user can be long oTokens without opening a vault (e.g. by buying on a DEX)
-        // generally, long oTokens will be 'deposited' in vaults to act as collateral in order to write oTokens against (i.e. in spreads)
+        // generally, long oTokens will be 'deposited' in vaults to act as collateral
+        // in order to write oTokens against (i.e. in spreads)
         address[] longOtokens;
         // addresses of other ERC-20s a user has deposited as collateral in this vault
         address[] collateralAssets;
@@ -115,7 +116,8 @@ interface IController {
         uint256 vaultId;
         // amount of asset that is to be transfered
         uint256 amount;
-        // each vault can hold multiple short / long / collateral assets but we are restricting the scope to only 1 of each in this version
+        // each vault can hold multiple short / long / collateral assets
+        // but we are restricting the scope to only 1 of each in this version
         // in future versions this would be the index of the short / long / collateral asset that needs to be modified
         uint256 index;
         // any other data that needs to be passed in for arbitrary function calls

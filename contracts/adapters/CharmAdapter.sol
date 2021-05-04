@@ -19,7 +19,7 @@ import {IWETH} from "../interfaces/IWETH.sol";
 import {UniERC20} from "../lib/UniERC20.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 
-contract CharmAdapter is IProtocolAdapter{
+contract CharmAdapter is IProtocolAdapter {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using UniERC20 for IERC20;
@@ -33,17 +33,16 @@ contract CharmAdapter is IProtocolAdapter{
     string private constant _name = "CHARM";
     bool private constant _nonFungible = false;
 
-    // UNISWAP_ROUTER is Uniswap's periphery contract for conducting trades. Using this contract is gas inefficient and should only used for convenience i.e. admin functions
+    // UNISWAP_ROUTER is Uniswap's periphery contract for conducting trades.
+    // Using this contract is gas inefficient and should only used
+    // for convenience i.e. admin functions
     address private constant UNISWAP_ROUTER =
         0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
     address private constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address private constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-    constructor(
-        address _optionViews,
-        address _optionRegistry
-    ) {
+    constructor(address _optionViews, address _optionRegistry) {
         require(_optionViews != address(0), "!_optionViews");
         require(_optionRegistry != address(0), "!_optionRegistry");
         optionViews = IOptionViews(_optionViews);
@@ -96,14 +95,9 @@ contract CharmAdapter is IProtocolAdapter{
      * @notice Gets the premium to buy `purchaseAmount` of the option contract in ETH terms.
      */
     function premium(
-      ProtocolAdapterTypes.OptionTerms calldata optionTerms,
-      uint256 purchaseAmount
-    )
-        external
-        view
-        override
-        returns (uint256 cost)
-    {
+        ProtocolAdapterTypes.OptionTerms calldata optionTerms,
+        uint256 purchaseAmount
+    ) external view override returns (uint256 cost) {
         address tokenAddress = lookupCToken(optionTerms);
 
         require(tokenAddress != address(0), "Must be valid option terms!");
@@ -112,38 +106,53 @@ contract CharmAdapter is IProtocolAdapter{
         IOptionToken token = IOptionToken(tokenAddress);
 
         // Get strike index, whether is long
-        IOptionRegistry.OptionDetails memory optionType = optionRegistry.getOptionDetails(token);
+        IOptionRegistry.OptionDetails memory optionType =
+            optionRegistry.getOptionDetails(token);
 
         //get market
         IOptionMarket market = IOptionMarket(token.market());
 
-        cost = optionViews.getBuyOptionCost(market, optionType.isLongToken, optionType.strikeIndex, purchaseAmount.mul(10 ** token.decimals()).div(10 ** 18));
+        cost = optionViews.getBuyOptionCost(
+            market,
+            optionType.isLongToken,
+            optionType.strikeIndex,
+            purchaseAmount.mul(10**token.decimals()).div(10**18)
+        );
     }
 
     /**
-     * @notice Amount of profit made from exercising an option contract (current price - strike price). 0 if exercising out-the-money.
+     * @notice Amount of profit made from exercising an option
+     * contract (current price - strike price). 0 if exercising out-the-money.
      * @param options is the address of the options contract
-     * @param amount is the amount of tokens or options contract to exercise. Only relevant for fungle protocols like Opyn
+     * @param amount is the amount of tokens or options contract to exercise.
      */
     function exerciseProfit(
         address options,
         uint256,
         uint256 amount
     ) public view override returns (uint256) {
-      //get token
-      IOptionToken token = IOptionToken(options);
-      //get market
-      IOptionMarket market = IOptionMarket(token.market());
+        //get token
+        IOptionToken token = IOptionToken(options);
+        //get market
+        IOptionMarket market = IOptionMarket(token.market());
 
-      // Get strike index, whether is long
-      IOptionRegistry.OptionDetails memory optionType = optionRegistry.getOptionDetails(IOptionToken(options));
+        // Get strike index, whether is long
+        IOptionRegistry.OptionDetails memory optionType =
+            optionRegistry.getOptionDetails(IOptionToken(options));
 
-      //profit of exercising
-      try optionViews.getSellOptionCost(market, optionType.isLongToken, optionType.strikeIndex, amount.mul(10 ** token.decimals()).div(10 ** 18)) returns (uint v) {
-        return v;
-      } catch {
-        return 0;
-      }
+        //profit of exercising
+        try
+            optionViews.getSellOptionCost(
+                market,
+                optionType.isLongToken,
+                optionType.strikeIndex,
+                amount.mul(10**token.decimals()).div(10**18)
+            )
+        returns (uint256 v) {
+            return v;
+        } catch {
+            return 0;
+        }
     }
 
     function canExercise(
@@ -176,58 +185,61 @@ contract CharmAdapter is IProtocolAdapter{
         uint256 amount,
         uint256 maxCost
     ) external payable override returns (uint256) {
-      require(
-          block.timestamp < optionTerms.expiry,
-          "Cannot purchase after expiry"
-      );
+        require(
+            block.timestamp < optionTerms.expiry,
+            "Cannot purchase after expiry"
+        );
 
-      //get token address
-      address tokenAddress = lookupCToken(optionTerms);
-      if(tokenAddress == address(0)){
-        try optionRegistry.populateMarkets() {} catch {}
-        tokenAddress = lookupCToken(optionTerms);
-        require(tokenAddress != address(0), "Market needs to exist!");
-      }
+        //get token address
+        address tokenAddress = lookupCToken(optionTerms);
+        if (tokenAddress == address(0)) {
+            try optionRegistry.populateMarkets() {} catch {}
+            tokenAddress = lookupCToken(optionTerms);
+            require(tokenAddress != address(0), "Market needs to exist!");
+        }
 
-      //get token
-      IOptionToken token = IOptionToken(tokenAddress);
+        //get token
+        IOptionToken token = IOptionToken(tokenAddress);
 
-      // Get strike index, whether is long
-      IOptionRegistry.OptionDetails memory optionType = optionRegistry.getOptionDetails(token);
+        // Get strike index, whether is long
+        IOptionRegistry.OptionDetails memory optionType =
+            optionRegistry.getOptionDetails(token);
 
-      //get market
-      IOptionMarket market = IOptionMarket(token.market());
-      IERC20 baseToken = IERC20(optionTerms.optionType == ProtocolAdapterTypes.OptionType.Put ? optionTerms.strikeAsset : optionTerms.underlying);
+        //get market
+        IOptionMarket market = IOptionMarket(token.market());
+        IERC20 baseToken =
+            IERC20(
+                optionTerms.optionType == ProtocolAdapterTypes.OptionType.Put
+                    ? optionTerms.strikeAsset
+                    : optionTerms.underlying
+            );
 
-      bool isETH = address(baseToken) == address(0);
+        bool isETH = address(baseToken) == address(0);
 
-      if(!isETH){
-        _swapETHToBaseToken(baseToken, maxCost, market);
-      }
+        if (!isETH) {
+            _swapETHToBaseToken(baseToken, maxCost, market);
+        }
 
-      uint256 shiftedAmount = amount.mul(10 ** token.decimals()).div(10 ** 18);
+        uint256 shiftedAmount = amount.mul(10**token.decimals()).div(10**18);
 
-      uint256 amountIn = market.buy{value: isETH ? address(this).balance : 0}(
-        optionType.isLongToken,
-        optionType.strikeIndex,
-        shiftedAmount,
-        maxCost
-      );
+        uint256 amountIn =
+            market.buy{value: isETH ? address(this).balance : 0}(
+                optionType.isLongToken,
+                optionType.strikeIndex,
+                shiftedAmount,
+                maxCost
+            );
 
-      emit Purchased(
-          msg.sender,
-          _name,
-          optionTerms.underlying,
-          amountIn,
-          0
-      );
+        emit Purchased(msg.sender, _name, optionTerms.underlying, amountIn, 0);
     }
 
     /**
      * @notice Exercises the options contract.
      * @param options is the address of the options contract
-     * @param amount is the amount of tokens or options contract to exercise. Only relevant for fungle protocols like Opyn or Charm
-     * @param recipient is the account that receives the exercised profits. This is needed since the adapter holds all the positions and the msg.sender is an instrument contract.
+     * @param amount is the amount of tokens or options contract to exercise.
+     *              Only relevant for fungle protocols like Opyn or Charm
+     * @param recipient is the account that receives the exercised profits.
+     * This is needed since the adapter holds all the positions and the msg.sender is an instrument contract.
      */
     function exercise(
         address options,
@@ -235,35 +247,45 @@ contract CharmAdapter is IProtocolAdapter{
         uint256 amount,
         address recipient
     ) public payable override {
+        // Get strike index, whether is long
+        IOptionRegistry.OptionDetails memory optionType =
+            optionRegistry.getOptionDetails(IOptionToken(options));
 
-      // Get strike index, whether is long
-      IOptionRegistry.OptionDetails memory optionType = optionRegistry.getOptionDetails(IOptionToken(options));
+        //get token
+        IOptionToken token = IOptionToken(options);
+        //get market
+        IOptionMarket market = IOptionMarket(token.market());
 
-      //get token
-      IOptionToken token = IOptionToken(options);
-      //get market
-      IOptionMarket market = IOptionMarket(token.market());
+        // if we are exercising but market has not settled, do it
+        if (market.isExpired() && !market.isSettled()) {
+            market.settle();
+        }
 
-      // if we are exercising but market has not settled, do it
-      if(market.isExpired() && !market.isSettled()){
-        market.settle();
-      }
+        uint256 profit = exerciseProfit(options, 0, amount);
+        require(profit > 0, "Not profitable to exercise");
 
-      uint256 profit = exerciseProfit(options, 0, amount);
-      require(profit > 0, "Not profitable to exercise");
+        uint256 amountOut =
+            market.sell(
+                optionType.isLongToken,
+                optionType.strikeIndex,
+                amount.mul(10**token.decimals()).div(10**18),
+                profit
+            );
 
-      uint256 amountOut = market.sell(optionType.isLongToken, optionType.strikeIndex, amount.mul(10 ** token.decimals()).div(10 ** 18), profit);
+        uint256 profitInUnderlying =
+            _swapExercisedProfitsToUnderlying(
+                market.baseToken(),
+                amountOut,
+                recipient
+            );
 
-      uint256 profitInUnderlying =
-          _swapExercisedProfitsToUnderlying(market.baseToken(), amountOut, recipient);
-
-      emit Exercised(
-          msg.sender,
-          options,
-          0,
-          amount.mul(10 ** token.decimals()).div(10 ** 18),
-          profitInUnderlying
-      );
+        emit Exercised(
+            msg.sender,
+            options,
+            0,
+            amount.mul(10**token.decimals()).div(10**18),
+            profitInUnderlying
+        );
     }
 
     function createShort(ProtocolAdapterTypes.OptionTerms memory, uint256)
@@ -294,7 +316,15 @@ contract CharmAdapter is IProtocolAdapter{
         //there should only be a collateral asset for charm if we are writing an option
         bool isLong = optionTerms.collateralAsset == address(1) ? true : false;
 
-        token = address(optionRegistry.getOption(IERC20(optionTerms.underlying), optionTerms.expiry, isPut, optionTerms.strikePrice, isLong));
+        token = address(
+            optionRegistry.getOption(
+                IERC20(optionTerms.underlying),
+                optionTerms.expiry,
+                isPut,
+                optionTerms.strikePrice,
+                isLong
+            )
+        );
     }
 
     /**
@@ -302,7 +332,8 @@ contract CharmAdapter is IProtocolAdapter{
      *         This simplifies the payout of an option. Put options pay out in USDC, so we swap USDC back
      *         into WETH and transfer it to the recipient.
      * @param baseToken is the base token of the market
-     * @param profitInBaseToken is the profit after exercising denominated in the base token - this could be a token with different decimals
+     * @param profitInBaseToken is the profit after exercising denominated in the base token
+     *                          - this could be a token with different decimals
      * @param recipient is the recipient of the underlying tokens after the swap
      */
     function _swapExercisedProfitsToUnderlying(
@@ -310,7 +341,6 @@ contract CharmAdapter is IProtocolAdapter{
         uint256 profitInBaseToken,
         address recipient
     ) private returns (uint256 profitInUnderlying) {
-
         require(
             baseToken.uniBalanceOf(address(this)) >= profitInBaseToken,
             "Not enough collateral from exercising"
@@ -342,20 +372,20 @@ contract CharmAdapter is IProtocolAdapter{
                 block.timestamp + SWAP_WINDOW
             );
         }
-      }
+    }
 
-      /**
-       * @notice Swaps the ETH into the `base` token.
-       *         This simplifies the buying of an option since you only pay in ETH for any option
-       * @param baseToken is the base token of the market
-       * @param _premium premium to buy option
-       * @param market market of token
-       */
-       function _swapETHToBaseToken(
-           IERC20 baseToken,
-           uint256 _premium,
-           IOptionMarket market
-       ) private{
+    /**
+     * @notice Swaps the ETH into the `base` token.
+     *         This simplifies the buying of an option since you only pay in ETH for any option
+     * @param baseToken is the base token of the market
+     * @param _premium premium to buy option
+     * @param market market of token
+     */
+    function _swapETHToBaseToken(
+        IERC20 baseToken,
+        uint256 _premium,
+        IOptionMarket market
+    ) private {
         IUniswapV2Router02 router = IUniswapV2Router02(UNISWAP_ROUTER);
 
         address[] memory path = new address[](2);
@@ -371,5 +401,5 @@ contract CharmAdapter is IProtocolAdapter{
 
         uint256 balanceOfToken = baseToken.uniBalanceOf(address(this));
         baseToken.safeApprove(address(market), balanceOfToken);
-      }
+    }
 }

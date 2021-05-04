@@ -1,9 +1,7 @@
 const { assert, expect } = require("chai");
-const { ethers } = require("hardhat");
-const { constants, provider, BigNumber } = ethers;
-const { parseEther } = ethers.utils;
+const { ethers, artifacts } = require("hardhat");
+const { provider, BigNumber } = ethers;
 const time = require("../helpers/time");
-const { parseLog } = require("../helpers/utils");
 
 const UNISWAP_ADDRESS = "0x7a250d5630b4cf539739df2c5dacb4c659f2488d";
 const SUSHISWAP_ADDRESS = "0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f";
@@ -12,16 +10,14 @@ const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 const DIGG_ADDRESS = "0x798d1be841a82a273720ce31c822c61a67a601c3";
 const SUSHISWAP_LP = "0x9a13867048e01c663ce8ce2fe0cdae69ff9f35e3";
 const UNISWAP_LP = "0xe86204c4eddd2f70ee00ead6805f917671f56c52";
-let user, recipient;
+let user;
 
 describe.skip("UniswapAdapter", () => {
-  let initSnapshotId, snapshotId;
-  const gasPrice = ethers.utils.parseUnits("1", "gwei");
+  let initSnapshotId;
 
   before(async function () {
-    const [, , userSigner, recipientSigner] = await ethers.getSigners();
+    const [, , userSigner] = await ethers.getSigners();
     user = userSigner.address;
-    recipient = recipientSigner.address;
 
     this.protocolName = "UNISWAP";
     this.nonFungible = true;
@@ -111,7 +107,7 @@ describe.skip("UniswapAdapter", () => {
   function coreUniswapTests(params) {
     describe(`buying on ${params.exchangeName}`, () => {
       before(async function () {
-        const { inputAddress, ethAmt, wbtcAmt, exchangeName } = params;
+        const { ethAmt, wbtcAmt, exchangeName } = params;
         this.ethAmt = ethAmt;
         this.wbtcAmt = wbtcAmt;
         this.exchangeName = exchangeName;
@@ -177,8 +173,6 @@ describe.skip("UniswapAdapter", () => {
         });
 
         it("handles invalid exchange using wbtc", async function () {
-          const btc_amt = await this.token.balanceOf(user, { from: user });
-
           await this.weth.deposit({
             from: user,
             value: BigNumber.from("1000000000000000000"),
@@ -199,7 +193,7 @@ describe.skip("UniswapAdapter", () => {
             BigNumber.from("10000000000000000000000000000000"),
             { from: user }
           );
-          const approval = await this.token.approve(
+          await this.token.approve(
             this.adapter.address,
             BigNumber.from("1000000000000000000000000000000000"),
             { from: user }
@@ -259,8 +253,6 @@ describe.skip("UniswapAdapter", () => {
           await expect(promise).to.be.revertedWith("not enough funds");
         });
         it("reverts excessive input amt using wbtc", async function () {
-          const btc_amt = await this.token.balanceOf(user, { from: user });
-
           await this.weth.deposit({
             from: user,
             value: BigNumber.from("1000000000000000000"),
@@ -281,7 +273,7 @@ describe.skip("UniswapAdapter", () => {
             BigNumber.from("10000000000000000000000000000000"),
             { from: user }
           );
-          const approval = await this.token.approve(
+          await this.token.approve(
             this.adapter.address,
             BigNumber.from("1000000000000000000000000000000000"),
             { from: user }
@@ -361,7 +353,6 @@ describe.skip("UniswapAdapter", () => {
             this.adapter.address,
             false
           );
-          const btc_amt = await this.token.balanceOf(user, { from: user });
 
           await this.weth.deposit({
             from: user,
@@ -383,7 +374,7 @@ describe.skip("UniswapAdapter", () => {
             BigNumber.from("10000000000000000000000000000000"),
             { from: user }
           );
-          const approval = await this.token.approve(
+          await this.token.approve(
             this.adapter.address,
             BigNumber.from("1000000000000000000000000000000000"),
             { from: user }
@@ -475,8 +466,6 @@ describe.skip("UniswapAdapter", () => {
             false
           );
 
-          wbtc_amt = await this.token.balanceOf(user, { from: user });
-
           await this.weth.deposit({
             from: user,
             value: BigNumber.from("1000000000000000000"),
@@ -497,13 +486,13 @@ describe.skip("UniswapAdapter", () => {
             BigNumber.from("10000000000000000000000000000000"),
             { from: user }
           );
-          const approval = await this.token.approve(
+          await this.token.approve(
             this.adapter.address,
             BigNumber.from("1000000000000000000000000000000000"),
             { from: user }
           );
 
-          inputVars = await this.adapter.expectedDiggOut(
+          const inputVars = await this.adapter.expectedDiggOut(
             this.wbtcAmt,
             this.exchangeName,
             {
@@ -512,7 +501,7 @@ describe.skip("UniswapAdapter", () => {
           );
           const expDigg = inputVars[0];
           const trade_amt = inputVars[1];
-          const promise = this.adapter.buyLp(
+          await this.adapter.buyLp(
             "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
             this.wbtcAmt,
             this.exchangeName,
@@ -523,7 +512,7 @@ describe.skip("UniswapAdapter", () => {
               from: user,
             }
           );
-          //console.log('checking state after purchase');
+
           const afterBals = await checkState(
             this.exchangeName,
             this.adapter.address,
@@ -545,9 +534,9 @@ describe.skip("UniswapAdapter", () => {
     );
   }
   async function checkState(exchangeName, adapterAddress, isAfter) {
-    const [, , userSigner, recipientSigner] = await ethers.getSigners();
-    user = userSigner.address;
-    recipient = recipientSigner.address;
+    const [, , userSigner] = await ethers.getSigners();
+    const user = userSigner.address;
+    let lpAddress;
     if (exchangeName == "UNISWAP") {
       lpAddress = UNISWAP_LP;
     }
@@ -585,18 +574,12 @@ describe.skip("UniswapAdapter", () => {
     );
     this.uniswapLp = this.uniswapLp.connect(userSigner);
 
-    const ethBalance = await provider.getBalance(user);
-    //console.log(`eth balance of user is ${ethBalance}`);
     const ethBalanceAdapter = await provider.getBalance(adapterAddress);
-    //console.log(`eth balance of adapter is ${ethBalanceAdapter}`);
     const wbtcBalanceAdapter = await this.wbtc.balanceOf(adapterAddress);
-    //console.log(`wbtc balance of adapter is ${wbtcBalanceAdapter}`);
     const diggBalanceAdapter = await this.digg.balanceOf(adapterAddress);
-    //console.log(`digg balance of adapter is ${diggBalanceAdapter}`);
     const lpBalance = await this.uniswapLp.balanceOf(user);
-    //console.log(`lp balance of user is ${lpBalance}`);
     const reserveBals = await this.uniswapLp.getReserves();
-    //console.log(reserveBals.reserve0.toString());
+
     if (isAfter) {
       assert.isTrue(diggBalanceAdapter < 3);
       assert.isTrue(wbtcBalanceAdapter < 3);

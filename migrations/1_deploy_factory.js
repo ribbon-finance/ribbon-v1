@@ -1,11 +1,9 @@
 const Factory = artifacts.require("RibbonFactory");
 const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const { encodeCall } = require("@openzeppelin/upgrades");
-const { constants } = require("@openzeppelin/test-helpers");
 const {
   updateDeployedAddresses,
 } = require("../scripts/helpers/updateDeployedAddresses");
-const ADDRESSES = require("../constants/externalAddresses.json");
 const ACCOUNTS = require("../constants/accounts.json");
 
 let network;
@@ -14,13 +12,6 @@ module.exports = async function (deployer, _network) {
   network = _network;
   console.log(network);
   const { admin, owner } = ACCOUNTS[network.replace("-fork", "")];
-
-  let wethAddress;
-  if (network === "development") {
-    wethAddress = constants.ZERO_ADDRESS;
-  } else {
-    wethAddress = ADDRESSES[network.replace("-fork", "")].assets.weth;
-  }
 
   await deployFactory(deployer, admin, owner);
 };

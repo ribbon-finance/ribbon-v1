@@ -25,7 +25,9 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    // gammaController is the top-level contract in Gamma protocol which allows users to perform multiple actions on their vaults and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
+    // gammaController is the top-level contract in Gamma protocol
+    // which allows users to perform multiple actions on their vaults
+    // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
     address public immutable gammaController;
 
     // oTokenFactory is the factory contract used to spawn otokens. Used to lookup otokens.
@@ -42,13 +44,17 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
 
     uint256 private constant SLIPPAGE_TOLERANCE = 0.75 ether;
 
-    // MARGIN_POOL is Gamma protocol's collateral pool. Needed to approve collateral.safeTransferFrom for minting otokens. https://github.com/opynfinance/GammaProtocol/blob/master/contracts/MarginPool.sol
+    // MARGIN_POOL is Gamma protocol's collateral pool.
+    // Needed to approve collateral.safeTransferFrom for minting otokens.
+    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/MarginPool.sol
     address public immutable MARGIN_POOL;
 
-    // USDCETHPriceFeed is the USDC/ETH Chainlink price feed used to perform swaps, as an alternative to getAmountsIn
+    // USDCETHPriceFeed is the USDC/ETH Chainlink price feed used
+    // to perform swaps, as an alternative to getAmountsIn
     AggregatorV3Interface public immutable USDCETHPriceFeed;
 
-    // UNISWAP_ROUTER is Uniswap's periphery contract for conducting trades. Using this contract is gas inefficient and should only used for convenience i.e. admin functions
+    // UNISWAP_ROUTER is Uniswap's periphery contract for conducting trades.
+    // Using this contract is gas inefficient and should only used for convenience i.e. admin functions
     address public immutable UNISWAP_ROUTER;
 
     // WETH9 contract
@@ -61,9 +67,12 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     address public immutable ZERO_EX_EXCHANGE_V3;
 
     /**
-     * @notice Constructor for the GammaAdapter which initializes a few immutable variables to be used by instrument contracts.
-     * @param _oTokenFactory is the Gamma protocol factory contract which spawns otokens https://github.com/opynfinance/GammaProtocol/blob/master/contracts/OtokenFactory.sol
-     * @param _gammaController is a top-level contract which allows users to perform multiple actions in the Gamma protocol https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
+     * @notice Constructor for the GammaAdapter which initializes a variables
+     * @param _oTokenFactory is the Gamma protocol factory contract which spawns otokens
+     * https://github.com/opynfinance/GammaProtocol/blob/master/contracts/OtokenFactory.sol
+     * @param _gammaController is a top-level contract which allows users to
+     * perform multiple actions in the Gamma protocol
+     * https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
      */
     constructor(
         address _oTokenFactory,
@@ -149,9 +158,11 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     }
 
     /**
-     * @notice Amount of profit made from exercising an option contract abs(current price - strike price). 0 if exercising out-the-money.
+     * @notice Amount of profit made from exercising an option contract abs(current price - strike price)
+     *         0 if exercising out-the-money.
      * @param options is the address of the options contract
-     * @param amount is the amount of tokens or options contract to exercise. Only relevant for fungle protocols like Opyn
+     * @param amount is the amount of tokens or options contract to exercise
+     *        Only relevant for fungle protocols like Opyn
      */
     function exerciseProfit(
         address options,
@@ -297,8 +308,10 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     /**
      * @notice Exercises the options contract.
      * @param options is the address of the options contract
-     * @param amount is the amount of tokens or options contract to exercise. Only relevant for fungle protocols like Opyn
-     * @param recipient is the account that receives the exercised profits. This is needed since the adapter holds all the positions and the msg.sender is an instrument contract.
+     * @param amount is the amount of tokens or options contract to exercise.
+     *        Only relevant for fungle protocols like Opyn
+     * @param recipient is the account that receives the exercised profits.
+     *        This is needed since the adapter holds all the positions and the msg.sender is an instrument contract.
      */
     function exercise(
         address options,
@@ -350,7 +363,8 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
      *         This simplifies the payout of an option. Put options pay out in USDC, so we swap USDC back
      *         into WETH and transfer it to the recipient.
      * @param otokenAddress is the otoken's address
-     * @param profitInCollateral is the profit after exercising denominated in the collateral - this could be a token with different decimals
+     * @param profitInCollateral is the profit after exercising
+     *        denominated in the collateral - this could be a token with different decimals
      * @param recipient is the recipient of the underlying tokens after the swap
      */
     function swapExercisedProfitsToUnderlying(
@@ -413,7 +427,8 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
      * @notice Creates a short otoken position by opening a vault, depositing collateral and minting otokens.
      * The sale of otokens is left to the caller contract to perform.
      * @param optionTerms is the terms of the option contract
-     * @param depositAmount is the amount deposited to open the vault. This amount will determine how much otokens to mint.
+     * @param depositAmount is the amount deposited to open the vault.
+     *        This amount will determine how much otokens to mint.
      */
     function createShort(
         ProtocolAdapterTypes.OptionTerms calldata optionTerms,
@@ -601,7 +616,8 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     }
 
     /**
-     * @notice Gas-optimized getter for checking if settlement is allowed. Looks up from the oracles with asset address and expiry
+     * @notice Gas-optimized getter for checking if settlement is allowed.
+     * Looks up from the oracles with asset address and expiry
      * @param underlying is the address of the underlying for an otoken
      * @param expiry is the timestamp of the otoken's expiry
      */

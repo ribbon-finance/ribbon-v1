@@ -15,14 +15,13 @@ let deployer, owner;
 
 module.exports = async function (_deployer, _network) {
   deployer = _deployer;
-  network = _network;
-  let { owner: _owner } = ACCOUNTS[network.replace("-fork", "")];
+  let { owner: _owner } = ACCOUNTS[_network.replace("-fork", "")];
   owner = _owner;
 
-  await deployHegicAdapter();
+  await deployHegicAdapter(_network);
 };
 
-async function deployHegicAdapter() {
+async function deployHegicAdapter(network) {
   await deployer.deploy(
     HegicAdapter,
     HEGIC_ETH_OPTIONS,

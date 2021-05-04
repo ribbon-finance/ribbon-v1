@@ -1,5 +1,5 @@
-import hre from "hardhat";
 import fs from "fs";
+import hre from "hardhat";
 import path from "path";
 
 const constantFiles = [

@@ -2,7 +2,6 @@ require("dotenv").config();
 const getWeb3 = require("./helpers/web3");
 const { Command } = require("commander");
 const { ethers } = require("ethers");
-const { parseEther } = ethers.utils;
 const program = new Command();
 
 const externalAddresses = require("../constants/externalAddresses");

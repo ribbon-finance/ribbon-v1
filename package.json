@@ -24,6 +24,8 @@
     "@openzeppelin/test-environment": "^0.1.5",
     "@openzeppelin/test-helpers": "^0.5.6",
     "@truffle/hdwallet-provider": "^1.1.0",
+    "@typescript-eslint/eslint-plugin": "^4.22.0",
+    "@typescript-eslint/parser": "^4.22.0",
     "chai": "^4.2.0",
     "commander": "^6.2.0",
     "dotenv": "^8.2.0",
@@ -61,8 +63,10 @@
     "coverage": "npx hardhat coverage --testfiles 'test/**.js'",
     "lint:js": "eslint 'test/**/*.js' 'migrations/*.js' 'scripts/**/*.js'",
     "lint:js:fix": "yarn lint:js --fix",
+    "lint:js:prettier": "prettier --write 'test/**/*.js' 'migrations/*.js' 'scripts/**/*.{js,ts}'",
+    "lint:ts": "eslint --config .eslintrc.ts.json 'scripts/**/*.ts'",
+    "lint:ts:fix": "yarn lint:ts --fix",
     "lint:sol": "solhint -f table contracts/**/*.sol",
-    "lint:sol:prettier": "prettier --write \"contracts/**/*.sol\"",
-    "lint:js:prettier": "prettier --write 'test/**/*.js' 'migrations/*.js' 'scripts/**/*.js'"
+    "lint:sol:prettier": "prettier --write \"contracts/**/*.sol\""
   }
 }

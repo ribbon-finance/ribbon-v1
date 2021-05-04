@@ -12,7 +12,8 @@
     },
     "globals": {
         "network": "readonly",
-        "hre": "readonly"
+        "hre": "readonly",
+        "artifacts": "readonly"
     },
     "rules": {
         "accessor-pairs": "error",

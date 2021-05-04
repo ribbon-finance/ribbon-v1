@@ -3,7 +3,6 @@ const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const ProtocolAdapterLib = artifacts.require("ProtocolAdapter");
 const { encodeCall } = require("@openzeppelin/upgrades");
 const { ethers } = require("ethers");
-const { parseUnits } = ethers.utils;
 
 const {
   updateDeployedAddresses,

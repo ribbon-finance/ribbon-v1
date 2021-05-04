@@ -1,9 +1,7 @@
 const GammaAdapter = artifacts.require("GammaAdapter");
-const RibbonFactory = artifacts.require("RibbonFactory");
 const {
   updateDeployedAddresses,
 } = require("../scripts/helpers/updateDeployedAddresses");
-const DEPLOYMENTS = require("../constants/deployments.json");
 const EXTERNAL_ADDRESSES = require("../constants/externalAddresses.json");
 const ACCOUNTS = require("../constants/accounts.json");
 

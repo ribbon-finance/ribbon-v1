@@ -6,16 +6,13 @@ const {
 
 const ACCOUNTS = require("../constants/accounts.json");
 
-let deployer, admin, owner;
+let deployer, admin;
 
 module.exports = async function (_deployer, network) {
   deployer = _deployer;
 
-  const { admin: _admin, owner: _owner } = ACCOUNTS[
-    network.replace("-fork", "")
-  ];
+  const { admin: _admin } = ACCOUNTS[network.replace("-fork", "")];
   admin = _admin;
-  owner = _owner;
 
   await deployer.deploy(ProtocolAdapterLib);
 

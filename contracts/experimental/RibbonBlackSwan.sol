@@ -175,6 +175,11 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
         address oldManager = manager;
         manager = newManager;
 
+        if (oldManager != address(0)) {
+            SWAP_CONTRACT.revokeSigner(oldManager);
+        }
+        SWAP_CONTRACT.authorizeSigner(newManager);
+
         emit ManagerChanged(oldManager, newManager);
     }
 
@@ -390,7 +395,7 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
         );
         require(
             order.signer.wallet == address(this),
-            "Sender can only be vault"
+            "Signer can only be vault"
         );
         require(order.signer.token == asset, "Can only sell asset");
         require(

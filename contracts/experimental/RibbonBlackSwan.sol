@@ -37,7 +37,8 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
     bool public immutable isPut;
     uint8 private immutable _decimals;
 
-    // AirSwap Swap contract https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
+    // AirSwap Swap contract
+    // https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
     ISwap public immutable SWAP_CONTRACT;
 
     // 90% locked in options protocol, 10% of the pool reserved for withdrawals
@@ -123,7 +124,7 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
         address adapterAddr = factoryInstance.getAdapter(_adapterName);
         require(adapterAddr != address(0), "Adapter not set");
 
-        asset = _asset;
+        asset = _isPut ? _usdc : _asset;
         adapter = IProtocolAdapter(adapterAddr);
         WETH = _weth;
         USDC = _usdc;
@@ -240,6 +241,7 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
 
         uint256 shareSupply = totalSupply();
 
+        // solhint-disable-next-line
         // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L104
         uint256 share =
             shareSupply == 0 ? amount : amount.mul(shareSupply).div(total);
@@ -293,7 +295,8 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
     }
 
     /**
-     * @notice Sets the next option the vault will be shorting, and closes the existing short. This allows all the users to withdraw if the next option is malicious.
+     * @notice Sets the next option the vault will be shorting, and closes the existing short.
+     * This allows all the users to withdraw if the next option is malicious.
      */
     function commitAndClose(
         address newOption,
@@ -309,7 +312,8 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
     }
 
     /**
-     * @notice Sets the next option address and the timestamp at which the admin can call `rollToNextOption` to open a short for the option.
+     * @notice Sets the next option address and the timestamp at which the admin can call
+     *         `rollToNextOption` to open a short for the option.
      * @param newOption is the next option address the vault is buying
      * @param newPurchaseAmount is the
      */
@@ -323,7 +327,8 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
         OtokenInterface otoken = OtokenInterface(newOption);
         require(otoken.isPut() == isPut, "Option type does not match");
         require(otoken.underlyingAsset() == asset, "!asset");
-        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC"); // we just assume all options use USDC as the strike
+        // we just assume all options use USDC as the strike
+        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
 
         uint256 readyAt = block.timestamp.add(delay);
         require(
@@ -485,6 +490,7 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
 
         uint256 shareSupply = totalSupply();
 
+        // solhint-disable-next-line
         // Following the pool share calculation from Alpha Homora: https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L111
         withdrawAmount = share.mul(total).div(shareSupply);
         newAssetBalance = total.sub(withdrawAmount);
@@ -517,12 +523,14 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
         uint256 share = balanceOf(account);
         uint256 numShares = min(maxShares, share);
 
-        (uint256 withdrawAmount, ) = withdrawAmountWithShares(numShares);
+        (uint256 withdrawAmount, , ) =
+            _withdrawAmountWithShares(numShares, assetBalance());
         return withdrawAmount;
     }
 
     /**
-     * @notice Returns the number of shares for a given `assetAmount`. Used by the frontend to calculate withdraw amounts.
+     * @notice Returns the number of shares for a given `assetAmount`.
+     *         Used by the frontend to calculate withdraw amounts.
      * @param assetAmount is the asset amount to be withdrawn
      * @return share amount
      */

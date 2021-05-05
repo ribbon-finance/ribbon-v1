@@ -1,20 +1,14 @@
 import { BigNumber, ethers } from "ethers";
-import { Command } from "commander";
-import { getDefaultProvider } from "./helpers/getDefaultEthersProvider";
+import { Networks, getDefaultProvider } from "./getDefaultEthersProvider";
 import hre from "hardhat";
 
-const deployments = require("../constants/deployments");
+const deployments = require("../../constants/deployments");
 
-const program = new Command();
-program.version("0.0.1");
-program
-  .requiredOption("-a, --address <oTokenAddress>", "oToken address")
-  .requiredOption("-n, --network <network>", "Network", "kovan");
-
-program.parse(process.argv);
-
-async function main() {
-  const network = program.network;
+export async function encodeCommitAndClose(
+  network: Networks,
+  otokenAddress: string
+) {
+  otokenAddress = ethers.utils.getAddress(otokenAddress);
   const provider = getDefaultProvider(network);
 
   const otokenArtifact = await hre.artifacts.readArtifact("OtokenInterface");
@@ -22,7 +16,7 @@ async function main() {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
 
   const otoken = new ethers.Contract(
-    program.address,
+    otokenAddress,
     otokenArtifact.abi,
     provider
   );
@@ -46,6 +40,7 @@ async function main() {
     optionType,
     paymentToken,
   ];
+  console.log();
   console.log(optionTerms);
 
   const adapter = new ethers.Contract(
@@ -54,18 +49,17 @@ async function main() {
     provider
   );
 
-  const otokenAddress = await adapter.getOptionsAddress(optionTerms);
-  if (otokenAddress.toLowerCase() !== program.address.toLowerCase()) {
+  const foundOtokenAddress = await adapter.getOptionsAddress(optionTerms);
+  if (foundOtokenAddress.toLowerCase() !== otokenAddress.toLowerCase()) {
     throw new Error(`Found otoken ${otokenAddress} does not match`);
   }
 
+  console.log("\nEncoded commitAndClose hex data");
   console.log(`Matched with oToken ${otokenAddress}`);
 
   let iface = new ethers.utils.Interface(vaultArtifact.abi);
 
-  const encoded = iface.encodeFunctionData("setNextOption", [optionTerms]);
+  const encoded = iface.encodeFunctionData("commitAndClose", [optionTerms]);
 
   console.log(`Encoded hex data: ${encoded}`);
 }
-
-main();

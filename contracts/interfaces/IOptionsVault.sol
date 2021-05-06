@@ -5,4 +5,6 @@ interface IOptionsVault {
     function deposit(uint256 amount) external;
 
     function withdraw(uint256 shares) external;
+
+    function asset() external returns (address);
 }

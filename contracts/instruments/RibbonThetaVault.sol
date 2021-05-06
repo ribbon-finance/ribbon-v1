@@ -288,9 +288,12 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         external
         nonReentrant
     {
+        IOptionsVault vault = IOptionsVault(toVault);
         bool canWithdraw =
             vaultRegistry.canWithdrawForFree(address(this), toVault);
+
         require(canWithdraw, "Cannot withdraw to vault");
+        require(vault.asset() == asset, "Asset mismatch");
 
         uint256 currentAssetBalance = assetBalance();
         (
@@ -314,7 +317,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         IERC20(asset).safeApprove(toVault, 0);
         IERC20(asset).safeApprove(toVault, withdrawAmount);
 
-        IOptionsVault vault = IOptionsVault(toVault);
         vault.deposit(withdrawAmount);
     }
 

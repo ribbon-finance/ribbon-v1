@@ -14,14 +14,17 @@ import {
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {IVaultRegistry} from "../interfaces/IVaultRegistry.sol";
+import {IOptionsVault} from "../interfaces/IOptionsVault.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
-import {ISwap, Types} from "../interfaces/ISwap.sol";
 import {OtokenInterface} from "../interfaces/GammaInterface.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 
 contract BlackSwanStorage is OptionsVaultStorage {
     uint256 public nextPurchaseAmount;
+    uint256 public currentPurchaseAmount;
     uint256 public nextPremium;
+    uint256 public currentPremium;
+    address public buyingFromVault;
 }
 
 contract RibbonBlackSwan is DSMath, BlackSwanStorage {
@@ -38,10 +41,6 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
     address public immutable USDC;
     bool public immutable isPut;
     uint8 private immutable _decimals;
-
-    // AirSwap Swap contract
-    // https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
-    ISwap public immutable SWAP_CONTRACT;
 
     // 90% locked in options protocol, 10% of the pool reserved for withdrawals
     uint256 public constant lockedRatio = 0.9 ether;
@@ -96,7 +95,6 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
      * @param _asset is the asset used for collateral and premiums
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
-     * @param _swapContract is the Airswap Swap contract
      * @param _tokenDecimals is the decimals for the vault shares. Must match the decimals for _asset.
      * @param _minimumSupply is the minimum supply for the asset balance and the share supply.
      * It's important to bake the _factory variable into the contract with the constructor
@@ -108,7 +106,6 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
         address _factory,
         address _weth,
         address _usdc,
-        address _swapContract,
         uint8 _tokenDecimals,
         uint256 _minimumSupply,
         bool _isPut,
@@ -119,7 +116,6 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
         require(_vaultRegistry != address(0), "!_vaultRegistry");
-        require(_swapContract != address(0), "!_swapContract");
         require(_tokenDecimals > 0, "!_tokenDecimals");
         require(_minimumSupply > 0, "!_minimumSupply");
 
@@ -132,7 +128,6 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
         adapter = IProtocolAdapter(adapterAddr);
         WETH = _weth;
         USDC = _usdc;
-        SWAP_CONTRACT = ISwap(_swapContract);
         _decimals = _tokenDecimals;
         MINIMUM_SUPPLY = _minimumSupply;
         isPut = _isPut;
@@ -179,12 +174,6 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
         require(newManager != address(0), "!newManager");
         address oldManager = manager;
         manager = newManager;
-
-        if (oldManager != address(0)) {
-            SWAP_CONTRACT.revokeSigner(oldManager);
-        }
-        SWAP_CONTRACT.authorizeSigner(newManager);
-
         emit ManagerChanged(oldManager, newManager);
     }
 
@@ -311,28 +300,18 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
     function commitAndClose(
         address newOption,
         uint256 newPurchaseAmount,
-        uint256 newPremium
+        uint256 newPremium,
+        address longVaultAddress
     ) external onlyManager nonReentrant {
-        _setNextOption(newOption, newPurchaseAmount, newPremium);
-        _redeem();
-    }
+        require(
+            vaultRegistry.canCrossTrade(address(this), longVaultAddress),
+            "Cannot trade"
+        );
 
-    function redeem() external nonReentrant {
-        _redeem();
-    }
-
-    /**
-     * @notice Sets the next option address and the timestamp at which the admin can call
-     *         `rollToNextOption` to open a short for the option.
-     * @param newOption is the next option address the vault is buying
-     * @param newPurchaseAmount is the
-     */
-    function _setNextOption(
-        address newOption,
-        uint256 newPurchaseAmount,
-        uint256 newPremium
-    ) private {
         require(newOption != address(0), "!option");
+        require(longVaultAddress != address(0), "!longVaultAddress");
+        require(newPurchaseAmount > 0, "!newPurchaseAmount");
+        require(newPremium > 0, "!newPremium");
 
         OtokenInterface otoken = OtokenInterface(newOption);
         require(otoken.isPut() == isPut, "Option type does not match");
@@ -350,6 +329,13 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
         nextOptionReadyAt = readyAt;
         nextPurchaseAmount = newPurchaseAmount;
         nextPremium = newPremium;
+        buyingFromVault = longVaultAddress;
+
+        _redeem();
+    }
+
+    function redeem() external nonReentrant {
+        _redeem();
     }
 
     function _redeem() private {
@@ -364,6 +350,8 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
         );
 
         currentOption = address(0);
+        currentPremium = 0;
+        currentPurchaseAmount = 0;
 
         bool canExercise = adapter.canExercise(oldOption, 0, otokenBalance);
 
@@ -384,43 +372,31 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
     /**
      * @notice Rolls the vault's funds into a new long option position.
      */
-    function rollToNextOption(Types.Order calldata order)
-        external
-        onlyManager
-        nonReentrant
-    {
-        uint256 longAmount = nextPurchaseAmount;
+    function approvePremiumDebit() external onlyManager nonReentrant {
+        require(
+            vaultRegistry.canCrossTrade(address(this), buyingFromVault),
+            "Cannot trade"
+        );
+
         address newOption = nextOption;
         uint256 premium = nextPremium;
+        uint256 longAmount = nextPurchaseAmount;
 
-        require(newOption != address(0), "No found option");
-        require(
-            block.timestamp >= nextOptionReadyAt,
-            "Cannot roll before delay"
-        );
-        require(
-            order.signer.wallet == address(this),
-            "Signer can only be vault"
-        );
-        require(order.signer.token == asset, "Can only sell asset");
-        require(
-            order.signer.amount == premium,
-            "order.signer.amount != nextPremium"
-        );
-        require(
-            order.sender.amount == longAmount,
-            "order.sender.amount != nextPurchaseAmount"
-        );
-        require(order.sender.token == newOption, "Can only buy newOption");
-        require(order.signer.token == asset, "Can only buy with asset token");
+        IOptionsVault longVault = IOptionsVault(buyingFromVault);
+        require(longVault.currentOption() == newOption, "Options mismatch");
 
         currentOption = newOption;
+        currentPurchaseAmount = longAmount;
+        currentPremium = nextPremium;
         nextOption = address(0);
-
-        IERC20(asset).safeApprove(address(SWAP_CONTRACT), premium);
-        SWAP_CONTRACT.swap(order);
+        buyingFromVault = address(0);
+        nextPremium = 0;
+        nextPurchaseAmount = 0;
 
         emit OpenLong(newOption, longAmount, premium, msg.sender);
+
+        IERC20(asset).safeApprove(address(longVault), 0);
+        IERC20(asset).safeApprove(address(longVault), premium);
     }
 
     /**

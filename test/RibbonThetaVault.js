@@ -2,7 +2,7 @@ const { expect, assert } = require("chai");
 const { BigNumber, constants } = require("ethers");
 const { parseUnits } = require("ethers/lib/utils");
 const { ethers } = require("hardhat");
-const { provider, getContractAt, getContractFactory } = ethers;
+const { provider, getContractAt } = ethers;
 const { parseEther } = ethers.utils;
 const { createOrder, signTypedDataOrder } = require("@airswap/utils");
 
@@ -232,12 +232,6 @@ function behavesLikeRibbonOptionsVault(params) {
       this.factory = factory;
       this.protocolAdapterLib = protocolAdapterLib;
 
-      const VaultRegistry = await getContractFactory(
-        "VaultRegistry",
-        ownerSigner
-      );
-      this.vaultRegistry = await VaultRegistry.deploy();
-
       const initializeTypes = [
         "address",
         "address",
@@ -261,7 +255,6 @@ function behavesLikeRibbonOptionsVault(params) {
         this.tokenDecimals,
         this.minimumSupply,
         this.isPut,
-        this.vaultRegistry.address,
       ];
 
       this.vault = (
@@ -412,8 +405,7 @@ function behavesLikeRibbonOptionsVault(params) {
             SWAP_ADDRESS,
             this.tokenDecimals,
             this.minimumSupply,
-            this.isPut,
-            this.vaultRegistry.address
+            this.isPut
           )
         ).to.be.revertedWith("!_factory");
       });
@@ -440,8 +432,7 @@ function behavesLikeRibbonOptionsVault(params) {
             SWAP_ADDRESS,
             this.tokenDecimals,
             this.minimumSupply,
-            this.isPut,
-            this.vaultRegistry.address
+            this.isPut
           )
         ).to.be.revertedWith("Adapter not set");
       });
@@ -465,8 +456,7 @@ function behavesLikeRibbonOptionsVault(params) {
             SWAP_ADDRESS,
             this.tokenDecimals,
             this.minimumSupply,
-            this.isPut,
-            this.vaultRegistry.address
+            this.isPut
           )
         ).to.be.revertedWith("!_asset");
       });
@@ -490,8 +480,7 @@ function behavesLikeRibbonOptionsVault(params) {
             SWAP_ADDRESS,
             0,
             this.minimumSupply,
-            this.isPut,
-            this.vaultRegistry.address
+            this.isPut
           )
         ).to.be.revertedWith("!_tokenDecimals");
       });
@@ -515,8 +504,7 @@ function behavesLikeRibbonOptionsVault(params) {
             SWAP_ADDRESS,
             this.tokenDecimals,
             0,
-            this.isPut,
-            this.vaultRegistry.address
+            this.isPut
           )
         ).to.be.revertedWith("!_minimumSupply");
       });
@@ -544,8 +532,7 @@ function behavesLikeRibbonOptionsVault(params) {
           SWAP_ADDRESS,
           decimals,
           minSupply,
-          this.isPut,
-          this.vaultRegistry.address
+          this.isPut
         );
         assert.equal(await vault.decimals(), decimals);
         assert.equal(await vault.asset(), collateralAsset);
@@ -571,8 +558,7 @@ function behavesLikeRibbonOptionsVault(params) {
           SWAP_ADDRESS,
           this.tokenDecimals,
           this.minimumSupply,
-          this.isPut,
-          this.vaultRegistry.address
+          this.isPut
         );
       });
 

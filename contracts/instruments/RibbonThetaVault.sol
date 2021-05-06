@@ -13,8 +13,6 @@ import {
 } from "../adapters/IProtocolAdapter.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
-import {IVaultRegistry} from "../interfaces/IVaultRegistry.sol";
-import {IOptionsVault} from "../interfaces/IOptionsVault.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {ISwap, Types} from "../interfaces/ISwap.sol";
 import {OtokenInterface} from "../interfaces/GammaInterface.sol";
@@ -27,7 +25,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
     string private constant _adapterName = "OPYN_GAMMA";
 
-    IVaultRegistry public immutable vaultRegistry;
     IProtocolAdapter public immutable adapter;
     address public immutable asset;
     address public immutable underlying;
@@ -94,11 +91,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         address _swapContract,
         uint8 _tokenDecimals,
         uint256 _minimumSupply,
-        bool _isPut,
-        address _vaultRegistry
+        bool _isPut
     ) {
         require(_asset != address(0), "!_asset");
-        require(_vaultRegistry != address(0), "!vaultRegistry");
         require(_factory != address(0), "!_factory");
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
@@ -120,7 +115,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         _decimals = _tokenDecimals;
         MINIMUM_SUPPLY = _minimumSupply;
         isPut = _isPut;
-        vaultRegistry = IVaultRegistry(_vaultRegistry);
     }
 
     /**
@@ -282,42 +276,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         IERC20(asset).safeTransfer(feeRecipient, feeAmount);
 
         return amountAfterFee;
-    }
-
-    function withdrawToVault(address toVault, uint256 share)
-        external
-        nonReentrant
-    {
-        IOptionsVault vault = IOptionsVault(toVault);
-        bool canWithdraw =
-            vaultRegistry.canWithdrawForFree(address(this), toVault);
-
-        require(canWithdraw, "Cannot withdraw to vault");
-        require(vault.asset() == asset, "Asset mismatch");
-
-        uint256 currentAssetBalance = assetBalance();
-        (
-            uint256 withdrawAmount,
-            uint256 newAssetBalance,
-            uint256 newShareSupply
-        ) = _withdrawAmountWithShares(share, currentAssetBalance);
-
-        require(
-            withdrawAmount <= currentAssetBalance,
-            "Cannot withdraw more than available"
-        );
-        require(newShareSupply >= MINIMUM_SUPPLY, "Insufficient share supply");
-        require(
-            newAssetBalance >= MINIMUM_SUPPLY,
-            "Insufficient asset balance"
-        );
-
-        _burn(msg.sender, share);
-
-        IERC20(asset).safeApprove(toVault, 0);
-        IERC20(asset).safeApprove(toVault, withdrawAmount);
-
-        vault.deposit(withdrawAmount);
     }
 
     /**

@@ -253,6 +253,9 @@ describe("RibbonOptionsVault Upgrade", () => {
     });
 
     it("performs upgrade and storage is intact", async function () {
+      const VaultRegistry = await ethers.getContractFactory("VaultRegistry");
+      const registry = await VaultRegistry.deploy();
+
       const VaultContract = await ethers.getContractFactory(
         "RibbonThetaVault",
         {
@@ -270,7 +273,8 @@ describe("RibbonOptionsVault Upgrade", () => {
         SWAP_ADDRESS,
         this.tokenDecimals,
         this.minimumSupply,
-        this.isPut
+        this.isPut,
+        registry.address
       );
 
       const adminSigner = await provider.getSigner(UPGRADE_ADMIN);

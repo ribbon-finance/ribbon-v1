@@ -20,6 +20,11 @@ contract VaultRegistry is Ownable {
 
     event RevokeCrossTrade(address longVault, address shortVault);
 
+    /**
+     * @notice Register vaults that can withdraw to each other for free
+     * @param fromVault is the vault to withdraw from
+     * @param toVault is the vault to withdraw to
+     */
     function registerFreeWithdrawal(address fromVault, address toVault)
         external
         onlyOwner
@@ -28,6 +33,11 @@ contract VaultRegistry is Ownable {
         emit RegisterWithdrawal(fromVault, toVault);
     }
 
+    /**
+     * @notice Revoke withdrawal access between vaults
+     * @param fromVault is the vault to withdraw from
+     * @param toVault is the vault to withdraw to
+     */
     function revokeFreeWithdrawal(address fromVault, address toVault)
         external
         onlyOwner
@@ -36,6 +46,11 @@ contract VaultRegistry is Ownable {
         emit RevokeWithdrawal(fromVault, toVault);
     }
 
+    /**
+     * @notice Register vaults that can trade options with each other
+     * @param longVault is the vault that is buying options
+     * @param shortVault is the vault that is selling options
+     */
     function registerCrossTrade(address longVault, address shortVault)
         external
         onlyOwner
@@ -44,6 +59,11 @@ contract VaultRegistry is Ownable {
         emit RegisterCrossTrade(longVault, shortVault);
     }
 
+    /**
+     * @notice Revoke trading access between vaults
+     * @param longVault is the vault that is buying options
+     * @param shortVault is the vault that is selling options
+     */
     function revokeCrossTrade(address longVault, address shortVault)
         external
         onlyOwner

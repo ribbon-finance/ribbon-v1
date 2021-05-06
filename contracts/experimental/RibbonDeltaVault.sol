@@ -13,6 +13,7 @@ import {
 } from "../adapters/IProtocolAdapter.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
+import {IVaultRegistry} from "../interfaces/IVaultRegistry.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {ISwap, Types} from "../interfaces/ISwap.sol";
 import {OtokenInterface} from "../interfaces/GammaInterface.sol";
@@ -30,6 +31,7 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
 
     string private constant _adapterName = "OPYN_GAMMA";
 
+    IVaultRegistry public immutable vaultRegistry;
     IProtocolAdapter public immutable adapter;
     address public immutable asset;
     address public immutable WETH;
@@ -109,12 +111,14 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
         address _swapContract,
         uint8 _tokenDecimals,
         uint256 _minimumSupply,
-        bool _isPut
+        bool _isPut,
+        address _vaultRegistry
     ) {
         require(_asset != address(0), "!_asset");
         require(_factory != address(0), "!_factory");
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
+        require(_vaultRegistry != address(0), "!_vaultRegistry");
         require(_swapContract != address(0), "!_swapContract");
         require(_tokenDecimals > 0, "!_tokenDecimals");
         require(_minimumSupply > 0, "!_minimumSupply");
@@ -132,6 +136,7 @@ contract RibbonBlackSwan is DSMath, BlackSwanStorage {
         _decimals = _tokenDecimals;
         MINIMUM_SUPPLY = _minimumSupply;
         isPut = _isPut;
+        vaultRegistry = IVaultRegistry(_vaultRegistry);
     }
 
     /**

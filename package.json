@@ -16,7 +16,8 @@
     "axios": "^0.21.1",
     "moment-timezone": "^0.5.33",
     "truffle-contract-size": "^2.0.0",
-    "truffle-plugin-verify": "^0.4.0"
+    "truffle-plugin-verify": "^0.4.0",
+    "underscore": "^1.12.1"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.1",

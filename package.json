@@ -97,5 +97,8 @@
     "lint:sol": "solhint -f table contracts/**/*.sol",
     "lint:sol:prettier": "prettier --write \"contracts/**/*.sol\"",
     "prepare": "husky install"
+  },
+  "resolutions": {
+    "underscore": "^1.12.1"
   }
 }

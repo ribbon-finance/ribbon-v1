@@ -2426,6 +2426,72 @@ function behavesLikeRibbonOptionsVault(params) {
       });
     });
 
+    describe("#withdrawLater", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("rejects a scheduled withdrawal of 0 shares", async function () {
+        await expect(
+          this.vault.withdrawLater(BigNumber.from("0"))
+        ).to.be.revertedWith("!shares");
+      });
+      
+      it("rejects a scheduled withdrawal when greater than balance", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+
+        await expect(
+          this.vault.withdrawLater(BigNumber.from("200000000000"))
+        ).to.be.revertedWith("Insufficient shares");
+      });
+
+      it("rejects a completeScheduledWithdrawal if nothing schedled", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+
+        await expect(
+          this.vault.completeScheduledWithdrawal()
+        ).to.be.revertedWith("Scheduled withdrawal not found");
+      });
+
+      it("accepts a scheduled withdrawal when less than or equal to balance", async function () {
+        const depositAmount = BigNumber.from("200000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+
+        await this.vault.withdrawLater(BigNumber.from("100000000000"))
+
+        await this.rollToNextOption();
+
+        const balanceBeforeWithdraw = await this.assetContract.balanceOf(user);
+        const vaultBalanceBeforeWithdraw = await this.assetContract.balanceOf(this.vault.address);
+
+        // 10% + queued withdrawals should be set aside
+        assert.equal(
+          vaultBalanceBeforeWithdraw.toString(),
+          BigNumber.from("110000000000").toString()
+        )
+
+        await this.vault.completeScheduledWithdrawal();
+
+        assert.equal(
+          (await this.assetContract.balanceOf(user)).toString(),
+          balanceBeforeWithdraw.add(BigNumber.from("99500000000")).toString()
+        );
+      });
+    });
+
+
     describe("#withdraw", () => {
       time.revertToSnapshotAfterEach();
 

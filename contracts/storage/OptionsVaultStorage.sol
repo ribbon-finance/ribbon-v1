@@ -54,8 +54,8 @@ contract OptionsVaultStorageV2 {
     // Amount locked for scheduled withdrawals;
     uint256 public queuedWithdrawShares;
 
-    // Mapping to store the scheduled withdrawals (address => (withdrawCounter => withdrawAmount))
-    mapping(address => mapping(uint256 => uint256)) scheduledWithdrawals;
+    // Mapping to store the scheduled withdrawals (address => withdrawAmount)
+    mapping(address => uint256) scheduledWithdrawals;
 }
 
 // We are following Compound's method of upgrading new contract implementations

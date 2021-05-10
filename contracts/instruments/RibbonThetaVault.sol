@@ -291,16 +291,15 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param shares is the number of shares to be withdrawn in the future.
      */
     function withdrawLater(uint256 shares) external nonReentrant {
-        uint256 _withdrawCounter = withdrawCounter.add(1);
         require(shares > 0, "!shares");
         require(
-            scheduledWithdrawals[msg.sender][_withdrawCounter] == 0,
+            scheduledWithdrawals[msg.sender] == 0,
             "Scheduled withdrawal already exists"
         );
-        withdrawCounter = _withdrawCounter;
-        queuedWithdrawShares = queuedWithdrawShares.add(shares);
+        require(balanceOf(msg.sender) >= shares, "insufficient shares");
 
-        scheduledWithdrawals[msg.sender][_withdrawCounter] = shares;
+        queuedWithdrawShares = queuedWithdrawShares.add(shares);
+        scheduledWithdrawals[msg.sender] = shares;
 
         emit ScheduleWithdraw(msg.sender, _withdrawCounter, shares);
     }
@@ -313,10 +312,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         external
         nonReentrant
     {
-        uint256 withdrawShares = scheduledWithdrawals[msg.sender][withdrawID];
+        uint256 withdrawShares = scheduledWithdrawals[msg.sender];
         require(withdrawShares > 0, "Scheduled withdrawal not found");
 
-        scheduledWithdrawals[msg.sender][withdrawID] = 0;
+        scheduledWithdrawals[msg.sender] = 0;
         queuedWithdrawShares = queuedWithdrawShares.sub(withdrawShares);
         uint256 withdrawAmount = _withdraw(withdrawShares);
 

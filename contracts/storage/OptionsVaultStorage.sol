@@ -54,9 +54,6 @@ contract OptionsVaultStorageV2 {
     // Amount locked for scheduled withdrawals;
     uint256 public queuedWithdrawShares;
 
-    // Counter used to identify scheduled withdrawals
-    uint256 public withdrawCounter;
-
     // Mapping to store the scheduled withdrawals (address => (withdrawCounter => withdrawAmount))
     mapping(address => mapping(uint256 => uint256)) scheduledWithdrawals;
 }

@@ -2429,26 +2429,13 @@ function behavesLikeRibbonOptionsVault(params) {
     describe("#withdrawLater", () => {
       time.revertToSnapshotAfterEach();
 
-      it("rejects a scheduled withdrawal of 0 shares", async function () {
+      it("rejects a withdrawLater of 0 shares", async function () {
         await expect(
           this.vault.withdrawLater(BigNumber.from("0"))
         ).to.be.revertedWith("!shares");
       });
-      
-      it("rejects a scheduled withdrawal when greater than balance", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(
-          params.collateralAsset,
-          this.vault,
-          depositAmount
-        );
 
-        await expect(
-          this.vault.withdrawLater(BigNumber.from("200000000000"))
-        ).to.be.revertedWith("Insufficient shares");
-      });
-
-      it("rejects a completeScheduledWithdrawal if nothing schedled", async function () {
+      it("rejects a completeScheduledWithdrawal if nothing scheduled", async function () {
         const depositAmount = BigNumber.from("100000000000");
         await depositIntoVault(
           params.collateralAsset,
@@ -2461,7 +2448,27 @@ function behavesLikeRibbonOptionsVault(params) {
         ).to.be.revertedWith("Scheduled withdrawal not found");
       });
 
-      it("accepts a scheduled withdrawal when less than or equal to balance", async function () {
+      it("rejects a scheduled withdrawal when greater than balance", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+
+        //way too much
+        await expect(
+          this.vault.withdrawLater(BigNumber.from("200000000000"))
+        ).to.be.revertedWith("Insufficient shares");
+
+        // barely too much
+        await expect(
+          this.vault.withdrawLater(BigNumber.from("100000000001"))
+        ).to.be.revertedWith("Insufficient shares");
+      });
+
+      it("accepts a withdrawLater if less than or equal to balance", async function () {
+        var balanceBeforeWithdraw;
         const depositAmount = BigNumber.from("200000000000");
         await depositIntoVault(
           params.collateralAsset,
@@ -2469,7 +2476,7 @@ function behavesLikeRibbonOptionsVault(params) {
           depositAmount
         );
 
-        await this.vault.withdrawLater(BigNumber.from("100000000000"))
+        await this.vault.withdrawLater(BigNumber.from("100000000000"));
 
         await this.rollToNextOption();
 
@@ -2477,17 +2484,18 @@ function behavesLikeRibbonOptionsVault(params) {
 
         if (params.collateralAsset === WETH_ADDRESS) {
           balanceBeforeWithdraw = await provider.getBalance(user);
-        }
-        else { 
+        } else {
           balanceBeforeWithdraw = await this.assetContract.balanceOf(user);
         }
-        const vaultBalanceBeforeWithdraw = await this.assetContract.balanceOf(this.vault.address);
+        const vaultBalanceBeforeWithdraw = await this.assetContract.balanceOf(
+          this.vault.address
+        );
 
-        // 10% + queued withdrawals should be set aside
+        // Queued withdrawals + 10% of available assets set aside
         assert.equal(
           vaultBalanceBeforeWithdraw.toString(),
           BigNumber.from("110000000000").toString()
-        )
+        );
 
         const tx = await this.vault.completeScheduledWithdrawal({
           gasPrice,
@@ -2498,10 +2506,12 @@ function behavesLikeRibbonOptionsVault(params) {
         if (params.collateralAsset === WETH_ADDRESS) {
           assert.equal(
             (await provider.getBalance(user)).toString(),
-            balanceBeforeWithdraw.sub(gasFee).add(BigNumber.from("99500000000")).toString()
+            balanceBeforeWithdraw
+              .sub(gasFee)
+              .add(BigNumber.from("99500000000"))
+              .toString()
           );
-        }
-        else {
+        } else {
           assert.equal(
             (await this.assetContract.balanceOf(user)).toString(),
             balanceBeforeWithdraw.add(BigNumber.from("99500000000")).toString()
@@ -2509,7 +2519,6 @@ function behavesLikeRibbonOptionsVault(params) {
         }
       });
     });
-
 
     describe("#withdraw", () => {
       time.revertToSnapshotAfterEach();

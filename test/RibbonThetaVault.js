@@ -2473,7 +2473,14 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await this.rollToNextOption();
 
-        const balanceBeforeWithdraw = await this.assetContract.balanceOf(user);
+        var balanceBeforeWithdraw;
+
+        if (params.collateralAsset === WETH_ADDRESS) {
+          balanceBeforeWithdraw = await provider.getBalance(user);
+        }
+        else { 
+          balanceBeforeWithdraw = await this.assetContract.balanceOf(user);
+        }
         const vaultBalanceBeforeWithdraw = await this.assetContract.balanceOf(this.vault.address);
 
         // 10% + queued withdrawals should be set aside
@@ -2482,12 +2489,24 @@ function behavesLikeRibbonOptionsVault(params) {
           BigNumber.from("110000000000").toString()
         )
 
-        await this.vault.completeScheduledWithdrawal();
+        const tx = await this.vault.completeScheduledWithdrawal({
+          gasPrice,
+        });
+        const receipt = await tx.wait();
+        const gasFee = gasPrice.mul(receipt.gasUsed);
 
-        assert.equal(
-          (await this.assetContract.balanceOf(user)).toString(),
-          balanceBeforeWithdraw.add(BigNumber.from("99500000000")).toString()
-        );
+        if (params.collateralAsset === WETH_ADDRESS) {
+          assert.equal(
+            (await provider.getBalance(user)).toString(),
+            balanceBeforeWithdraw.sub(gasFee).add(BigNumber.from("99500000000")).toString()
+          );
+        }
+        else {
+          assert.equal(
+            (await this.assetContract.balanceOf(user)).toString(),
+            balanceBeforeWithdraw.add(BigNumber.from("99500000000")).toString()
+          );
+        }
       });
     });
 

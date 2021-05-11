@@ -18,18 +18,12 @@ program.parse(process.argv);
 async function main() {
   const network = program.network === "mainnet" ? "mainnet" : "kovan";
 
-  await verifyRollToNextOption(
-    deployments[network].RibbonETHCoveredCall,
-    network
-  );
-  await verifyRollToNextOption(
-    deployments[network].RibbonWBTCCoveredCall,
-    network
-  );
-  await verifyRollToNextOption(deployments[network].RibbonETHPut, network);
+  await verifyVaultOtoken(deployments[network].RibbonETHCoveredCall, network);
+  await verifyVaultOtoken(deployments[network].RibbonWBTCCoveredCall, network);
+  await verifyVaultOtoken(deployments[network].RibbonETHPut, network);
 }
 
-async function verifyRollToNextOption(vaultAddress: string, network: Networks) {
+async function verifyVaultOtoken(vaultAddress: string, network: Networks) {
   const provider = getDefaultProvider(network);
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
   const otokenArtifact = await hre.artifacts.readArtifact("OtokenInterface");
@@ -37,7 +31,10 @@ async function verifyRollToNextOption(vaultAddress: string, network: Networks) {
 
   const vault = new ethers.Contract(vaultAddress, vaultArtifact.abi, provider);
 
-  const otokenAddress = await vault.currentOption();
+  const nextOption = await vault.currentOption();
+  const currentOption = await vault.nextOption();
+  const hasRolled = nextOption === ethers.constants.AddressZero;
+  const otokenAddress = hasRolled ? currentOption : nextOption;
 
   const otoken = new ethers.Contract(
     otokenAddress,
@@ -77,6 +74,11 @@ async function verifyRollToNextOption(vaultAddress: string, network: Networks) {
     isFriday && lessThanAWeek ? colors.green("Valid") : colors.red("Invalid");
 
   console.log(`Vault: ${vaultAddress}`);
+  console.log(
+    `${
+      hasRolled ? colors.yellow("currentOption") : colors.yellow("nextOption")
+    }: https://etherscan.io/address/${otokenAddress}`
+  );
   console.log(`${"Symbol:".padEnd(20)} ${symbol}`);
   console.log(`${"Strike Price:".padEnd(20)} $${strikePrice.toLocaleString()}`);
   console.log(`${"Collateral asset:".padEnd(20)} ${assetMatch} ${actualAsset}`);

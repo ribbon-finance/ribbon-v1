@@ -296,9 +296,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             "Scheduled withdrawal already exists"
         );
 
-        _transfer(msg.sender, address(this), shares);
         scheduledWithdrawals[msg.sender] = shares;
         queuedWithdrawShares = queuedWithdrawShares.add(shares);
+        _transfer(msg.sender, address(this), shares);
 
         emit ScheduleWithdraw(msg.sender, shares);
     }

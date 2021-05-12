@@ -274,6 +274,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param share is the number of vault shares to be burned
      */
     function _withdraw(uint256 share) private returns (uint256) {
+        availableToWithdraw = balanceOf(msg.sender).sub(
+            scheduledWithdrawals[msg.sender]
+        );
+        require(availableToWithdraw >= share, "Insufficient shares");
+
         (uint256 amountAfterFee, uint256 feeAmount) =
             withdrawAmountWithShares(share);
 
@@ -573,9 +578,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         uint256 withdrawableBalance = assetBalance();
         uint256 total = lockedAmount.add(withdrawableBalance);
         return
-            withdrawableBalance.mul(totalSupply()).div(total).sub(
-                MINIMUM_SUPPLY
-            );
+            withdrawableBalance
+                .mul(totalSupply())
+                .div(total)
+                .sub(MINIMUM_SUPPLY)
+                .sub(queuedWithdrawShares);
     }
 
     /**
@@ -589,7 +596,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         returns (uint256)
     {
         uint256 maxShares = maxWithdrawableShares();
-        uint256 share = balanceOf(account);
+        uint256 share = balanceOf(account).sub(scheduledWithdrawals[account]);
         uint256 numShares = min(maxShares, share);
 
         (uint256 withdrawAmount, , ) =

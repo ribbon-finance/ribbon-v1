@@ -274,10 +274,13 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param share is the number of vault shares to be burned
      */
     function _withdraw(uint256 share) private returns (uint256) {
-        availableToWithdraw = balanceOf(msg.sender).sub(
-            scheduledWithdrawals[msg.sender]
-        );
-        require(availableToWithdraw >= share, "Insufficient shares");
+        uint256 scheduled = scheduledWithdrawals[msg.sender];
+        if (scheduled > 0) {
+            require(
+                balanceOf(msg.sender).sub(scheduled) >= share,
+                "Insufficient shares"
+            );
+        }
 
         (uint256 amountAfterFee, uint256 feeAmount) =
             withdrawAmountWithShares(share);

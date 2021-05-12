@@ -2435,19 +2435,6 @@ function behavesLikeRibbonOptionsVault(params) {
         ).to.be.revertedWith("!shares");
       });
 
-      it("rejects a completeScheduledWithdrawal if nothing scheduled", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(
-          params.collateralAsset,
-          this.vault,
-          depositAmount
-        );
-
-        await expect(
-          this.vault.completeScheduledWithdrawal()
-        ).to.be.revertedWith("Scheduled withdrawal not found");
-      });
-
       it("rejects a scheduled withdrawal when greater than balance", async function () {
         const depositAmount = BigNumber.from("100000000000");
         await depositIntoVault(
@@ -2465,6 +2452,84 @@ function behavesLikeRibbonOptionsVault(params) {
         await expect(
           this.vault.withdrawLater(BigNumber.from("100000000001"))
         ).to.be.revertedWith("Insufficient shares");
+      });
+
+      it("accepts a withdrawLater if less than or equal to balance", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+
+        const res = await this.vault.withdrawLater(
+          BigNumber.from("100000000000")
+        );
+
+        await expect(res)
+          .to.emit(this.vault, "ScheduleWithdraw")
+          .withArgs(user, BigNumber.from("100000000000"));
+      });
+
+      it("rejects a withdrawLater if a withdrawal is already scheduled", async function () {
+        const depositAmount = BigNumber.from("200000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+
+        await this.vault.withdrawLater(BigNumber.from("100000000000"));
+
+        await expect(
+          this.vault.withdrawLater(BigNumber.from("100000000000"))
+        ).to.be.revertedWith("Scheduled withdrawal already exists");
+      });
+
+      it("assets reserved by withdrawLater are not used to short", async function () {
+        const depositAmount = BigNumber.from("200000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+
+        const res = await this.vault.withdrawLater(
+          BigNumber.from("100000000000")
+        );
+
+        await expect(res)
+          .to.emit(this.vault, "ScheduleWithdraw")
+          .withArgs(user, BigNumber.from("100000000000"));
+
+        await this.rollToNextOption();
+
+        const vaultBalanceBeforeWithdraw = await this.assetContract.balanceOf(
+          this.vault.address
+        );
+
+        // Queued withdrawals + 10% of available assets set aside
+        assert.equal(
+          vaultBalanceBeforeWithdraw.toString(),
+          BigNumber.from("110000000000").toString()
+        );
+      });
+    });
+
+    describe("completeScheduledWithdrawal", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("rejects a completeScheduledWithdrawal if nothing scheduled", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+
+        await expect(
+          this.vault.completeScheduledWithdrawal()
+        ).to.be.revertedWith("Scheduled withdrawal not found");
       });
 
       it("accepts a withdrawLater if less than or equal to balance", async function () {

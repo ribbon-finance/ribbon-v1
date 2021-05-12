@@ -295,7 +295,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             scheduledWithdrawals[msg.sender] == 0,
             "Scheduled withdrawal already exists"
         );
-        require(balanceOf(msg.sender) >= shares, "Insufficient shares");
 
         _transfer(msg.sender, address(this), shares);
         scheduledWithdrawals[msg.sender] = shares;

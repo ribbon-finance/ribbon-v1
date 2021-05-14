@@ -31,8 +31,8 @@ async function verifyVaultOtoken(vaultAddress: string, network: Networks) {
 
   const vault = new ethers.Contract(vaultAddress, vaultArtifact.abi, provider);
 
-  const nextOption = await vault.currentOption();
-  const currentOption = await vault.nextOption();
+  const currentOption = await vault.currentOption();
+  const nextOption = await vault.nextOption();
   const hasRolled = nextOption === ethers.constants.AddressZero;
   const otokenAddress = hasRolled ? currentOption : nextOption;
 
@@ -54,6 +54,7 @@ async function verifyVaultOtoken(vaultAddress: string, network: Networks) {
       ? colors.green("Match")
       : colors.red("Mismatch");
 
+  const nextOptionReadyAt = await vault.nextOptionReadyAt();
   const expectedUnderlying = await vault.underlying();
   const symbol = await otokenERC20.symbol();
   const actualUnderlying = await otoken.underlyingAsset();
@@ -79,6 +80,13 @@ async function verifyVaultOtoken(vaultAddress: string, network: Networks) {
       hasRolled ? colors.yellow("currentOption") : colors.yellow("nextOption")
     }: https://etherscan.io/address/${otokenAddress}`
   );
+  if (!hasRolled)
+    console.log(
+      `Ready to roll at: ${moment
+        .unix(nextOptionReadyAt.toNumber())
+        .utc()
+        .toISOString()}`
+    );
   console.log(`${"Symbol:".padEnd(20)} ${symbol}`);
   console.log(`${"Strike Price:".padEnd(20)} $${strikePrice.toLocaleString()}`);
   console.log(`${"Collateral asset:".padEnd(20)} ${assetMatch} ${actualAsset}`);

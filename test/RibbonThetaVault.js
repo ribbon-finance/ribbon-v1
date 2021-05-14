@@ -2482,6 +2482,11 @@ function behavesLikeRibbonOptionsVault(params) {
           BigNumber.from("100000000000").toString()
         );
 
+        assert.equal(
+          (await this.vault.scheduledWithdrawals(user)).toString(),
+          BigNumber.from("100000000000").toString()
+        );
+
         // Verify that vault shares were transfer to vault for duration of scheduledWithdraw
         assert.equal(
           (await this.vault.balanceOf(this.vault.address)).toString(),
@@ -2619,6 +2624,12 @@ function behavesLikeRibbonOptionsVault(params) {
         await expect(tx)
           .to.emit(this.vault, "ScheduledWithdrawCompleted")
           .withArgs(user, BigNumber.from("99500000000"));
+
+        // Should set the scheduledWithdrawals entry back to 0
+        assert.equal(
+          (await this.vault.scheduledWithdrawals(user)).toString(),
+          BigNumber.from("0").toString()
+        );
 
         assert.equal(
           (await this.assetContract.balanceOf(this.vault.address)).toString(),

@@ -2577,7 +2577,7 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("completeScheduledWithdraw behaves as expected for valid scheduled withdraw", async function () {
-        var balanceBeforeWithdraw;
+        let balanceBeforeWithdraw;
         const depositAmount = BigNumber.from("200000000000");
         await depositIntoVault(
           params.collateralAsset,
@@ -2588,8 +2588,6 @@ function behavesLikeRibbonOptionsVault(params) {
         await this.vault.withdrawLater(BigNumber.from("100000000000"));
 
         await this.rollToNextOption();
-
-        var balanceBeforeWithdraw;
 
         if (params.collateralAsset === WETH_ADDRESS) {
           balanceBeforeWithdraw = await provider.getBalance(user);

@@ -296,11 +296,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             "Scheduled withdrawal already exists"
         );
 
+        emit ScheduleWithdraw(msg.sender, shares);
+
         scheduledWithdrawals[msg.sender] = shares;
         queuedWithdrawShares = queuedWithdrawShares.add(shares);
         _transfer(msg.sender, address(this), shares);
-
-        emit ScheduleWithdraw(msg.sender, shares);
     }
 
     /**
@@ -319,6 +319,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         (uint256 amountAfterFee, uint256 feeAmount) =
             withdrawAmountWithShares(withdrawShares);
 
+        emit Withdraw(msg.sender, amountAfterFee, withdrawShares, feeAmount);
+        emit ScheduledWithdrawCompleted(msg.sender, amountAfterFee);
+
         _burn(address(this), withdrawShares);
         IERC20(asset).safeTransfer(feeRecipient, feeAmount);
         if (asset == WETH) {
@@ -328,8 +331,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         } else {
             IERC20(asset).safeTransfer(msg.sender, amountAfterFee);
         }
-
-        emit ScheduledWithdrawCompleted(msg.sender, amountAfterFee);
     }
 
     /**

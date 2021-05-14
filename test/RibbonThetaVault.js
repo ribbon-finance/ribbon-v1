@@ -750,7 +750,6 @@ function behavesLikeRibbonOptionsVault(params) {
 
           const res = await this.vault.depositETH({ value: parseEther("0.1") });
           const receipt = await res.wait();
-          console.log(receipt.gasUsed.toNumber());
           assert.isAtMost(receipt.gasUsed.toNumber(), 100000);
         });
 
@@ -904,7 +903,6 @@ function behavesLikeRibbonOptionsVault(params) {
 
         const res = await this.vault.deposit(depositAmount);
         const receipt = await res.wait();
-        console.log(receipt.gasUsed.toNumber());
         assert.isAtMost(receipt.gasUsed.toNumber(), 100000);
       });
 
@@ -2429,6 +2427,21 @@ function behavesLikeRibbonOptionsVault(params) {
     describe("#withdrawLater", () => {
       time.revertToSnapshotAfterEach();
 
+      it("is within the gas budget", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+
+        const res = await this.vault.withdrawLater(
+          BigNumber.from("100000000000")
+        );
+        const receipt = await res.wait();
+        assert.isAtMost(receipt.gasUsed.toNumber(), 90000);
+      });
+
       it("rejects a withdrawLater of 0 shares", async function () {
         await expect(
           this.vault.withdrawLater(BigNumber.from("0"))
@@ -2529,6 +2542,22 @@ function behavesLikeRibbonOptionsVault(params) {
     describe("completeScheduledWithdrawal", () => {
       time.revertToSnapshotAfterEach();
 
+      it("is within the gas budget", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+
+        await this.vault.withdrawLater(BigNumber.from("1000"));
+
+        const res = await this.vault.completeScheduledWithdrawal();
+
+        const receipt = await res.wait();
+        assert.isAtMost(receipt.gasUsed.toNumber(), 80000);
+      });
+
       it("rejects a completeScheduledWithdrawal if nothing scheduled", async function () {
         const depositAmount = BigNumber.from("100000000000");
         await depositIntoVault(
@@ -2577,6 +2606,15 @@ function behavesLikeRibbonOptionsVault(params) {
         });
         const receipt = await tx.wait();
         const gasFee = gasPrice.mul(receipt.gasUsed);
+
+        await expect(tx)
+          .to.emit(this.vault, "Withdraw")
+          .withArgs(
+            user,
+            BigNumber.from("99500000000"),
+            BigNumber.from("100000000000"),
+            BigNumber.from("500000000")
+          );
 
         await expect(tx)
           .to.emit(this.vault, "ScheduledWithdrawCompleted")

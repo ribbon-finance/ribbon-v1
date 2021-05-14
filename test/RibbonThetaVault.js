@@ -2443,15 +2443,9 @@ function behavesLikeRibbonOptionsVault(params) {
           depositAmount
         );
 
-        //way too much
-        await expect(
-          this.vault.withdrawLater(BigNumber.from("200000000000"))
-        ).to.be.revertedWith("Insufficient shares");
-
-        // barely too much
         await expect(
           this.vault.withdrawLater(BigNumber.from("100000000001"))
-        ).to.be.revertedWith("Insufficient shares");
+        ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
       });
 
       it("accepts a withdrawLater if less than or equal to balance", async function () {
@@ -2469,6 +2463,22 @@ function behavesLikeRibbonOptionsVault(params) {
         await expect(res)
           .to.emit(this.vault, "ScheduleWithdraw")
           .withArgs(user, BigNumber.from("100000000000"));
+
+        assert.equal(
+          (await this.vault.queuedWithdrawShares()).toString(),
+          BigNumber.from("100000000000").toString()
+        );
+
+        // Verify that vault shares were transfer to vault for duration of scheduledWithdraw
+        assert.equal(
+          (await this.vault.balanceOf(this.vault.address)).toString(),
+          BigNumber.from("100000000000").toString()
+        );
+
+        assert.equal(
+          (await this.vault.balanceOf(user)).toString(),
+          BigNumber.from("0").toString()
+        );
       });
 
       it("rejects a withdrawLater if a withdrawal is already scheduled", async function () {
@@ -2532,7 +2542,7 @@ function behavesLikeRibbonOptionsVault(params) {
         ).to.be.revertedWith("Scheduled withdrawal not found");
       });
 
-      it("accepts a withdrawLater if less than or equal to balance", async function () {
+      it("completeScheduledWithdraw behaves as expected for valid scheduled withdraw", async function () {
         var balanceBeforeWithdraw;
         const depositAmount = BigNumber.from("200000000000");
         await depositIntoVault(
@@ -2568,6 +2578,23 @@ function behavesLikeRibbonOptionsVault(params) {
         const receipt = await tx.wait();
         const gasFee = gasPrice.mul(receipt.gasUsed);
 
+        await expect(tx)
+          .to.emit(this.vault, "ScheduledWithdrawCompleted")
+          .withArgs(user, BigNumber.from("99500000000"));
+
+        assert.equal(
+          (await this.assetContract.balanceOf(this.vault.address)).toString(),
+          vaultBalanceBeforeWithdraw
+            .sub(BigNumber.from("100000000000"))
+            .toString()
+        );
+
+        // Assert vault shares were burned
+        assert.equal(
+          (await this.vault.balanceOf(this.vault.address)).toString(),
+          BigNumber.from("0").toString()
+        );
+
         if (params.collateralAsset === WETH_ADDRESS) {
           assert.equal(
             (await provider.getBalance(user)).toString(),
@@ -2576,12 +2603,39 @@ function behavesLikeRibbonOptionsVault(params) {
               .add(BigNumber.from("99500000000"))
               .toString()
           );
+          assert.equal(
+            (await this.assetContract.balanceOf(feeRecipient)).toString(),
+            BigNumber.from("500000000").toString()
+          );
         } else {
           assert.equal(
             (await this.assetContract.balanceOf(user)).toString(),
             balanceBeforeWithdraw.add(BigNumber.from("99500000000")).toString()
           );
+          assert.equal(
+            (await this.assetContract.balanceOf(feeRecipient)).toString(),
+            BigNumber.from("500000000").toString()
+          );
         }
+      });
+
+      it("rejects second attempted completeScheduledWithdraw", async function () {
+        const depositAmount = BigNumber.from("200000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+
+        await this.vault.withdrawLater(BigNumber.from("100000000000"));
+
+        await this.rollToNextOption();
+
+        await this.vault.completeScheduledWithdrawal();
+
+        await expect(
+          this.vault.completeScheduledWithdrawal()
+        ).to.be.revertedWith("Scheduled withdrawal not found");
       });
     });
 

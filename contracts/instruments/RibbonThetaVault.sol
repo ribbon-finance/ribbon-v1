@@ -73,10 +73,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
     event ScheduleWithdraw(address account, uint256 shares);
 
-    event ScheduledWithdrawCompleted(
-        address account,
-        uint256 amount
-    );
+    event ScheduledWithdrawCompleted(address account, uint256 amount);
 
     /**
      * @notice Initializes the contract with immutable variables
@@ -306,10 +303,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     /**
      * @notice Burns user's locked tokens and withdraws assets to msg.sender.
      */
-    function completeScheduledWithdrawal()
-        external
-        nonReentrant
-    {
+    function completeScheduledWithdrawal() external nonReentrant {
         uint256 withdrawShares = scheduledWithdrawals[msg.sender];
         require(withdrawShares > 0, "Scheduled withdrawal not found");
 
@@ -334,7 +328,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Sets the next option the vault will be shorting, and closes the existing short. This allows all the users to withdraw if the next option is malicious.
+     * @notice Sets the next option the vault will be shorting, and closes the existing short.
+     *         This allows all the users to withdraw if the next option is malicious.
      */
     function commitAndClose(
         ProtocolAdapterTypes.OptionTerms calldata optionTerms

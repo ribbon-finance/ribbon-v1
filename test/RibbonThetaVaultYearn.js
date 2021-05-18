@@ -29,6 +29,7 @@ let adminSigner,
   feeRecipientSigner;
 
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+const Y_WETH_ADDRESS = "0xa9fe4601811213c340e850ea305481aff02f5b28";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const WBTC_OWNER_ADDRESS = "0xCA06411bd7a7296d7dbdd0050DFc846E95fEBEB7";
@@ -40,6 +41,7 @@ const CHAINLINK_WBTC_PRICER = "0x5faCA6DF39c897802d752DfCb8c02Ea6959245Fc";
 const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const SWAP_ADDRESS = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
+const YEARN_REGISTRY_ADDRESS = "0x50c1a2eA0a861A967D9d0FFE2AE4012c2E053804";
 const SWAP_CONTRACT = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
 const TRADER_AFFILIATE = "0xFf98F0052BdA391F8FaD266685609ffb192Bef25";
 
@@ -51,7 +53,7 @@ const gasPrice = parseUnits("1", "gwei");
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
 
-describe("RibbonThetaVault", () => {
+describe("RibbonThetaVaultYearn", () => {
   behavesLikeRibbonOptionsVault({
     name: `Ribbon WBTC Theta Vault (Call)`,
     tokenName: "Ribbon BTC Theta Vault",
@@ -144,6 +146,28 @@ describe("RibbonThetaVault", () => {
       contractOwnerAddress: USDC_OWNER_ADDRESS,
     },
   });
+
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon ETH Yearn Theta Vault (Call)`,
+    tokenName: "Ribbon ETH Yearn Theta Vault",
+    tokenSymbol: "rETH-THETA-YEARN",
+    asset: WETH_ADDRESS,
+    assetContractName: "IWETH",
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: Y_WETH_ADDRESS,
+    wrongUnderlyingAsset: WBTC_ADDRESS,
+    wrongStrikeAsset: WBTC_ADDRESS,
+    firstOptionStrike: 63000,
+    secondOptionStrike: 64000,
+    chainlinkPricer: CHAINLINK_WETH_PRICER,
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("90000000"),
+    premium: parseEther("0.1"),
+    tokenDecimals: 8,
+    isPut: false,
+    isYearnWrapped: true,
+  });
 });
 
 /**
@@ -169,6 +193,7 @@ describe("RibbonThetaVault", () => {
  * @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
  * @param {BigNumber} params.premium - Minimum supply to maintain for share and asset balance
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
+ * @param {boolean} params.isYearnWrapped - Boolean flag for if the vault converts deposits to yearn yield-bearing token
  */
 function behavesLikeRibbonOptionsVault(params) {
   describe(`${params.name}`, () => {
@@ -216,6 +241,7 @@ function behavesLikeRibbonOptionsVault(params) {
       this.premium = params.premium;
       this.expectedMintAmount = params.expectedMintAmount;
       this.isPut = params.isPut;
+      this.isYearnWrapped = params.isYearnWrapped || false;
 
       this.counterpartyWallet = ethers.Wallet.fromMnemonic(
         process.env.TEST_MNEMONIC,
@@ -248,15 +274,17 @@ function behavesLikeRibbonOptionsVault(params) {
         factory.address,
         WETH_ADDRESS,
         params.strikeAsset,
+        YEARN_REGISTRY_ADDRESS,
         SWAP_ADDRESS,
         this.tokenDecimals,
         this.minimumSupply,
         this.isPut,
+        this.isYearnWrapped,
       ];
 
       this.vault = (
         await deployProxy(
-          "RibbonThetaVault",
+          "RibbonThetaVaultYearn",
           adminSigner,
           initializeTypes,
           initializeArgs,
@@ -386,7 +414,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("reverts when deployed with 0x0 factory", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonThetaVault",
+          "RibbonThetaVaultYearn",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -412,7 +440,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const factory = await Factory.deploy();
 
         const VaultContract = await ethers.getContractFactory(
-          "RibbonThetaVault",
+          "RibbonThetaVaultYearn",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -436,7 +464,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("reverts when asset is 0x", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonThetaVault",
+          "RibbonThetaVaultYearn",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -460,7 +488,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("reverts when decimals is 0", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonThetaVault",
+          "RibbonThetaVaultYearn",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -484,7 +512,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("reverts when minimumSupply is 0", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonThetaVault",
+          "RibbonThetaVaultYearn",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -508,7 +536,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("sets the correct asset, decimals and minimum supply", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonThetaVault",
+          "RibbonThetaVaultYearn",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
@@ -539,15 +567,15 @@ function behavesLikeRibbonOptionsVault(params) {
 
     describe("#initialize", () => {
       time.revertToSnapshotAfterEach(async function () {
-        const RibbonThetaVault = await ethers.getContractFactory(
-          "RibbonThetaVault",
+        const RibbonThetaVaultYearn = await ethers.getContractFactory(
+          "RibbonThetaVaultYearn",
           {
             libraries: {
               ProtocolAdapter: this.protocolAdapterLib.address,
             },
           }
         );
-        this.testVault = await RibbonThetaVault.deploy(
+        this.testVault = await RibbonThetaVaultYearn.deploy(
           this.asset,
           this.factory.address,
           WETH_ADDRESS,
@@ -640,15 +668,24 @@ function behavesLikeRibbonOptionsVault(params) {
       });
     });
 
+    describe("#isYearnWrapped", () => {
+      it("returns the correct flag for whether vault wraps deposits into yearn token", async function () {
+        assert.equal(await this.vault.isYearnWrapped(), this.isYearnWrapped);
+      });
+    });
+
     describe("#delay", () => {
       it("returns the delay", async function () {
         assert.equal((await this.vault.delay()).toNumber(), OPTION_DELAY);
       });
     });
 
-    describe("#asset", () => {
+    describe("#collateralAsset", () => {
       it("returns the asset", async function () {
-        assert.equal(await this.vault.asset(), this.collateralAsset);
+        assert.equal(
+          (await this.vault.collateralToken()).address,
+          this.collateralAsset
+        );
       });
     });
 

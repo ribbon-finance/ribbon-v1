@@ -14,11 +14,12 @@ import {
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
+import {IYearnRegistry, IYearnVault} from "../interfaces/IYearn.sol";
 import {ISwap, Types} from "../interfaces/ISwap.sol";
 import {OtokenInterface} from "../interfaces/GammaInterface.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 
-contract RibbonThetaVault is DSMath, OptionsVaultStorage {
+contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
     using ProtocolAdapter for IProtocolAdapter;
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -33,6 +34,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     bool public immutable isPut;
     uint8 private immutable _decimals;
 
+    // Yearn vault contract
+    IYearnVault public immutable collateralToken;
+
     // AirSwap Swap contract
     // https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
     ISwap public immutable SWAP_CONTRACT;
@@ -43,6 +47,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     uint256 public constant delay = 1 hours;
 
     uint256 public immutable MINIMUM_SUPPLY;
+
+    uint256 public immutable YEARN_WITHDRAWAL_BUFFER;
+    uint256 public immutable YEARN_WITHDRAWAL_SLIPPAGE;
 
     event ManagerChanged(address oldManager, address newManager);
 
@@ -80,9 +87,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param _asset is the asset used for collateral and premiums
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
+     * @param _yearnRegistry is the registry contract for all yearn vaults
      * @param _swapContract is the Airswap Swap contract
      * @param _tokenDecimals is the decimals for the vault shares. Must match the decimals for _asset.
      * @param _minimumSupply is the minimum supply for the asset balance and the share supply.
+     * @param _isPut is whether this is a put strategy.
      * It's important to bake the _factory variable into the contract with the constructor
      * If we do it in the `initialize` function, users get to set the factory variable and
      * subsequently the adapter, which allows them to make a delegatecall, then selfdestruct the contract.
@@ -92,6 +101,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         address _factory,
         address _weth,
         address _usdc,
+        address _yearnRegistry,
         address _swapContract,
         uint8 _tokenDecimals,
         uint256 _minimumSupply,
@@ -101,6 +111,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(_factory != address(0), "!_factory");
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
+        require(_yearnRegistry != address(0), "!_yearnRegistry");
         require(_swapContract != address(0), "!_swapContract");
         require(_tokenDecimals > 0, "!_tokenDecimals");
         require(_minimumSupply > 0, "!_minimumSupply");
@@ -112,6 +123,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         asset = _isPut ? _usdc : _asset;
         underlying = _asset;
+        collateralToken = IYearnVault(
+            IYearnRegistry(_yearnRegistry).latestVault(_isPut ? _usdc : _asset)
+        );
         adapter = IProtocolAdapter(adapterAddr);
         WETH = _weth;
         USDC = _usdc;
@@ -119,6 +133,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         _decimals = _tokenDecimals;
         MINIMUM_SUPPLY = _minimumSupply;
         isPut = _isPut;
+        YEARN_WITHDRAWAL_BUFFER = 5; // 0.05%
+        YEARN_WITHDRAWAL_SLIPPAGE = 5; // 0.05%
     }
 
     /**
@@ -282,9 +298,36 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         _burn(isScheduled ? address(this) : msg.sender, share);
 
+        _unwrapYieldToken(amountAfterFee.add(feeAmount));
+
         IERC20(asset).safeTransfer(feeRecipient, feeAmount);
 
         return amountAfterFee;
+    }
+
+    /**
+     * @notice Unwraps the necessary amount of the yield-bearing yearn token
+     *         and transfers amount to relevant recipient
+     * @param amount is the amount of `asset` to withdraw
+     */
+    function _unwrapYieldToken(uint256 amount) private returns (uint256) {
+        uint256 assetBalance = IERC20(asset).balanceOf(address(this));
+        uint256 amountToUnwrap =
+            wdiv(
+                max(assetBalance, amount).sub(assetBalance),
+                collateralToken.pricePerShare()
+            );
+        amountToUnwrap = amountToUnwrap.add(
+            amountToUnwrap.mul(YEARN_WITHDRAWAL_SLIPPAGE).div(10000)
+        );
+        if (amountToUnwrap > 0) {
+            collateralToken.withdraw(
+                amountToUnwrap,
+                address(this),
+                YEARN_WITHDRAWAL_SLIPPAGE
+            );
+        }
+        return amountToUnwrap;
     }
 
     /**
@@ -371,7 +414,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             otoken.underlyingAsset() == underlying,
             "Wrong underlyingAsset"
         );
-        require(otoken.collateralAsset() == asset, "Wrong collateralAsset");
+        require(
+            otoken.collateralAsset() == address(collateralToken),
+            "Wrong collateralAsset"
+        );
 
         // we just assume all options use USDC as the strike
         require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
@@ -419,6 +465,12 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         currentOption = newOption;
         nextOption = address(0);
+
+        uint256 amountToWrap = IERC20(asset).balanceOf(address(this));
+        // prevent spending old and new allowance through tricky tx ordering
+        collateralToken.approve(address(collateralToken), 0);
+        collateralToken.approve(address(collateralToken), amountToWrap);
+        collateralToken.deposit(amountToWrap, address(this));
 
         uint256 currentBalance = assetBalance();
         (uint256 queuedWithdrawAmount, , ) =
@@ -636,14 +688,19 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @return total balance of the vault, including the amounts locked in third party protocols
      */
     function totalBalance() public view returns (uint256) {
-        return lockedAmount.add(IERC20(asset).balanceOf(address(this)));
+        return lockedAmount.add(assetBalance());
     }
 
     /**
      * @notice Returns the asset balance on the vault. This balance is freely withdrawable by users.
      */
     function assetBalance() public view returns (uint256) {
-        return IERC20(asset).balanceOf(address(this));
+        return
+            IERC20(asset).balanceOf(address(this)).add(
+                IERC20(address(collateralToken)).balanceOf(address(this)).mul(
+                    collateralToken.pricePerShare()
+                )
+            );
     }
 
     /**

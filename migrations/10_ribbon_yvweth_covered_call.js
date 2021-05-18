@@ -1,4 +1,4 @@
-const RibbonThetaVault = artifacts.require("RibbonThetaVault");
+const RibbonThetaVaultYearn = artifacts.require("RibbonThetaVaultYearn");
 const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const ProtocolAdapterLib = artifacts.require("ProtocolAdapter");
 const { encodeCall } = require("@openzeppelin/upgrades");
@@ -18,11 +18,11 @@ module.exports = async function (deployer, network) {
 
   await ProtocolAdapterLib.deployed();
 
-  await deployer.link(ProtocolAdapterLib, RibbonThetaVault);
+  await deployer.link(ProtocolAdapterLib, RibbonThetaVaultYearn);
 
   // Deploying the logic contract
   await deployer.deploy(
-    RibbonThetaVault,
+    RibbonThetaVaultYearn,
     EXTERNAL_ADDRESSES[networkLookup].assets.weth,
     DEPLOYMENTS[networkLookup].RibbonFactory,
     EXTERNAL_ADDRESSES[networkLookup].assets.weth,
@@ -34,13 +34,12 @@ module.exports = async function (deployer, network) {
     // WBTC: 0.000001
     BigNumber.from("10").pow(BigNumber.from("10")).toString(), // WBTC 10**3
     false,
-    true,
     { from: admin }
   );
   await updateDeployedAddresses(
     network,
     "RibbonyvETHCoveredCallLogic",
-    RibbonThetaVault.address
+    RibbonThetaVaultYearn.address
   );
 
   // Deploying the proxy contract
@@ -58,7 +57,7 @@ module.exports = async function (deployer, network) {
 
   await deployer.deploy(
     AdminUpgradeabilityProxy,
-    RibbonThetaVault.address,
+    RibbonThetaVaultYearn.address,
     admin,
     initBytes,
     {

@@ -55,99 +55,6 @@ const CALL_OPTION_TYPE = 2;
 
 describe("RibbonThetaVaultYearn", () => {
   behavesLikeRibbonOptionsVault({
-    name: `Ribbon WBTC Theta Vault (Call)`,
-    tokenName: "Ribbon BTC Theta Vault",
-    tokenSymbol: "rWBTC-THETA",
-    asset: WBTC_ADDRESS,
-    assetContractName: "IWBTC",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: WBTC_ADDRESS,
-    wrongUnderlyingAsset: WETH_ADDRESS,
-    wrongStrikeAsset: WETH_ADDRESS,
-    firstOptionStrike: 2400,
-    secondOptionStrike: 2500,
-    chainlinkPricer: CHAINLINK_WBTC_PRICER,
-    tokenDecimals: 18,
-    depositAmount: BigNumber.from("100000000"),
-    premium: BigNumber.from("10000000"),
-    minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("90000000"),
-    isPut: false,
-    mintConfig: {
-      contractOwnerAddress: WBTC_OWNER_ADDRESS,
-    },
-  });
-
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon ETH Theta Vault (Call)`,
-    tokenName: "Ribbon ETH Theta Vault",
-    tokenSymbol: "rETH-THETA",
-    asset: WETH_ADDRESS,
-    assetContractName: "IWETH",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: WETH_ADDRESS,
-    wrongUnderlyingAsset: WBTC_ADDRESS,
-    wrongStrikeAsset: WBTC_ADDRESS,
-    firstOptionStrike: 63000,
-    secondOptionStrike: 64000,
-    chainlinkPricer: CHAINLINK_WETH_PRICER,
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("90000000"),
-    premium: parseEther("0.1"),
-    tokenDecimals: 8,
-    isPut: false,
-  });
-
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon WBTC Theta Vault (Put)`,
-    tokenName: "Ribbon BTC Theta Vault Put",
-    tokenSymbol: "rWBTC-THETA-P",
-    asset: WBTC_ADDRESS,
-    assetContractName: "IUSDC",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    wrongUnderlyingAsset: WETH_ADDRESS,
-    wrongStrikeAsset: WETH_ADDRESS,
-    firstOptionStrike: 2400,
-    secondOptionStrike: 2500,
-    chainlinkPricer: CHAINLINK_WBTC_PRICER,
-    tokenDecimals: 18,
-    depositAmount: BigNumber.from("100000000"),
-    premium: BigNumber.from("10000000"),
-    minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("3600000"),
-    isPut: true,
-    mintConfig: {
-      contractOwnerAddress: USDC_OWNER_ADDRESS,
-    },
-  });
-
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon ETH Theta Vault (Put) `,
-    tokenName: "Ribbon ETH Theta Vault Put",
-    tokenSymbol: "rETH-THETA-P",
-    asset: WETH_ADDRESS,
-    assetContractName: "IUSDC",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    wrongUnderlyingAsset: WBTC_ADDRESS,
-    wrongStrikeAsset: WBTC_ADDRESS,
-    firstOptionStrike: 63000,
-    secondOptionStrike: 64000,
-    chainlinkPricer: CHAINLINK_WETH_PRICER,
-    depositAmount: BigNumber.from("100000000000"),
-    premium: BigNumber.from("10000000000"),
-    minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("140625000"),
-    tokenDecimals: 8,
-    isPut: true,
-    mintConfig: {
-      contractOwnerAddress: USDC_OWNER_ADDRESS,
-    },
-  });
-
-  behavesLikeRibbonOptionsVault({
     name: `Ribbon ETH Yearn Theta Vault (Call)`,
     tokenName: "Ribbon ETH Yearn Theta Vault",
     tokenSymbol: "rETH-THETA-YEARN",
@@ -166,7 +73,6 @@ describe("RibbonThetaVaultYearn", () => {
     premium: parseEther("0.1"),
     tokenDecimals: 8,
     isPut: false,
-    isYearnWrapped: true,
   });
 });
 
@@ -193,7 +99,6 @@ describe("RibbonThetaVaultYearn", () => {
  * @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
  * @param {BigNumber} params.premium - Minimum supply to maintain for share and asset balance
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
- * @param {boolean} params.isYearnWrapped - Boolean flag for if the vault converts deposits to yearn yield-bearing token
  */
 function behavesLikeRibbonOptionsVault(params) {
   describe(`${params.name}`, () => {
@@ -241,7 +146,6 @@ function behavesLikeRibbonOptionsVault(params) {
       this.premium = params.premium;
       this.expectedMintAmount = params.expectedMintAmount;
       this.isPut = params.isPut;
-      this.isYearnWrapped = params.isYearnWrapped || false;
 
       this.counterpartyWallet = ethers.Wallet.fromMnemonic(
         process.env.TEST_MNEMONIC,
@@ -279,7 +183,6 @@ function behavesLikeRibbonOptionsVault(params) {
         this.tokenDecimals,
         this.minimumSupply,
         this.isPut,
-        this.isYearnWrapped,
       ];
 
       this.vault = (
@@ -665,12 +568,6 @@ function behavesLikeRibbonOptionsVault(params) {
     describe("#isPut", () => {
       it("returns the correct option type", async function () {
         assert.equal(await this.vault.isPut(), this.isPut);
-      });
-    });
-
-    describe("#isYearnWrapped", () => {
-      it("returns the correct flag for whether vault wraps deposits into yearn token", async function () {
-        assert.equal(await this.vault.isYearnWrapped(), this.isYearnWrapped);
       });
     });
 

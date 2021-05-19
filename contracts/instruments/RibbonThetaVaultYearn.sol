@@ -48,8 +48,8 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
 
     uint256 public immutable MINIMUM_SUPPLY;
 
-    uint256 public immutable YEARN_WITHDRAWAL_BUFFER;
-    uint256 public immutable YEARN_WITHDRAWAL_SLIPPAGE;
+    uint256 public immutable YEARN_WITHDRAWAL_BUFFER = 5; // 0.05%
+    uint256 public immutable YEARN_WITHDRAWAL_SLIPPAGE = 5; // 0.05%
 
     event ManagerChanged(address oldManager, address newManager);
 
@@ -133,8 +133,6 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         _decimals = _tokenDecimals;
         MINIMUM_SUPPLY = _minimumSupply;
         isPut = _isPut;
-        YEARN_WITHDRAWAL_BUFFER = 5; // 0.05%
-        YEARN_WITHDRAWAL_SLIPPAGE = 5; // 0.05%
     }
 
     /**
@@ -227,6 +225,24 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
     }
 
     /**
+     * @notice Deposits the `collateralToken` into the contract and mint vault shares.
+     * @param amount is the amount of `collateralToken` to deposit
+     */
+    function depositYieldToken(uint256 amount) external nonReentrant {
+        IERC20(address(collateralToken)).safeTransferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
+        uint256 collateralToAssetBalance =
+            amount.mul(collateralToken.pricePerShare());
+        collateralToAssetBalance = collateralToAssetBalance.sub(
+            collateralToAssetBalance.mul(YEARN_WITHDRAWAL_SLIPPAGE).div(10000)
+        );
+        _deposit(collateralToAssetBalance);
+    }
+
+    /**
      * @notice Mints the vault shares to the msg.sender
      * @param amount is the amount of `asset` deposited
      */
@@ -266,7 +282,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
      */
     function withdrawETH(uint256 share) external nonReentrant {
         require(asset == WETH, "!WETH");
-        uint256 withdrawAmount = _withdraw(share, false);
+        uint256 withdrawAmount = _withdraw(share, false, true);
 
         IWETH(WETH).withdraw(withdrawAmount);
         (bool success, ) = msg.sender.call{value: withdrawAmount}("");
@@ -278,19 +294,33 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
      * @param share is the number of vault shares to be burned
      */
     function withdraw(uint256 share) external nonReentrant {
-        uint256 withdrawAmount = _withdraw(share, false);
+        uint256 withdrawAmount = _withdraw(share, false, true);
         IERC20(asset).safeTransfer(msg.sender, withdrawAmount);
+    }
+
+    /**
+     * @notice Withdraws yvWETH from vault using vault shares
+     * @param share is the number of vault shares to be burned
+     */
+    function withdrawYieldToken(uint256 share) external nonReentrant {
+        uint256 withdrawAmount = _withdraw(share, false, false);
+        IERC20(address(collateralToken)).safeTransfer(
+            msg.sender,
+            withdrawAmount
+        );
     }
 
     /**
      * @notice Burns vault shares and checks if eligible for withdrawal
      * @param share is the number of vault shares to be burned
      * @param isScheduled is whether the withdraw was scheduled
+     * @param unwrap is whether we want to unwrap to underlying asset
      */
-    function _withdraw(uint256 share, bool isScheduled)
-        private
-        returns (uint256)
-    {
+    function _withdraw(
+        uint256 share,
+        bool isScheduled,
+        bool unwrap
+    ) private returns (uint256) {
         (uint256 amountAfterFee, uint256 feeAmount) =
             withdrawAmountWithShares(share);
 
@@ -298,7 +328,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
 
         _burn(isScheduled ? address(this) : msg.sender, share);
 
-        _unwrapYieldToken(amountAfterFee.add(feeAmount));
+        _unwrapYieldToken(unwrap ? amountAfterFee.add(feeAmount) : feeAmount);
 
         IERC20(asset).safeTransfer(feeRecipient, feeAmount);
 
@@ -310,7 +340,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
      *         and transfers amount to relevant recipient
      * @param amount is the amount of `asset` to withdraw
      */
-    function _unwrapYieldToken(uint256 amount) private returns (uint256) {
+    function _unwrapYieldToken(uint256 amount) private {
         uint256 assetBalance = IERC20(asset).balanceOf(address(this));
         uint256 amountToUnwrap =
             wdiv(
@@ -318,7 +348,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
                 collateralToken.pricePerShare()
             );
         amountToUnwrap = amountToUnwrap.add(
-            amountToUnwrap.mul(YEARN_WITHDRAWAL_SLIPPAGE).div(10000)
+            amountToUnwrap.mul(YEARN_WITHDRAWAL_BUFFER).div(10000)
         );
         if (amountToUnwrap > 0) {
             collateralToken.withdraw(
@@ -327,7 +357,6 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
                 YEARN_WITHDRAWAL_SLIPPAGE
             );
         }
-        return amountToUnwrap;
     }
 
     /**
@@ -358,7 +387,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         scheduledWithdrawals[msg.sender] = 0;
         queuedWithdrawShares = queuedWithdrawShares.sub(withdrawShares);
 
-        uint256 amountAfterFee = _withdraw(withdrawShares, true);
+        uint256 amountAfterFee = _withdraw(withdrawShares, true, true);
 
         emit ScheduledWithdrawCompleted(msg.sender, amountAfterFee);
 
@@ -695,10 +724,16 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
      * @notice Returns the asset balance on the vault. This balance is freely withdrawable by users.
      */
     function assetBalance() public view returns (uint256) {
+        uint256 collateralToAssetBalance =
+            IERC20(address(collateralToken)).balanceOf(address(this)).mul(
+                collateralToken.pricePerShare()
+            );
         return
             IERC20(asset).balanceOf(address(this)).add(
-                IERC20(address(collateralToken)).balanceOf(address(this)).mul(
-                    collateralToken.pricePerShare()
+                collateralToAssetBalance.sub(
+                    collateralToAssetBalance.mul(YEARN_WITHDRAWAL_SLIPPAGE).div(
+                        10000
+                    )
                 )
             );
     }

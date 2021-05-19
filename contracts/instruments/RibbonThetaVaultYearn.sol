@@ -48,8 +48,8 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
 
     uint256 public immutable MINIMUM_SUPPLY;
 
-    uint256 public immutable YEARN_WITHDRAWAL_BUFFER = 5; // 0.05%
-    uint256 public immutable YEARN_WITHDRAWAL_SLIPPAGE = 5; // 0.05%
+    uint256 public constant YEARN_WITHDRAWAL_BUFFER = 5; // 0.05%
+    uint256 public constant YEARN_WITHDRAWAL_SLIPPAGE = 5; // 0.05%
 
     event ManagerChanged(address oldManager, address newManager);
 
@@ -123,9 +123,13 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
 
         asset = _isPut ? _usdc : _asset;
         underlying = _asset;
-        collateralToken = IYearnVault(
-            IYearnRegistry(_yearnRegistry).latestVault(_isPut ? _usdc : _asset)
-        );
+
+        address collateralAddr =
+            IYearnRegistry(_yearnRegistry).latestVault(_isPut ? _usdc : _asset);
+
+        collateralToken = IYearnVault(collateralAddr);
+        require(collateralAddr != address(0), "!_collateralToken");
+
         adapter = IProtocolAdapter(adapterAddr);
         WETH = _weth;
         USDC = _usdc;

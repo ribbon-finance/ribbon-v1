@@ -18,6 +18,7 @@ module.exports = {
   setOpynOracleExpiryPrice,
   whitelistProduct,
   mintToken,
+  setAssetPricer,
 };
 
 async function deployProxy(
@@ -64,6 +65,7 @@ const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
+// const GAMMA_ORACLE_V2 = "0x55a50c75c7f82943dc4755b2964f4f3f6ab5d5af";
 const GAMMA_WHITELIST = "0xa5EA18ac6865f315ff5dD9f1a7fb1d41A30a6779";
 const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
@@ -232,6 +234,21 @@ async function mintAndApprove(tokenAddress, userSigner, spender, amount) {
   //   method: "hardhat_stopImpersonatingAccount",
   //   params: ["0xca06411bd7a7296d7dbdd0050dfc846e95febeb7"]}
   // )
+}
+
+async function setAssetPricer(asset, pricer) {
+  const [adminSigner] = await ethers.getSigners();
+
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [ORACLE_OWNER],
+  });
+
+  const ownerSigner = await provider.getSigner(ORACLE_OWNER);
+
+  const oracle = await ethers.getContractAt("IOracle", GAMMA_ORACLE);
+
+  await oracle.connect(ownerSigner).setAssetPricer(asset, pricer);
 }
 
 async function whitelistProduct(underlying, strike, collateral, isPut) {

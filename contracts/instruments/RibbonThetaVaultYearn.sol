@@ -240,9 +240,6 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         );
         uint256 collateralToAssetBalance =
             wmul(amount, collateralToken.pricePerShare());
-        collateralToAssetBalance = collateralToAssetBalance.sub(
-            collateralToAssetBalance.mul(YEARN_WITHDRAWAL_SLIPPAGE).div(10000)
-        );
         _deposit(collateralToAssetBalance);
     }
 
@@ -269,6 +266,10 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         // https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L104
         uint256 share =
             shareSupply == 0 ? amount : amount.mul(shareSupply).div(total);
+
+        // console.log("shareSupply: %s", shareSupply);
+        // console.log("total: %s", total);
+        // console.log("share: %s", share);
 
         require(
             shareSupply.add(share) >= MINIMUM_SUPPLY,
@@ -589,12 +590,15 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
                 address(0)
             );
 
+        uint256 shortAmountInYieldToken =
+            wdiv(shortAmount, collateralToken.pricePerShare());
+
         uint256 shortBalance =
-            adapter.delegateCreateShort(optionTerms, shortAmount);
+            adapter.delegateCreateShort(optionTerms, shortAmountInYieldToken);
         IERC20 optionToken = IERC20(newOption);
         optionToken.safeApprove(address(SWAP_CONTRACT), shortBalance);
 
-        emit OpenShort(newOption, shortAmount, msg.sender);
+        emit OpenShort(newOption, shortAmountInYieldToken, msg.sender);
     }
 
     /**
@@ -790,17 +794,11 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
      * @notice Returns the asset balance on the vault. This balance is freely withdrawable by users.
      */
     function assetBalance() public view returns (uint256) {
-        uint256 collateralToAssetBalance =
-            wmul(
-                IERC20(address(collateralToken)).balanceOf(address(this)),
-                collateralToken.pricePerShare()
-            );
         return
             IERC20(asset).balanceOf(address(this)).add(
-                collateralToAssetBalance.sub(
-                    collateralToAssetBalance.mul(YEARN_WITHDRAWAL_SLIPPAGE).div(
-                        10000
-                    )
+                wmul(
+                    IERC20(address(collateralToken)).balanceOf(address(this)),
+                    collateralToken.pricePerShare()
                 )
             );
     }

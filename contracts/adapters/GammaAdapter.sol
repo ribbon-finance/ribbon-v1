@@ -198,14 +198,14 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         OtokenInterface otoken = OtokenInterface(options);
         IController controller = IController(gammaController);
 
-        address underlying = otoken.underlyingAsset();
-        address collateral = otoken.collateralAsset();
-        uint256 expiry = otoken.expiryTimestamp();
+        bool settlementAllowed =
+            isSettlementAllowed(
+                otoken.underlyingAsset(),
+                otoken.collateralAsset(),
+                otoken.expiryTimestamp()
+            );
 
-        bool isSettlementAllowed =
-            isSettlementAllowed(underlying, collateral, expiry);
-
-        if (!isSettlementAllowed) {
+        if (!settlementAllowed) {
             return false;
         }
         // use `0` as the optionID because it doesn't do anything for exerciseProfit
@@ -554,12 +554,12 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
         OtokenInterface otoken = OtokenInterface(vault.shortOtokens[0]);
 
-        address underlying = otoken.underlyingAsset();
-        address collateral = otoken.collateralAsset();
-        uint256 expiry = otoken.expiryTimestamp();
-
-        bool isSettlementAllowed =
-            isSettlementAllowed(underlying, collateral, expiry);
+        bool settlementAllowed =
+            isSettlementAllowed(
+                otoken.underlyingAsset(),
+                otoken.collateralAsset(),
+                otoken.expiryTimestamp()
+            );
 
         uint256 startCollateralBalance =
             collateralToken.balanceOf(address(this));
@@ -570,7 +570,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         // Delete the vault and withdraw all remaining collateral from the vault
         //
         // If it is before expiry, we need to burn otokens in order to withdraw collateral from the vault
-        if (isSettlementAllowed) {
+        if (settlementAllowed) {
             actions = new IController.ActionArgs[](1);
 
             actions[0] = IController.ActionArgs(

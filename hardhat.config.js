@@ -36,7 +36,10 @@ module.exports = {
     },
     kovan: {
       url: process.env.INFURA_KOVAN_URI,
-      accounts: [`0x${process.env.KOVAN_KEY}`, `0x${process.env.KOVAN_KEY2}`],
+      accounts: {
+        mnemonic: process.env.KOVAN_MNEMONIC
+      }
+      // accounts: [`0x${process.env.KOVAN_KEY}`, `0x${process.env.KOVAN_KEY2}`],
     },
   },
   mocha: {

@@ -196,7 +196,6 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         uint256 amount
     ) public view override returns (bool) {
         OtokenInterface otoken = OtokenInterface(options);
-        IController controller = IController(gammaController);
 
         bool settlementAllowed =
             isSettlementAllowed(

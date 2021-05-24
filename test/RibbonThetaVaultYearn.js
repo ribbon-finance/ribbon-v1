@@ -13,7 +13,6 @@ const {
   wmul,
   wdiv,
   setupOracle,
-  setOpynOracleExpiryPrice,
   setOpynOracleExpiryPriceYearn,
   whitelistProduct,
   parseLog,
@@ -36,8 +35,8 @@ const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const Y_WETH_ADDRESS = "0xa9fE4601811213c340e850ea305481afF02f5b28";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
-const WBTC_OWNER_ADDRESS = "0xCA06411bd7a7296d7dbdd0050DFc846E95fEBEB7";
-const USDC_OWNER_ADDRESS = "0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503";
+//const WBTC_OWNER_ADDRESS = "0xCA06411bd7a7296d7dbdd0050DFc846E95fEBEB7";
+//const USDC_OWNER_ADDRESS = "0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503";
 
 const YEARN_WETH_PRICER = "0x7b7a7fA8e7A86F0100E72E815E65006052364F48";
 const CHAINLINK_WETH_PRICER = "0xAC05f5147566Cc949b73F0A776944E7011FabC50";
@@ -1564,8 +1563,6 @@ function behavesLikeRibbonOptionsVault(params) {
           (await this.vault.totalBalance()).toString(),
           this.depositAmount.sub(1).toString()
         );
-
-        let withdrawAmountInYearnShares = BigNumber.from("890263605312566818");
 
         let pricePerShare = BigNumber.from(
           (await this.collateralContract.pricePerShare()).toString()

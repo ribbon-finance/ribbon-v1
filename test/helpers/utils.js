@@ -239,8 +239,6 @@ async function mintAndApprove(tokenAddress, userSigner, spender, amount) {
 }
 
 async function getAssetPricer(pricer, signer) {
-  const [adminSigner] = await ethers.getSigners();
-
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [pricer],
@@ -263,8 +261,6 @@ async function getAssetPricer(pricer, signer) {
 }
 
 async function setAssetPricer(asset, pricer) {
-  const [adminSigner] = await ethers.getSigners();
-
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [ORACLE_OWNER],

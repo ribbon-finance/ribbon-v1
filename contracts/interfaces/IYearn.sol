@@ -22,3 +22,7 @@ interface IYearnVault {
 interface IYearnRegistry {
     function latestVault(address token) external returns (address);
 }
+
+interface IYearnPricer {
+    function setExpiryPriceInOracle(uint256 _expiryTimestamp) external;
+}

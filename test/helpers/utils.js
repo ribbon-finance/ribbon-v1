@@ -16,9 +16,11 @@ module.exports = {
   mintAndApprove,
   setupOracle,
   setOpynOracleExpiryPrice,
+  setOpynOracleExpiryPriceYearn,
   whitelistProduct,
   mintToken,
   setAssetPricer,
+  getAssetPricer,
 };
 
 async function deployProxy(
@@ -236,6 +238,30 @@ async function mintAndApprove(tokenAddress, userSigner, spender, amount) {
   // )
 }
 
+async function getAssetPricer(pricer, signer) {
+  const [adminSigner] = await ethers.getSigners();
+
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [pricer],
+  });
+
+  const ownerSigner = await provider.getSigner(pricer);
+
+  const pricerContract = await ethers.getContractAt("IYearnPricer", pricer);
+
+  const forceSendContract = await ethers.getContractFactory("ForceSend");
+  const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
+  await forceSend.connect(signer).go(pricer, { value: parseEther("0.5") });
+
+  // await signer.sendTransaction({
+  //   to: pricer,
+  //   value: parseEther("0.5"),
+  // });
+
+  return await pricerContract.connect(ownerSigner);
+}
+
 async function setAssetPricer(asset, pricer) {
   const [adminSigner] = await ethers.getSigners();
 
@@ -314,6 +340,29 @@ async function setOpynOracleExpiryPrice(asset, oracle, expiry, settlePrice) {
 
   const res = await oracle.setExpiryPrice(asset, expiry, settlePrice);
   const receipt = await res.wait();
+  const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
+
+  await time.increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);
+}
+
+async function setOpynOracleExpiryPriceYearn(
+  underlyingAsset,
+  underlyingOracle,
+  underlyingSettlePrice,
+  collateralPricer,
+  expiry
+) {
+  await time.increaseTo(parseInt(expiry) + ORACLE_LOCKING_PERIOD + 1);
+
+  const res = await underlyingOracle.setExpiryPrice(
+    underlyingAsset,
+    expiry,
+    underlyingSettlePrice
+  );
+  await res.wait();
+  const res2 = await collateralPricer.setExpiryPriceInOracle(expiry);
+  const receipt = await res2.wait();
+
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
 
   await time.increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);

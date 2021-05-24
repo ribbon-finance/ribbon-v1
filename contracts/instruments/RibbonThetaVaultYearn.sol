@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.7.2;
 pragma experimental ABIEncoderV2;
-import "hardhat/console.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
@@ -266,10 +265,6 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         // https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L104
         uint256 share =
             shareSupply == 0 ? amount : amount.mul(shareSupply).div(total);
-
-        // console.log("shareSupply: %s", shareSupply);
-        // console.log("total: %s", total);
-        // console.log("share: %s", share);
 
         require(
             shareSupply.add(share) >= MINIMUM_SUPPLY,

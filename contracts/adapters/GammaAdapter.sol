@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.7.2;
 pragma experimental ABIEncoderV2;
-
 import {
     AggregatorV3Interface
 } from "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
@@ -197,11 +196,16 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         uint256 amount
     ) public view override returns (bool) {
         OtokenInterface otoken = OtokenInterface(options);
+        IController controller = IController(gammaController);
 
         address underlying = otoken.underlyingAsset();
+        address collateral = otoken.collateralAsset();
         uint256 expiry = otoken.expiryTimestamp();
 
-        if (!isSettlementAllowed(underlying, expiry)) {
+        bool isSettlementAllowed =
+            isSettlementAllowed(underlying, collateral, expiry);
+
+        if (!isSettlementAllowed) {
             return false;
         }
         // use `0` as the optionID because it doesn't do anything for exerciseProfit
@@ -550,11 +554,14 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
         OtokenInterface otoken = OtokenInterface(vault.shortOtokens[0]);
 
-        bool settlementAllowed =
-            isSettlementAllowed(
-                otoken.underlyingAsset(),
-                otoken.expiryTimestamp()
-            );
+        OracleInterface oracle = OracleInterface(controller.oracle());
+
+        address underlying = otoken.underlyingAsset();
+        address collateral = otoken.collateralAsset();
+        uint256 expiry = otoken.expiryTimestamp();
+
+        bool isSettlementAllowed =
+            isSettlementAllowed(underlying, collateral, expiry);
 
         uint256 startCollateralBalance =
             collateralToken.balanceOf(address(this));
@@ -565,7 +572,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         // Delete the vault and withdraw all remaining collateral from the vault
         //
         // If it is before expiry, we need to burn otokens in order to withdraw collateral from the vault
-        if (settlementAllowed) {
+        if (isSettlementAllowed) {
             actions = new IController.ActionArgs[](1);
 
             actions[0] = IController.ActionArgs(
@@ -619,18 +626,24 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
      * @notice Gas-optimized getter for checking if settlement is allowed.
      * Looks up from the oracles with asset address and expiry
      * @param underlying is the address of the underlying for an otoken
+     * @param collateral is the address of the collateral for an otoken
      * @param expiry is the timestamp of the otoken's expiry
      */
-    function isSettlementAllowed(address underlying, uint256 expiry)
-        private
-        view
-        returns (bool)
-    {
+    function isSettlementAllowed(
+        address underlying,
+        address collateral,
+        uint256 expiry
+    ) private view returns (bool) {
         IController controller = IController(gammaController);
         OracleInterface oracle = OracleInterface(controller.oracle());
 
         bool underlyingFinalized =
             oracle.isDisputePeriodOver(underlying, expiry);
+
+        bool collateralFinalized =
+            (underlying != collateral && collateral != USDC)
+                ? oracle.isDisputePeriodOver(collateral, expiry)
+                : true;
 
         bool strikeFinalized = oracle.isDisputePeriodOver(USDC, expiry);
 
@@ -639,7 +652,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         // We do not have, for example, ETH-collateralized UNI otoken vaults
         // bool collateralFinalized = oracle.isDisputePeriodOver(isPut ? USDC : underlying, expiry);
 
-        return underlyingFinalized && strikeFinalized;
+        return underlyingFinalized && strikeFinalized && collateralFinalized;
     }
 
     /**

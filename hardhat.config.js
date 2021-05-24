@@ -34,6 +34,10 @@ module.exports = {
         blockNumber: 11611333,
       },
     },
+    kovan: {
+      url: process.env.INFURA_KOVAN_URI,
+      accounts: [`0x${process.env.KOVAN_KEY}`, `0x${process.env.KOVAN_KEY2}`],
+    },
   },
   mocha: {
     timeout: 500000,

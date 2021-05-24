@@ -14,6 +14,7 @@
       "usdc": "0xf5cb5408b40e819e7db5347664be03b52accac9d",
       "wbtc": "0xd7c8c2f7b6ebdbc88e5ab0101dd24ed5aca58b0f"
     },
+    "yearnRegistry": "0x26a6F436EAa4Db308eF9A3Bbe46Cc495F39C366D",
     "airswapSwap": "0x79fb4604f2D7bD558Cda0DFADb7d61D98b28CA9f",
     "oTokenFactory": "0xb9D17Ab06e27f63d0FD75099d5874a194eE623e2",
     "gammaController": "0xdEE7D0f8CcC0f7AC7e45Af454e5e7ec1552E8e4e",

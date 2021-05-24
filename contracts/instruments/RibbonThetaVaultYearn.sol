@@ -312,7 +312,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
 
         // If there is not enough yvWETH in the vault, it withdraws as much as possible and
         // transfers the rest in `asset`
-        if (yieldTokensToWithdraw == yieldTokenBalance) {
+        if (yieldTokensToWithdraw >= yieldTokenBalance) {
             _withdrawSupplementaryAssetToken(
                 withdrawAmount,
                 yieldTokenBalance,

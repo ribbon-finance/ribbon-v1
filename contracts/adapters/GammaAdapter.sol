@@ -554,8 +554,6 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
         OtokenInterface otoken = OtokenInterface(vault.shortOtokens[0]);
 
-        OracleInterface oracle = OracleInterface(controller.oracle());
-
         address underlying = otoken.underlyingAsset();
         address collateral = otoken.collateralAsset();
         uint256 expiry = otoken.expiryTimestamp();

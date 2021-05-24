@@ -63,7 +63,7 @@ describe("RibbonThetaVaultYearn", () => {
     tokenSymbol: "rETH-THETA-YEARN",
     asset: WETH_ADDRESS,
     assetContractName: "IWETH",
-    collateralContractName: "IYVWETH",
+    collateralContractName: "IYearnVault",
     strikeAsset: USDC_ADDRESS,
     collateralAsset: Y_WETH_ADDRESS,
     depositAsset: WETH_ADDRESS,

@@ -1898,12 +1898,8 @@ function behavesLikeRibbonOptionsVault(params) {
         );
 
         const currBalance = await this.vault.assetBalance();
-        //let pricePerShare2 = BigNumber.from((await this.collateralContract.pricePerShare()).toString())
-        const mintAmount = wdiv(
-          wmul(currBalance, LOCKED_RATIO),
-          pricePerShare
-        ).sub(1);
-        const newBalance = wmul(currBalance, WITHDRAWAL_BUFFER);
+        const mintAmount = wdiv(wmul(currBalance, LOCKED_RATIO), pricePerShare);
+        const newBalance = wmul(currBalance, WITHDRAWAL_BUFFER).sub(1);
 
         const secondTx = await this.vault
           .connect(managerSigner)

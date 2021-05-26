@@ -69,15 +69,15 @@ describe("RibbonThetaVaultYearn", () => {
     depositAsset: WETH_ADDRESS,
     wrongUnderlyingAsset: WBTC_ADDRESS,
     wrongStrikeAsset: WBTC_ADDRESS,
-    firstOptionStrike: 63000,
-    secondOptionStrike: 64000,
+    firstOptionStrike: 2400,
+    secondOptionStrike: 2500,
     collateralPricer: YEARN_WETH_PRICER,
     underlyingPricer: CHAINLINK_WETH_PRICER,
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("89026360"),
     premium: parseEther("0.1"),
-    tokenDecimals: 8,
+    tokenDecimals: 18,
     isPut: false,
   });
 });
@@ -305,7 +305,7 @@ function behavesLikeRibbonOptionsVault(params) {
             params.mintConfig.contractOwnerAddress,
             addressToDeposit[i],
             this.vault.address,
-            params.depositAsset == USDC_ADDRESS
+            params.depositAsset === USDC_ADDRESS
               ? BigNumber.from("10000000000000")
               : parseEther("200")
           );
@@ -2555,7 +2555,7 @@ function behavesLikeRibbonOptionsVault(params) {
         await depositIntoVault(params.depositAsset, this.vault, depositAmount);
 
         const balanceBeforeWithdraw =
-          this.depositAsset == WETH_ADDRESS
+          this.depositAsset === WETH_ADDRESS
             ? await provider.getBalance(user)
             : await this.assetContract.balanceOf(user);
 
@@ -2569,7 +2569,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const gasFee = gasPrice.mul(receipt.gasUsed);
 
         const balanceAfterWithdraw =
-          this.depositAsset == WETH_ADDRESS
+          this.depositAsset === WETH_ADDRESS
             ? balanceBeforeWithdraw
                 .sub(gasFee)
                 .add(BigNumber.from("9950000000"))
@@ -2579,7 +2579,7 @@ function behavesLikeRibbonOptionsVault(params) {
                 .toString();
 
         assert.equal(
-          this.depositAsset == WETH_ADDRESS
+          this.depositAsset === WETH_ADDRESS
             ? (await provider.getBalance(user)).toString()
             : (await this.assetContract.balanceOf(user)).toString(),
           balanceAfterWithdraw
@@ -2591,7 +2591,7 @@ function behavesLikeRibbonOptionsVault(params) {
         await depositIntoVault(params.depositAsset, this.vault, depositAmount);
 
         const balanceBeforeWithdraw =
-          this.depositAsset == WETH_ADDRESS
+          this.depositAsset === WETH_ADDRESS
             ? await provider.getBalance(user)
             : await this.assetContract.balanceOf(user);
 
@@ -2605,7 +2605,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const gasFee = gasPrice.mul(receipt.gasUsed);
 
         const balanceAfterWithdraw =
-          this.depositAsset == WETH_ADDRESS
+          this.depositAsset === WETH_ADDRESS
             ? balanceBeforeWithdraw
                 .sub(gasFee)
                 .add(BigNumber.from("9950000000"))
@@ -2626,7 +2626,7 @@ function behavesLikeRibbonOptionsVault(params) {
         );
 
         assert.equal(
-          this.depositAsset == WETH_ADDRESS
+          this.depositAsset === WETH_ADDRESS
             ? (await provider.getBalance(user)).toString()
             : (await this.assetContract.balanceOf(user)).toString(),
           balanceAfterWithdraw
@@ -2685,7 +2685,7 @@ function behavesLikeRibbonOptionsVault(params) {
         );
 
         const balanceBeforeWithdraw =
-          this.depositAsset == WETH_ADDRESS
+          this.depositAsset === WETH_ADDRESS
             ? await provider.getBalance(user)
             : await this.assetContract.balanceOf(user);
 
@@ -2695,11 +2695,8 @@ function behavesLikeRibbonOptionsVault(params) {
         const receipt = await res.wait();
         const gasFee = gasPrice.mul(receipt.gasUsed);
 
-        // const balanceAfterWithdraw = this.depositAsset == WETH_ADDRESS ? balanceBeforeWithdraw.sub(gasFee).add(BigNumber.from("9950000000")).toString()
-        //   : balanceBeforeWithdraw.add(BigNumber.from("9950000000")).toString()
-
         assert.equal(
-          this.depositAsset == WETH_ADDRESS
+          this.depositAsset === WETH_ADDRESS
             ? (await provider.getBalance(user))
                 .sub(balanceBeforeWithdraw)
                 .add(gasFee)
@@ -2730,7 +2727,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         // As the pool expands, using 1 pool share will redeem more amount of collateral
         const balanceBeforeWithdraw =
-          this.depositAsset == WETH_ADDRESS
+          this.depositAsset === WETH_ADDRESS
             ? await provider.getBalance(user)
             : await this.assetContract.balanceOf(user);
 
@@ -2740,11 +2737,8 @@ function behavesLikeRibbonOptionsVault(params) {
         const receipt = await res.wait();
         const gasFee = gasPrice.mul(receipt.gasUsed);
 
-        // const balanceAfterWithdraw = this.depositAsset == WETH_ADDRESS ? balanceBeforeWithdraw.sub(gasFee).add(BigNumber.from("9950000000")).toString()
-        //   : balanceBeforeWithdraw.add(BigNumber.from("9950000000")).toString()
-
         assert.equal(
-          this.depositAsset == WETH_ADDRESS
+          this.depositAsset === WETH_ADDRESS
             ? (await provider.getBalance(user))
                 .sub(balanceBeforeWithdraw)
                 .add(gasFee)

@@ -568,7 +568,11 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         (uint256 queuedWithdrawAmount, , ) =
             _withdrawAmountWithShares(queuedWithdrawShares, currentBalance);
         uint256 freeBalance = currentBalance.sub(queuedWithdrawAmount);
-        uint256 shortAmount = wmul(freeBalance, lockedRatio);
+        uint256 shortAmount =
+            wdiv(
+                wmul(freeBalance, lockedRatio),
+                collateralToken.pricePerShare()
+            );
         lockedAmount = shortAmount;
 
         OtokenInterface otoken = OtokenInterface(newOption);
@@ -586,15 +590,12 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
                 address(0)
             );
 
-        uint256 shortAmountInYieldToken =
-            wdiv(shortAmount, collateralToken.pricePerShare());
-
         uint256 shortBalance =
-            adapter.delegateCreateShort(optionTerms, shortAmountInYieldToken);
+            adapter.delegateCreateShort(optionTerms, shortAmount);
         IERC20 optionToken = IERC20(newOption);
         optionToken.safeApprove(address(SWAP_CONTRACT), shortBalance);
 
-        emit OpenShort(newOption, shortAmountInYieldToken, msg.sender);
+        emit OpenShort(newOption, shortAmount, msg.sender);
     }
 
     /**
@@ -703,7 +704,10 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
             uint256 newShareSupply
         )
     {
-        uint256 total = lockedAmount.add(currentAssetBalance);
+        uint256 total =
+            wmul(lockedAmount, collateralToken.pricePerShare()).add(
+                currentAssetBalance
+            );
 
         uint256 shareSupply = totalSupply();
 
@@ -719,7 +723,10 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
      */
     function maxWithdrawableShares() public view returns (uint256) {
         uint256 withdrawableBalance = assetBalance();
-        uint256 total = lockedAmount.add(withdrawableBalance);
+        uint256 total =
+            wmul(lockedAmount, collateralToken.pricePerShare()).add(
+                withdrawableBalance
+            );
         return
             withdrawableBalance
                 .mul(totalSupply())
@@ -759,7 +766,10 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         view
         returns (uint256)
     {
-        uint256 total = lockedAmount.add(assetBalance());
+        uint256 total =
+            wmul(lockedAmount, collateralToken.pricePerShare()).add(
+                assetBalance()
+            );
         return assetAmount.mul(totalSupply()).div(total);
     }
 
@@ -783,7 +793,10 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
      * @return total balance of the vault, including the amounts locked in third party protocols
      */
     function totalBalance() public view returns (uint256) {
-        return lockedAmount.add(assetBalance());
+        return
+            wmul(lockedAmount, collateralToken.pricePerShare()).add(
+                assetBalance()
+            );
     }
 
     /**
@@ -796,6 +809,16 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
                     IERC20(address(collateralToken)).balanceOf(address(this)),
                     collateralToken.pricePerShare()
                 )
+            );
+    }
+
+    /**
+     * @notice Returns the collateral balance on the vault.
+     */
+    function yearnTokenBalance() public view returns (uint256) {
+        return
+            IERC20(address(collateralToken)).balanceOf(address(this)).add(
+                lockedAmount
             );
     }
 

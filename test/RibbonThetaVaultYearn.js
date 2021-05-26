@@ -912,13 +912,13 @@ function behavesLikeRibbonOptionsVault(params) {
           .withArgs(user, depositAmount, depositAmount);
       });
 
-      it("consumes less than 120k gas in ideal scenario", async function () {
+      it("consumes less than 125k gas in ideal scenario", async function () {
         const depositAmount = BigNumber.from("100000000000");
         await this.vault.connect(managerSigner).deposit(depositAmount);
 
         const res = await this.vault.deposit(depositAmount);
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 120000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 125000);
       });
 
       it("returns the correct number of shares back", async function () {
@@ -1052,7 +1052,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         const res = await this.vault.depositYieldToken(depositAmount);
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 170000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 172000);
         assert.equal(
           (await this.vault.totalSupply()).toString(),
           depositAmountInAsset.toString()
@@ -1074,13 +1074,13 @@ function behavesLikeRibbonOptionsVault(params) {
           .withArgs(user, depositAmountInAsset, depositAmountInAsset);
       });
 
-      it("consumes less than 150k gas in ideal scenario", async function () {
+      it("consumes less than 160k gas in ideal scenario", async function () {
         const depositAmount = BigNumber.from("100000000000");
         await this.vault.connect(managerSigner).deposit(depositAmount);
 
         const res = await this.vault.depositYieldToken(depositAmount);
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 150000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 160000);
       });
 
       it("returns the correct number of shares back", async function () {
@@ -1708,7 +1708,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         assert.equal(
           (await this.vault.lockedAmount()).toString(),
-          wmul(this.depositAmount, LOCKED_RATIO).sub(1).toString()
+          lockedAmount.sub(1).toString()
         );
 
         assert.equal(
@@ -2689,7 +2689,7 @@ function behavesLikeRibbonOptionsVault(params) {
           BigNumber.from("10000000000")
         );
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 170000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 180000);
       });
 
       it("should only withdraw original deposit amount minus fees if vault doesn't expand", async function () {

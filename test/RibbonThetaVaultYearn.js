@@ -899,6 +899,14 @@ function behavesLikeRibbonOptionsVault(params) {
           (await this.vault.balanceOf(user)).toString(),
           depositAmount
         );
+        assert.equal(
+          (await this.vault.totalBalance()).toString(),
+          depositAmount
+        );
+        assert.equal(
+          (await this.vault.assetBalance()).toString(),
+          depositAmount
+        );
         await expect(res)
           .to.emit(this.vault, "Deposit")
           .withArgs(user, depositAmount, depositAmount);
@@ -1053,12 +1061,20 @@ function behavesLikeRibbonOptionsVault(params) {
           (await this.vault.balanceOf(user)).toString(),
           depositAmountInAsset.toString()
         );
+        assert.equal(
+          (await this.vault.totalBalance()).toString(),
+          depositAmountInAsset
+        );
+        assert.equal(
+          (await this.vault.assetBalance()).toString(),
+          depositAmountInAsset
+        );
         await expect(res)
           .to.emit(this.vault, "Deposit")
           .withArgs(user, depositAmountInAsset, depositAmountInAsset);
       });
 
-      it("consumes less than 115k gas in ideal scenario", async function () {
+      it("consumes less than 150k gas in ideal scenario", async function () {
         const depositAmount = BigNumber.from("100000000000");
         await this.vault.connect(managerSigner).deposit(depositAmount);
 
@@ -1479,6 +1495,8 @@ function behavesLikeRibbonOptionsVault(params) {
             this.optionType,
             params.asset,
           ]);
+
+        await assert.equal(await this.vault.nextOption(), secondOption.address);
       });
     });
 
@@ -1703,6 +1721,11 @@ function behavesLikeRibbonOptionsVault(params) {
             .sub(startMarginBalance)
             .toString(),
           lockedAmount.toString()
+        );
+
+        assert.equal(
+          (await this.assetContract.balanceOf(this.vault.address)).toString(),
+          0
         );
 
         assert.equal(

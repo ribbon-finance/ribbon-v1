@@ -308,7 +308,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
             wdiv(_withdraw(share, false, false), pricePerYearnShare);
 
         (uint256 yieldTokenBalance, uint256 yieldTokensToWithdraw) =
-            _withdrawYieldToken(withdrawAmount, pricePerYearnShare);
+            _withdrawYieldToken(withdrawAmount);
 
         // If there is not enough yvWETH in the vault, it withdraws as much as possible and
         // transfers the rest in `asset`
@@ -324,12 +324,8 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
     /**
      * @notice Withdraws yvWETH from vault
      * @param withdrawAmount is the withdraw amount in terms of yearn tokens
-     * @param pricePerYearnShare is the yvWETH<->WETH price ratio
      */
-    function _withdrawYieldToken(
-        uint256 withdrawAmount,
-        uint256 pricePerYearnShare
-    )
+    function _withdrawYieldToken(uint256 withdrawAmount)
         private
         returns (uint256 yieldTokenBalance, uint256 yieldTokensToWithdraw)
     {
@@ -561,6 +557,11 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         // prevent spending old and new allowance through tricky tx ordering
         IERC20(asset).safeApprove(address(collateralToken), 0);
         IERC20(asset).safeApprove(address(collateralToken), amountToWrap);
+        // there is a slight imprecision with regards to calculating back from yearn token -> underlying
+        // that stems from miscoordination between ytoken .deposit() amount wrapped and pricePerShare
+        // at that point in time.
+        // ex: if I have 1 eth, deposit 1 eth into yearn vault and calculate value of yearn token balance
+        // denominated in eth (via balance(yearn token) * pricePerShare) we will get 1 eth - 1 wei.
         collateralToken.deposit(amountToWrap, address(this));
 
         uint256 currentBalance = assetBalance();

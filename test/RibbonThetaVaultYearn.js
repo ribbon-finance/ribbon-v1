@@ -1708,12 +1708,21 @@ function behavesLikeRibbonOptionsVault(params) {
 
         assert.equal(
           (await this.vault.lockedAmount()).toString(),
-          lockedAmount.sub(1).toString()
+          lockedAmount.toString()
         );
 
         assert.equal(
           (await this.vault.assetBalance()).toString(),
           wmul(this.depositAmount, WITHDRAWAL_BUFFER).toString()
+        );
+
+        assert.equal(
+          (await this.vault.yearnTokenBalance()).toString(),
+          lockedAmount
+            .add(
+              wdiv(wmul(this.depositAmount, WITHDRAWAL_BUFFER), pricePerShare)
+            )
+            .toString()
         );
 
         assert.equal(
@@ -1942,6 +1951,14 @@ function behavesLikeRibbonOptionsVault(params) {
           (await this.vault.assetBalance()).toString(),
           newBalance.toString()
         );
+
+        assert.equal(
+          (await this.vault.yearnTokenBalance()).toString(),
+          mintAmount
+            .add(wdiv(wmul(currBalance, WITHDRAWAL_BUFFER), pricePerShare))
+            .sub(1)
+            .toString()
+        );
       });
 
       it("withdraws and roll funds into next option, after expiry OTM", async function () {
@@ -2075,6 +2092,18 @@ function behavesLikeRibbonOptionsVault(params) {
         assert.equal(
           (await this.vault.assetBalance()).toString(),
           wmul(this.depositAmount.add(this.premium), WITHDRAWAL_BUFFER)
+        );
+
+        assert.equal(
+          (await this.vault.yearnTokenBalance()).toString(),
+          mintAmount
+            .add(
+              wdiv(
+                wmul(this.depositAmount.add(this.premium), WITHDRAWAL_BUFFER),
+                pricePerShare
+              )
+            )
+            .toString()
         );
       });
 

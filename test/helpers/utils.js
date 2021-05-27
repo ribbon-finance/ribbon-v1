@@ -16,8 +16,11 @@ module.exports = {
   mintAndApprove,
   setupOracle,
   setOpynOracleExpiryPrice,
+  setOpynOracleExpiryPriceYearn,
   whitelistProduct,
   mintToken,
+  setAssetPricer,
+  getAssetPricer,
 };
 
 async function deployProxy(
@@ -64,6 +67,7 @@ const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const GAMMA_CONTROLLER = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 
 const GAMMA_ORACLE = "0xc497f40D1B7db6FA5017373f1a0Ec6d53126Da23";
+// const GAMMA_ORACLE_V2 = "0x55a50c75c7f82943dc4755b2964f4f3f6ab5d5af";
 const GAMMA_WHITELIST = "0xa5EA18ac6865f315ff5dD9f1a7fb1d41A30a6779";
 const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
@@ -234,6 +238,41 @@ async function mintAndApprove(tokenAddress, userSigner, spender, amount) {
   // )
 }
 
+async function getAssetPricer(pricer, signer) {
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [pricer],
+  });
+
+  const ownerSigner = await provider.getSigner(pricer);
+
+  const pricerContract = await ethers.getContractAt("IYearnPricer", pricer);
+
+  const forceSendContract = await ethers.getContractFactory("ForceSend");
+  const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
+  await forceSend.connect(signer).go(pricer, { value: parseEther("0.5") });
+
+  // await signer.sendTransaction({
+  //   to: pricer,
+  //   value: parseEther("0.5"),
+  // });
+
+  return await pricerContract.connect(ownerSigner);
+}
+
+async function setAssetPricer(asset, pricer) {
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [ORACLE_OWNER],
+  });
+
+  const ownerSigner = await provider.getSigner(ORACLE_OWNER);
+
+  const oracle = await ethers.getContractAt("IOracle", GAMMA_ORACLE);
+
+  await oracle.connect(ownerSigner).setAssetPricer(asset, pricer);
+}
+
 async function whitelistProduct(underlying, strike, collateral, isPut) {
   const [adminSigner] = await ethers.getSigners();
 
@@ -254,7 +293,7 @@ async function whitelistProduct(underlying, strike, collateral, isPut) {
     value: parseEther("0.5"),
   });
 
-  await whitelist.connect(ownerSigner).whitelistCollateral(underlying);
+  await whitelist.connect(ownerSigner).whitelistCollateral(collateral);
 
   await whitelist
     .connect(ownerSigner)
@@ -297,6 +336,29 @@ async function setOpynOracleExpiryPrice(asset, oracle, expiry, settlePrice) {
 
   const res = await oracle.setExpiryPrice(asset, expiry, settlePrice);
   const receipt = await res.wait();
+  const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
+
+  await time.increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);
+}
+
+async function setOpynOracleExpiryPriceYearn(
+  underlyingAsset,
+  underlyingOracle,
+  underlyingSettlePrice,
+  collateralPricer,
+  expiry
+) {
+  await time.increaseTo(parseInt(expiry) + ORACLE_LOCKING_PERIOD + 1);
+
+  const res = await underlyingOracle.setExpiryPrice(
+    underlyingAsset,
+    expiry,
+    underlyingSettlePrice
+  );
+  await res.wait();
+  const res2 = await collateralPricer.setExpiryPriceInOracle(expiry);
+  const receipt = await res2.wait();
+
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
 
   await time.increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);

@@ -12,8 +12,10 @@
       "eth": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "weth": "0xd0A1E359811322d97991E03f863a0C30C2cF029C",
       "usdc": "0xf5cb5408b40e819e7db5347664be03b52accac9d",
-      "wbtc": "0xd7c8c2f7b6ebdbc88e5ab0101dd24ed5aca58b0f"
+      "wbtc": "0xd7c8c2f7b6ebdbc88e5ab0101dd24ed5aca58b0f",
+      "yvweth": "0x1E0E04C1c5c57328fcB83dEd981e304812c36962"
     },
+    "yearnRegistry": "0x26a6F436EAa4Db308eF9A3Bbe46Cc495F39C366D",
     "airswapSwap": "0x79fb4604f2D7bD558Cda0DFADb7d61D98b28CA9f",
     "oTokenFactory": "0xb9D17Ab06e27f63d0FD75099d5874a194eE623e2",
     "gammaController": "0xdEE7D0f8CcC0f7AC7e45Af454e5e7ec1552E8e4e",
@@ -34,8 +36,10 @@
       "eth": "0x0000000000000000000000000000000000000000",
       "weth": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
       "wbtc": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
-      "usdc": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+      "usdc": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "yvweth": "0xa9fe4601811213c340e850ea305481aff02f5b28"
     },
+    "yearnRegistry": "0x50c1a2eA0a861A967D9d0FFE2AE4012c2E053804",
     "airswapSwap": "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA",
     "oTokenFactory": "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E",
     "gammaController": "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72",

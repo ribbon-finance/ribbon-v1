@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.7.2;
 pragma experimental ABIEncoderV2;
-
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
@@ -14,11 +13,12 @@ import {
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
+import {IYearnRegistry, IYearnVault} from "../interfaces/IYearn.sol";
 import {ISwap, Types} from "../interfaces/ISwap.sol";
 import {OtokenInterface} from "../interfaces/GammaInterface.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 
-contract RibbonThetaVault is DSMath, OptionsVaultStorage {
+contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
     using ProtocolAdapter for IProtocolAdapter;
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -33,6 +33,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     bool public immutable isPut;
     uint8 private immutable _decimals;
 
+    // Yearn vault contract
+    IYearnVault public immutable collateralToken;
+
     // AirSwap Swap contract
     // https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
     ISwap public immutable SWAP_CONTRACT;
@@ -43,6 +46,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     uint256 public constant delay = 1 hours;
 
     uint256 public immutable MINIMUM_SUPPLY;
+
+    uint256 public constant YEARN_WITHDRAWAL_BUFFER = 5; // 0.05%
+    uint256 public constant YEARN_WITHDRAWAL_SLIPPAGE = 5; // 0.05%
 
     event ManagerChanged(address oldManager, address newManager);
 
@@ -80,9 +86,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param _asset is the asset used for collateral and premiums
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
+     * @param _yearnRegistry is the registry contract for all yearn vaults
      * @param _swapContract is the Airswap Swap contract
      * @param _tokenDecimals is the decimals for the vault shares. Must match the decimals for _asset.
      * @param _minimumSupply is the minimum supply for the asset balance and the share supply.
+     * @param _isPut is whether this is a put strategy.
      * It's important to bake the _factory variable into the contract with the constructor
      * If we do it in the `initialize` function, users get to set the factory variable and
      * subsequently the adapter, which allows them to make a delegatecall, then selfdestruct the contract.
@@ -92,6 +100,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         address _factory,
         address _weth,
         address _usdc,
+        address _yearnRegistry,
         address _swapContract,
         uint8 _tokenDecimals,
         uint256 _minimumSupply,
@@ -101,6 +110,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(_factory != address(0), "!_factory");
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
+        require(_yearnRegistry != address(0), "!_yearnRegistry");
         require(_swapContract != address(0), "!_swapContract");
         require(_tokenDecimals > 0, "!_tokenDecimals");
         require(_minimumSupply > 0, "!_minimumSupply");
@@ -112,6 +122,13 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         asset = _isPut ? _usdc : _asset;
         underlying = _asset;
+
+        address collateralAddr =
+            IYearnRegistry(_yearnRegistry).latestVault(_isPut ? _usdc : _asset);
+
+        collateralToken = IYearnVault(collateralAddr);
+        require(collateralAddr != address(0), "!_collateralToken");
+
         adapter = IProtocolAdapter(adapterAddr);
         WETH = _weth;
         USDC = _usdc;
@@ -211,6 +228,21 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     }
 
     /**
+     * @notice Deposits the `collateralToken` into the contract and mint vault shares.
+     * @param amount is the amount of `collateralToken` to deposit
+     */
+    function depositYieldToken(uint256 amount) external nonReentrant {
+        IERC20(address(collateralToken)).safeTransferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
+        uint256 collateralToAssetBalance =
+            wmul(amount, collateralToken.pricePerShare());
+        _deposit(collateralToAssetBalance);
+    }
+
+    /**
      * @notice Mints the vault shares to the msg.sender
      * @param amount is the amount of `asset` deposited
      */
@@ -250,7 +282,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      */
     function withdrawETH(uint256 share) external nonReentrant {
         require(asset == WETH, "!WETH");
-        uint256 withdrawAmount = _withdraw(share, false);
+        uint256 withdrawAmount = _withdraw(share, false, true);
 
         IWETH(WETH).withdraw(withdrawAmount);
         (bool success, ) = msg.sender.call{value: withdrawAmount}("");
@@ -262,19 +294,91 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param share is the number of vault shares to be burned
      */
     function withdraw(uint256 share) external nonReentrant {
-        uint256 withdrawAmount = _withdraw(share, false);
+        uint256 withdrawAmount = _withdraw(share, false, true);
         IERC20(asset).safeTransfer(msg.sender, withdrawAmount);
+    }
+
+    /**
+     * @notice Withdraws yvWETH + WETH (if necessary) from vault using vault shares
+     * @param share is the number of vault shares to be burned
+     */
+    function withdrawYieldToken(uint256 share) external nonReentrant {
+        uint256 pricePerYearnShare = collateralToken.pricePerShare();
+        uint256 withdrawAmount =
+            wdiv(_withdraw(share, false, false), pricePerYearnShare);
+
+        (uint256 yieldTokenBalance, uint256 yieldTokensToWithdraw) =
+            _withdrawYieldToken(withdrawAmount);
+
+        // If there is not enough yvWETH in the vault, it withdraws as much as possible and
+        // transfers the rest in `asset`
+        if (yieldTokensToWithdraw >= yieldTokenBalance) {
+            _withdrawSupplementaryAssetToken(
+                withdrawAmount,
+                yieldTokenBalance,
+                pricePerYearnShare
+            );
+        }
+    }
+
+    /**
+     * @notice Withdraws yvWETH from vault
+     * @param withdrawAmount is the withdraw amount in terms of yearn tokens
+     */
+    function _withdrawYieldToken(uint256 withdrawAmount)
+        private
+        returns (uint256 yieldTokenBalance, uint256 yieldTokensToWithdraw)
+    {
+        yieldTokenBalance = IERC20(address(collateralToken)).balanceOf(
+            address(this)
+        );
+        yieldTokensToWithdraw = max(yieldTokenBalance, withdrawAmount).sub(
+            yieldTokenBalance
+        ) > 0
+            ? yieldTokenBalance
+            : withdrawAmount;
+        if (yieldTokensToWithdraw > 0) {
+            IERC20(address(collateralToken)).safeTransfer(
+                msg.sender,
+                yieldTokensToWithdraw
+            );
+        }
+    }
+
+    /**
+     * @notice Withdraws yvWETH from vault
+     * @param withdrawAmount is the withdraw amount in terms of yearn tokens
+     * @param pricePerYearnShare is the yvWETH<->WETH price ratio
+     */
+    function _withdrawSupplementaryAssetToken(
+        uint256 withdrawAmount,
+        uint256 yieldTokenBalance,
+        uint256 pricePerYearnShare
+    ) private {
+        uint256 underlyingTokensToWithdraw =
+            wmul(withdrawAmount.sub(yieldTokenBalance), pricePerYearnShare);
+
+        if (asset == WETH) {
+            IWETH(WETH).withdraw(underlyingTokensToWithdraw);
+            (bool success, ) =
+                msg.sender.call{value: underlyingTokensToWithdraw}("");
+            require(success, "ETH transfer failed");
+        } else {
+            IERC20(asset).safeTransfer(msg.sender, underlyingTokensToWithdraw);
+        }
     }
 
     /**
      * @notice Burns vault shares and checks if eligible for withdrawal
      * @param share is the number of vault shares to be burned
      * @param isScheduled is whether the withdraw was scheduled
+     * @param unwrap is whether we want to unwrap to underlying asset
      */
-    function _withdraw(uint256 share, bool isScheduled)
-        private
-        returns (uint256)
-    {
+    function _withdraw(
+        uint256 share,
+        bool isScheduled,
+        bool unwrap
+    ) private returns (uint256) {
         (uint256 amountAfterFee, uint256 feeAmount) =
             withdrawAmountWithShares(share);
 
@@ -282,9 +386,35 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         _burn(isScheduled ? address(this) : msg.sender, share);
 
+        _unwrapYieldToken(unwrap ? amountAfterFee.add(feeAmount) : feeAmount);
+
         IERC20(asset).safeTransfer(feeRecipient, feeAmount);
 
         return amountAfterFee;
+    }
+
+    /**
+     * @notice Unwraps the necessary amount of the yield-bearing yearn token
+     *         and transfers amount to relevant recipient
+     * @param amount is the amount of `asset` to withdraw
+     */
+    function _unwrapYieldToken(uint256 amount) private {
+        uint256 assetBalance = IERC20(asset).balanceOf(address(this));
+        uint256 amountToUnwrap =
+            wdiv(
+                max(assetBalance, amount).sub(assetBalance),
+                collateralToken.pricePerShare()
+            );
+        amountToUnwrap = amountToUnwrap.add(
+            amountToUnwrap.mul(YEARN_WITHDRAWAL_BUFFER).div(10000)
+        );
+        if (amountToUnwrap > 0) {
+            collateralToken.withdraw(
+                amountToUnwrap,
+                address(this),
+                YEARN_WITHDRAWAL_SLIPPAGE
+            );
+        }
     }
 
     /**
@@ -315,7 +445,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         scheduledWithdrawals[msg.sender] = 0;
         queuedWithdrawShares = queuedWithdrawShares.sub(withdrawShares);
 
-        uint256 amountAfterFee = _withdraw(withdrawShares, true);
+        uint256 amountAfterFee = _withdraw(withdrawShares, true, true);
 
         emit ScheduledWithdrawCompleted(msg.sender, amountAfterFee);
 
@@ -371,7 +501,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             otoken.underlyingAsset() == underlying,
             "Wrong underlyingAsset"
         );
-        require(otoken.collateralAsset() == asset, "Wrong collateralAsset");
+        require(
+            otoken.collateralAsset() == address(collateralToken),
+            "Wrong collateralAsset"
+        );
 
         // we just assume all options use USDC as the strike
         require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
@@ -420,11 +553,26 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         currentOption = newOption;
         nextOption = address(0);
 
+        uint256 amountToWrap = IERC20(asset).balanceOf(address(this));
+        // prevent spending old and new allowance through tricky tx ordering
+        IERC20(asset).safeApprove(address(collateralToken), 0);
+        IERC20(asset).safeApprove(address(collateralToken), amountToWrap);
+        // there is a slight imprecision with regards to calculating back from yearn token -> underlying
+        // that stems from miscoordination between ytoken .deposit() amount wrapped and pricePerShare
+        // at that point in time.
+        // ex: if I have 1 eth, deposit 1 eth into yearn vault and calculate value of yearn token balance
+        // denominated in eth (via balance(yearn token) * pricePerShare) we will get 1 eth - 1 wei.
+        collateralToken.deposit(amountToWrap, address(this));
+
         uint256 currentBalance = assetBalance();
         (uint256 queuedWithdrawAmount, , ) =
             _withdrawAmountWithShares(queuedWithdrawShares, currentBalance);
         uint256 freeBalance = currentBalance.sub(queuedWithdrawAmount);
-        uint256 shortAmount = wmul(freeBalance, lockedRatio);
+        uint256 shortAmount =
+            wdiv(
+                wmul(freeBalance, lockedRatio),
+                collateralToken.pricePerShare()
+            );
         lockedAmount = shortAmount;
 
         OtokenInterface otoken = OtokenInterface(newOption);
@@ -556,7 +704,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             uint256 newShareSupply
         )
     {
-        uint256 total = lockedAmount.add(currentAssetBalance);
+        uint256 total =
+            wmul(lockedAmount, collateralToken.pricePerShare()).add(
+                currentAssetBalance
+            );
 
         uint256 shareSupply = totalSupply();
 
@@ -572,7 +723,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      */
     function maxWithdrawableShares() public view returns (uint256) {
         uint256 withdrawableBalance = assetBalance();
-        uint256 total = lockedAmount.add(withdrawableBalance);
+        uint256 total =
+            wmul(lockedAmount, collateralToken.pricePerShare()).add(
+                withdrawableBalance
+            );
         return
             withdrawableBalance
                 .mul(totalSupply())
@@ -612,7 +766,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         view
         returns (uint256)
     {
-        uint256 total = lockedAmount.add(assetBalance());
+        uint256 total =
+            wmul(lockedAmount, collateralToken.pricePerShare()).add(
+                assetBalance()
+            );
         return assetAmount.mul(totalSupply()).div(total);
     }
 
@@ -636,14 +793,33 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @return total balance of the vault, including the amounts locked in third party protocols
      */
     function totalBalance() public view returns (uint256) {
-        return lockedAmount.add(IERC20(asset).balanceOf(address(this)));
+        return
+            wmul(lockedAmount, collateralToken.pricePerShare()).add(
+                assetBalance()
+            );
     }
 
     /**
      * @notice Returns the asset balance on the vault. This balance is freely withdrawable by users.
      */
     function assetBalance() public view returns (uint256) {
-        return IERC20(asset).balanceOf(address(this));
+        return
+            IERC20(asset).balanceOf(address(this)).add(
+                wmul(
+                    IERC20(address(collateralToken)).balanceOf(address(this)),
+                    collateralToken.pricePerShare()
+                )
+            );
+    }
+
+    /**
+     * @notice Returns the collateral balance on the vault.
+     */
+    function yearnTokenBalance() public view returns (uint256) {
+        return
+            IERC20(address(collateralToken)).balanceOf(address(this)).add(
+                lockedAmount
+            );
     }
 
     /**

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.7.2;
 pragma experimental ABIEncoderV2;
-
 import {
     AggregatorV3Interface
 } from "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
@@ -198,10 +197,14 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
     ) public view override returns (bool) {
         OtokenInterface otoken = OtokenInterface(options);
 
-        address underlying = otoken.underlyingAsset();
-        uint256 expiry = otoken.expiryTimestamp();
+        bool settlementAllowed =
+            isSettlementAllowed(
+                otoken.underlyingAsset(),
+                otoken.collateralAsset(),
+                otoken.expiryTimestamp()
+            );
 
-        if (!isSettlementAllowed(underlying, expiry)) {
+        if (!settlementAllowed) {
             return false;
         }
         // use `0` as the optionID because it doesn't do anything for exerciseProfit
@@ -553,6 +556,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         bool settlementAllowed =
             isSettlementAllowed(
                 otoken.underlyingAsset(),
+                otoken.collateralAsset(),
                 otoken.expiryTimestamp()
             );
 
@@ -619,18 +623,24 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
      * @notice Gas-optimized getter for checking if settlement is allowed.
      * Looks up from the oracles with asset address and expiry
      * @param underlying is the address of the underlying for an otoken
+     * @param collateral is the address of the collateral for an otoken
      * @param expiry is the timestamp of the otoken's expiry
      */
-    function isSettlementAllowed(address underlying, uint256 expiry)
-        private
-        view
-        returns (bool)
-    {
+    function isSettlementAllowed(
+        address underlying,
+        address collateral,
+        uint256 expiry
+    ) private view returns (bool) {
         IController controller = IController(gammaController);
         OracleInterface oracle = OracleInterface(controller.oracle());
 
         bool underlyingFinalized =
             oracle.isDisputePeriodOver(underlying, expiry);
+
+        bool collateralFinalized =
+            (underlying != collateral && collateral != USDC)
+                ? oracle.isDisputePeriodOver(collateral, expiry)
+                : true;
 
         bool strikeFinalized = oracle.isDisputePeriodOver(USDC, expiry);
 
@@ -639,7 +649,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         // We do not have, for example, ETH-collateralized UNI otoken vaults
         // bool collateralFinalized = oracle.isDisputePeriodOver(isPut ? USDC : underlying, expiry);
 
-        return underlyingFinalized && strikeFinalized;
+        return underlyingFinalized && strikeFinalized && collateralFinalized;
     }
 
     /**

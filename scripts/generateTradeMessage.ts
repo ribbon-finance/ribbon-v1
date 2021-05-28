@@ -17,24 +17,20 @@ program.parse(process.argv);
 async function main() {
   const network = program.network === "mainnet" ? "mainnet" : "kovan";
 
-  await verifyRollToNextOption(
+  await generateTradeMessage(
     "ETH",
     deployments[network].RibbonETHCoveredCall,
     network
   );
-  await verifyRollToNextOption(
+  await generateTradeMessage(
     "WBTC",
     deployments[network].RibbonWBTCCoveredCall,
     network
   );
-  await verifyRollToNextOption(
-    "ETH",
-    deployments[network].RibbonETHPut,
-    network
-  );
+  await generateTradeMessage("ETH", deployments[network].RibbonETHPut, network);
 }
 
-async function verifyRollToNextOption(
+async function generateTradeMessage(
   assetName: string,
   vaultAddress: string,
   network: Networks
@@ -65,8 +61,9 @@ async function verifyRollToNextOption(
     BigNumber.from("10").pow(BigNumber.from("8"))
   );
   const dt = moment.unix(timestamp);
-  const otokenBalance = (await otokenERC20.balanceOf(vaultAddress)).div(
-    BigNumber.from("10").pow(BigNumber.from("8"))
+  const otokenBalance = ethers.utils.formatUnits(
+    await otokenERC20.balanceOf(vaultAddress),
+    8
   );
 
   const message = `oToken ${assetName}/USDC ${optionType}

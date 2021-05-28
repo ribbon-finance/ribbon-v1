@@ -31,8 +31,8 @@ async function verifyVaultOtoken(vaultAddress: string, network: Networks) {
 
   const vault = new ethers.Contract(vaultAddress, vaultArtifact.abi, provider);
 
-  const nextOption = await vault.currentOption();
-  const currentOption = await vault.nextOption();
+  const currentOption = await vault.currentOption();
+  const nextOption = await vault.nextOption();
   const hasRolled = nextOption === ethers.constants.AddressZero;
   const otokenAddress = hasRolled ? currentOption : nextOption;
 

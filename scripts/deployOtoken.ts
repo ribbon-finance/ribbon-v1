@@ -102,6 +102,7 @@ async function deployOToken() {
 
   const scaleBy = BigNumber.from("10").pow(BigNumber.from("8"));
 
+  console.log(`Symbol: ${await otoken.symbol()}`);
   console.log(`Strike price: ${(await otoken.strikePrice()).div(scaleBy)}`);
   console.log(`Underlying: ${await otoken.underlyingAsset()}`);
   console.log(`Strike: ${await otoken.strikeAsset()}`);

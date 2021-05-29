@@ -7,6 +7,5 @@ module.exports = async function (deployer, _network) {
     const networkLookup = _network;
     network = _network;
 
-    await deployer.deploy(UniswapAdapter, EXTERNAL_ADDRESSES[networkLookup].sushiswap, EXTERNAL_ADDRESSES[networkLookup].assets.wbtc, EXTERNAL_ADDRESSES[networkLookup].assets.weth, EXTERNAL_A
-DDRESSES[networkLookup].assets.sushiLp, EXTERNAL_ADDRESSES[networkLookup].assets.digg);
+    await deployer.deploy(UniswapAdapter, EXTERNAL_ADDRESSES[networkLookup].sushiswap, EXTERNAL_ADDRESSES[networkLookup].assets.wbtc, EXTERNAL_ADDRESSES[networkLookup].assets.weth, EXTERNAL_ADDRESSES[networkLookup].assets.sushiLp, EXTERNAL_ADDRESSES[networkLookup].assets.digg);
 };

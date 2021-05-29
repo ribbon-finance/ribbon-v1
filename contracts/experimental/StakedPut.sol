@@ -10,9 +10,7 @@ import {
     AggregatorV3Interface
 } from "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
 
-import {
-    IHegicOptions
-} from "../interfaces/HegicInterface.sol";
+import {IHegicOptions} from "../interfaces/HegicInterface.sol";
 import {
     ProtocolAdapterTypes,
     IProtocolAdapter

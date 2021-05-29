@@ -11,12 +11,7 @@ import {
 } from "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
 
 import {
-    State,
-    IHegicOptions,
-    HegicOptionType,
-    IHegicETHOptions,
-    IHegicBTCOptions,
-    IHegicRewards
+    IHegicOptions
 } from "../interfaces/HegicInterface.sol";
 import {
     ProtocolAdapterTypes,
@@ -27,7 +22,6 @@ import {AmmAdapter} from "../adapters/AmmAdapter.sol";
 
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
-import {IUniswapV2Pair} from "../interfaces/IUniswapV2Pair.sol";
 import {UniswapAdapter} from "../adapters/UniswapAdapter.sol";
 
 import {StakedPutStorageV1} from "../storage/StakedPutStorage.sol";
@@ -63,7 +57,6 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     IRibbonFactory public immutable factory;
     IProtocolAdapter public immutable adapter;
     IAmmAdapter public immutable iUniswapAdapter;
-    IHegicOptions public immutable options;
     AggregatorV3Interface public immutable priceProvider;
 
     address payable public uniswapAdapterAddress;
@@ -108,7 +101,6 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
         address _adapterAddress = factoryInstance.getAdapter(venue);
         require(_adapterAddress != address(0), "Adapter not set");
         adapterAddress = _adapterAddress;
-        options = IHegicOptions(_wbtcOptionsAddress);
         factory = factoryInstance;
         adapter = IProtocolAdapter(_adapterAddress);
         optionsAddress = _wbtcOptionsAddress;

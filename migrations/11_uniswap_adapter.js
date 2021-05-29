@@ -1,7 +1,6 @@
 const EXTERNAL_ADDRESSES = require("../constants/externalAddresses.json");
 const UniswapAdapter = artifacts.require("UniswapAdapter");
 
-let network;
 module.exports = async function (deployer, _network) {
     const networkLookup = _network;
 

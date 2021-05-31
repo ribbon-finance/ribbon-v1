@@ -105,7 +105,6 @@ contract StakedPut is DSMath, StakedPutStorageV1 {
     }
 
     function initialize() external initializer {}
-    
     receive() external payable {}
 
     function getName() public pure returns (string memory) {

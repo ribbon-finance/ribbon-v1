@@ -2733,15 +2733,9 @@ function behavesLikeRibbonOptionsVault(params) {
         });
         await res.wait();
 
-        // Fee is sent to feeRecipient
         assert.equal(
           (await this.assetContract.balanceOf(this.vault.address)).toString(),
-          BigNumber.from("90000000000").toString()
-        );
-
-        assert.equal(
-          (await this.assetContract.balanceOf(feeRecipient)).toString(),
-          BigNumber.from("50000000").toString()
+          BigNumber.from("90050000000").toString()
         );
 
         assert.equal(

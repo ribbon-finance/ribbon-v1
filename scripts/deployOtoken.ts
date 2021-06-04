@@ -32,6 +32,7 @@ program.parse(process.argv);
 
 async function deployOToken() {
   const otokenArtifact = await hre.artifacts.readArtifact("OtokenInterface");
+  const erc20Artifact = await hre.artifacts.readArtifact("ERC20Detailed");
 
   const network = program.network === "mainnet" ? "mainnet" : "kovan";
 
@@ -99,10 +100,15 @@ async function deployOToken() {
     otokenArtifact.abi,
     provider
   );
+  const otokenERC20 = new ethers.Contract(
+    otokenAddress,
+    erc20Artifact.abi,
+    provider
+  );
 
   const scaleBy = BigNumber.from("10").pow(BigNumber.from("8"));
 
-  console.log(`Symbol: ${await otoken.symbol()}`);
+  console.log(`Symbol: ${await otokenERC20.symbol()}`);
   console.log(`Strike price: ${(await otoken.strikePrice()).div(scaleBy)}`);
   console.log(`Underlying: ${await otoken.underlyingAsset()}`);
   console.log(`Strike: ${await otoken.strikeAsset()}`);

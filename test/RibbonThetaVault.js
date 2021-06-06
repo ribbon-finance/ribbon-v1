@@ -272,6 +272,9 @@ function behavesLikeRibbonOptionsVault(params) {
         )
       ).connect(userSigner);
 
+      await this.vault.connect(ownerSigner).setFeeRecipient(this.vault.address);
+      feeRecipient = this.vault.address;
+
       await this.vault.connect(ownerSigner).setManager(manager);
 
       this.oTokenFactory = await getContractAt(
@@ -715,6 +718,13 @@ function behavesLikeRibbonOptionsVault(params) {
       it("changes the fee recipient", async function () {
         await this.vault.connect(ownerSigner).setFeeRecipient(manager);
         assert.equal(await this.vault.feeRecipient(), manager);
+      });
+
+      it("is able to set the fee recipient to vault", async function () {
+        await this.vault
+          .connect(ownerSigner)
+          .setFeeRecipient(this.vault.address);
+        assert.equal(await this.vault.feeRecipient(), this.vault.address);
       });
     });
 
@@ -2102,15 +2112,10 @@ function behavesLikeRibbonOptionsVault(params) {
           const receipt = await res.wait();
           const gasFee = gasPrice.mul(receipt.gasUsed);
 
-          // Fee is sent to feeRecipient
+          // Vault receives withdrawal fee
           assert.equal(
             (await this.assetContract.balanceOf(this.vault.address)).toString(),
-            parseEther("0.9").toString()
-          );
-
-          assert.equal(
-            (await this.assetContract.balanceOf(feeRecipient)).toString(),
-            parseEther("0.0005").toString()
+            parseEther("0.9005").toString()
           );
 
           assert.equal(
@@ -2632,7 +2637,7 @@ function behavesLikeRibbonOptionsVault(params) {
         assert.equal(
           (await this.assetContract.balanceOf(this.vault.address)).toString(),
           vaultBalanceBeforeWithdraw
-            .sub(BigNumber.from("100000000000"))
+            .sub(BigNumber.from("99500000000"))
             .toString()
         );
 
@@ -2650,18 +2655,10 @@ function behavesLikeRibbonOptionsVault(params) {
               .add(BigNumber.from("99500000000"))
               .toString()
           );
-          assert.equal(
-            (await this.assetContract.balanceOf(feeRecipient)).toString(),
-            BigNumber.from("500000000").toString()
-          );
         } else {
           assert.equal(
             (await this.assetContract.balanceOf(user)).toString(),
             balanceBeforeWithdraw.add(BigNumber.from("99500000000")).toString()
-          );
-          assert.equal(
-            (await this.assetContract.balanceOf(feeRecipient)).toString(),
-            BigNumber.from("500000000").toString()
           );
         }
       });
@@ -2736,15 +2733,9 @@ function behavesLikeRibbonOptionsVault(params) {
         });
         await res.wait();
 
-        // Fee is sent to feeRecipient
         assert.equal(
           (await this.assetContract.balanceOf(this.vault.address)).toString(),
-          BigNumber.from("90000000000").toString()
-        );
-
-        assert.equal(
-          (await this.assetContract.balanceOf(feeRecipient)).toString(),
-          BigNumber.from("50000000").toString()
+          BigNumber.from("90050000000").toString()
         );
 
         assert.equal(

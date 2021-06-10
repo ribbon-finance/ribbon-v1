@@ -410,7 +410,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
 
             require(profitInUnderlying > 0, "Swap is unprofitable");
 
-            IERC20(address(collateralToken)).safeApprove(
+            IERC20(collateral).safeApprove(
                 UNISWAP_ROUTER,
                 profitInCollateral
             );
@@ -491,7 +491,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         }
 
         // double approve to fix non-compliant ERC20s
-        _customApprove(address(collateralToken), MARGIN_POOL, depositAmount);
+        _customApprove(collateralAsset, MARGIN_POOL, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);

@@ -410,8 +410,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
 
             require(profitInUnderlying > 0, "Swap is unprofitable");
 
-            collateralToken.safeApprove(UNISWAP_ROUTER, 0);
-            collateralToken.safeApprove(UNISWAP_ROUTER, profitInCollateral);
+            IERC20(collateral).safeApprove(UNISWAP_ROUTER, profitInCollateral);
 
             uint256[] memory amountsOut =
                 router.swapExactTokensForETH(
@@ -489,8 +488,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         }
 
         // double approve to fix non-compliant ERC20s
-        collateralToken.safeApprove(MARGIN_POOL, 0);
-        collateralToken.safeApprove(MARGIN_POOL, depositAmount);
+        _customApprove(collateralAsset, MARGIN_POOL, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);
@@ -695,5 +693,30 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
             optionTerms.expiry,
             isPut
         );
+    }
+
+    /**
+     * @notice Prevent spending old and new allowance through tricky tx ordering
+     * @param approveToken is the token we are getting approval permissions for
+     * @param approveContract is the contract to receive permissions
+     * @param approveAmount is the amount we are approving
+     */
+    function _customApprove(
+        address approveToken,
+        address approveContract,
+        uint256 approveAmount
+    ) private {
+        try
+            IERC20(approveToken).approve(
+                address(approveContract),
+                approveAmount
+            )
+        {} catch {
+            IERC20(approveToken).approve(address(approveContract), 0);
+            IERC20(approveToken).approve(
+                address(approveContract),
+                approveAmount
+            );
+        }
     }
 }

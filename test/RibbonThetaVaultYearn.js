@@ -2718,7 +2718,7 @@ function behavesLikeRibbonOptionsVault(params) {
           BigNumber.from("10000000000")
         );
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 180000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 190000);
       });
 
       it("should only withdraw original deposit amount minus fees if vault doesn't expand", async function () {

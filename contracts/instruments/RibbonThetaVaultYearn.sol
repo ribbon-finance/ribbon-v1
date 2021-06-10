@@ -312,7 +312,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
 
         // If there is not enough yvWETH in the vault, it withdraws as much as possible and
         // transfers the rest in `asset`
-        if (yieldTokensToWithdraw >= yieldTokenBalance) {
+        if (yieldTokensToWithdraw == yieldTokenBalance) {
             _withdrawSupplementaryAssetToken(
                 withdrawAmount,
                 yieldTokenBalance,
@@ -332,11 +332,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         yieldTokenBalance = IERC20(address(collateralToken)).balanceOf(
             address(this)
         );
-        yieldTokensToWithdraw = max(yieldTokenBalance, withdrawAmount).sub(
-            yieldTokenBalance
-        ) > 0
-            ? yieldTokenBalance
-            : withdrawAmount;
+        yieldTokensToWithdraw = min(yieldTokenBalance, withdrawAmount);
         if (yieldTokensToWithdraw > 0) {
             IERC20(address(collateralToken)).safeTransfer(
                 msg.sender,
@@ -346,8 +342,9 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Withdraws yvWETH from vault
+     * @notice Withdraws 'asset' from vault
      * @param withdrawAmount is the withdraw amount in terms of yearn tokens
+     * @param yieldTokenBalance is the collateral token (yvWETH) balance of the vault
      * @param pricePerYearnShare is the yvWETH<->WETH price ratio
      */
     function _withdrawSupplementaryAssetToken(
@@ -357,6 +354,16 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
     ) private {
         uint256 underlyingTokensToWithdraw =
             wmul(withdrawAmount.sub(yieldTokenBalance), pricePerYearnShare);
+
+        if (underlyingTokensToWithdraw == 0) {
+            return;
+        }
+
+        require(
+            IERC20(asset).balanceOf(address(this)) >=
+                underlyingTokensToWithdraw,
+            "Not enough of `asset` balance to withdraw!"
+        );
 
         if (asset == WETH) {
             IWETH(WETH).withdraw(underlyingTokensToWithdraw);
@@ -369,7 +376,8 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Burns vault shares and checks if eligible for withdrawal
+     * @notice Burns vault shares, checks if eligible for withdrawal,
+     * and unwraps yvWETH if necessary
      * @param share is the number of vault shares to be burned
      * @param isScheduled is whether the withdraw was scheduled
      * @param unwrap is whether we want to unwrap to underlying asset
@@ -395,7 +403,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
 
     /**
      * @notice Unwraps the necessary amount of the yield-bearing yearn token
-     *         and transfers amount to relevant recipient
+     *         and transfers amount to vault
      * @param amount is the amount of `asset` to withdraw
      */
     function _unwrapYieldToken(uint256 amount) private {
@@ -554,9 +562,8 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         nextOption = address(0);
 
         uint256 amountToWrap = IERC20(asset).balanceOf(address(this));
-        // prevent spending old and new allowance through tricky tx ordering
-        IERC20(asset).safeApprove(address(collateralToken), 0);
-        IERC20(asset).safeApprove(address(collateralToken), amountToWrap);
+        _customApprove(asset, address(collateralToken), amountToWrap);
+
         // there is a slight imprecision with regards to calculating back from yearn token -> underlying
         // that stems from miscoordination between ytoken .deposit() amount wrapped and pricePerShare
         // at that point in time.
@@ -579,9 +586,9 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
 
         ProtocolAdapterTypes.OptionTerms memory optionTerms =
             ProtocolAdapterTypes.OptionTerms(
-                otoken.underlyingAsset(),
+                underlying,
                 USDC,
-                otoken.collateralAsset(),
+                address(collateralToken),
                 otoken.expiryTimestamp(),
                 otoken.strikePrice().mul(10**10), // scale back to 10**18
                 isPut
@@ -827,6 +834,31 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
      */
     function decimals() public view override returns (uint8) {
         return _decimals;
+    }
+
+    /**
+     * @notice Prevent spending old and new allowance through tricky tx ordering
+     * @param approveToken is the token we are getting approval permissions for
+     * @param approveContract is the contract to receive permissions
+     * @param approveAmount is the amount we are approving
+     */
+    function _customApprove(
+        address approveToken,
+        address approveContract,
+        uint256 approveAmount
+    ) private {
+        try
+            IERC20(approveToken).approve(
+                address(approveContract),
+                approveAmount
+            )
+        {} catch {
+            IERC20(approveToken).approve(address(approveContract), 0);
+            IERC20(approveToken).approve(
+                address(approveContract),
+                approveAmount
+            );
+        }
     }
 
     /**

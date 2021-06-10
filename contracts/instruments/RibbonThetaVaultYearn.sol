@@ -342,7 +342,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Withdraws 'asset' from vault
+     * @notice Withdraws `asset` from vault
      * @param withdrawAmount is the withdraw amount in terms of yearn tokens
      * @param yieldTokenBalance is the collateral token (yvWETH) balance of the vault
      * @param pricePerYearnShare is the yvWETH<->WETH price ratio

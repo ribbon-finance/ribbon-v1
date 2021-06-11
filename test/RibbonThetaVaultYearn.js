@@ -3124,7 +3124,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const res = await this.vault.completeScheduledWithdrawal();
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 130000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 210000);
       });
 
       it("rejects a completeScheduledWithdrawal if nothing scheduled", async function () {

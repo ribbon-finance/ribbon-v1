@@ -222,11 +222,8 @@ function behavesLikeRibbonOptionsVault(params) {
         "m/44'/60'/0'/0/4"
       );
 
-      const {
-        factory,
-        protocolAdapterLib,
-        gammaAdapter,
-      } = await getDefaultArgs();
+      const { factory, protocolAdapterLib, gammaAdapter } =
+        await getDefaultArgs();
       await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address);
 
       this.factory = factory;
@@ -236,6 +233,7 @@ function behavesLikeRibbonOptionsVault(params) {
         "address",
         "address",
         "uint256",
+        "uint256",
         "string",
         "string",
       ];
@@ -243,6 +241,7 @@ function behavesLikeRibbonOptionsVault(params) {
         owner,
         feeRecipient,
         parseEther("500"),
+        "86400",
         this.tokenName,
         this.tokenSymbol,
       ];
@@ -567,6 +566,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("initializes with correct values", async function () {
         assert.equal((await this.vault.cap()).toString(), parseEther("500"));
+        assert.equal((await this.vault.withdrawalWindow()).toString(), "86400");
         assert.equal(await this.vault.owner(), owner);
         assert.equal(await this.vault.feeRecipient(), feeRecipient);
         assert.equal(await this.vault.asset(), this.collateralAsset);
@@ -585,6 +585,7 @@ function behavesLikeRibbonOptionsVault(params) {
             owner,
             feeRecipient,
             parseEther("500"),
+            "86400",
             this.tokenName,
             this.tokenSymbol
           )
@@ -597,6 +598,7 @@ function behavesLikeRibbonOptionsVault(params) {
             constants.AddressZero,
             feeRecipient,
             parseEther("500"),
+            "86400",
             this.tokenName,
             this.tokenSymbol
           )
@@ -609,6 +611,7 @@ function behavesLikeRibbonOptionsVault(params) {
             owner,
             constants.AddressZero,
             parseEther("500"),
+            "86400",
             this.tokenName,
             this.tokenSymbol
           )
@@ -621,10 +624,24 @@ function behavesLikeRibbonOptionsVault(params) {
             owner,
             feeRecipient,
             "0",
+            "86400",
             this.tokenName,
             this.tokenSymbol
           )
         ).to.be.revertedWith("_initCap > 0");
+      });
+
+      it("reverts when initializing with 0 initWithdrawalWindow", async function () {
+        await expect(
+          this.testVault.initialize(
+            owner,
+            feeRecipient,
+            parseEther("500"),
+            "0",
+            this.tokenName,
+            this.tokenSymbol
+          )
+        ).to.be.revertedWith("_initWithdrawalWindow > 0");
       });
     });
 
@@ -2275,12 +2292,10 @@ function behavesLikeRibbonOptionsVault(params) {
 
         const balanceBeforeWithdraw = await this.assetContract.balanceOf(user);
 
-        const [
-          withdrawAmount,
-          feeAmount,
-        ] = await this.vault.withdrawAmountWithShares(
-          BigNumber.from("10000000000")
-        );
+        const [withdrawAmount, feeAmount] =
+          await this.vault.withdrawAmountWithShares(
+            BigNumber.from("10000000000")
+          );
 
         assert.equal(withdrawAmount.toString(), BigNumber.from("9950000000"));
         assert.equal(feeAmount.toString(), BigNumber.from("50000000"));
@@ -2553,14 +2568,16 @@ function behavesLikeRibbonOptionsVault(params) {
       time.revertToSnapshotAfterEach();
 
       it("is within the gas budget", async function () {
-        const depositAmount = BigNumber.from("100000000000");
+        const depositAmount = BigNumber.from("200000000000");
         await depositIntoVault(
           params.collateralAsset,
           this.vault,
           depositAmount
         );
 
-        await this.vault.withdrawLater(BigNumber.from("1000"));
+        await this.vault.withdrawLater(BigNumber.from("100000000000"));
+
+        await this.rollToNextOption();
 
         const res = await this.vault.completeScheduledWithdrawal();
 
@@ -2569,16 +2586,49 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("rejects a completeScheduledWithdrawal if nothing scheduled", async function () {
-        const depositAmount = BigNumber.from("100000000000");
+        const depositAmount = BigNumber.from("200000000000");
         await depositIntoVault(
           params.collateralAsset,
           this.vault,
           depositAmount
         );
 
+        await this.rollToNextOption();
+
+        await time.increaseTo(
+          (await this.vault.lastRollToNextOption()).toNumber() +
+            (await this.vault.withdrawalWindow()).toNumber() -
+            100
+        );
+
         await expect(
           this.vault.completeScheduledWithdrawal()
         ).to.be.revertedWith("Scheduled withdrawal not found");
+      });
+
+      it("rejects a completeScheduledWithdrawal if not within withdrawal window", async function () {
+        const depositAmount = BigNumber.from("200000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+
+        await this.vault.withdrawLater(BigNumber.from("100000000000"));
+
+        await this.rollToNextOption();
+
+        await time.increaseTo(
+          (await this.vault.lastRollToNextOption()).toNumber() +
+            (await this.vault.withdrawalWindow()).toNumber() +
+            1
+        );
+
+        await expect(
+          this.vault.completeScheduledWithdrawal()
+        ).to.be.revertedWith(
+          "Scheduled withdraw must be completed within window"
+        );
       });
 
       it("completeScheduledWithdraw behaves as expected for valid scheduled withdraw", async function () {
@@ -2593,6 +2643,12 @@ function behavesLikeRibbonOptionsVault(params) {
         await this.vault.withdrawLater(BigNumber.from("100000000000"));
 
         await this.rollToNextOption();
+
+        await time.increaseTo(
+          (await this.vault.lastRollToNextOption()).toNumber() +
+            (await this.vault.withdrawalWindow()).toNumber() -
+            100
+        );
 
         if (params.collateralAsset === WETH_ADDRESS) {
           balanceBeforeWithdraw = await provider.getBalance(user);
@@ -2945,6 +3001,21 @@ function behavesLikeRibbonOptionsVault(params) {
         await expect(this.vault.deposit(depositAmount)).to.be.revertedWith(
           "Cap exceeded"
         );
+      });
+    });
+
+    describe("#setWithdrawalWindow", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("should revert if not manager", async function () {
+        await expect(
+          this.vault.connect(userSigner).setWithdrawalWindow("86400")
+        ).to.be.revertedWith("Only manager");
+      });
+
+      it("should set the new withdrawal window", async function () {
+        await this.vault.connect(managerSigner).setWithdrawalWindow("1000");
+        assert.equal((await this.vault.withdrawalWindow()).toString(), "1000");
       });
     });
 

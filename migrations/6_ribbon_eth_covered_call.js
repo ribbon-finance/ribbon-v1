@@ -44,11 +44,12 @@ module.exports = async function (deployer, network) {
   // Deploying the proxy contract
   const initBytes = encodeCall(
     "initialize",
-    ["address", "address", "uint256", "string", "string"],
+    ["address", "address", "uint256", "uint256", "string", "string"],
     [
       owner,
       owner,
       parseEther("1000").toString(),
+      "86400",
       "Ribbon ETH Theta Vault",
       "rETH-THETA",
     ]

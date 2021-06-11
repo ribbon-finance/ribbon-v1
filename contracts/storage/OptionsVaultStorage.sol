@@ -58,10 +58,22 @@ contract OptionsVaultStorageV2 {
     mapping(address => uint256) public scheduledWithdrawals;
 }
 
+contract OptionsVaultStorageV3 {
+    // Withdrawal window
+    uint256 public withdrawalWindow;
+
+    // Check last roll to next option
+    uint256 public lastRollToNextOption;
+}
+
 // We are following Compound's method of upgrading new contract implementations
 // When we need to add new storage variables, we create a new version of OptionsVaultStorage
 // e.g. OptionsVaultStorageV<versionNumber>, so finally it would look like
 // contract OptionsVaultStorage is OptionsVaultStorageV1, OptionsVaultStorageV2
-contract OptionsVaultStorage is OptionsVaultStorageV1, OptionsVaultStorageV2 {
+contract OptionsVaultStorage is
+    OptionsVaultStorageV1,
+    OptionsVaultStorageV2,
+    OptionsVaultStorageV3
+{
 
 }

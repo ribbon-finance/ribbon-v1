@@ -77,6 +77,12 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
+    event WithdrawalWindowSet(
+        uint256 oldWindow,
+        uint256 newWindow,
+        address manager
+    );
+
     event ScheduleWithdraw(address account, uint256 shares);
 
     event ScheduledWithdrawCompleted(address account, uint256 amount);
@@ -143,6 +149,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
      * @param _owner is the owner of the contract who can set the manager
      * @param _feeRecipient is the recipient address for withdrawal fees.
      * @param _initCap is the initial vault's cap on deposits, the manager can increase this as necessary.
+     * @param _initWithdrawalWindow is the initial vault's withdrawal window in seconds
      * @param _tokenName is the name of the vault share token
      * @param _tokenSymbol is the symbol of the vault share token
      */
@@ -150,12 +157,14 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         address _owner,
         address _feeRecipient,
         uint256 _initCap,
+        uint256 _initWithdrawalWindow,
         string calldata _tokenName,
         string calldata _tokenSymbol
     ) external initializer {
         require(_owner != address(0), "!_owner");
         require(_feeRecipient != address(0), "!_feeRecipient");
         require(_initCap > 0, "_initCap > 0");
+        require(_initWithdrawalWindow > 0, "_initWithdrawalWindow > 0");
         require(bytes(_tokenName).length > 0, "_tokenName != 0x");
         require(bytes(_tokenSymbol).length > 0, "_tokenSymbol != 0x");
 
@@ -164,6 +173,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         __Ownable_init();
         transferOwnership(_owner);
         cap = _initCap;
+        withdrawalWindow = _initWithdrawalWindow;
 
         // hardcode the initial withdrawal fee
         instantWithdrawalFee = 0.005 ether;
@@ -231,7 +241,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
      * @notice Deposits the `collateralToken` into the contract and mint vault shares.
      * @param amount is the amount of `collateralToken` to deposit
      */
-    function depositYieldToken(uint256 amount) external nonReentrant {
+    function depositYearnToken(uint256 amount) external nonReentrant {
         IERC20(address(collateralToken)).safeTransferFrom(
             msg.sender,
             address(this),
@@ -447,6 +457,11 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
      * @notice Burns user's locked tokens and withdraws assets to msg.sender.
      */
     function completeScheduledWithdrawal() external nonReentrant {
+        require(
+            block.timestamp.sub(lastRollToNextOption) <= withdrawalWindow,
+            "Scheduled withdraw must be completed within window"
+        );
+
         uint256 withdrawShares = scheduledWithdrawals[msg.sender];
         require(withdrawShares > 0, "Scheduled withdrawal not found");
 
@@ -602,6 +617,8 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         IERC20 optionToken = IERC20(newOption);
         optionToken.safeApprove(address(SWAP_CONTRACT), shortBalance);
 
+        lastRollToNextOption = block.timestamp;
+
         emit OpenShort(newOption, shortAmount, msg.sender);
     }
 
@@ -649,6 +666,23 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
     }
 
     /**
+     * @notice Sets a new withdrawal window for withdrawals
+     * @param newWithdrawalWindow is the new withdrawal window for withdrawals
+     */
+    function setWithdrawalWindow(uint256 newWithdrawalWindow)
+        external
+        onlyManager
+    {
+        uint256 oldWithdrawalWindow = withdrawalWindow;
+        withdrawalWindow = newWithdrawalWindow;
+        emit WithdrawalWindowSet(
+            oldWithdrawalWindow,
+            newWithdrawalWindow,
+            msg.sender
+        );
+    }
+
+    /**
      * @notice Returns the expiry of the current option the vault is shorting
      */
     function currentOptionExpiry() external view returns (uint256) {
@@ -679,8 +713,14 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
             uint256 newShareSupply
         ) = _withdrawAmountWithShares(share, currentAssetBalance);
 
+        (uint256 queuedWithdrawAmount, , ) =
+            _withdrawAmountWithShares(
+                queuedWithdrawShares,
+                currentAssetBalance
+            );
+
         require(
-            withdrawAmount <= currentAssetBalance,
+            withdrawAmount <= currentAssetBalance.sub(queuedWithdrawAmount),
             "Cannot withdraw more than available"
         );
 

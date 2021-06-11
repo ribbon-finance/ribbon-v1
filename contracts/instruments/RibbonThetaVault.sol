@@ -298,6 +298,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             "Scheduled withdrawal already exists"
         );
 
+        bool withinTimelock =
+            block.timestamp < nextOptionReadyAt &&
+                block.timestamp > currentOptionExpiry();
+        require(!withinTimelock, "In timelock");
+
         emit ScheduleWithdraw(msg.sender, shares);
 
         scheduledWithdrawals[msg.sender] = shares;
@@ -496,13 +501,13 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     /**
      * @notice Returns the expiry of the current option the vault is shorting
      */
-    function currentOptionExpiry() external view returns (uint256) {
+    function currentOptionExpiry() public view returns (uint256) {
         address _currentOption = currentOption;
         if (_currentOption == address(0)) {
             return 0;
         }
 
-        OtokenInterface oToken = OtokenInterface(currentOption);
+        OtokenInterface oToken = OtokenInterface(_currentOption);
         return oToken.expiryTimestamp();
     }
 

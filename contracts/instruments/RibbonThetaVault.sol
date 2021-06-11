@@ -529,8 +529,14 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             uint256 newShareSupply
         ) = _withdrawAmountWithShares(share, currentAssetBalance);
 
+        (uint256 queuedWithdrawAmount, , ) =
+            _withdrawAmountWithShares(
+                queuedWithdrawShares,
+                currentAssetBalance
+            );
+
         require(
-            withdrawAmount <= currentAssetBalance,
+            withdrawAmount <= currentAssetBalance.sub(queuedWithdrawAmount),
             "Cannot withdraw more than available"
         );
 

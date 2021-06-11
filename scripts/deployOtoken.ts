@@ -32,7 +32,7 @@ program.parse(process.argv);
 
 async function deployOToken() {
   const otokenArtifact = await hre.artifacts.readArtifact("OtokenInterface");
-  const erc20Artifact = await hre.artifacts.readArtifact("ERC20Detailed");
+  const erc20Artifact = await hre.artifacts.readArtifact("IERC20Detailed");
 
   const network = program.network === "mainnet" ? "mainnet" : "kovan";
 

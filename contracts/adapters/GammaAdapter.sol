@@ -6,7 +6,6 @@ import {
 } from "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IProtocolAdapter, ProtocolAdapterTypes} from "./IProtocolAdapter.sol";
 import {
     IOtokenFactory,
@@ -18,6 +17,7 @@ import {
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router.sol";
 import {DSMath} from "../lib/DSMath.sol";
+import {SafeERC20} from "../lib/CustomSafeERC20.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 
 contract GammaAdapter is IProtocolAdapter, DSMath {
@@ -488,7 +488,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         }
 
         // double approve to fix non-compliant ERC20s
-        _customApprove(collateralAsset, MARGIN_POOL, depositAmount);
+        collateralToken.safeApprove(MARGIN_POOL, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);
@@ -693,30 +693,5 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
             optionTerms.expiry,
             isPut
         );
-    }
-
-    /**
-     * @notice Prevent spending old and new allowance through tricky tx ordering
-     * @param approveToken is the token we are getting approval permissions for
-     * @param approveContract is the contract to receive permissions
-     * @param approveAmount is the amount we are approving
-     */
-    function _customApprove(
-        address approveToken,
-        address approveContract,
-        uint256 approveAmount
-    ) private {
-        try
-            IERC20(approveToken).approve(
-                address(approveContract),
-                approveAmount
-            )
-        {} catch {
-            IERC20(approveToken).approve(address(approveContract), 0);
-            IERC20(approveToken).approve(
-                address(approveContract),
-                approveAmount
-            );
-        }
     }
 }

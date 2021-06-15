@@ -162,8 +162,11 @@ function behavesLikeRibbonOptionsVault(params) {
         "m/44'/60'/0'/0/4"
       );
 
-      const { factory, protocolAdapterLib, gammaAdapter } =
-        await getDefaultArgs();
+      const {
+        factory,
+        protocolAdapterLib,
+        gammaAdapter,
+      } = await getDefaultArgs();
       await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address);
 
       this.factory = factory;
@@ -2856,10 +2859,12 @@ function behavesLikeRibbonOptionsVault(params) {
 
         const balanceBeforeWithdraw = await this.assetContract.balanceOf(user);
 
-        const [withdrawAmount, feeAmount] =
-          await this.vault.withdrawAmountWithShares(
-            BigNumber.from("10000000000")
-          );
+        const [
+          withdrawAmount,
+          feeAmount,
+        ] = await this.vault.withdrawAmountWithShares(
+          BigNumber.from("10000000000")
+        );
 
         assert.equal(withdrawAmount.toString(), BigNumber.from("9950000000"));
         assert.equal(feeAmount.toString(), BigNumber.from("50000000"));
@@ -2991,231 +2996,6 @@ function behavesLikeRibbonOptionsVault(params) {
         );
       });
     });
-
-    describe("#withdrawLater", () => {
-      time.revertToSnapshotAfterEach();
-
-      it("is within the gas budget", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(params.depositAsset, this.vault, depositAmount);
-
-        const res = await this.vault.withdrawLater(
-          BigNumber.from("100000000000")
-        );
-        const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 90000);
-      });
-
-      it("rejects a withdrawLater of 0 shares", async function () {
-        await expect(
-          this.vault.withdrawLater(BigNumber.from("0"))
-        ).to.be.revertedWith("!shares");
-      });
-
-      it("rejects a scheduled withdrawal when greater than balance", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(params.depositAsset, this.vault, depositAmount);
-
-        await expect(
-          this.vault.withdrawLater(BigNumber.from("100000000001"))
-        ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
-      });
-
-      it("accepts a withdrawLater if less than or equal to balance", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(params.depositAsset, this.vault, depositAmount);
-
-        const res = await this.vault.withdrawLater(
-          BigNumber.from("100000000000")
-        );
-
-        await expect(res)
-          .to.emit(this.vault, "ScheduleWithdraw")
-          .withArgs(user, BigNumber.from("100000000000"));
-
-        assert.equal(
-          (await this.vault.queuedWithdrawShares()).toString(),
-          BigNumber.from("100000000000").toString()
-        );
-
-        assert.equal(
-          (await this.vault.scheduledWithdrawals(user)).toString(),
-          BigNumber.from("100000000000").toString()
-        );
-
-        // Verify that vault shares were transfer to vault for duration of scheduledWithdraw
-        assert.equal(
-          (await this.vault.balanceOf(this.vault.address)).toString(),
-          BigNumber.from("100000000000").toString()
-        );
-
-        assert.equal(
-          (await this.vault.balanceOf(user)).toString(),
-          BigNumber.from("0").toString()
-        );
-      });
-
-      it("rejects a withdrawLater if a withdrawal is already scheduled", async function () {
-        const depositAmount = BigNumber.from("200000000000");
-        await depositIntoVault(params.depositAsset, this.vault, depositAmount);
-
-        await this.vault.withdrawLater(BigNumber.from("100000000000"));
-
-        await expect(
-          this.vault.withdrawLater(BigNumber.from("100000000000"))
-        ).to.be.revertedWith("Scheduled withdrawal already exists");
-      });
-
-      it("assets reserved by withdrawLater are not used to short", async function () {
-        const depositAmount = BigNumber.from("200000000000");
-        await depositIntoVault(params.depositAsset, this.vault, depositAmount);
-
-        const res = await this.vault.withdrawLater(
-          BigNumber.from("100000000000")
-        );
-
-        await expect(res)
-          .to.emit(this.vault, "ScheduleWithdraw")
-          .withArgs(user, BigNumber.from("100000000000"));
-
-        await this.rollToNextOption();
-
-        let vaultBalanceBeforeWithdraw = await this.vault.assetBalance();
-
-        // Queued withdrawals + 10% of available assets set aside
-        assert.isAbove(
-          parseInt(vaultBalanceBeforeWithdraw.toString()),
-          parseInt(BigNumber.from("10000000000").toString())
-        );
-      });
-    });
-
-    describe("completeScheduledWithdrawal", () => {
-      time.revertToSnapshotAfterEach();
-
-      it("is within the gas budget", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(params.depositAsset, this.vault, depositAmount);
-
-        await this.vault.withdrawLater(BigNumber.from("1000"));
-
-        const res = await this.vault.completeScheduledWithdrawal();
-
-        const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 130000);
-      });
-
-      it("rejects a completeScheduledWithdrawal if nothing scheduled", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(params.depositAsset, this.vault, depositAmount);
-
-        await expect(
-          this.vault.completeScheduledWithdrawal()
-        ).to.be.revertedWith("Scheduled withdrawal not found");
-      });
-
-      it("completeScheduledWithdraw behaves as expected for valid scheduled withdraw", async function () {
-        let balanceBeforeWithdraw;
-        const depositAmount = BigNumber.from("200000000000");
-        await depositIntoVault(params.depositAsset, this.vault, depositAmount);
-
-        await this.vault.withdrawLater(BigNumber.from("100000000000"));
-
-        await this.rollToNextOption();
-
-        if (params.depositAsset === WETH_ADDRESS) {
-          balanceBeforeWithdraw = await provider.getBalance(user);
-        } else {
-          balanceBeforeWithdraw = await this.assetContract.balanceOf(user);
-        }
-
-        const vaultBalanceBeforeWithdraw = await this.vault.assetBalance();
-
-        // Queued withdrawals + 10% of available assets set aside
-        assert.equal(
-          vaultBalanceBeforeWithdraw.toString(),
-          BigNumber.from("110000000000").toString()
-        );
-
-        const tx = await this.vault.completeScheduledWithdrawal({
-          gasPrice,
-        });
-        const receipt = await tx.wait();
-        const gasFee = gasPrice.mul(receipt.gasUsed);
-
-        await expect(tx)
-          .to.emit(this.vault, "Withdraw")
-          .withArgs(
-            user,
-            BigNumber.from("99500000000"),
-            BigNumber.from("100000000000"),
-            BigNumber.from("500000000")
-          );
-
-        await expect(tx)
-          .to.emit(this.vault, "ScheduledWithdrawCompleted")
-          .withArgs(user, BigNumber.from("99500000000"));
-
-        // Should set the scheduledWithdrawals entry back to 0
-        assert.equal(
-          (await this.vault.scheduledWithdrawals(user)).toString(),
-          BigNumber.from("0").toString()
-        );
-
-        assert.equal(
-          (await this.vault.assetBalance()).toString(),
-          vaultBalanceBeforeWithdraw
-            .sub(BigNumber.from("100000000000"))
-            .sub(1)
-            .toString()
-        );
-
-        // Assert vault shares were burned
-        assert.equal(
-          (await this.vault.balanceOf(this.vault.address)).toString(),
-          BigNumber.from("0").toString()
-        );
-
-        if (params.depositAsset === WETH_ADDRESS) {
-          assert.equal(
-            (await provider.getBalance(user)).toString(),
-            balanceBeforeWithdraw
-              .sub(gasFee)
-              .add(BigNumber.from("99500000000"))
-              .toString()
-          );
-          assert.equal(
-            (await this.assetContract.balanceOf(feeRecipient)).toString(),
-            BigNumber.from("500000000").toString()
-          );
-        } else {
-          assert.equal(
-            (await this.assetContract.balanceOf(user)).toString(),
-            balanceBeforeWithdraw.add(BigNumber.from("99500000000")).toString()
-          );
-          assert.equal(
-            (await this.assetContract.balanceOf(feeRecipient)).toString(),
-            BigNumber.from("500000000").toString()
-          );
-        }
-      });
-
-      it("rejects second attempted completeScheduledWithdraw", async function () {
-        const depositAmount = BigNumber.from("200000000000");
-        await depositIntoVault(params.depositAsset, this.vault, depositAmount);
-
-        await this.vault.withdrawLater(BigNumber.from("100000000000"));
-
-        await this.rollToNextOption();
-
-        await this.vault.completeScheduledWithdrawal();
-
-        await expect(
-          this.vault.completeScheduledWithdrawal()
-        ).to.be.revertedWith("Scheduled withdrawal not found");
-      });
-    });
-
     describe("#withdraw", () => {
       time.revertToSnapshotAfterEach();
 

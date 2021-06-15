@@ -29,13 +29,13 @@ library SafeERC20 {
     require(token.transferFrom(from, to, value));
   }
 
-  function safeApprove(IERC20 token, address spender, uint256 value, bytes memory errPrefix) internal {
+  function safeApprove(IERC20 token, address spender, uint256 value) internal {
     if (_callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value))) {
         return;
     }
     require(_callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, 0))
         && _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value)),
-        string(abi.encodePacked(errPrefix, 'ERC20 approve failed')));
+        "ERC20 approve failed");
   }
 
   function _callOptionalReturn(IERC20 token, bytes memory data) private returns (bool) {

@@ -274,13 +274,11 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         // double approve to fix non-compliant ERC20s
         IERC20(zeroExOrder.sellTokenAddress).safeApprove(
             zeroExOrder.allowanceTarget,
-            0,
-            ""
+            0
         );
         IERC20(zeroExOrder.sellTokenAddress).safeApprove(
             zeroExOrder.allowanceTarget,
-            zeroExOrder.takerAssetAmount,
-            ""
+            zeroExOrder.takerAssetAmount
         );
 
         require(
@@ -412,11 +410,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
 
             require(profitInUnderlying > 0, "Swap is unprofitable");
 
-            IERC20(collateral).safeApprove(
-                UNISWAP_ROUTER,
-                profitInCollateral,
-                ""
-            );
+            IERC20(collateral).safeApprove(UNISWAP_ROUTER, profitInCollateral);
 
             uint256[] memory amountsOut =
                 router.swapExactTokensForETH(
@@ -494,7 +488,7 @@ contract GammaAdapter is IProtocolAdapter, DSMath {
         }
 
         // double approve to fix non-compliant ERC20s
-        collateralToken.safeApprove(MARGIN_POOL, depositAmount, "");
+        collateralToken.safeApprove(MARGIN_POOL, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);

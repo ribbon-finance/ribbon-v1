@@ -508,7 +508,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
 
         uint256 amountToWrap = IERC20(asset).balanceOf(address(this));
 
-        IERC20(asset).safeApprove(address(collateralToken), amountToWrap, "");
+        IERC20(asset).safeApprove(address(collateralToken), amountToWrap);
 
         // there is a slight imprecision with regards to calculating back from yearn token -> underlying
         // that stems from miscoordination between ytoken .deposit() amount wrapped and pricePerShare
@@ -543,7 +543,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         uint256 shortBalance =
             adapter.delegateCreateShort(optionTerms, shortAmount);
         IERC20 optionToken = IERC20(newOption);
-        optionToken.safeApprove(address(SWAP_CONTRACT), shortBalance, "");
+        optionToken.safeApprove(address(SWAP_CONTRACT), shortBalance);
 
         emit OpenShort(newOption, shortAmount, msg.sender);
     }

@@ -2,9 +2,9 @@
 pragma solidity >=0.7.2;
 pragma experimental ABIEncoderV2;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {DSMath} from "../lib/DSMath.sol";
+import {SafeERC20} from "../lib/CustomSafeERC20.sol";
 
 import {
     ProtocolAdapterTypes,
@@ -303,12 +303,11 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         uint256 withdrawAmount =
             wdiv(_withdraw(share, false), pricePerYearnShare);
 
-        (uint256 yieldTokenBalance, uint256 yieldTokensToWithdraw) =
-            _withdrawYieldToken(withdrawAmount);
+        uint256 yieldTokenBalance = _withdrawYieldToken(withdrawAmount);
 
         // If there is not enough yvWETH in the vault, it withdraws as much as possible and
         // transfers the rest in `asset`
-        if (yieldTokensToWithdraw == yieldTokenBalance) {
+        if (withdrawAmount > yieldTokenBalance) {
             _withdrawSupplementaryAssetToken(
                 withdrawAmount,
                 yieldTokenBalance,
@@ -323,12 +322,12 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
      */
     function _withdrawYieldToken(uint256 withdrawAmount)
         private
-        returns (uint256 yieldTokenBalance, uint256 yieldTokensToWithdraw)
+        returns (uint256 yieldTokenBalance)
     {
         yieldTokenBalance = IERC20(address(collateralToken)).balanceOf(
             address(this)
         );
-        yieldTokensToWithdraw = min(yieldTokenBalance, withdrawAmount);
+        uint256 yieldTokensToWithdraw = min(yieldTokenBalance, withdrawAmount);
         if (yieldTokensToWithdraw > 0) {
             IERC20(address(collateralToken)).safeTransfer(
                 msg.sender,
@@ -350,10 +349,6 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
     ) private {
         uint256 underlyingTokensToWithdraw =
             wmul(withdrawAmount.sub(yieldTokenBalance), pricePerYearnShare);
-
-        if (underlyingTokensToWithdraw == 0) {
-            return;
-        }
 
         require(
             IERC20(asset).balanceOf(address(this)) >=
@@ -512,7 +507,8 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         nextOption = address(0);
 
         uint256 amountToWrap = IERC20(asset).balanceOf(address(this));
-        _customApprove(asset, address(collateralToken), amountToWrap);
+
+        IERC20(asset).safeApprove(address(collateralToken), amountToWrap, "");
 
         // there is a slight imprecision with regards to calculating back from yearn token -> underlying
         // that stems from miscoordination between ytoken .deposit() amount wrapped and pricePerShare
@@ -547,7 +543,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         uint256 shortBalance =
             adapter.delegateCreateShort(optionTerms, shortAmount);
         IERC20 optionToken = IERC20(newOption);
-        optionToken.safeApprove(address(SWAP_CONTRACT), shortBalance);
+        optionToken.safeApprove(address(SWAP_CONTRACT), shortBalance, "");
 
         emit OpenShort(newOption, shortAmount, msg.sender);
     }
@@ -779,31 +775,6 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
      */
     function decimals() public view override returns (uint8) {
         return _decimals;
-    }
-
-    /**
-     * @notice Prevent spending old and new allowance through tricky tx ordering
-     * @param approveToken is the token we are getting approval permissions for
-     * @param approveContract is the contract to receive permissions
-     * @param approveAmount is the amount we are approving
-     */
-    function _customApprove(
-        address approveToken,
-        address approveContract,
-        uint256 approveAmount
-    ) private {
-        try
-            IERC20(approveToken).approve(
-                address(approveContract),
-                approveAmount
-            )
-        {} catch {
-            IERC20(approveToken).approve(address(approveContract), 0);
-            IERC20(approveToken).approve(
-                address(approveContract),
-                approveAmount
-            );
-        }
     }
 
     /**

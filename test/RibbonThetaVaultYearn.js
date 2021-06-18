@@ -60,7 +60,7 @@ const gasPrice = parseUnits("1", "gwei");
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
 
-describe.skip("RibbonThetaVaultYearn", () => {
+describe("RibbonThetaVaultYearn", () => {
   behavesLikeRibbonOptionsVault({
     name: `Ribbon ETH Yearn Theta Vault (Call)`,
     tokenName: "Ribbon ETH Yearn Theta Vault",
@@ -156,7 +156,8 @@ function behavesLikeRibbonOptionsVault(params) {
           {
             forking: {
               jsonRpcUrl: process.env.TEST_URI,
-              blockNumber: 12655142,
+              blockNumber:
+                params.depositAsset == WETH_ADDRESS ? 12474917 : 12655142,
             },
           },
         ],
@@ -2021,10 +2022,11 @@ function behavesLikeRibbonOptionsVault(params) {
         );
 
         const currBalance = await this.vault.assetBalance();
+
         const mintAmount =
           this.depositAsset == WETH_ADDRESS
             ? wdiv(
-                wmul(this.depositAmount.add(this.premium), LOCKED_RATIO),
+                wmul(currBalance, LOCKED_RATIO),
                 pricePerShare.mul(this.decimalDiff)
               )
             : BigNumber.from("857034830226");
@@ -2209,14 +2211,12 @@ function behavesLikeRibbonOptionsVault(params) {
             : BigNumber.from("100999935898");
         const yearnTokenBalance =
           this.depositAsset == WETH_ADDRESS
-            ? mintAmount
-                .add(
-                  wdiv(
-                    wmul(this.depositAmount, WITHDRAWAL_BUFFER),
-                    pricePerShare.mul(this.decimalDiff)
-                  )
+            ? mintAmount.add(
+                wdiv(
+                  wmul(this.depositAmount.add(this.premium), WITHDRAWAL_BUFFER),
+                  pricePerShare.mul(this.decimalDiff)
                 )
-                .sub(1)
+              )
             : BigNumber.from("952260922477");
 
         await expect(secondTx)
@@ -2626,7 +2626,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
           const tx = await this.vault.withdrawETH(parseEther("0.1"));
           const receipt = await tx.wait();
-          assert.isAtMost(receipt.gasUsed.toNumber(), 170000);
+          assert.isAtMost(receipt.gasUsed.toNumber(), 179000);
         });
 
         it("should only withdraw original deposit amount minus fees if vault doesn't expand", async function () {
@@ -3247,7 +3247,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         const tx = await this.vault.withdraw(BigNumber.from("10000000000"));
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 187000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 190000);
       });
 
       it("should only withdraw original deposit amount minus fees if vault doesn't expand", async function () {

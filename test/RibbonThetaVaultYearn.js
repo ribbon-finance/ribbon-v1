@@ -34,7 +34,7 @@ let adminSigner,
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const Y_WETH_ADDRESS = "0xa9fE4601811213c340e850ea305481afF02f5b28";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
-const Y_WBTC_ADDRESS = "0xA696a63cc78DfFa1a63E9E50587C197387FF6C7E";
+// const Y_WBTC_ADDRESS = "0xA696a63cc78DfFa1a63E9E50587C197387FF6C7E";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const Y_USDC_ADDRESS = "0x5f18C75AbDAe578b483E5F43f12a39cF75b973a9";
 
@@ -60,10 +60,7 @@ const gasPrice = parseUnits("1", "gwei");
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
 
-const WAD = BigNumber.from(10).pow(18);
-
-/*
-describe("RibbonThetaVaultYearn", () => {
+describe.skip("RibbonThetaVaultYearn", () => {
   behavesLikeRibbonOptionsVault({
     name: `Ribbon ETH Yearn Theta Vault (Call)`,
     tokenName: "Ribbon ETH Yearn Theta Vault",
@@ -87,7 +84,7 @@ describe("RibbonThetaVaultYearn", () => {
     tokenDecimals: 18,
     isPut: false,
   });
-});*/
+});
 
 describe("RibbonThetaVaultYearn", () => {
   behavesLikeRibbonOptionsVault({

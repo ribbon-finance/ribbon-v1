@@ -20,4 +20,6 @@ interface IUSDC {
         address recipient,
         uint256 amount
     ) external returns (bool);
+
+    function decimals() external view returns (uint256);
 }

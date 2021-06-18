@@ -13,7 +13,8 @@
       "weth": "0xd0A1E359811322d97991E03f863a0C30C2cF029C",
       "usdc": "0xf5cb5408b40e819e7db5347664be03b52accac9d",
       "wbtc": "0xd7c8c2f7b6ebdbc88e5ab0101dd24ed5aca58b0f",
-      "yvweth": "0x1E0E04C1c5c57328fcB83dEd981e304812c36962"
+      "yvweth": "0x1E0E04C1c5c57328fcB83dEd981e304812c36962",
+      "yvusdc": "0x6E2C03993Fc6C1359B26A56c46e31B73562a0964"
     },
     "yearnRegistry": "0x26a6F436EAa4Db308eF9A3Bbe46Cc495F39C366D",
     "airswapSwap": "0x79fb4604f2D7bD558Cda0DFADb7d61D98b28CA9f",

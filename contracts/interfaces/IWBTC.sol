@@ -25,6 +25,8 @@ interface IWBTC {
         uint256 amount
     ) external returns (bool);
 
+    function decimals() external view returns (uint256);
+
     /**
      * @dev Function to mint tokens
      * @param _to The address that will receive the minted tokens.

@@ -234,7 +234,8 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
             amount
         );
         uint256 collateralToAssetBalance =
-            wmul(amount, collateralToken.pricePerShare());
+            wmul(amount, collateralToken.pricePerShare().mul(_decimalShift()));
+
         _deposit(collateralToAssetBalance);
     }
 
@@ -301,7 +302,10 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
     function withdrawYieldToken(uint256 share) external nonReentrant {
         uint256 pricePerYearnShare = collateralToken.pricePerShare();
         uint256 withdrawAmount =
-            wdiv(_withdraw(share, false), pricePerYearnShare);
+            wdiv(
+                _withdraw(share, false),
+                pricePerYearnShare.mul(_decimalShift())
+            );
 
         uint256 yieldTokenBalance = _withdrawYieldToken(withdrawAmount);
 
@@ -348,7 +352,10 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         uint256 pricePerYearnShare
     ) private {
         uint256 underlyingTokensToWithdraw =
-            wmul(withdrawAmount.sub(yieldTokenBalance), pricePerYearnShare);
+            wmul(
+                withdrawAmount.sub(yieldTokenBalance),
+                pricePerYearnShare.mul(_decimalShift())
+            );
 
         require(
             IERC20(asset).balanceOf(address(this)) >=
@@ -397,7 +404,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         uint256 amountToUnwrap =
             wdiv(
                 max(assetBalance, amount).sub(assetBalance),
-                collateralToken.pricePerShare()
+                collateralToken.pricePerShare().mul(_decimalShift())
             );
         amountToUnwrap = amountToUnwrap.add(
             amountToUnwrap.mul(YEARN_WITHDRAWAL_BUFFER).div(10000)
@@ -521,7 +528,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         uint256 shortAmount =
             wdiv(
                 wmul(currentBalance, lockedRatio),
-                collateralToken.pricePerShare()
+                collateralToken.pricePerShare().mul(_decimalShift())
             );
         lockedAmount = shortAmount;
 
@@ -655,9 +662,11 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         )
     {
         uint256 total =
-            wmul(lockedAmount, collateralToken.pricePerShare()).add(
-                currentAssetBalance
-            );
+            wmul(
+                lockedAmount,
+                collateralToken.pricePerShare().mul(_decimalShift())
+            )
+                .add(currentAssetBalance);
 
         uint256 shareSupply = totalSupply();
 
@@ -674,9 +683,11 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
     function maxWithdrawableShares() public view returns (uint256) {
         uint256 withdrawableBalance = assetBalance();
         uint256 total =
-            wmul(lockedAmount, collateralToken.pricePerShare()).add(
-                withdrawableBalance
-            );
+            wmul(
+                lockedAmount,
+                collateralToken.pricePerShare().mul(_decimalShift())
+            )
+                .add(withdrawableBalance);
         return
             withdrawableBalance.mul(totalSupply()).div(total).sub(
                 MINIMUM_SUPPLY
@@ -715,9 +726,11 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         returns (uint256)
     {
         uint256 total =
-            wmul(lockedAmount, collateralToken.pricePerShare()).add(
-                assetBalance()
-            );
+            wmul(
+                lockedAmount,
+                collateralToken.pricePerShare().mul(_decimalShift())
+            )
+                .add(assetBalance());
         return assetAmount.mul(totalSupply()).div(total);
     }
 
@@ -742,9 +755,11 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
      */
     function totalBalance() public view returns (uint256) {
         return
-            wmul(lockedAmount, collateralToken.pricePerShare()).add(
-                assetBalance()
-            );
+            wmul(
+                lockedAmount,
+                collateralToken.pricePerShare().mul(_decimalShift())
+            )
+                .add(assetBalance());
     }
 
     /**
@@ -755,7 +770,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
             IERC20(asset).balanceOf(address(this)).add(
                 wmul(
                     IERC20(address(collateralToken)).balanceOf(address(this)),
-                    collateralToken.pricePerShare()
+                    collateralToken.pricePerShare().mul(_decimalShift())
                 )
             );
     }
@@ -775,6 +790,13 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
      */
     function decimals() public view override returns (uint8) {
         return _decimals;
+    }
+
+    /**
+     * @notice Returns the decimal shift between 18 decimals and asset tokens
+     */
+    function _decimalShift() private view returns (uint256) {
+        return 10**(uint256(18).sub(collateralToken.decimals()));
     }
 
     /**

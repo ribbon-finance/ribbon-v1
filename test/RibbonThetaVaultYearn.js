@@ -2212,7 +2212,7 @@ function behavesLikeRibbonOptionsVault(params) {
             ? mintAmount
                 .add(
                   wdiv(
-                    wmul(currBalance, WITHDRAWAL_BUFFER),
+                    wmul(this.depositAmount, WITHDRAWAL_BUFFER),
                     pricePerShare.mul(this.decimalDiff)
                   )
                 )

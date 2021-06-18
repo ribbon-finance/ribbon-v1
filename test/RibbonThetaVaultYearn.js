@@ -1170,7 +1170,7 @@ function behavesLikeRibbonOptionsVault(params) {
           .connect(counterpartySigner)
           .depositYieldToken(depositAmountInAsset);
 
-        const sharesBack = BigNumber.from("50000000000"); //params.depositAsset == WETH_ADDRESS ? BigNumber.from("50000000000") : BigNumber.from("50000000000")
+        const sharesBack = BigNumber.from("50000000000");
 
         assert.equal(
           (await this.vault.balanceOf(counterparty)).toString(),

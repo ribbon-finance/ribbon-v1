@@ -2024,7 +2024,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const mintAmount =
           this.depositAsset == WETH_ADDRESS
             ? wdiv(
-                wmul(currBalance, LOCKED_RATIO),
+                wmul(this.depositAmount.add(this.premium), LOCKED_RATIO),
                 pricePerShare.mul(this.decimalDiff)
               )
             : BigNumber.from("857034830226");
@@ -2199,7 +2199,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const mintAmount =
           this.depositAsset == WETH_ADDRESS
             ? wdiv(
-                wmul(currBalance, LOCKED_RATIO),
+                wmul(this.depositAmount.add(this.premium), LOCKED_RATIO),
                 pricePerShare.mul(this.decimalDiff)
               ).sub(2)
             : BigNumber.from("857034830230");

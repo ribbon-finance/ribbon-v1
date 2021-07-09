@@ -164,6 +164,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     function sunset(address upgradeTo) external onlyOwner {
         cap = 0;
         replacementVault = upgradeTo;
+        isSunset = true;
 
         emit VaultSunset(replacementVault);
     }

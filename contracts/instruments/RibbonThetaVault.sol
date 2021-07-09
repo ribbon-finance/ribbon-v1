@@ -13,6 +13,7 @@ import {
 } from "../adapters/IProtocolAdapter.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
+import {IRibbonV2Vault} from "../interfaces/IRibbonV2Vault.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {ISwap, Types} from "../interfaces/ISwap.sol";
 import {OtokenInterface} from "../interfaces/GammaInterface.sol";
@@ -74,6 +75,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     event ScheduleWithdraw(address account, uint256 shares);
 
     event ScheduledWithdrawCompleted(address account, uint256 amount);
+
+    event VaultSunset(address replacement);
 
     /**
      * @notice Initializes the contract with immutable variables
@@ -147,10 +150,22 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         __Ownable_init();
         transferOwnership(_owner);
         cap = _initCap;
+        isSunset = false;
+        replacementVault = address(0);
 
         // hardcode the initial withdrawal fee
         instantWithdrawalFee = 0.005 ether;
         feeRecipient = _feeRecipient;
+    }
+
+    /**
+     * @notice Closes the vault and makes it withdraw only.
+     */
+    function sunset(address upgradeTo) external onlyOwner {
+        cap = 0;
+        replacementVault = upgradeTo;
+
+        emit VaultSunset(replacementVault);
     }
 
     /**
@@ -221,6 +236,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             totalWithDepositedAmount >= MINIMUM_SUPPLY,
             "Insufficient asset balance"
         );
+        require(!isSunset, "Sunset");
 
         // amount needs to be subtracted from totalBalance because it has already been
         // added to it from either IWETH.deposit and IERC20.safeTransferFrom
@@ -250,7 +266,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      */
     function withdrawETH(uint256 share) external nonReentrant {
         require(asset == WETH, "!WETH");
-        uint256 withdrawAmount = _withdraw(share, false);
+        uint256 withdrawAmount = _withdraw(share, false, false);
 
         IWETH(WETH).withdraw(withdrawAmount);
         (bool success, ) = msg.sender.call{value: withdrawAmount}("");
@@ -262,7 +278,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param share is the number of vault shares to be burned
      */
     function withdraw(uint256 share) external nonReentrant {
-        uint256 withdrawAmount = _withdraw(share, false);
+        uint256 withdrawAmount = _withdraw(share, false, false);
         IERC20(asset).safeTransfer(msg.sender, withdrawAmount);
     }
 
@@ -270,13 +286,20 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @notice Burns vault shares and checks if eligible for withdrawal
      * @param share is the number of vault shares to be burned
      * @param isScheduled is whether the withdraw was scheduled
+     * @param feeless is whether or not to charge the regular `instantWithdrawFee`
      */
-    function _withdraw(uint256 share, bool isScheduled)
-        private
-        returns (uint256)
-    {
+    function _withdraw(
+        uint256 share,
+        bool isScheduled,
+        bool feeless
+    ) private returns (uint256) {
         (uint256 amountAfterFee, uint256 feeAmount) =
             withdrawAmountWithShares(share);
+
+        if (feeless) {
+            amountAfterFee = amountAfterFee.add(feeAmount);
+            feeAmount = 0;
+        }
 
         emit Withdraw(msg.sender, amountAfterFee, share, feeAmount);
 
@@ -315,7 +338,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         scheduledWithdrawals[msg.sender] = 0;
         queuedWithdrawShares = queuedWithdrawShares.sub(withdrawShares);
 
-        uint256 amountAfterFee = _withdraw(withdrawShares, true);
+        uint256 amountAfterFee = _withdraw(withdrawShares, true, false);
 
         emit ScheduledWithdrawCompleted(msg.sender, amountAfterFee);
 
@@ -326,6 +349,18 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         } else {
             IERC20(asset).safeTransfer(msg.sender, amountAfterFee);
         }
+    }
+
+    /**
+     * @notice Moves msg.sender's deposited funds to new vault w/o fees
+     */
+    function migrate() external nonReentrant {
+        require(isSunset, "Can only migrate from closed vaults");
+        require(replacementVault != address(0), "No vault to migrate to");
+
+        uint256 amountAfterFee =
+            _withdraw(maxWithdrawableShares(), false, true);
+        IRibbonV2Vault(replacementVault).depositFor(amountAfterFee, msg.sender);
     }
 
     /**
@@ -413,6 +448,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             block.timestamp >= nextOptionReadyAt,
             "Cannot roll before delay"
         );
+        require(!isSunset, "Sunset vaults cannot create new positions");
 
         address newOption = nextOption;
         require(newOption != address(0), "No found option");

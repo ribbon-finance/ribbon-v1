@@ -286,17 +286,17 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @notice Burns vault shares and checks if eligible for withdrawal
      * @param share is the number of vault shares to be burned
      * @param isScheduled is whether the withdraw was scheduled
-     * @param feeless is whether or not to charge the regular `instantWithdrawFee`
+     * @param isFeeless is whether or not to charge the regular `instantWithdrawFee`
      */
     function _withdraw(
         uint256 share,
         bool isScheduled,
-        bool feeless
+        bool isFeeless
     ) private returns (uint256) {
         (uint256 amountAfterFee, uint256 feeAmount) =
             withdrawAmountWithShares(share);
 
-        if (feeless) {
+        if (isFeeless) {
             amountAfterFee = amountAfterFee.add(feeAmount);
             feeAmount = 0;
         }

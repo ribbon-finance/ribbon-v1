@@ -236,7 +236,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             totalWithDepositedAmount >= MINIMUM_SUPPLY,
             "Insufficient asset balance"
         );
-        require(!isSunset, "Sunset");
 
         // amount needs to be subtracted from totalBalance because it has already been
         // added to it from either IWETH.deposit and IERC20.safeTransferFrom

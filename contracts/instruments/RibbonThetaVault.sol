@@ -109,7 +109,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(_minimumSupply > 0, "!_minimumSupply");
 
         IRibbonFactory factoryInstance = IRibbonFactory(_factory);
-
         address adapterAddr = factoryInstance.getAdapter(_adapterName);
         require(adapterAddr != address(0), "Adapter not set");
 
@@ -161,11 +160,14 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      */
     function sunset(address upgradeTo) external onlyOwner {
         cap = 0;
-        replacementVault = upgradeTo;
         isSunset = true;
-        instantwithdrawalfee = 0;
+        instantWithdrawalFee = 0;
+        if (upgradeTo != address(0)) {
+            replacementVault = upgradeTo;
+            IVaultUpgrade = IRibbonV2Vault(upgradeTo);
+        }
 
-        emit VaultSunset(replacementVault);
+        emit VaultSunset(upgradeTo);
     }
 
     /**
@@ -347,11 +349,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @notice Moves msg.sender's deposited funds to new vault w/o fees
      */
     function migrate() external nonReentrant {
-        require(isSunset, "Can only migrate from closed vaults");
-        require(replacementVault != address(0), "No vault to migrate to");
+        require(isSunset, "Not sunset");
+        require(replacementVault != address(0), "Upgrade address not set");
 
         uint256 amountAfterFee = _withdraw(maxWithdrawableShares(), false);
-        IRibbonV2Vault(replacementVault).depositFor(amountAfterFee, msg.sender);
+        IVaultUpgrade.depositFor(amountAfterFee, msg.sender);
     }
 
     /**

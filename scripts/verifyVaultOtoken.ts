@@ -21,6 +21,7 @@ async function main() {
   await verifyVaultOtoken(deployments[network].RibbonETHCoveredCall, network);
   await verifyVaultOtoken(deployments[network].RibbonWBTCCoveredCall, network);
   await verifyVaultOtoken(deployments[network].RibbonETHPut, network);
+  await verifyVaultOtoken(deployments[network].RibbonYearnETHPut, network);
 }
 
 async function verifyVaultOtoken(vaultAddress: string, network: Networks) {

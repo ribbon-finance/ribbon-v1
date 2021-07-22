@@ -33,16 +33,9 @@ describe("RibbonFactory", function () {
     owner = ownerSigner.address;
     user = userSigner.address;
 
-    const {
-      factory,
-      hegicAdapter,
-      charmAdapter,
-      opynV1Adapter,
-    } = await getDefaultArgs();
+    const { factory, gammaAdapter } = await getDefaultArgs();
     this.factory = factory.connect(ownerSigner);
-    this.hegicAdapter = hegicAdapter;
-    this.opynV1Adapter = opynV1Adapter;
-    this.charmAdapter = charmAdapter;
+    this.gammaAdapter = gammaAdapter;
   });
 
   it("initializes factory correctly", async function () {
@@ -114,7 +107,7 @@ describe("RibbonFactory", function () {
         await this.factory.getAdapter("TEST"),
         "0x0000000000000000000000000000000000000001"
       );
-      assert.equal((await this.factory.getAdapters()).length, 4);
+      assert.equal((await this.factory.getAdapters()).length, 2);
     });
 
     it("reverts when not owner", async function () {
@@ -131,8 +124,8 @@ describe("RibbonFactory", function () {
   describe("#getAdapter", () => {
     it("gets the hegic adapter", async function () {
       assert.equal(
-        await this.factory.getAdapter("HEGIC"),
-        this.hegicAdapter.address
+        await this.factory.getAdapter("OPYN_GAMMA"),
+        this.gammaAdapter.address
       );
     });
   });
@@ -141,7 +134,7 @@ describe("RibbonFactory", function () {
     it("gets the adapters array", async function () {
       assert.equal(
         (await this.factory.getAdapters())[0],
-        this.hegicAdapter.address
+        this.gammaAdapter.address
       );
     });
   });

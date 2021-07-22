@@ -1,6 +1,6 @@
 const { encodeCall } = require("@openzeppelin/upgrades");
 const { ethers, artifacts } = require("hardhat");
-const { provider, BigNumber, constants } = ethers;
+const { provider, BigNumber } = ethers;
 const { parseEther } = ethers.utils;
 const time = require("./time");
 
@@ -55,11 +55,6 @@ const ORACLE_LOCKING_PERIOD = 300;
 
 const ORACLE_OWNER = "0x638E5DA0EEbbA58c67567bcEb4Ab2dc8D34853FB";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
-const HEGIC_ETH_OPTIONS = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
-const HEGIC_WBTC_OPTIONS = "0x3961245DB602eD7c03eECcda33eA3846bD8723BD";
-const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
-const ETH_ADDRESS = constants.AddressZero;
-const ETH_WBTC_PAIR_ADDRESS = "0xbb2b8038a1640196fbe3e38816f3e67cba72d940";
 
 const USDCETH_PRICE_FEED = "0x986b5E1e1755e3C2440e960477f25201B0a8bbD4";
 const ZERO_EX_EXCHANGE_V3 = "0xDef1C0ded9bec7F1a1670819833240f027b25EfF";
@@ -73,26 +68,13 @@ const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 
-const CHARM_OPTION_VIEWS = "0x3cb5d4aeb622A72CF971D4F308e767C53be4E815";
-const CHARM_OPTION_REGISTRY = "0x574467e54F1E145d0d1a9a96560a7704fEdAd1CD";
-
-let factory, hegicAdapter, opynV1Adapter, charmAdapter, mockGammaController;
+let factory, gammaAdapter, mockGammaController;
 
 async function getDefaultArgs() {
   // ensure we just return the cached instances instead of re-initializing everything
-  if (
-    factory &&
-    hegicAdapter &&
-    opynV1Adapter &&
-    gammaAdapter &&
-    charmAdapter &&
-    mockGammaController
-  ) {
+  if (factory && gammaAdapter && mockGammaController) {
     return {
       factory,
-      hegicAdapter,
-      opynV1Adapter,
-      charmAdapter,
       gammaAdapter,
       mockGammaController,
     };
@@ -102,16 +84,8 @@ async function getDefaultArgs() {
   const admin = adminSigner.address;
   const owner = ownerSigner.address;
 
-  const HegicAdapter = await ethers.getContractFactory(
-    "HegicAdapter",
-    ownerSigner
-  );
   const GammaAdapter = await ethers.getContractFactory(
     "GammaAdapter",
-    ownerSigner
-  );
-  const CharmAdapter = await ethers.getContractFactory(
-    "CharmAdapter",
     ownerSigner
   );
   const MockGammaController = await ethers.getContractFactory(
@@ -128,14 +102,6 @@ async function getDefaultArgs() {
       [owner, admin]
     )
   ).connect(ownerSigner);
-
-  hegicAdapter = await HegicAdapter.deploy(
-    HEGIC_ETH_OPTIONS,
-    HEGIC_WBTC_OPTIONS,
-    ETH_ADDRESS,
-    WBTC_ADDRESS,
-    ETH_WBTC_PAIR_ADDRESS
-  );
 
   mockGammaController = await MockGammaController.deploy(
     GAMMA_ORACLE,
@@ -154,7 +120,7 @@ async function getDefaultArgs() {
     ZERO_EX_EXCHANGE_V3
   );
 
-  let gammaAdapter = await GammaAdapter.deploy(
+  gammaAdapter = await GammaAdapter.deploy(
     OTOKEN_FACTORY,
     GAMMA_CONTROLLER,
     MARGIN_POOL,
@@ -165,22 +131,13 @@ async function getDefaultArgs() {
     ZERO_EX_EXCHANGE_V3
   );
 
-  charmAdapter = await CharmAdapter.deploy(
-    CHARM_OPTION_VIEWS,
-    CHARM_OPTION_REGISTRY
-  );
-
-  await factory.setAdapter("HEGIC", hegicAdapter.address, { from: owner });
   await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address, { from: owner });
-  await factory.setAdapter("CHARM", charmAdapter.address, { from: owner });
 
   const protocolAdapterLib = await ProtocolAdapter.deploy();
 
   return {
     factory,
-    hegicAdapter,
     mockGammaAdapter,
-    charmAdapter,
     gammaAdapter,
     mockGammaController,
     protocolAdapterLib,

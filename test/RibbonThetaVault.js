@@ -275,7 +275,7 @@ function behavesLikeRibbonOptionsVault(params) {
       const mockV2Factory = await ethers.getContractFactory(
         "MockRibbonV2Vault"
       );
-      const v2contract = await mockV2Factory.deploy(this.asset);
+      const v2contract = await mockV2Factory.deploy(this.collateralAsset);
       this.v2vault = await ethers.getContractAt(
         "MockRibbonV2Vault",
         v2contract.address
@@ -3115,7 +3115,15 @@ function behavesLikeRibbonOptionsVault(params) {
       }
 
       it("migrate calls V2 depositFor with correct address and amount", async function () {
-        const depositAmount = BigNumber.from("1000000000");
+        // required for the next step to be able to fully withdraw
+        const minimumAmount = BigNumber.from(await this.vault.MINIMUM_SUPPLY());
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          minimumAmount
+        );
+
+        const depositAmount = BigNumber.from("10000000000");
         await depositIntoVault(
           params.collateralAsset,
           this.vault,
@@ -3129,10 +3137,12 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await this.vault.migrate();
 
-        await expect(await this.vault.balanceOf(user)).to.be.equal(0);
+        await expect(await this.vault.balanceOf(user)).to.be.equal(
+          minimumAmount
+        );
         await expect(
-          await this.vault.asset.balanceOf(this.vault.address)
-        ).to.be.equal(0);
+          await this.assetContract.balanceOf(this.vault.address)
+        ).to.be.equal(minimumAmount);
       });
     });
 

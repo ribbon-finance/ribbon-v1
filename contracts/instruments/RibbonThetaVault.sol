@@ -353,6 +353,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(replacementVault != address(0), "Upgrade address not set");
 
         uint256 amountAfterFee = _withdraw(maxWithdrawableShares(), false);
+
+        IERC20(asset).safeApprove(replacementVault, amountAfterFee);
         IVaultUpgrade.depositFor(amountAfterFee, msg.sender);
     }
 
@@ -433,7 +435,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         }
     }
 
-    /**
+    /*
      * @notice Rolls the vault's funds into a new short position.
      */
     function rollToNextOption() external onlyManager nonReentrant {

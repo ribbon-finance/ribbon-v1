@@ -22,12 +22,17 @@ async function main() {
     deployments[network].RibbonETHCoveredCall,
     network
   );
+  await generateTradeMessage("ETH", deployments[network].RibbonETHPut, network);
+  await generateTradeMessage(
+    "ETH",
+    deployments[network].RibbonYearnETHPut,
+    network
+  );
   await generateTradeMessage(
     "WBTC",
     deployments[network].RibbonWBTCCoveredCall,
     network
   );
-  await generateTradeMessage("ETH", deployments[network].RibbonETHPut, network);
 }
 
 async function generateTradeMessage(

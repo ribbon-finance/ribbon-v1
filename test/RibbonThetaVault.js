@@ -3113,6 +3113,10 @@ function behavesLikeRibbonOptionsVault(params) {
             );
         });
       }
+    });
+
+    describe("#migrate", () => {
+      time.revertToSnapshotAfterEach();
 
       it("migrate calls V2 depositFor with correct address and amount", async function () {
         // required for the next step to be able to fully withdraw

@@ -159,9 +159,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @notice Closes the vault and makes it withdraw only.
      */
     function sunset(address upgradeTo) external onlyOwner {
-        require(!isSunset);
-        require(replacementVault == address(0));
-        require(upgradeTo != address(0));
+        require(!isSunset, "!isSunset");
+        require(replacementVault == address(0), "!replacementVault");
+        require(upgradeTo != address(0), "!upgradeTo");
 
         cap = 0;
         isSunset = true;

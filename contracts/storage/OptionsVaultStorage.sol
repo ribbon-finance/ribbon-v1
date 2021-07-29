@@ -69,11 +69,6 @@ contract OptionsVaultStorageV3 {
     IRibbonV2Vault public IVaultUpgrade;
 }
 
-contract OptionsVaultStorageV4 {
-    // Interface to vault registry holding free withdraw information
-    IVaultRegistry public IRegistry;
-}
-
 // We are following Compound's method of upgrading new contract implementations
 // When we need to add new storage variables, we create a new version of OptionsVaultStorage
 // e.g. OptionsVaultStorageV<versionNumber>, so finally it would look like
@@ -81,8 +76,7 @@ contract OptionsVaultStorageV4 {
 contract OptionsVaultStorage is
     OptionsVaultStorageV1,
     OptionsVaultStorageV2,
-    OptionsVaultStorageV3,
-    OptionsVaultStorageV4
+    OptionsVaultStorageV3
 {
 
 }

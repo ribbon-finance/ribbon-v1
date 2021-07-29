@@ -28,6 +28,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     string private constant _adapterName = "OPYN_GAMMA";
 
     IProtocolAdapter public immutable adapter;
+    IVaultRegistry public IRegistry;
     address public immutable asset;
     address public immutable underlying;
     address public immutable WETH;
@@ -73,10 +74,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
-    event ScheduleWithdraw(address account, uint256 shares);
-
-    event ScheduledWithdrawCompleted(address account, uint256 amount);
-
     event VaultSunset(address replacement);
 
     event WithdrawToV1Vault(
@@ -103,6 +100,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     constructor(
         address _asset,
         address _factory,
+        address _registry,
         address _weth,
         address _usdc,
         address _swapContract,
@@ -112,6 +110,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     ) {
         require(_asset != address(0), "!_asset");
         require(_factory != address(0), "!_factory");
+        require(_registry != address(0), "!_registry");
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
         require(_swapContract != address(0), "!_swapContract");
@@ -125,6 +124,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         asset = _isPut ? _usdc : _asset;
         underlying = _asset;
         adapter = IProtocolAdapter(adapterAddr);
+        IRegistry = IRibbonV1Vault(_registry);
         WETH = _weth;
         USDC = _usdc;
         SWAP_CONTRACT = ISwap(_swapContract);
@@ -219,12 +219,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         instantWithdrawalFee = newWithdrawalFee;
     }
 
-    function setVaultRegistry(address registryAddress) external onlyOwner {
-        require(registryAddress != address(0), "!registryAddress");
-
-        IRegistry = IVaultRegistry(registryAddress);
-    }
-
     /**
      * @notice Deposits ETH into the contract and mint vault shares. Reverts if the underlying is not WETH.
      */
@@ -285,7 +279,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      */
     function withdrawETH(uint256 share) external nonReentrant {
         require(asset == WETH, "!WETH");
-        uint256 withdrawAmount = _withdraw(share, false, false);
+        uint256 withdrawAmount = _withdraw(share, false);
 
         IWETH(WETH).withdraw(withdrawAmount);
         (bool success, ) = msg.sender.call{value: withdrawAmount}("");
@@ -297,7 +291,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param share is the number of vault shares to be burned
      */
     function withdraw(uint256 share) external nonReentrant {
-        uint256 withdrawAmount = _withdraw(share, false, false);
+        uint256 withdrawAmount = _withdraw(share, false);
         IERC20(asset).safeTransfer(msg.sender, withdrawAmount);
     }
 
@@ -313,15 +307,18 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     {
         require(address(IRegistry) != address(0), "!IRegistry");
         require(vault != address(0), "!vault");
-        require(share != 0, "!share");
+        require(share > 0, "!share");
 
         bool feeless = IRegistry.canWithdrawForFree(address(this), vault);
-        uint256 withdrawAmount = _withdraw(share, false, feeless);
+        require(feeless, "!feeless");
+
+        uint256 withdrawAmount = _withdraw(share, feeless);
 
         // Send assets to new vault rather than user
+        IERC20(asset).safeApprove(vault, withdrawAmount);
         IRibbonV1Vault(vault).deposit(withdrawAmount);
-        uint256 received_shares = IERC20(vault).balanceOf(address(this));
-        IERC20(vault).safeTransfer(address(this), received_shares);
+        uint256 receivedShares = IERC20(vault).balanceOf(address(this));
+        IERC20(vault).safeTransfer(msg.sender, received_shares);
 
         emit WithdrawToV1Vault(msg.sender, share, vault, received_shares);
     }
@@ -331,11 +328,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param share is the number of vault shares to be burned
      * @param isScheduled is whether the withdraw was scheduled
      */
-    function _withdraw(
-        uint256 share,
-        bool isScheduled,
-        bool feeless
-    ) private returns (uint256) {
+    function _withdraw(uint256 share, bool feeless) private returns (uint256) {
         (uint256 amountAfterFee, uint256 feeAmount) =
             withdrawAmountWithShares(share);
 
@@ -354,55 +347,13 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Lock's users shares for future withdraw and ensures that the new short excludes the scheduled amount.
-     * @param shares is the number of shares to be withdrawn in the future.
-     */
-    function withdrawLater(uint256 shares) external nonReentrant {
-        require(shares > 0, "!shares");
-        require(
-            scheduledWithdrawals[msg.sender] == 0,
-            "Scheduled withdrawal already exists"
-        );
-
-        emit ScheduleWithdraw(msg.sender, shares);
-
-        scheduledWithdrawals[msg.sender] = shares;
-        queuedWithdrawShares = queuedWithdrawShares.add(shares);
-        _transfer(msg.sender, address(this), shares);
-    }
-
-    /**
-     * @notice Burns user's locked tokens and withdraws assets to msg.sender.
-     */
-    function completeScheduledWithdrawal() external nonReentrant {
-        uint256 withdrawShares = scheduledWithdrawals[msg.sender];
-        require(withdrawShares > 0, "Scheduled withdrawal not found");
-
-        scheduledWithdrawals[msg.sender] = 0;
-        queuedWithdrawShares = queuedWithdrawShares.sub(withdrawShares);
-
-        uint256 amountAfterFee = _withdraw(withdrawShares, true, false);
-
-        emit ScheduledWithdrawCompleted(msg.sender, amountAfterFee);
-
-        if (asset == WETH) {
-            IWETH(WETH).withdraw(amountAfterFee);
-            (bool success, ) = msg.sender.call{value: amountAfterFee}("");
-            require(success, "ETH transfer failed");
-        } else {
-            IERC20(asset).safeTransfer(msg.sender, amountAfterFee);
-        }
-    }
-
-    /**
      * @notice Moves msg.sender's deposited funds to new vault w/o fees
      */
     function migrate() external nonReentrant {
         require(isSunset, "Not sunset");
         require(replacementVault != address(0), "Upgrade address not set");
 
-        uint256 amountAfterFee =
-            _withdraw(maxWithdrawableShares(), false, false);
+        uint256 amountAfterFee = _withdraw(maxWithdrawableShares(), false);
 
         IERC20(asset).safeApprove(replacementVault, amountAfterFee);
         IVaultUpgrade.depositFor(amountAfterFee, msg.sender);

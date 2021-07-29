@@ -124,7 +124,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         asset = _isPut ? _usdc : _asset;
         underlying = _asset;
         adapter = IProtocolAdapter(adapterAddr);
-        IRegistry = IRibbonV1Vault(_registry);
+        IRegistry = IVaultRegistry(_registry);
         WETH = _weth;
         USDC = _usdc;
         SWAP_CONTRACT = ISwap(_swapContract);
@@ -318,15 +318,15 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         IERC20(asset).safeApprove(vault, withdrawAmount);
         IRibbonV1Vault(vault).deposit(withdrawAmount);
         uint256 receivedShares = IERC20(vault).balanceOf(address(this));
-        IERC20(vault).safeTransfer(msg.sender, received_shares);
+        IERC20(vault).safeTransfer(msg.sender, receivedShares);
 
-        emit WithdrawToV1Vault(msg.sender, share, vault, received_shares);
+        emit WithdrawToV1Vault(msg.sender, share, vault, receivedShares);
     }
 
     /**
      * @notice Burns vault shares and checks if eligible for withdrawal
      * @param share is the number of vault shares to be burned
-     * @param isScheduled is whether the withdraw was scheduled
+     * @param feeless is whether a withdraw fee is charged
      */
     function _withdraw(uint256 share, bool feeless) private returns (uint256) {
         (uint256 amountAfterFee, uint256 feeAmount) =
@@ -339,7 +339,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         emit Withdraw(msg.sender, amountAfterFee, share, feeAmount);
 
-        _burn(isScheduled ? address(this) : msg.sender, share);
+        _burn(msg.sender, share);
 
         IERC20(asset).safeTransfer(feeRecipient, feeAmount);
 

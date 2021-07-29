@@ -10,8 +10,8 @@ import {
 import {
     ERC20Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-
-import {IRibbonV2Vault} from "../interfaces/IRibbonV2Vault.sol";
+import {IRibbonV2Vault} from "../interfaces/IRibbonVaults.sol";
+import {IVaultRegistry} from "../interfaces/IVaultRegistry.sol";
 
 contract OptionsVaultStorageV1 is
     ReentrancyGuardUpgradeable,
@@ -65,8 +65,13 @@ contract OptionsVaultStorageV3 {
     // Contract address of replacement
     address public replacementVault;
 
-    // Interfance instance for upgrading
+    // Interface instance for upgrading
     IRibbonV2Vault public IVaultUpgrade;
+}
+
+contract OptionsVaultStorageV4 {
+    // Interface to vault registry holding free withdraw information
+    IVaultRegistry public IRegistry;
 }
 
 // We are following Compound's method of upgrading new contract implementations
@@ -76,7 +81,8 @@ contract OptionsVaultStorageV3 {
 contract OptionsVaultStorage is
     OptionsVaultStorageV1,
     OptionsVaultStorageV2,
-    OptionsVaultStorageV3
+    OptionsVaultStorageV3,
+    OptionsVaultStorageV4
 {
 
 }

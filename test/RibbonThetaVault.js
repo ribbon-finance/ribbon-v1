@@ -46,6 +46,7 @@ const TRADER_AFFILIATE = "0xFf98F0052BdA391F8FaD266685609ffb192Bef25";
 const OPTION_DELAY = 60 * 60; // 1 hour
 const LOCKED_RATIO = parseEther("0.9");
 const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
+const WITHDRAWAL_FEE = parseEther("0.005");
 const gasPrice = parseUnits("1", "gwei");
 
 const PUT_OPTION_TYPE = 1;
@@ -2438,260 +2439,6 @@ function behavesLikeRibbonOptionsVault(params) {
       });
     });
 
-    describe("#withdrawLater", () => {
-      time.revertToSnapshotAfterEach();
-
-      it("is within the gas budget", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(
-          params.collateralAsset,
-          this.vault,
-          depositAmount
-        );
-
-        const res = await this.vault.withdrawLater(
-          BigNumber.from("100000000000")
-        );
-        const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 90000);
-      });
-
-      it("rejects a withdrawLater of 0 shares", async function () {
-        await expect(
-          this.vault.withdrawLater(BigNumber.from("0"))
-        ).to.be.revertedWith("!shares");
-      });
-
-      it("rejects a scheduled withdrawal when greater than balance", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(
-          params.collateralAsset,
-          this.vault,
-          depositAmount
-        );
-
-        await expect(
-          this.vault.withdrawLater(BigNumber.from("100000000001"))
-        ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
-      });
-
-      it("accepts a withdrawLater if less than or equal to balance", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(
-          params.collateralAsset,
-          this.vault,
-          depositAmount
-        );
-
-        const res = await this.vault.withdrawLater(
-          BigNumber.from("100000000000")
-        );
-
-        await expect(res)
-          .to.emit(this.vault, "ScheduleWithdraw")
-          .withArgs(user, BigNumber.from("100000000000"));
-
-        assert.equal(
-          (await this.vault.queuedWithdrawShares()).toString(),
-          BigNumber.from("100000000000").toString()
-        );
-
-        assert.equal(
-          (await this.vault.scheduledWithdrawals(user)).toString(),
-          BigNumber.from("100000000000").toString()
-        );
-
-        // Verify that vault shares were transfer to vault for duration of scheduledWithdraw
-        assert.equal(
-          (await this.vault.balanceOf(this.vault.address)).toString(),
-          BigNumber.from("100000000000").toString()
-        );
-
-        assert.equal(
-          (await this.vault.balanceOf(user)).toString(),
-          BigNumber.from("0").toString()
-        );
-      });
-
-      it("rejects a withdrawLater if a withdrawal is already scheduled", async function () {
-        const depositAmount = BigNumber.from("200000000000");
-        await depositIntoVault(
-          params.collateralAsset,
-          this.vault,
-          depositAmount
-        );
-
-        await this.vault.withdrawLater(BigNumber.from("100000000000"));
-
-        await expect(
-          this.vault.withdrawLater(BigNumber.from("100000000000"))
-        ).to.be.revertedWith("Scheduled withdrawal already exists");
-      });
-
-      it("assets reserved by withdrawLater are not used to short", async function () {
-        const depositAmount = BigNumber.from("200000000000");
-        await depositIntoVault(
-          params.collateralAsset,
-          this.vault,
-          depositAmount
-        );
-
-        const res = await this.vault.withdrawLater(
-          BigNumber.from("100000000000")
-        );
-
-        await expect(res)
-          .to.emit(this.vault, "ScheduleWithdraw")
-          .withArgs(user, BigNumber.from("100000000000"));
-
-        await this.rollToNextOption();
-
-        const vaultBalanceBeforeWithdraw = await this.assetContract.balanceOf(
-          this.vault.address
-        );
-
-        // Queued withdrawals + 10% of available assets set aside
-        assert.equal(
-          vaultBalanceBeforeWithdraw.toString(),
-          BigNumber.from("110000000000").toString()
-        );
-      });
-    });
-
-    describe("completeScheduledWithdrawal", () => {
-      time.revertToSnapshotAfterEach();
-
-      it("is within the gas budget", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(
-          params.collateralAsset,
-          this.vault,
-          depositAmount
-        );
-
-        await this.vault.withdrawLater(BigNumber.from("1000"));
-
-        const res = await this.vault.completeScheduledWithdrawal();
-
-        const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 80000);
-      });
-
-      it("rejects a completeScheduledWithdrawal if nothing scheduled", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(
-          params.collateralAsset,
-          this.vault,
-          depositAmount
-        );
-
-        await expect(
-          this.vault.completeScheduledWithdrawal()
-        ).to.be.revertedWith("Scheduled withdrawal not found");
-      });
-
-      it("completeScheduledWithdraw behaves as expected for valid scheduled withdraw", async function () {
-        let balanceBeforeWithdraw;
-        const depositAmount = BigNumber.from("200000000000");
-        await depositIntoVault(
-          params.collateralAsset,
-          this.vault,
-          depositAmount
-        );
-
-        await this.vault.withdrawLater(BigNumber.from("100000000000"));
-
-        await this.rollToNextOption();
-
-        if (params.collateralAsset === WETH_ADDRESS) {
-          balanceBeforeWithdraw = await provider.getBalance(user);
-        } else {
-          balanceBeforeWithdraw = await this.assetContract.balanceOf(user);
-        }
-        const vaultBalanceBeforeWithdraw = await this.assetContract.balanceOf(
-          this.vault.address
-        );
-
-        // Queued withdrawals + 10% of available assets set aside
-        assert.equal(
-          vaultBalanceBeforeWithdraw.toString(),
-          BigNumber.from("110000000000").toString()
-        );
-
-        const tx = await this.vault.completeScheduledWithdrawal({
-          gasPrice,
-        });
-        const receipt = await tx.wait();
-        const gasFee = gasPrice.mul(receipt.gasUsed);
-
-        await expect(tx)
-          .to.emit(this.vault, "Withdraw")
-          .withArgs(
-            user,
-            BigNumber.from("99500000000"),
-            BigNumber.from("100000000000"),
-            BigNumber.from("500000000")
-          );
-
-        await expect(tx)
-          .to.emit(this.vault, "ScheduledWithdrawCompleted")
-          .withArgs(user, BigNumber.from("99500000000"));
-
-        // Should set the scheduledWithdrawals entry back to 0
-        assert.equal(
-          (await this.vault.scheduledWithdrawals(user)).toString(),
-          BigNumber.from("0").toString()
-        );
-
-        assert.equal(
-          (await this.assetContract.balanceOf(this.vault.address)).toString(),
-          vaultBalanceBeforeWithdraw
-            .sub(BigNumber.from("99500000000"))
-            .toString()
-        );
-
-        // Assert vault shares were burned
-        assert.equal(
-          (await this.vault.balanceOf(this.vault.address)).toString(),
-          BigNumber.from("0").toString()
-        );
-
-        if (params.collateralAsset === WETH_ADDRESS) {
-          assert.equal(
-            (await provider.getBalance(user)).toString(),
-            balanceBeforeWithdraw
-              .sub(gasFee)
-              .add(BigNumber.from("99500000000"))
-              .toString()
-          );
-        } else {
-          assert.equal(
-            (await this.assetContract.balanceOf(user)).toString(),
-            balanceBeforeWithdraw.add(BigNumber.from("99500000000")).toString()
-          );
-        }
-      });
-
-      it("rejects second attempted completeScheduledWithdraw", async function () {
-        const depositAmount = BigNumber.from("200000000000");
-        await depositIntoVault(
-          params.collateralAsset,
-          this.vault,
-          depositAmount
-        );
-
-        await this.vault.withdrawLater(BigNumber.from("100000000000"));
-
-        await this.rollToNextOption();
-
-        await this.vault.completeScheduledWithdrawal();
-
-        await expect(
-          this.vault.completeScheduledWithdrawal()
-        ).to.be.revertedWith("Scheduled withdrawal not found");
-      });
-    });
-
     describe("#withdraw", () => {
       time.revertToSnapshotAfterEach();
 
@@ -3003,116 +2750,72 @@ function behavesLikeRibbonOptionsVault(params) {
 
       it("succeeds when owner", async function () {
         await this.vault.connect(ownerSigner).sunset(this.v2vault.address);
-        assert.equal(await this.vault.isSunset(), true);
 
         assert.equal(await this.vault.replacementVault(), this.v2vault.address);
       });
 
-      it("deposits fail after sunset", async function () {
+      it("deposits still work after sunset", async function () {
         await this.vault.connect(ownerSigner).sunset(this.v2vault.address);
         const depositAmount = BigNumber.from("10000000000");
-        await expect(
-          depositIntoVault(params.collateralAsset, this.vault, depositAmount)
-        ).to.be.revertedWith("Cap exceeded");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
       });
 
-      if (params.collateralAsset === WETH_ADDRESS) {
-        it("withdraw funds with no fee", async function () {
-          await this.vault.depositETH({ value: parseEther("1") });
-          await this.vault.connect(ownerSigner).sunset(this.v2vault.address);
+      it("withdraw funds with fee", async function () {
+        const depositAmount =
+          params.collateralAsset === WETH_ADDRESS
+            ? parseEther("1")
+            : BigNumber.from("10000000000");
+        const withdrawAmount = depositAmount.sub(params.minimumSupply);
 
-          const startETHBalance = await provider.getBalance(user);
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+        await this.vault.connect(ownerSigner).sunset(this.v2vault.address);
 
-          const res = await this.vault.withdrawETH(parseEther("0.1"), {
-            gasPrice,
-          });
-          const receipt = await res.wait();
-          const gasFee = gasPrice.mul(receipt.gasUsed);
+        const startAssetBalance = await this.assetContract.balanceOf(user);
 
-          // No fees
-          assert.equal(
-            (await this.assetContract.balanceOf(this.vault.address)).toString(),
-            parseEther("0.9").toString()
+        const res = await this.vault.withdraw(withdrawAmount);
+
+        assert.equal(
+          (await this.assetContract.balanceOf(this.vault.address)).toString(),
+          wmul(withdrawAmount, WITHDRAWAL_FEE)
+            .add(params.minimumSupply)
+            .toString()
+        );
+
+        assert.equal(
+          (await this.assetContract.balanceOf(user))
+            .sub(startAssetBalance)
+            .toString(),
+          wmul(withdrawAmount, parseEther("1").sub(WITHDRAWAL_FEE)).toString()
+        );
+
+        // Share amount is burned
+        assert.equal(
+          (await this.vault.balanceOf(user)).toString(),
+          params.minimumSupply.toString()
+        );
+
+        assert.equal(
+          (await this.vault.totalSupply()).toString(),
+          params.minimumSupply.toString()
+        );
+
+        await expect(res)
+          .to.emit(this.vault, "Withdraw")
+          .withArgs(
+            user,
+            wmul(withdrawAmount, parseEther("1").sub(WITHDRAWAL_FEE)),
+            BigNumber.from(withdrawAmount),
+            wmul(withdrawAmount, WITHDRAWAL_FEE)
           );
-
-          assert.equal(
-            (await provider.getBalance(user))
-              .add(gasFee)
-              .sub(startETHBalance)
-              .toString(),
-            parseEther("0.1").toString()
-          );
-
-          // Share amount is burned
-          assert.equal(
-            (await this.vault.balanceOf(user)).toString(),
-            parseEther("0.9")
-          );
-
-          assert.equal(
-            (await this.vault.totalSupply()).toString(),
-            parseEther("0.9")
-          );
-
-          await expect(res)
-            .to.emit(this.vault, "Withdraw")
-            .withArgs(
-              user,
-              parseEther("0.1"),
-              parseEther("0.1"),
-              parseEther("0.0")
-            );
-        });
-      } else {
-        it("withdraw funds with no fee", async function () {
-          const depositAmount = BigNumber.from("100000000000");
-          await depositIntoVault(
-            params.collateralAsset,
-            this.vault,
-            depositAmount
-          );
-          await this.vault.connect(ownerSigner).sunset(this.v2vault.address);
-
-          const startAssetBalance = await this.assetContract.balanceOf(user);
-
-          const res = await this.vault.withdraw(BigNumber.from("10000000000"), {
-            gasPrice,
-          });
-          await res.wait();
-
-          assert.equal(
-            (await this.assetContract.balanceOf(this.vault.address)).toString(),
-            BigNumber.from("90000000000").toString()
-          );
-
-          assert.equal(
-            (await this.assetContract.balanceOf(user))
-              .sub(startAssetBalance)
-              .toString(),
-            BigNumber.from("10000000000").toString()
-          );
-
-          // Share amount is burned
-          assert.equal(
-            (await this.vault.balanceOf(user)).toString(),
-            BigNumber.from("90000000000")
-          );
-
-          assert.equal(
-            (await this.vault.totalSupply()).toString(),
-            BigNumber.from("90000000000")
-          );
-
-          await expect(res)
-            .to.emit(this.vault, "Withdraw")
-            .withArgs(
-              user,
-              BigNumber.from("10000000000"),
-              BigNumber.from("10000000000"),
-              BigNumber.from("0")
-            );
-        });
-      }
+      });
     });
 
     describe("#migrate", () => {

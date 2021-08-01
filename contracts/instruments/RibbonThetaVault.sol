@@ -163,7 +163,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      */
     function sunset(address upgradeTo) external onlyOwner {
         require(address(replacementVault) == address(0), "Already sunset");
-        require(upgradeTo == address(0), "!upgradeTo");
+        require(upgradeTo != address(0), "!upgradeTo");
 
         replacementVault = IRibbonV2Vault(upgradeTo);
 

@@ -307,7 +307,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         IRibbonV2Vault vault = replacementVault;
         require(address(vault) != address(0), "Not sunset");
 
-        uint256 allShares = maxWithdrawableShares();
+        uint256 allShares = balanceOf(msg.sender);
         (uint256 withdrawAmount, uint256 feeAmount) =
             withdrawAmountWithShares(allShares);
 

@@ -74,7 +74,12 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
     event VaultSunset(address replacement);
 
-    event Migrate(address replacement, uint256 shares, uint256 amount);
+    event Migrate(
+        address account,
+        address replacement,
+        uint256 shares,
+        uint256 amount
+    );
 
     /**
      * @notice Initializes the contract with immutable variables
@@ -309,9 +314,12 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         // Since we want to exclude fees, we add them both together
         withdrawAmount = withdrawAmount.add(feeAmount);
 
-        emit Migrate(address(vault), allShares, withdrawAmount);
+        emit Migrate(msg.sender, address(vault), allShares, withdrawAmount);
+
+        _burn(msg.sender, allShares);
 
         IERC20(asset).safeApprove(address(vault), withdrawAmount);
+
         vault.depositFor(withdrawAmount, msg.sender);
     }
 

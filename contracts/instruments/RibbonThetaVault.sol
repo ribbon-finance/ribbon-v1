@@ -307,7 +307,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         IRibbonV2Vault vault = replacementVault;
         require(address(vault) != address(0), "Not sunset");
 
-        uint256 allShares = balanceOf(msg.sender);
+        uint256 allShares = maxWithdrawAmount(msg.sender);
         (uint256 withdrawAmount, uint256 feeAmount) =
             withdrawAmountWithShares(allShares);
 
@@ -576,11 +576,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param account is the address of the vault share holder
      * @return amount of `asset` withdrawable from vault, with fees accounted
      */
-    function maxWithdrawAmount(address account)
-        external
-        view
-        returns (uint256)
-    {
+    function maxWithdrawAmount(address account) public view returns (uint256) {
         uint256 maxShares = maxWithdrawableShares();
         uint256 share = balanceOf(account);
         uint256 numShares = min(maxShares, share);

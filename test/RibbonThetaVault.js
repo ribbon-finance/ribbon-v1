@@ -2836,7 +2836,7 @@ function behavesLikeRibbonOptionsVault(params) {
           this.vault,
           depositAmount
         );
-        await expect(await this.vault.balanceOf(user)).to.be.above(0);
+        expect(await this.vault.balanceOf(user)).to.be.above(0);
 
         await expect(this.vault.migrate()).to.be.revertedWith("Not sunset");
 
@@ -2844,10 +2844,8 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await this.vault.migrate();
 
-        await expect(await this.vault.balanceOf(user)).to.be.equal(
-          minimumAmount
-        );
-        await expect(
+        expect(await this.vault.balanceOf(user)).to.be.equal(minimumAmount);
+        expect(
           await this.assetContract.balanceOf(this.vault.address)
         ).to.be.equal(minimumAmount);
       });

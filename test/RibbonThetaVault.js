@@ -2705,6 +2705,8 @@ function behavesLikeRibbonOptionsVault(params) {
     });
 
     describe("#setWithdrawalFee", () => {
+      time.revertToSnapshotAfterTest();
+
       it("reverts when not manager", async function () {
         await expect(
           this.vault.connect(userSigner).setWithdrawalFee(parseEther("0.1"))

@@ -205,10 +205,11 @@ describe("RibbonOptionsVault Upgrade", () => {
         assert.equal(await this.vault.asset(), this.asset);
       };
 
-      const { factory } = await getDefaultArgs();
+      const { factory, registry } = await getDefaultArgs();
       this.asset = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
       this.strikeAsset = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
       this.factory = factory;
+      this.registry = registry;
       this.tokenDecimals = 18;
       this.minimumSupply = BigNumber.from("10").pow("10").toString();
       this.isPut = false;
@@ -265,6 +266,7 @@ describe("RibbonOptionsVault Upgrade", () => {
       const newLogicContract = await VaultContract.deploy(
         this.asset,
         this.factory.address,
+        this.registry.address,
         this.asset,
         this.strikeAsset,
         SWAP_ADDRESS,

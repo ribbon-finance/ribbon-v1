@@ -28,7 +28,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     string private constant _adapterName = "OPYN_GAMMA";
 
     IProtocolAdapter public immutable adapter;
-    IVaultRegistry public IRegistry;
+    IVaultRegistry public immutable IRegistry;
     address public immutable asset;
     address public immutable underlying;
     address public immutable WETH;
@@ -305,7 +305,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         external
         nonReentrant
     {
-        require(address(IRegistry) != address(0), "!IRegistry");
         require(vault != address(0), "!vault");
         require(share > 0, "!share");
 

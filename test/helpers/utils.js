@@ -82,6 +82,7 @@ async function getDefaultArgs() {
   // ensure we just return the cached instances instead of re-initializing everything
   if (
     factory &&
+    registry &&
     hegicAdapter &&
     opynV1Adapter &&
     gammaAdapter &&
@@ -90,6 +91,7 @@ async function getDefaultArgs() {
   ) {
     return {
       factory,
+      registry,
       hegicAdapter,
       opynV1Adapter,
       charmAdapter,
@@ -128,6 +130,13 @@ async function getDefaultArgs() {
       [owner, admin]
     )
   ).connect(ownerSigner);
+
+  const registryFactory = await ethers.getContractFactory("VaultRegistry");
+  const vaultRegistry = await registryFactory.deploy();
+  const registry = await ethers.getContractAt(
+    "VaultRegistry",
+    vaultRegistry.address
+  );
 
   hegicAdapter = await HegicAdapter.deploy(
     HEGIC_ETH_OPTIONS,
@@ -178,6 +187,7 @@ async function getDefaultArgs() {
 
   return {
     factory,
+    registry,
     hegicAdapter,
     mockGammaAdapter,
     charmAdapter,

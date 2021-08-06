@@ -2714,7 +2714,7 @@ function behavesLikeRibbonOptionsVault(params) {
             this.vault.maxWithdrawableShares(),
             this.spareVault.address
           )
-        ).to.be.revertedWith("!feeless");
+        ).to.be.revertedWith("Feeless withdraw to vault not allowed");
       });
 
       it("should transfer without fee", async function () {
@@ -2757,25 +2757,21 @@ function behavesLikeRibbonOptionsVault(params) {
           await this.spareVault.balanceOf(this.vault.address),
           BigNumber.from("0").toString()
         );
-
-        await expect(res)
-          .to.emit(this.vault, "Withdraw")
-          .withArgs(
-            user.address,
-            BigNumber.from("10000000000"),
-            BigNumber.from("10000000000"),
-            parseEther("0.1"),
-            parseEther("0.1"),
-            BigNumber.from("0").toString()
-          );
-
         await expect(res)
           .to.emit(this.vault, "WithdrawToV1Vault")
           .withArgs(
-            user.address,
+            user,
             BigNumber.from("10000000000"),
             this.spareVault.address,
             BigNumber.from("10000000000")
+          );
+        await expect(res)
+          .to.emit(this.vault, "Withdraw")
+          .withArgs(
+            user,
+            BigNumber.from("10000000000"),
+            BigNumber.from("10000000000"),
+            BigNumber.from("0")
           );
       });
 
@@ -2820,7 +2816,7 @@ function behavesLikeRibbonOptionsVault(params) {
             this.vault.maxWithdrawableShares(),
             this.spareVault.address
           )
-        ).to.be.revertedWith("!feeless");
+        ).to.be.revertedWith("Feeless withdraw to vault not allowed");
       });
     });
 

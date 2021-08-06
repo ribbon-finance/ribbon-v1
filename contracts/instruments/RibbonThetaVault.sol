@@ -28,7 +28,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     string private constant _adapterName = "OPYN_GAMMA";
 
     IProtocolAdapter public immutable adapter;
-    IVaultRegistry public immutable IRegistry;
+    IVaultRegistry public immutable registry;
     address public immutable asset;
     address public immutable underlying;
     address public immutable WETH;
@@ -78,9 +78,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
     event WithdrawToV1Vault(
         address account,
-        uint256 old_shares,
+        uint256 oldShares,
         address to,
-        uint256 new_shares
+        uint256 newShares
     );
 
     event Migrate(
@@ -129,7 +129,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         asset = _isPut ? _usdc : _asset;
         underlying = _asset;
         adapter = IProtocolAdapter(adapterAddr);
-        IRegistry = IVaultRegistry(_registry);
+        registry = IVaultRegistry(_registry);
         WETH = _weth;
         USDC = _usdc;
         SWAP_CONTRACT = ISwap(_swapContract);
@@ -308,8 +308,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(vault != address(0), "!vault");
         require(share > 0, "!share");
 
-        bool feeless = IRegistry.canWithdrawForFree(address(this), vault);
-        require(feeless, "!feeless");
+        bool feeless = registry.canWithdrawForFree(address(this), vault);
+        require(feeless, "Feeless withdraw to vault not allowed");
 
         uint256 withdrawAmount = _withdraw(share, feeless);
 
@@ -319,6 +319,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         uint256 receivedShares = IERC20(vault).balanceOf(address(this));
         IERC20(vault).safeTransfer(msg.sender, receivedShares);
 
+        emit Withdraw(msg.sender, withdrawAmount, share, 0);
         emit WithdrawToV1Vault(msg.sender, share, vault, receivedShares);
     }
 

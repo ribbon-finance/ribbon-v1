@@ -252,7 +252,7 @@ function behavesLikeRibbonOptionsVault(params) {
       const deployArgs = [
         this.asset,
         factory.address,
-        this.registry.address,
+        registry.address,
         WETH_ADDRESS,
         params.strikeAsset,
         SWAP_ADDRESS,
@@ -2730,7 +2730,7 @@ function behavesLikeRibbonOptionsVault(params) {
           this.spareVault.address
         );
 
-        await this.vault.withdrawToV1Vault(
+        const res = await this.vault.withdrawToV1Vault(
           BigNumber.from("10000000000"),
           this.spareVault.address
         );
@@ -2753,6 +2753,30 @@ function behavesLikeRibbonOptionsVault(params) {
           await this.spareVault.balanceOf(user),
           BigNumber.from("10000000000").toString()
         );
+        assert.equal(
+          await this.spareVault.balanceOf(this.vault.address),
+          BigNumber.from("0").toString()
+        );
+
+        await expect(res)
+          .to.emit(this.vault, "Withdraw")
+          .withArgs(
+            user.address,
+            BigNumber.from("10000000000"),
+            BigNumber.from("10000000000"),
+            parseEther("0.1"),
+            parseEther("0.1"),
+            BigNumber.from("0").toString()
+          );
+
+        await expect(res)
+          .to.emit(this.vault, "WithdrawToV1Vault")
+          .withArgs(
+            user.address,
+            BigNumber.from("10000000000"),
+            this.spareVault.address,
+            BigNumber.from("10000000000")
+          );
       });
 
       it("should fail after revoking free withdraws", async function () {

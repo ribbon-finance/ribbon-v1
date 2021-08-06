@@ -13,7 +13,8 @@ import {
 } from "../adapters/IProtocolAdapter.sol";
 import {ProtocolAdapter} from "../adapters/ProtocolAdapter.sol";
 import {IRibbonFactory} from "../interfaces/IRibbonFactory.sol";
-import {IRibbonV2Vault} from "../interfaces/IRibbonV2Vault.sol";
+import {IRibbonV2Vault, IRibbonV1Vault} from "../interfaces/IRibbonVaults.sol";
+import {IVaultRegistry} from "../interfaces/IVaultRegistry.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {ISwap, Types} from "../interfaces/ISwap.sol";
 import {OtokenInterface} from "../interfaces/GammaInterface.sol";
@@ -27,6 +28,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     string private constant _adapterName = "OPYN_GAMMA";
 
     IProtocolAdapter public immutable adapter;
+    IVaultRegistry public immutable registry;
     address public immutable asset;
     address public immutable underlying;
     address public immutable WETH;
@@ -74,6 +76,13 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
     event VaultSunset(address replacement);
 
+    event WithdrawToV1Vault(
+        address account,
+        uint256 oldShares,
+        address to,
+        uint256 newShares
+    );
+
     event Migrate(
         address account,
         address replacement,
@@ -96,6 +105,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     constructor(
         address _asset,
         address _factory,
+        address _registry,
         address _weth,
         address _usdc,
         address _swapContract,
@@ -105,6 +115,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     ) {
         require(_asset != address(0), "!_asset");
         require(_factory != address(0), "!_factory");
+        require(_registry != address(0), "!_registry");
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
         require(_swapContract != address(0), "!_swapContract");
@@ -118,6 +129,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         asset = _isPut ? _usdc : _asset;
         underlying = _asset;
         adapter = IProtocolAdapter(adapterAddr);
+        registry = IVaultRegistry(_registry);
         WETH = _weth;
         USDC = _usdc;
         SWAP_CONTRACT = ISwap(_swapContract);
@@ -267,7 +279,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      */
     function withdrawETH(uint256 share) external nonReentrant {
         require(asset == WETH, "!WETH");
-        uint256 withdrawAmount = _withdraw(share);
+        uint256 withdrawAmount = _withdraw(share, false);
 
         IWETH(WETH).withdraw(withdrawAmount);
         (bool success, ) = msg.sender.call{value: withdrawAmount}("");
@@ -279,17 +291,51 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param share is the number of vault shares to be burned
      */
     function withdraw(uint256 share) external nonReentrant {
-        uint256 withdrawAmount = _withdraw(share);
+        uint256 withdrawAmount = _withdraw(share, false);
         IERC20(asset).safeTransfer(msg.sender, withdrawAmount);
+    }
+
+    /**
+     * @notice Withdraw from V1 vault to V1 vault
+     * @notice Waive fee if registered in vault registry
+     * @param share is the number of vault shares to be burned
+     * @param vault is the address of destination V1 vault
+     */
+    function withdrawToV1Vault(uint256 share, address vault)
+        external
+        nonReentrant
+    {
+        require(vault != address(0), "!vault");
+        require(share > 0, "!share");
+
+        bool feeless = registry.canWithdrawForFree(address(this), vault);
+        require(feeless, "Feeless withdraw to vault not allowed");
+
+        uint256 withdrawAmount = _withdraw(share, feeless);
+
+        // Send assets to new vault rather than user
+        IERC20(asset).safeApprove(vault, withdrawAmount);
+        IRibbonV1Vault(vault).deposit(withdrawAmount);
+        uint256 receivedShares = IERC20(vault).balanceOf(address(this));
+        IERC20(vault).safeTransfer(msg.sender, receivedShares);
+
+        emit Withdraw(msg.sender, withdrawAmount, share, 0);
+        emit WithdrawToV1Vault(msg.sender, share, vault, receivedShares);
     }
 
     /**
      * @notice Burns vault shares and checks if eligible for withdrawal
      * @param share is the number of vault shares to be burned
+     * @param feeless is whether a withdraw fee is charged
      */
-    function _withdraw(uint256 share) private returns (uint256) {
+    function _withdraw(uint256 share, bool feeless) private returns (uint256) {
         (uint256 amountAfterFee, uint256 feeAmount) =
             withdrawAmountWithShares(share);
+
+        if (feeless) {
+            amountAfterFee = amountAfterFee.add(feeAmount);
+            feeAmount = 0;
+        }
 
         emit Withdraw(msg.sender, amountAfterFee, share, feeAmount);
 
@@ -300,7 +346,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         return amountAfterFee;
     }
 
-    /**
+    /*
      * @notice Moves msg.sender's deposited funds to new vault w/o fees
      */
     function migrate() external nonReentrant {

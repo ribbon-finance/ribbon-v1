@@ -10,48 +10,69 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
  * which allows you to call the safe operations as `token.safeTransfer(...)`, etc.
  */
 library SafeERC20 {
-  function safeTransfer(
-    IERC20 token,
-    address to,
-    uint256 value
-  )
-    internal
-  {
-    require(token.transfer(to, value));
-  }
-
-  function safeTransferFrom(
-    IERC20 token,
-    address from,
-    address to,
-    uint256 value
-  )
-    internal
-  {
-    require(token.transferFrom(from, to, value));
-  }
-
-  function safeApprove(IERC20 token, address spender, uint256 value) internal {
-    if (_callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value))) {
-        return;
+    function safeTransfer(
+        IERC20 token,
+        address to,
+        uint256 value
+    ) internal {
+        require(token.transfer(to, value));
     }
-    require(_callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, 0))
-        && _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value)),
-        "ERC20 approve failed");
-  }
 
-  function _callOptionalReturn(IERC20 token, bytes memory data) private returns (bool) {
-      // solhint-disable-next-line avoid-low-level-calls
-      (bool success, bytes memory returndata) = address(token).call(data);
-      if (!success) {
-          return false;
-      }
+    function safeTransferFrom(
+        IERC20 token,
+        address from,
+        address to,
+        uint256 value
+    ) internal {
+        require(token.transferFrom(from, to, value));
+    }
 
-      if (returndata.length >= 32) { // Return data is optional
-          return abi.decode(returndata, (bool));
-      }
+    function safeApprove(
+        IERC20 token,
+        address spender,
+        uint256 value
+    ) internal {
+        if (
+            _callOptionalReturn(
+                token,
+                abi.encodeWithSelector(token.approve.selector, spender, value)
+            )
+        ) {
+            return;
+        }
+        require(
+            _callOptionalReturn(
+                token,
+                abi.encodeWithSelector(token.approve.selector, spender, 0)
+            ) &&
+                _callOptionalReturn(
+                    token,
+                    abi.encodeWithSelector(
+                        token.approve.selector,
+                        spender,
+                        value
+                    )
+                ),
+            "ERC20 approve failed"
+        );
+    }
 
-      // In a wierd case when return data is 1-31 bytes long - return false.
-      return returndata.length == 0;
-  }
+    function _callOptionalReturn(IERC20 token, bytes memory data)
+        private
+        returns (bool)
+    {
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, bytes memory returndata) = address(token).call(data);
+        if (!success) {
+            return false;
+        }
+
+        if (returndata.length >= 32) {
+            // Return data is optional
+            return abi.decode(returndata, (bool));
+        }
+
+        // In a wierd case when return data is 1-31 bytes long - return false.
+        return returndata.length == 0;
+    }
 }

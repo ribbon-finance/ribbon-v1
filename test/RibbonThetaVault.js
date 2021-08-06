@@ -225,12 +225,14 @@ function behavesLikeRibbonOptionsVault(params) {
 
       const {
         factory,
+        registry,
         protocolAdapterLib,
         gammaAdapter,
       } = await getDefaultArgs();
       await factory.setAdapter("OPYN_GAMMA", gammaAdapter.address);
 
       this.factory = factory;
+      this.registry = registry;
       this.protocolAdapterLib = protocolAdapterLib;
 
       const initializeTypes = [
@@ -250,6 +252,7 @@ function behavesLikeRibbonOptionsVault(params) {
       const deployArgs = [
         this.asset,
         factory.address,
+        registry.address,
         WETH_ADDRESS,
         params.strikeAsset,
         SWAP_ADDRESS,
@@ -273,9 +276,25 @@ function behavesLikeRibbonOptionsVault(params) {
         )
       ).connect(userSigner);
 
+      this.spareVault = (
+        await deployProxy(
+          "RibbonThetaVault",
+          adminSigner,
+          initializeTypes,
+          initializeArgs,
+          {
+            libraries: {
+              ProtocolAdapter: protocolAdapterLib.address,
+            },
+          },
+          deployArgs
+        )
+      ).connect(userSigner);
+
       const mockV2Factory = await ethers.getContractFactory(
         "MockRibbonV2Vault"
       );
+
       const v2contract = await mockV2Factory.deploy(this.collateralAsset);
       this.v2vault = await ethers.getContractAt(
         "MockRibbonV2Vault",
@@ -413,6 +432,7 @@ function behavesLikeRibbonOptionsVault(params) {
           VaultContract.deploy(
             this.asset,
             constants.AddressZero,
+            this.registry.address,
             WETH_ADDRESS,
             params.strikeAsset,
             SWAP_ADDRESS,
@@ -440,6 +460,7 @@ function behavesLikeRibbonOptionsVault(params) {
           VaultContract.deploy(
             this.asset,
             factory.address,
+            this.registry.address,
             WETH_ADDRESS,
             params.strikeAsset,
             SWAP_ADDRESS,
@@ -464,6 +485,7 @@ function behavesLikeRibbonOptionsVault(params) {
           VaultContract.deploy(
             constants.AddressZero,
             this.factory.address,
+            this.registry.address,
             WETH_ADDRESS,
             params.strikeAsset,
             SWAP_ADDRESS,
@@ -488,6 +510,7 @@ function behavesLikeRibbonOptionsVault(params) {
           VaultContract.deploy(
             this.asset,
             this.factory.address,
+            this.registry.address,
             WETH_ADDRESS,
             params.strikeAsset,
             SWAP_ADDRESS,
@@ -512,6 +535,7 @@ function behavesLikeRibbonOptionsVault(params) {
           VaultContract.deploy(
             this.asset,
             this.factory.address,
+            this.registry.address,
             WETH_ADDRESS,
             params.strikeAsset,
             SWAP_ADDRESS,
@@ -540,6 +564,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const vault = await VaultContract.deploy(
           asset,
           this.factory.address,
+          this.registry.address,
           WETH_ADDRESS,
           params.strikeAsset,
           SWAP_ADDRESS,
@@ -566,6 +591,7 @@ function behavesLikeRibbonOptionsVault(params) {
         this.testVault = await RibbonThetaVault.deploy(
           this.asset,
           this.factory.address,
+          this.registry.address,
           WETH_ADDRESS,
           params.strikeAsset,
           SWAP_ADDRESS,
@@ -2665,10 +2691,132 @@ function behavesLikeRibbonOptionsVault(params) {
           depositAmount
         );
 
-        // Only 1 ether - MINIMUM_SUPPLY works
+        // only 1 ether - MINIMUM_SUPPLY works
         await expect(
           this.vault.withdraw(depositAmount.sub(BigNumber.from("1")))
         ).to.be.revertedWith(/Insufficient share supply/);
+      });
+    });
+
+    describe("#withdrawToV1Vault", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("should fail if vaults aren't registered", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+
+        await expect(
+          this.vault.withdrawToV1Vault(
+            this.vault.maxWithdrawableShares(),
+            this.spareVault.address
+          )
+        ).to.be.revertedWith("Feeless withdraw to vault not allowed");
+      });
+
+      it("should transfer without fee", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+
+        await this.registry.registerFreeWithdrawal(
+          this.vault.address,
+          this.spareVault.address
+        );
+
+        const res = await this.vault.withdrawToV1Vault(
+          BigNumber.from("10000000000"),
+          this.spareVault.address
+        );
+        // No fee deposited back into 1st vault
+        assert.equal(
+          (await this.assetContract.balanceOf(this.vault.address)).toString(),
+          BigNumber.from("90000000000").toString()
+        );
+        assert.equal(
+          (await this.vault.balanceOf(user)).toString(),
+          BigNumber.from("90000000000").toString()
+        );
+        assert.equal(
+          (
+            await this.assetContract.balanceOf(this.spareVault.address)
+          ).toString(),
+          BigNumber.from("10000000000").toString()
+        );
+        assert.equal(
+          await this.spareVault.balanceOf(user),
+          BigNumber.from("10000000000").toString()
+        );
+        assert.equal(
+          await this.spareVault.balanceOf(this.vault.address),
+          BigNumber.from("0").toString()
+        );
+        await expect(res)
+          .to.emit(this.vault, "WithdrawToV1Vault")
+          .withArgs(
+            user,
+            BigNumber.from("10000000000"),
+            this.spareVault.address,
+            BigNumber.from("10000000000")
+          );
+        await expect(res)
+          .to.emit(this.vault, "Withdraw")
+          .withArgs(
+            user,
+            BigNumber.from("10000000000"),
+            BigNumber.from("10000000000"),
+            BigNumber.from("0")
+          );
+      });
+
+      it("should fail after revoking free withdraws", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          depositAmount
+        );
+
+        await this.registry.registerFreeWithdrawal(
+          this.vault.address,
+          this.spareVault.address
+        );
+
+        await this.vault.withdrawToV1Vault(
+          BigNumber.from("10000000000"),
+          this.spareVault.address
+        );
+        // No fee deposited back into 1st vault
+        assert.equal(
+          (await this.assetContract.balanceOf(this.vault.address)).toString(),
+          BigNumber.from("90000000000").toString()
+        );
+        assert.equal(
+          (
+            await this.assetContract.balanceOf(this.spareVault.address)
+          ).toString(),
+          BigNumber.from("10000000000").toString()
+        );
+        assert.equal(
+          await this.spareVault.balanceOf(user),
+          BigNumber.from("10000000000").toString()
+        );
+        await this.registry.revokeFreeWithdrawal(
+          this.vault.address,
+          this.spareVault.address
+        );
+        await expect(
+          this.vault.withdrawToV1Vault(
+            this.vault.maxWithdrawableShares(),
+            this.spareVault.address
+          )
+        ).to.be.revertedWith("Feeless withdraw to vault not allowed");
       });
     });
 

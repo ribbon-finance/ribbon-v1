@@ -76,12 +76,18 @@ const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const CHARM_OPTION_VIEWS = "0x3cb5d4aeb622A72CF971D4F308e767C53be4E815";
 const CHARM_OPTION_REGISTRY = "0x574467e54F1E145d0d1a9a96560a7704fEdAd1CD";
 
-let factory, hegicAdapter, opynV1Adapter, charmAdapter, mockGammaController;
+let factory,
+  registry,
+  hegicAdapter,
+  opynV1Adapter,
+  charmAdapter,
+  mockGammaController;
 
 async function getDefaultArgs() {
   // ensure we just return the cached instances instead of re-initializing everything
   if (
     factory &&
+    registry &&
     hegicAdapter &&
     opynV1Adapter &&
     gammaAdapter &&
@@ -90,6 +96,7 @@ async function getDefaultArgs() {
   ) {
     return {
       factory,
+      registry,
       hegicAdapter,
       opynV1Adapter,
       charmAdapter,
@@ -128,6 +135,10 @@ async function getDefaultArgs() {
       [owner, admin]
     )
   ).connect(ownerSigner);
+
+  const registryFactory = await ethers.getContractFactory("VaultRegistry");
+  const vaultRegistry = await registryFactory.deploy();
+  registry = await ethers.getContractAt("VaultRegistry", vaultRegistry.address);
 
   hegicAdapter = await HegicAdapter.deploy(
     HEGIC_ETH_OPTIONS,
@@ -178,6 +189,7 @@ async function getDefaultArgs() {
 
   return {
     factory,
+    registry,
     hegicAdapter,
     mockGammaAdapter,
     charmAdapter,

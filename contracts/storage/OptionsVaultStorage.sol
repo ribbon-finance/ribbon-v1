@@ -10,8 +10,8 @@ import {
 import {
     ERC20Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-
-import {IRibbonV2Vault} from "../interfaces/IRibbonV2Vault.sol";
+import {IRibbonV2Vault} from "../interfaces/IRibbonVaults.sol";
+import {IVaultRegistry} from "../interfaces/IVaultRegistry.sol";
 
 contract OptionsVaultStorageV1 is
     ReentrancyGuardUpgradeable,

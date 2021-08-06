@@ -51,22 +51,18 @@ contract OptionsVaultStorageV1 is
 }
 
 contract OptionsVaultStorageV2 {
+    // DEPRECATED FOR V2
     // Amount locked for scheduled withdrawals
-    uint256 public queuedWithdrawShares;
+    uint256 private queuedWithdrawShares;
 
+    // DEPRECATED FOR V2
     // Mapping to store the scheduled withdrawals (address => withdrawAmount)
-    mapping(address => uint256) public scheduledWithdrawals;
+    mapping(address => uint256) private scheduledWithdrawals;
 }
 
 contract OptionsVaultStorageV3 {
-    // Amount locked for scheduled withdrawals
-    bool public isSunset;
-
     // Contract address of replacement
-    address public replacementVault;
-
-    // Interface instance for upgrading
-    IRibbonV2Vault public IVaultUpgrade;
+    IRibbonV2Vault public replacementVault;
 }
 
 // We are following Compound's method of upgrading new contract implementations

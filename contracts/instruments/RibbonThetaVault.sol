@@ -83,7 +83,12 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         uint256 new_shares
     );
 
-    event MigrateToV2Vault(address account, address to);
+    event Migrate(
+        address account,
+        address replacement,
+        uint256 shares,
+        uint256 amount
+    );
 
     /**
      * @notice Initializes the contract with immutable variables
@@ -169,15 +174,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @notice Closes the vault and makes it withdraw only.
      */
     function sunset(address upgradeTo) external onlyOwner {
-        require(!isSunset, "!isSunset");
-        require(replacementVault == address(0), "!replacementVault");
+        require(address(replacementVault) == address(0), "Already sunset");
         require(upgradeTo != address(0), "!upgradeTo");
 
-        cap = 0;
-        isSunset = true;
-        instantWithdrawalFee = 0;
-        replacementVault = upgradeTo;
-        IVaultUpgrade = IRibbonV2Vault(upgradeTo);
+        replacementVault = IRibbonV2Vault(upgradeTo);
 
         emit VaultSunset(upgradeTo);
     }
@@ -345,19 +345,27 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         return amountAfterFee;
     }
 
-    /**
+    /*
      * @notice Moves msg.sender's deposited funds to new vault w/o fees
      */
     function migrate() external nonReentrant {
-        require(isSunset, "Not sunset");
-        require(replacementVault != address(0), "Upgrade address not set");
+        IRibbonV2Vault vault = replacementVault;
+        require(address(vault) != address(0), "Not sunset");
 
-        uint256 amountAfterFee = _withdraw(maxWithdrawableShares(), false);
+        uint256 allShares = maxWithdrawAmount(msg.sender);
+        (uint256 withdrawAmount, uint256 feeAmount) =
+            withdrawAmountWithShares(allShares);
 
-        IERC20(asset).safeApprove(replacementVault, amountAfterFee);
-        IVaultUpgrade.depositFor(amountAfterFee, msg.sender);
+        // Since we want to exclude fees, we add them both together
+        withdrawAmount = withdrawAmount.add(feeAmount);
 
-        emit MigrateToV2Vault(msg.sender, replacementVault);
+        emit Migrate(msg.sender, address(vault), allShares, withdrawAmount);
+
+        _burn(msg.sender, allShares);
+
+        IERC20(asset).safeApprove(address(vault), withdrawAmount);
+
+        vault.depositFor(withdrawAmount, msg.sender);
     }
 
     /**
@@ -445,7 +453,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             block.timestamp >= nextOptionReadyAt,
             "Cannot roll before delay"
         );
-        require(!isSunset, "Sunset vaults cannot create new positions");
 
         address newOption = nextOption;
         require(newOption != address(0), "No found option");
@@ -454,10 +461,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         nextOption = address(0);
 
         uint256 currentBalance = assetBalance();
-        (uint256 queuedWithdrawAmount, , ) =
-            _withdrawAmountWithShares(queuedWithdrawShares, currentBalance);
-        uint256 freeBalance = currentBalance.sub(queuedWithdrawAmount);
-        uint256 shortAmount = wmul(freeBalance, lockedRatio);
+        uint256 shortAmount = wmul(currentBalance, lockedRatio);
         lockedAmount = shortAmount;
 
         OtokenInterface otoken = OtokenInterface(newOption);
@@ -607,11 +611,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         uint256 withdrawableBalance = assetBalance();
         uint256 total = lockedAmount.add(withdrawableBalance);
         return
-            withdrawableBalance
-                .mul(totalSupply())
-                .div(total)
-                .sub(MINIMUM_SUPPLY)
-                .sub(queuedWithdrawShares);
+            withdrawableBalance.mul(totalSupply()).div(total).sub(
+                MINIMUM_SUPPLY
+            );
     }
 
     /**
@@ -619,11 +621,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param account is the address of the vault share holder
      * @return amount of `asset` withdrawable from vault, with fees accounted
      */
-    function maxWithdrawAmount(address account)
-        external
-        view
-        returns (uint256)
-    {
+    function maxWithdrawAmount(address account) public view returns (uint256) {
         uint256 maxShares = maxWithdrawableShares();
         uint256 share = balanceOf(account);
         uint256 numShares = min(maxShares, share);

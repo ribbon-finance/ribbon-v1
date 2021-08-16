@@ -19,12 +19,12 @@ module.exports = async function (deployer, network) {
 
   await deployer.link(ProtocolAdapterLib, RibbonThetaVault);
 
-  // Deploying the logic contract
+  // // Deploying the logic contract
   await deployer.deploy(
     RibbonThetaVault,
-    EXTERNAL_ADDRESSES[networkLookup].assets.weth,
+    EXTERNAL_ADDRESSES[networkLookup].assets.wbtc,
     DEPLOYMENTS[networkLookup].RibbonFactory,
-    EXTERNAL_ADDRESSES[networkLookup].yearnRegistry,
+    EXTERNAL_ADDRESSES[networkLookup].thetaRegistry,
     EXTERNAL_ADDRESSES[networkLookup].assets.weth,
     EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
     EXTERNAL_ADDRESSES[networkLookup].airswapSwap,
@@ -35,7 +35,7 @@ module.exports = async function (deployer, network) {
   );
   await updateDeployedAddresses(
     network,
-    "RibbonETHPutLogic",
+    "RibbonWBTCPutLogic",
     RibbonThetaVault.address
   );
 
@@ -46,9 +46,9 @@ module.exports = async function (deployer, network) {
     [
       owner,
       owner,
-      BigNumber.from("10").pow("12").toString(), // 1,000,000 (6 leading zeros) + 6 leading zeros,
-      "Ribbon USDC Theta Vault ETH Put",
-      "rUSDC-ETH-P-THETA",
+      BigNumber.from("10").pow("12").toString(), // 1,000,000 (6 leading zeros) + 6 leading zeros
+      "Ribbon USDC Theta Vault BTC Put",
+      "rUSDC-BTC-P-THETA",
     ]
   );
 
@@ -64,7 +64,7 @@ module.exports = async function (deployer, network) {
 
   await updateDeployedAddresses(
     network,
-    "RibbonETHPut",
+    "RibbonWBTCPut",
     AdminUpgradeabilityProxy.address
   );
 };

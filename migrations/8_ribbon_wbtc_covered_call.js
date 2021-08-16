@@ -2,8 +2,7 @@ const RibbonThetaVault = artifacts.require("RibbonThetaVault");
 const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const ProtocolAdapterLib = artifacts.require("ProtocolAdapter");
 const { encodeCall } = require("@openzeppelin/upgrades");
-const { ethers, BigNumber } = require("ethers");
-const { parseEther } = ethers.utils;
+const { ethers } = require("ethers");
 
 const {
   updateDeployedAddresses,
@@ -20,24 +19,23 @@ module.exports = async function (deployer, network) {
 
   await deployer.link(ProtocolAdapterLib, RibbonThetaVault);
 
-  // Deploying the logic contract
+  // // Deploying the logic contract
   await deployer.deploy(
     RibbonThetaVault,
-    EXTERNAL_ADDRESSES[networkLookup].assets.weth,
+    EXTERNAL_ADDRESSES[networkLookup].assets.wbtc,
     DEPLOYMENTS[networkLookup].RibbonFactory,
+    EXTERNAL_ADDRESSES[networkLookup].thetaRegistry,
     EXTERNAL_ADDRESSES[networkLookup].assets.weth,
     EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
     EXTERNAL_ADDRESSES[networkLookup].airswapSwap,
-    18,
-    // WETH: 10**18, 10**10 0.0000001
-    // WBTC: 0.000001
-    BigNumber.from("10").pow(BigNumber.from("10")).toString(), // WBTC 10**3
+    8,
+    ethers.BigNumber.from("10").pow("3").toString(),
     false,
     { from: admin }
   );
   await updateDeployedAddresses(
     network,
-    "RibbonETHCoveredCallLogic",
+    "RibbonWBTCCoveredCallLogic",
     RibbonThetaVault.address
   );
 
@@ -48,9 +46,9 @@ module.exports = async function (deployer, network) {
     [
       owner,
       owner,
-      parseEther("1000").toString(),
-      "Ribbon ETH Theta Vault",
-      "rETH-THETA",
+      ethers.BigNumber.from("10").pow("11").toString(), // 1000 (3 leading zeros) + 8 leading zeros
+      "Ribbon BTC Theta Vault",
+      "rBTC-THETA",
     ]
   );
 
@@ -66,7 +64,7 @@ module.exports = async function (deployer, network) {
 
   await updateDeployedAddresses(
     network,
-    "RibbonETHCoveredCall",
+    "RibbonWBTCCoveredCall",
     AdminUpgradeabilityProxy.address
   );
 };

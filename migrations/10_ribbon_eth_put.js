@@ -2,7 +2,7 @@ const RibbonThetaVault = artifacts.require("RibbonThetaVault");
 const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const ProtocolAdapterLib = artifacts.require("ProtocolAdapter");
 const { encodeCall } = require("@openzeppelin/upgrades");
-const { ethers } = require("ethers");
+const { BigNumber } = require("ethers");
 
 const {
   updateDeployedAddresses,
@@ -19,22 +19,23 @@ module.exports = async function (deployer, network) {
 
   await deployer.link(ProtocolAdapterLib, RibbonThetaVault);
 
-  // // Deploying the logic contract
+  // Deploying the logic contract
   await deployer.deploy(
     RibbonThetaVault,
-    EXTERNAL_ADDRESSES[networkLookup].assets.wbtc,
+    EXTERNAL_ADDRESSES[networkLookup].assets.weth,
     DEPLOYMENTS[networkLookup].RibbonFactory,
+    EXTERNAL_ADDRESSES[networkLookup].thetaRegistry,
     EXTERNAL_ADDRESSES[networkLookup].assets.weth,
     EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
     EXTERNAL_ADDRESSES[networkLookup].airswapSwap,
-    8,
-    ethers.BigNumber.from("10").pow("3").toString(),
-    false,
+    6, // USDC is 6 decimals
+    BigNumber.from("10").pow(BigNumber.from("3")).toString(),
+    true,
     { from: admin }
   );
   await updateDeployedAddresses(
     network,
-    "RibbonWBTCCoveredCallLogic",
+    "RibbonETHPutLogic",
     RibbonThetaVault.address
   );
 
@@ -45,9 +46,9 @@ module.exports = async function (deployer, network) {
     [
       owner,
       owner,
-      ethers.BigNumber.from("10").pow("11").toString(), // 1000 (3 leading zeros) + 8 leading zeros
-      "Ribbon BTC Theta Vault",
-      "rBTC-THETA",
+      BigNumber.from("10").pow("12").toString(), // 1,000,000 (6 leading zeros) + 6 leading zeros,
+      "Ribbon USDC Theta Vault ETH Put",
+      "rUSDC-ETH-P-THETA",
     ]
   );
 
@@ -63,7 +64,7 @@ module.exports = async function (deployer, network) {
 
   await updateDeployedAddresses(
     network,
-    "RibbonWBTCCoveredCall",
+    "RibbonETHPut",
     AdminUpgradeabilityProxy.address
   );
 };

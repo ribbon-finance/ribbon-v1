@@ -2,7 +2,8 @@ const RibbonThetaVault = artifacts.require("RibbonThetaVault");
 const AdminUpgradeabilityProxy = artifacts.require("AdminUpgradeabilityProxy");
 const ProtocolAdapterLib = artifacts.require("ProtocolAdapter");
 const { encodeCall } = require("@openzeppelin/upgrades");
-const { BigNumber } = require("ethers");
+const { ethers, BigNumber } = require("ethers");
+const { parseEther } = ethers.utils;
 
 const {
   updateDeployedAddresses,
@@ -19,22 +20,25 @@ module.exports = async function (deployer, network) {
 
   await deployer.link(ProtocolAdapterLib, RibbonThetaVault);
 
-  // // Deploying the logic contract
+  // Deploying the logic contract
   await deployer.deploy(
     RibbonThetaVault,
-    EXTERNAL_ADDRESSES[networkLookup].assets.wbtc,
+    EXTERNAL_ADDRESSES[networkLookup].assets.weth,
     DEPLOYMENTS[networkLookup].RibbonFactory,
+    EXTERNAL_ADDRESSES[networkLookup].thetaRegistry,
     EXTERNAL_ADDRESSES[networkLookup].assets.weth,
     EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
     EXTERNAL_ADDRESSES[networkLookup].airswapSwap,
-    6, // USDC is 6 decimals
-    BigNumber.from("10").pow(BigNumber.from("3")).toString(),
-    true,
+    18,
+    // WETH: 10**18, 10**10 0.0000001
+    // WBTC: 0.000001
+    BigNumber.from("10").pow(BigNumber.from("10")).toString(), // WBTC 10**3
+    false,
     { from: admin }
   );
   await updateDeployedAddresses(
     network,
-    "RibbonWBTCPutLogic",
+    "RibbonETHCoveredCallLogic",
     RibbonThetaVault.address
   );
 
@@ -45,9 +49,9 @@ module.exports = async function (deployer, network) {
     [
       owner,
       owner,
-      BigNumber.from("10").pow("12").toString(), // 1,000,000 (6 leading zeros) + 6 leading zeros
-      "Ribbon USDC Theta Vault BTC Put",
-      "rUSDC-BTC-P-THETA",
+      parseEther("1000").toString(),
+      "Ribbon ETH Theta Vault",
+      "rETH-THETA",
     ]
   );
 
@@ -63,7 +67,7 @@ module.exports = async function (deployer, network) {
 
   await updateDeployedAddresses(
     network,
-    "RibbonWBTCPut",
+    "RibbonETHCoveredCall",
     AdminUpgradeabilityProxy.address
   );
 };

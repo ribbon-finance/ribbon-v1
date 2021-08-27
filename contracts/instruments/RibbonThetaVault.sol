@@ -319,7 +319,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         uint256 receivedShares = IERC20(vault).balanceOf(address(this));
         IERC20(vault).safeTransfer(msg.sender, receivedShares);
 
-        emit Withdraw(msg.sender, withdrawAmount, share, 0);
         emit WithdrawToV1Vault(msg.sender, share, vault, receivedShares);
     }
 

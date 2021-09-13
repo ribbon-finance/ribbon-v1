@@ -2971,16 +2971,29 @@ function behavesLikeRibbonOptionsVault(params) {
     describe("#migrate", () => {
       time.revertToSnapshotAfterEach();
 
+      beforeEach(async function () {
+        // Deposit only if asset is WETH
+        if (params.collateralAsset === WETH_ADDRESS) {
+          const addressToDeposit = [
+            userSigner,
+            managerSigner,
+            counterpartySigner,
+            adminSigner,
+          ];
+
+          for (let i = 0; i < addressToDeposit.length; i++) {
+            const weth = this.assetContract.connect(addressToDeposit[i]);
+            await weth.deposit({ value: parseEther("10") });
+            await weth.approve(this.vault.address, parseEther("10"));
+          }
+        }
+      });
+
       it("migrate calls V2 depositFor with correct address and amount", async function () {
         // required for the next step to be able to fully withdraw
         const minimumAmount = BigNumber.from(await this.vault.MINIMUM_SUPPLY());
-        await depositIntoVault(
-          params.collateralAsset,
-          this.vault,
-          minimumAmount
-        );
 
-        const depositAmount = BigNumber.from("10000000000");
+        const depositAmount = BigNumber.from("100000000000");
         await depositIntoVault(
           params.collateralAsset,
           this.vault,
@@ -2992,12 +3005,34 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await this.vault.connect(ownerSigner).sunset(this.v2vault.address);
 
-        await this.vault.migrate();
+        // simulate the vault accumulating more asset
+        await this.assetContract
+          .connect(userSigner)
+          .transfer(this.vault.address, depositAmount);
 
-        expect(await this.vault.balanceOf(user)).to.be.equal(minimumAmount);
-        expect(
-          await this.assetContract.balanceOf(this.vault.address)
-        ).to.be.equal(minimumAmount);
+        const tx = await this.vault.migrate();
+
+        expect(tx)
+          .to.emit("Migrate")
+          .withArgs(
+            user,
+            this.vault.address,
+            depositAmount,
+            depositAmount.mul(2)
+          );
+
+        assert.equal(
+          (await this.vault.balanceOf(user)).toString(),
+          minimumAmount
+        );
+        assert.equal(
+          (await this.assetContract.balanceOf(this.vault.address)).toString(),
+          minimumAmount.mul(2).toString()
+        );
+        assert.equal(
+          (await this.assetContract.balanceOf(this.v2vault.address)).toString(),
+          depositAmount.mul(2).sub(minimumAmount.mul(2)).toString()
+        );
       });
     });
 

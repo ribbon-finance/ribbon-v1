@@ -25,7 +25,7 @@ module.exports = async function (deployer, network) {
     RibbonThetaVault,
     EXTERNAL_ADDRESSES[networkLookup].assets.weth,
     DEPLOYMENTS[networkLookup].RibbonFactory,
-    EXTERNAL_ADDRESSES[networkLookup].thetaRegistry,
+    DEPLOYMENTS[networkLookup].VaultRegistry,
     EXTERNAL_ADDRESSES[networkLookup].assets.weth,
     EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
     EXTERNAL_ADDRESSES[networkLookup].airswapSwap,

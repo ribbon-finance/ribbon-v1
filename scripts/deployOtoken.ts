@@ -58,7 +58,7 @@ async function deployOToken() {
 
   let gasPrice;
   if (network === "mainnet") {
-    gasPrice = await getGasPrice();
+    gasPrice = (await getGasPrice()).add(parseUnits("20", "gwei"));
   } else {
     gasPrice = parseUnits("20", "gwei");
   }
@@ -85,6 +85,7 @@ async function deployOToken() {
       isPut,
       {
         gasPrice,
+        gasLimit: 700000,
       }
     );
   console.log("Txhash: " + tx.hash);

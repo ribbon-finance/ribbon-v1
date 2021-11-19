@@ -41,7 +41,8 @@ export async function encodeCommitAndClose(
     paymentToken,
   ];
   console.log();
-  console.log(optionTerms);
+  console.log("Use this as the parameter for commitAndClose:");
+  console.log(JSON.stringify(optionTerms));
 
   const adapter = new ethers.Contract(
     deployments[network].GammaAdapterLogic,

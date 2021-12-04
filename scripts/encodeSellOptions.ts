@@ -119,7 +119,43 @@ async function encodeSwapData(orderJSON: any) {
   ];
   let iface = new ethers.utils.Interface(ABI);
 
+  const tupleFormat = [
+    orderJSON.nonce,
+    orderJSON.expiry,
+    [
+      orderJSON.signer.kind,
+      orderJSON.signer.wallet,
+      orderJSON.signer.token,
+      orderJSON.signer.amount,
+      orderJSON.signer.id,
+    ],
+    [
+      orderJSON.sender.kind,
+      orderJSON.sender.wallet,
+      orderJSON.sender.token,
+      orderJSON.sender.amount,
+      orderJSON.sender.id,
+    ],
+    [
+      orderJSON.affiliate.kind,
+      orderJSON.affiliate.wallet,
+      orderJSON.affiliate.token,
+      orderJSON.affiliate.amount,
+      orderJSON.affiliate.id,
+    ],
+    [
+      orderJSON.signature.signatory,
+      orderJSON.signature.validator,
+      orderJSON.signature.version,
+      orderJSON.signature.v,
+      orderJSON.signature.r,
+      orderJSON.signature.s,
+    ],
+  ];
+
   console.log("Order JSON:", orderJSON);
+  console.log(`\nTuple format:\n${JSON.stringify(tupleFormat)}\n`);
+
   const encoded = iface.encodeFunctionData("sellOptions", [orderJSON]);
 
   console.log(`Encoded hex data: ${encoded}`);

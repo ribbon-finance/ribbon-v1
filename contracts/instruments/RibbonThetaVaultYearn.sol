@@ -640,6 +640,8 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
 
         _burn(msg.sender, allShares);
 
+        _unwrapYieldToken(withdrawAmount);
+
         IERC20(asset).safeApprove(address(vault), withdrawAmount);
 
         vault.depositFor(withdrawAmount, msg.sender);

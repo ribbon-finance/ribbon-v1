@@ -32,7 +32,6 @@ let adminSigner,
   feeRecipientSigner;
 
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
-const Y_WETH_ADDRESS = "0xa9fE4601811213c340e850ea305481afF02f5b28";
 const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 // const Y_WBTC_ADDRESS = "0xA696a63cc78DfFa1a63E9E50587C197387FF6C7E";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
@@ -41,7 +40,6 @@ const Y_USDC_ADDRESS = "0x5f18C75AbDAe578b483E5F43f12a39cF75b973a9";
 //const WBTC_OWNER_ADDRESS = "0xCA06411bd7a7296d7dbdd0050DFc846E95fEBEB7";
 const USDC_OWNER_ADDRESS = "0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503";
 
-const YEARN_WETH_PRICER = "0x7b7a7fA8e7A86F0100E72E815E65006052364F48";
 const YEARN_USDC_PRICER = "0xa35Be7F2130AE7B941a8698043bfbB9e21618049";
 const CHAINLINK_WETH_PRICER = "0xAC05f5147566Cc949b73F0A776944E7011FabC50";
 
@@ -59,32 +57,6 @@ const gasPrice = parseUnits("1", "gwei");
 
 const PUT_OPTION_TYPE = 1;
 const CALL_OPTION_TYPE = 2;
-
-describe("RibbonThetaVaultYearn", () => {
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon ETH Yearn Theta Vault (Call)`,
-    tokenName: "Ribbon ETH Yearn Theta Vault",
-    tokenSymbol: "rETH-THETA-YEARN",
-    asset: WETH_ADDRESS,
-    assetContractName: "IWETH",
-    collateralContractName: "IYearnVault",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: Y_WETH_ADDRESS,
-    depositAsset: WETH_ADDRESS,
-    wrongUnderlyingAsset: WBTC_ADDRESS,
-    wrongStrikeAsset: WBTC_ADDRESS,
-    firstOptionStrike: 2400,
-    secondOptionStrike: 2500,
-    collateralPricer: YEARN_WETH_PRICER,
-    underlyingPricer: CHAINLINK_WETH_PRICER,
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("89026360"),
-    premium: parseEther("0.1"),
-    tokenDecimals: 18,
-    isPut: false,
-  });
-});
 
 describe("RibbonThetaVaultYearn", () => {
   behavesLikeRibbonOptionsVault({
@@ -248,6 +220,16 @@ function behavesLikeRibbonOptionsVault(params) {
       ).connect(userSigner);
 
       await this.vault.connect(ownerSigner).setManager(manager);
+
+      const mockV2Factory = await ethers.getContractFactory(
+        "MockRibbonV2Vault"
+      );
+
+      const v2contract = await mockV2Factory.deploy(this.depositAsset);
+      this.v2vault = await ethers.getContractAt(
+        "MockRibbonV2Vault",
+        v2contract.address
+      );
 
       this.oTokenFactory = await getContractAt(
         "IOtokenFactory",
@@ -3422,6 +3404,104 @@ function behavesLikeRibbonOptionsVault(params) {
         assert.equal(
           (await this.vault.instantWithdrawalFee()).toString(),
           parseEther("0.1").toString()
+        );
+      });
+    });
+
+    describe("#sunset", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("reverts when not owner", async function () {
+        await expect(
+          this.vault.sunset(this.v2vault.address)
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+      });
+
+      it("succeeds when owner", async function () {
+        await this.vault.connect(ownerSigner).sunset(this.v2vault.address);
+
+        assert.equal(await this.vault.replacementVault(), this.v2vault.address);
+      });
+
+      it("succeeds in resetting replacementVault", async function () {
+        await this.vault.connect(ownerSigner).sunset(owner);
+        await this.vault.connect(ownerSigner).sunset(this.v2vault.address);
+
+        assert.equal(await this.vault.replacementVault(), this.v2vault.address);
+      });
+
+      it("deposits still work after sunset", async function () {
+        await this.vault.connect(ownerSigner).sunset(this.v2vault.address);
+        const depositAmount = BigNumber.from("10000000000");
+        await depositIntoVault(params.depositAsset, this.vault, depositAmount);
+      });
+    });
+
+    describe("#migrate", () => {
+      time.revertToSnapshotAfterEach();
+
+      beforeEach(async function () {
+        // Deposit only if asset is WETH
+        if (params.collateralAsset === WETH_ADDRESS) {
+          const addressToDeposit = [
+            userSigner,
+            managerSigner,
+            counterpartySigner,
+            adminSigner,
+          ];
+
+          for (let i = 0; i < addressToDeposit.length; i++) {
+            const weth = this.assetContract.connect(addressToDeposit[i]);
+            await weth.deposit({ value: parseEther("10") });
+            await weth.approve(this.vault.address, parseEther("10"));
+          }
+        }
+      });
+
+      it("migrate calls V2 depositFor with correct address and amount", async function () {
+        // required for the next step to be able to fully withdraw
+        const minimumAmount = BigNumber.from(await this.vault.MINIMUM_SUPPLY());
+
+        const depositAmount = BigNumber.from("100000000000");
+        await depositIntoVault(params.depositAsset, this.vault, depositAmount);
+        expect(await this.vault.balanceOf(user)).to.be.above(0);
+
+        await expect(this.vault.migrate()).to.be.revertedWith("Not sunset");
+
+        await this.vault.connect(ownerSigner).sunset(this.v2vault.address);
+
+        const depositAsset = await ethers.getContractAt(
+          "IERC20",
+          params.depositAsset
+        );
+
+        // simulate the vault accumulating more asset
+        await depositAsset
+          .connect(userSigner)
+          .transfer(this.vault.address, depositAmount);
+
+        const tx = await this.vault.migrate();
+
+        expect(tx)
+          .to.emit("Migrate")
+          .withArgs(
+            user,
+            this.vault.address,
+            depositAmount,
+            depositAmount.mul(2)
+          );
+
+        assert.equal(
+          (await this.vault.balanceOf(user)).toString(),
+          minimumAmount
+        );
+        assert.equal(
+          (await this.assetContract.balanceOf(this.vault.address)).toString(),
+          minimumAmount.mul(2).toString()
+        );
+        assert.equal(
+          (await this.assetContract.balanceOf(this.v2vault.address)).toString(),
+          depositAmount.mul(2).sub(minimumAmount.mul(2)).toString()
         );
       });
     });

@@ -26,7 +26,7 @@ module.exports = async function (deployer, network) {
     DEPLOYMENTS[networkLookup].RibbonFactory,
     EXTERNAL_ADDRESSES[networkLookup].assets.weth,
     EXTERNAL_ADDRESSES[networkLookup].assets.usdc,
-    EXTERNAL_ADDRESSES[networkLookup].yearnRegistry,
+    EXTERNAL_ADDRESSES[networkLookup].assets.yvusdc,
     EXTERNAL_ADDRESSES[networkLookup].airswapSwap,
     6, // USDC is 6 decimals
     BigNumber.from("10").pow(BigNumber.from("3")).toString(),

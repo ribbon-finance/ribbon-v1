@@ -92,7 +92,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
      * @param _asset is the asset used for collateral and premiums
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
-     * @param _yearnRegistry is the registry contract for all yearn vaults
+     * @param _collateralToken is the Yearn vault token used as the collateral
      * @param _swapContract is the Airswap Swap contract
      * @param _tokenDecimals is the decimals for the vault shares. Must match the decimals for _asset.
      * @param _minimumSupply is the minimum supply for the asset balance and the share supply.
@@ -106,7 +106,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         address _factory,
         address _weth,
         address _usdc,
-        address _yearnRegistry,
+        address _collateralToken,
         address _swapContract,
         uint8 _tokenDecimals,
         uint256 _minimumSupply,
@@ -116,7 +116,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         require(_factory != address(0), "!_factory");
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
-        require(_yearnRegistry != address(0), "!_yearnRegistry");
+        require(_collateralToken != address(0), "!_collateralToken");
         require(_swapContract != address(0), "!_swapContract");
         require(_tokenDecimals > 0, "!_tokenDecimals");
         require(_minimumSupply > 0, "!_minimumSupply");
@@ -129,12 +129,7 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         asset = _isPut ? _usdc : _asset;
         underlying = _asset;
 
-        address collateralAddr =
-            IYearnRegistry(_yearnRegistry).latestVault(_isPut ? _usdc : _asset);
-
-        collateralToken = IYearnVault(collateralAddr);
-        require(collateralAddr != address(0), "!_collateralToken");
-
+        collateralToken = IYearnVault(_collateralToken);
         adapter = IProtocolAdapter(adapterAddr);
         WETH = _weth;
         USDC = _usdc;

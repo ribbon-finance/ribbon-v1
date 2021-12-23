@@ -2999,8 +2999,9 @@ function behavesLikeRibbonOptionsVault(params) {
       it("migrate calls V2 depositFor with correct address and amount", async function () {
         // required for the next step to be able to fully withdraw
         const minimumAmount = BigNumber.from(await this.vault.MINIMUM_SUPPLY());
-
         const depositAmount = BigNumber.from("100000000000");
+        const migrateAmount = depositAmount.sub(minimumAmount);
+
         await depositIntoVault(
           params.collateralAsset,
           this.vault,
@@ -3019,13 +3020,13 @@ function behavesLikeRibbonOptionsVault(params) {
 
         const tx = await this.vault.migrate();
 
-        expect(tx)
-          .to.emit("Migrate")
+        await expect(tx)
+          .to.emit(this.vault, "Migrate")
           .withArgs(
             user,
-            this.vault.address,
-            depositAmount,
-            depositAmount.mul(2)
+            this.v2vault.address,
+            migrateAmount,
+            migrateAmount.mul(2)
           );
 
         assert.equal(

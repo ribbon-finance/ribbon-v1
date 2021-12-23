@@ -46,7 +46,6 @@ const CHAINLINK_WETH_PRICER = "0xAC05f5147566Cc949b73F0A776944E7011FabC50";
 const OTOKEN_FACTORY = "0x7C06792Af1632E77cb27a558Dc0885338F4Bdf8E";
 const MARGIN_POOL = "0x5934807cC0654d46755eBd2848840b616256C6Ef";
 const SWAP_ADDRESS = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
-const YEARN_REGISTRY_ADDRESS = "0x50c1a2eA0a861A967D9d0FFE2AE4012c2E053804";
 const SWAP_CONTRACT = "0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA";
 const TRADER_AFFILIATE = "0xFf98F0052BdA391F8FaD266685609ffb192Bef25";
 
@@ -197,7 +196,7 @@ function behavesLikeRibbonOptionsVault(params) {
         factory.address,
         WETH_ADDRESS,
         params.strikeAsset,
-        YEARN_REGISTRY_ADDRESS,
+        params.collateralAsset,
         SWAP_ADDRESS,
         this.tokenDecimals,
         this.minimumSupply,
@@ -375,7 +374,7 @@ function behavesLikeRibbonOptionsVault(params) {
             constants.AddressZero,
             WETH_ADDRESS,
             params.strikeAsset,
-            YEARN_REGISTRY_ADDRESS,
+            params.collateralAsset,
             SWAP_ADDRESS,
             this.tokenDecimals,
             this.minimumSupply,
@@ -403,7 +402,7 @@ function behavesLikeRibbonOptionsVault(params) {
             factory.address,
             WETH_ADDRESS,
             params.strikeAsset,
-            YEARN_REGISTRY_ADDRESS,
+            params.collateralAsset,
             SWAP_ADDRESS,
             this.tokenDecimals,
             this.minimumSupply,
@@ -428,7 +427,7 @@ function behavesLikeRibbonOptionsVault(params) {
             this.factory.address,
             WETH_ADDRESS,
             params.strikeAsset,
-            YEARN_REGISTRY_ADDRESS,
+            params.collateralAsset,
             SWAP_ADDRESS,
             this.tokenDecimals,
             this.minimumSupply,
@@ -437,7 +436,7 @@ function behavesLikeRibbonOptionsVault(params) {
         ).to.be.revertedWith("!_asset");
       });
 
-      it("reverts when yearn registry is 0x", async function () {
+      it("reverts when collateral token is 0x", async function () {
         const VaultContract = await ethers.getContractFactory(
           "RibbonThetaVaultYearn",
           {
@@ -459,7 +458,7 @@ function behavesLikeRibbonOptionsVault(params) {
             this.minimumSupply,
             this.isPut
           )
-        ).to.be.revertedWith("!_yearnRegistry");
+        ).to.be.revertedWith("!_collateralToken");
       });
 
       it("reverts when collateral does not have corresponding vault token", async function () {
@@ -478,7 +477,7 @@ function behavesLikeRibbonOptionsVault(params) {
             this.factory.address,
             WETH_ADDRESS,
             params.strikeAsset,
-            YEARN_REGISTRY_ADDRESS,
+            params.collateralAsset,
             SWAP_ADDRESS,
             0,
             this.minimumSupply,
@@ -503,7 +502,7 @@ function behavesLikeRibbonOptionsVault(params) {
             this.factory.address,
             WETH_ADDRESS,
             params.strikeAsset,
-            YEARN_REGISTRY_ADDRESS,
+            params.collateralAsset,
             SWAP_ADDRESS,
             0,
             this.minimumSupply,
@@ -528,7 +527,7 @@ function behavesLikeRibbonOptionsVault(params) {
             this.factory.address,
             WETH_ADDRESS,
             params.strikeAsset,
-            YEARN_REGISTRY_ADDRESS,
+            params.collateralAsset,
             SWAP_ADDRESS,
             this.tokenDecimals,
             0,
@@ -557,7 +556,7 @@ function behavesLikeRibbonOptionsVault(params) {
           this.factory.address,
           WETH_ADDRESS,
           params.strikeAsset,
-          YEARN_REGISTRY_ADDRESS,
+          params.collateralAsset,
           SWAP_ADDRESS,
           decimals,
           minSupply,
@@ -584,7 +583,7 @@ function behavesLikeRibbonOptionsVault(params) {
           this.factory.address,
           WETH_ADDRESS,
           params.strikeAsset,
-          YEARN_REGISTRY_ADDRESS,
+          params.collateralAsset,
           SWAP_ADDRESS,
           this.tokenDecimals,
           this.minimumSupply,
@@ -3461,8 +3460,9 @@ function behavesLikeRibbonOptionsVault(params) {
       it("migrate calls V2 depositFor with correct address and amount", async function () {
         // required for the next step to be able to fully withdraw
         const minimumAmount = BigNumber.from(await this.vault.MINIMUM_SUPPLY());
-
         const depositAmount = BigNumber.from("100000000000");
+        const migrateAmount = depositAmount.sub(minimumAmount);
+
         await depositIntoVault(params.depositAsset, this.vault, depositAmount);
         expect(await this.vault.balanceOf(user)).to.be.above(0);
 
@@ -3482,18 +3482,18 @@ function behavesLikeRibbonOptionsVault(params) {
 
         const tx = await this.vault.migrate();
 
-        expect(tx)
-          .to.emit("Migrate")
+        await expect(tx)
+          .to.emit(this.vault, "Migrate")
           .withArgs(
             user,
-            this.vault.address,
-            depositAmount,
-            depositAmount.mul(2)
+            this.v2vault.address,
+            migrateAmount,
+            migrateAmount.mul(2)
           );
 
         assert.equal(
           (await this.vault.balanceOf(user)).toString(),
-          minimumAmount
+          minimumAmount.toString()
         );
         assert.equal(
           (await this.assetContract.balanceOf(this.vault.address)).toString(),

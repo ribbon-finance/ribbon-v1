@@ -2904,6 +2904,13 @@ function behavesLikeRibbonOptionsVault(params) {
         assert.equal(await this.vault.replacementVault(), this.v2vault.address);
       });
 
+      it("succeeds in resetting replacementVault", async function () {
+        await this.vault.connect(ownerSigner).sunset(owner);
+        await this.vault.connect(ownerSigner).sunset(this.v2vault.address);
+
+        assert.equal(await this.vault.replacementVault(), this.v2vault.address);
+      });
+
       it("deposits still work after sunset", async function () {
         await this.vault.connect(ownerSigner).sunset(this.v2vault.address);
         const depositAmount = BigNumber.from("10000000000");

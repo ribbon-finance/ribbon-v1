@@ -17,6 +17,7 @@ import {IYearnRegistry, IYearnVault} from "../interfaces/IYearn.sol";
 import {ISwap, Types} from "../interfaces/ISwap.sol";
 import {OtokenInterface} from "../interfaces/GammaInterface.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
+import {IRibbonV2Vault} from "../interfaces/IRibbonVaults.sol";
 
 contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
     using ProtocolAdapter for IProtocolAdapter;
@@ -76,6 +77,15 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
     event WithdrawalFeeSet(uint256 oldFee, uint256 newFee);
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
+
+    event VaultSunset(address replacement);
+
+    event Migrate(
+        address account,
+        address replacement,
+        uint256 shares,
+        uint256 amount
+    );
 
     /**
      * @notice Initializes the contract with immutable variables
@@ -596,6 +606,45 @@ contract RibbonThetaVaultYearn is DSMath, OptionsVaultStorage {
         uint256 oldCap = cap;
         cap = newCap;
         emit CapSet(oldCap, newCap, msg.sender);
+    }
+
+    /**
+     * @notice Closes the vault and makes it withdraw only.
+     */
+    function sunset(address upgradeTo) external onlyOwner {
+        require(upgradeTo != address(0), "!upgradeTo");
+
+        replacementVault = IRibbonV2Vault(upgradeTo);
+
+        emit VaultSunset(upgradeTo);
+    }
+
+    /*
+     * @notice Moves msg.sender's deposited funds to new vault w/o fees
+     */
+    function migrate() external nonReentrant {
+        IRibbonV2Vault vault = replacementVault;
+        require(address(vault) != address(0), "Not sunset");
+
+        uint256 maxShares = maxWithdrawableShares();
+        uint256 share = balanceOf(msg.sender);
+        uint256 allShares = min(maxShares, share);
+
+        (uint256 withdrawAmount, uint256 feeAmount) =
+            withdrawAmountWithShares(allShares);
+
+        // Since we want to exclude fees, we add them both together
+        withdrawAmount = withdrawAmount.add(feeAmount);
+
+        emit Migrate(msg.sender, address(vault), allShares, withdrawAmount);
+
+        _burn(msg.sender, allShares);
+
+        _unwrapYieldToken(withdrawAmount);
+
+        IERC20(asset).safeApprove(address(vault), withdrawAmount);
+
+        vault.depositFor(withdrawAmount, msg.sender);
     }
 
     /**
